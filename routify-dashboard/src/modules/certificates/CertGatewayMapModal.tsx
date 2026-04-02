@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import { gatewayApi } from '../../api/gatewayApi'
 import type { CertificateDto } from '../../types'
 import { X, Link, Loader2, AlertCircle, Info, ChevronDown, Server, FileText } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { extractApiError } from '../../lib/errorUtils'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
 interface Props {
   cert:      CertificateDto
@@ -20,16 +21,18 @@ export default function CertGatewayMapModal({ cert, tenantId, onClose, onSuccess
   const [error, setError] = useState('')
 
   // Fetch active certs to show already-used TLS logical IDs as suggestions
-  const { data: activeCerts = [] } = useQuery({
+  const { data: activeCerts = [] } = useRealtimeQuery({
     queryKey: ['certs-active', tenantId],
     queryFn:  () => certVaultApi.listActiveCertificates(tenantId),
     enabled: !!tenantId,
+    wsEvents: ['certificate'],
   })
 
   // Fetch gateway TLS config to show configured file-source logical IDs as slot suggestions
-  const { data: tlsConfig } = useQuery({
+  const { data: tlsConfig } = useRealtimeQuery({
     queryKey: ['gateway-tls-config'],
     queryFn:  gatewayApi.getTlsConfig,
+    wsEvents: ['gateway'],
   })
 
   // Logical IDs declared in gateway file-source config

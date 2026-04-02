@@ -20,7 +20,8 @@ import java.util.Map;
  * <p>Provides the {@code kafkaListenerContainerFactory} bean required by
  * {@link gr.routify.admin.sse.DashboardEventBroadcaster} and
  * {@link gr.routify.admin.ws.WebSocketEventBroadcaster} for consuming domain
- * events and broadcasting them to SSE/WebSocket clients.
+ * events (route, filter, gateway, tenant, user, certificate, cert-group, audit)
+ * and broadcasting them to SSE/WebSocket clients.
  *
  * <p>Failed records go to {@code <topic>.DLQ} after exponential back-off.
  * The {@link KafkaTemplate} is supplied by {@link KafkaProducerConfig}.

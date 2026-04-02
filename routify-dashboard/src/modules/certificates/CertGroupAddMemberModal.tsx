@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import type { CertGroupDto, CertificateDto } from '../../types'
 import { X, Plus, Loader2, AlertCircle, ShieldCheck, CheckCircle2 } from 'lucide-react'
 import { extractApiError } from '../../lib/errorUtils'
 import { cn } from '../../lib/utils'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
 interface Props {
   group:     CertGroupDto
@@ -19,10 +20,11 @@ export default function CertGroupAddMemberModal({ group, tenantId, onClose, onSu
   const [error,        setError]        = useState('')
 
   // Fetch active certs not already in this group
-  const { data: activeCerts = [], isLoading } = useQuery({
+  const { data: activeCerts = [], isLoading } = useRealtimeQuery({
     queryKey: ['certs-active', tenantId],
     queryFn:  () => certVaultApi.listActiveCertificates(tenantId),
     enabled:  !!tenantId,
+    wsEvents: ['certificate'],
   })
 
   const existingMemberIds = new Set((group.members ?? []).map((m: CertificateDto) => m.id))

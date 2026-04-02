@@ -15,7 +15,7 @@
  */
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   Activity, Shield, Globe, Lock, Gauge, RefreshCw, Server,
@@ -30,6 +30,7 @@ import { routesApi } from '../../api/routesApi'
 import { filtersApi } from '../../api/filtersApi'
 import { useWsStore } from '../../store/wsStore'
 import { useAuthStore } from '../../store/authStore'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { cn } from '../../lib/utils'
 import { Select } from '../../components/ui/Select'
 import type {
@@ -44,9 +45,10 @@ import type {
 // ─── Hook: count filters linked to each gateway config entry ─────────────────
 
 function useLinkedFilterCounts() {
-  const { data } = useQuery({
+  const { data } = useRealtimeQuery({
     queryKey: ['filters'],
     queryFn: () => filtersApi.list({ page: 0, size: 200 }),
+    wsEvents: ['filter'],
   })
   const filters: FilterSummary[] = data?.content ?? []
 
@@ -178,22 +180,22 @@ function OverviewTab({ config }: { config: GatewayConfig }) {
   const wsLoadedRoutes = useWsStore(s => s.wsLoadedRoutes)
   const wsStatus      = useWsStore(s => s.status)
 
-  // Always poll gateway status at 30s — WS carries health + CB states but the
-  // HTTP status endpoint is the authoritative source for loaded-route count.
-  const { data: status } = useQuery({
+  // Gateway status — now driven by WS /topic/metrics invalidation instead of polling.
+  // The WebSocketProvider invalidates ['gateway-status'] on every metrics message
+  // and on route lifecycle events (activate, deactivate, delete, reload).
+  const { data: status } = useRealtimeQuery({
     queryKey: ['gateway-status'],
     queryFn: gatewayApi.getStatus,
-    refetchInterval: 30_000,
+    wsEvents: ['gateway', 'route'],
   })
 
-  // Cheapest possible active-route count: ask for 1 item, read totalElements.
-  // This is always tenant-scoped and reflects DB truth immediately after any
-  // activate / deactivate, even before the gateway finishes its reload.
-  const { data: activeRoutesPage } = useQuery({
+  // Active-route count — invalidated by WebSocketProvider on route lifecycle events.
+  // No polling needed; WS events trigger a refetch within seconds.
+  const { data: activeRoutesPage } = useRealtimeQuery({
     queryKey: ['active-routes-count'],
     queryFn: () => routesApi.list({ status: 'ACTIVE', page: 0, size: 1 }),
-    refetchInterval: 30_000,
     staleTime: 10_000,
+    wsEvents: ['route'],
   })
 
   const reloadMutation = useMutation({
@@ -1099,26 +1101,27 @@ function TlsTab({ initial, onSave, isPending }: {
     EXPIRED:        'text-red-400',
   }
 
-  // ── Live registry from gateway actuator ──────────────────────────────────
-  const { data: liveRegistry, isLoading: liveLoading, refetch: refetchLive } = useQuery({
+  // ── Live registry from gateway actuator — invalidated by WS on gateway.reloaded ──
+  const { data: liveRegistry, isLoading: liveLoading, refetch: refetchLive } = useRealtimeQuery({
     queryKey: ['gateway-live-certs'],
     queryFn: gatewayApi.getLiveCertificates,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    wsEvents: ['gateway', 'certificate'],
   })
 
-  // ── Cert groups mapped to gateway TLS ────────────────────────────────────
-  const { data: groupsPage, isLoading: groupsLoading, refetch: refetchGroups } = useQuery({
+  // ── Cert groups mapped to gateway TLS — invalidated by WS on certificate events ──
+  const { data: groupsPage, isLoading: groupsLoading, refetch: refetchGroups } = useRealtimeQuery({
     queryKey: ['cert-groups', tenantId, 'ACTIVE'],
     queryFn:  () => certVaultApi.listGroups({ tenantId, status: 'ACTIVE', size: 100 }),
     enabled:  !!tenantId,
     staleTime: 30_000,
+    wsEvents: ['certificate'],
   })
 
   const activeGroups: CertGroupDto[] = groupsPage?.content ?? []
 
   // Fetch detail (with members) for each active group in parallel
-  const groupDetailsQueries = useQuery({
+  const groupDetailsQueries = useRealtimeQuery({
     queryKey: ['cert-groups-details-tls', tenantId, activeGroups.map(g => g.id).join(',')],
     queryFn:  async () => {
       if (activeGroups.length === 0) return []
@@ -1126,6 +1129,7 @@ function TlsTab({ initial, onSave, isPending }: {
     },
     enabled:  !!tenantId && activeGroups.length > 0,
     staleTime: 30_000,
+    wsEvents: ['certificate'],
   })
   const groupsWithMembers: CertGroupDto[] = (groupDetailsQueries.data as CertGroupDto[] | undefined) ?? activeGroups
 
@@ -1841,9 +1845,10 @@ export default function GatewayPage() {
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<GatewayTab>('overview')
 
-  const { data: config, isLoading } = useQuery({
+  const { data: config, isLoading } = useRealtimeQuery({
     queryKey: ['gateway-config'],
     queryFn: gatewayApi.getConfig,
+    wsEvents: ['gateway'],
   })
 
   // Section mutations

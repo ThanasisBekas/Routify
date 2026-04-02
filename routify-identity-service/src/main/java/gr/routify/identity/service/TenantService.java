@@ -1,5 +1,6 @@
 package gr.routify.identity.service;
 
+import gr.routify.common.domain.TenantPlan;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.exception.RoutifyException;
@@ -65,6 +66,32 @@ public class TenantService {
                 Instant.now(), null, null));
 
         log.info("Tenant created: id={} slug={} plan={}", saved.getId(), saved.getSlug(), saved.getPlan());
+        return saved;
+    }
+
+    @Transactional
+    public Tenant update(UUID id, String name, TenantPlan plan, String contactEmail) {
+        Tenant tenant = findById(id);
+
+        if (name != null && !name.isBlank() && !name.equals(tenant.getName())) {
+            if (tenantRepository.existsByName(name)) {
+                throw new RoutifyException.Conflict("Tenant name '%s' already exists".formatted(name));
+            }
+            tenant.setName(name);
+        }
+        if (plan != null) {
+            tenant.upgradePlan(plan);
+        }
+        if (contactEmail != null) {
+            tenant.setContactEmail(contactEmail);
+        }
+
+        Tenant saved = tenantRepository.save(tenant);
+
+        publishEvent(new DomainEvent.TenantUpdated(
+                UUID.randomUUID(), id, saved.getName(), Instant.now(), null, null));
+
+        log.info("Tenant updated: id={} name={} plan={}", saved.getId(), saved.getName(), saved.getPlan());
         return saved;
     }
 

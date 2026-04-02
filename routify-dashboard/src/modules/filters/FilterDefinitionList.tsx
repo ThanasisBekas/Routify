@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { filtersApi } from '../../api/filtersApi'
 import FilterDefinitionForm from './FilterDefinitionForm'
 import type { FilterSummary } from '../../types'
 import { Filter, Plus, Pencil, Trash2, Loader2, Link } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
 const FILTER_TYPE_COLORS: Record<string, string> = {
   AUTH_JWT:                'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
@@ -19,9 +20,10 @@ export default function FilterDefinitionList() {
   const [showForm,   setShowForm]   = useState(false)
   const [editingId,  setEditingId]  = useState<string | undefined>()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useRealtimeQuery({
     queryKey: ['filters'],
     queryFn: () => filtersApi.list({ page: 0, size: 50 }),
+    wsEvents: ['filter'],
   })
 
   const deleteMutation = useMutation({

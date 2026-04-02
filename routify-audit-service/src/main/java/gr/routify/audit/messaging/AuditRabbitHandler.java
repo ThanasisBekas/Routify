@@ -7,6 +7,7 @@ import gr.routify.audit.domain.RequestLog;
 import gr.routify.audit.replay.FailedRequestReplayService;
 import gr.routify.audit.repository.AuditLogRepository;
 import gr.routify.audit.repository.RequestLogRepository;
+import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.RabbitTopology;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -37,6 +39,7 @@ public class AuditRabbitHandler {
     private final RequestLogRepository       requestLogRepository;
     private final FailedRequestReplayService replayService;
     private final ObjectMapper               objectMapper;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     // ─── Audit Event Queries ──────────────────────────────────────────────────
 
@@ -268,6 +271,10 @@ public class AuditRabbitHandler {
             response.put("outcome",        result.outcome().name());
             response.put("responseStatus", result.responseStatus());
             response.put("message",        result.message());
+
+            // Publish replay event to Kafka for real-time WebSocket broadcast
+            publishReplayEvent("REPLAY_COMPLETED", tenantId, response);
+
             return objectMapper.writeValueAsString(response);
         } catch (Exception e) {
             log.error("RabbitMQ: audit.replay.single failed: {}", e.getMessage(), e);
@@ -290,6 +297,10 @@ public class AuditRabbitHandler {
             response.put("succeeded", result.succeeded());
             response.put("failed",    result.failed());
             response.put("skipped",   result.skipped());
+
+            // Publish bulk replay event to Kafka for real-time WebSocket broadcast
+            publishReplayEvent("REPLAY_BULK_COMPLETED", tenantId, response);
+
             return objectMapper.writeValueAsString(response);
         } catch (Exception e) {
             log.error("RabbitMQ: audit.replay.bulk failed: {}", e.getMessage(), e);
@@ -298,6 +309,24 @@ public class AuditRabbitHandler {
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Publishes a replay event to Kafka's AUDIT_EVENTS topic so that
+     * routify-admin-api's WebSocket broadcaster can push it to the dashboard.
+     */
+    private void publishReplayEvent(String eventType, UUID tenantId, Map<String, Object> data) {
+        try {
+            Map<String, Object> event = new HashMap<>(data);
+            event.put("eventType",  eventType);
+            event.put("tenantId",   tenantId != null ? tenantId.toString() : null);
+            event.put("occurredAt", Instant.now().toString());
+            kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS,
+                    tenantId != null ? tenantId.toString() : "",
+                    objectMapper.writeValueAsString(event));
+        } catch (Exception e) {
+            log.warn("Failed to publish replay event to Kafka: {}", e.getMessage());
+        }
+    }
 
     private Map<String, Object> auditToMap(AuditLogEntry e) {
         Map<String, Object> m = new HashMap<>();

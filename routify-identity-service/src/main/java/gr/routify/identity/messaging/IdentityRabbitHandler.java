@@ -236,6 +236,15 @@ public class IdentityRabbitHandler {
                 }
                 case "SUSPEND_TENANT"    -> tenantService.suspend(tenantId, str(req.getOrDefault("reason", "Administrative action")));
                 case "REACTIVATE_TENANT" -> tenantService.reactivate(tenantId);
+                case "UPDATE_TENANT"     -> {
+                    String planStr = str(req.get("plan"));
+                    TenantPlan plan = null;
+                    if (planStr != null && !planStr.isBlank()) {
+                        try { plan = TenantPlan.valueOf(planStr.toUpperCase()); }
+                        catch (IllegalArgumentException ex) { log.warn("Unknown plan '{}' — ignoring", planStr); }
+                    }
+                    yield tenantService.update(tenantId, str(req.get("name")), plan, str(req.get("contactEmail")));
+                }
                 default -> throw new IllegalArgumentException("Unknown tenant command: " + command);
             };
 
