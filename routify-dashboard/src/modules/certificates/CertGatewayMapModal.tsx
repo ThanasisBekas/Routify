@@ -5,6 +5,7 @@ import { gatewayApi } from '../../api/gatewayApi'
 import type { CertificateDto } from '../../types'
 import { X, Link, Loader2, AlertCircle, Info, ChevronDown, Server, FileText } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { extractApiError } from '../../lib/errorUtils'
 
 interface Props {
   cert:      CertificateDto
@@ -55,7 +56,7 @@ export default function CertGatewayMapModal({ cert, tenantId, onClose, onSuccess
   const mapMutation = useMutation({
     mutationFn: () => certVaultApi.mapToGateway(cert.id, tenantId, gatewayLogicalId),
     onSuccess:  () => onSuccess(),
-    onError:    (e: any) => setError(e?.response?.data?.detail ?? e.message ?? 'Mapping failed'),
+    onError:    (e: unknown) => setError(extractApiError(e, 'Mapping failed')),
   })
 
   const handleSubmit = (e: React.FormEvent) => {

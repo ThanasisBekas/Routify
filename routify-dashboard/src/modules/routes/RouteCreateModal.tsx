@@ -6,6 +6,7 @@ import { X, AlertCircle, Route } from 'lucide-react'
 import { routesApi } from '../../api/routesApi'
 import type { CreateRouteRequest } from '../../types'
 import { cn } from '../../lib/utils'
+import { extractApiError } from '../../lib/errorUtils'
 import { METHOD_OPTIONS, METHOD_COLORS_MODAL as METHOD_COLORS } from './routeConstants'
 
 const schema = z.object({
@@ -145,7 +146,7 @@ export default function RouteCreateModal({
           {mutation.isError && (
             <div className="flex items-start gap-2.5 p-3.5 bg-red-500/[0.08] border border-red-500/20 rounded-xl text-sm text-red-300">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
-              <span>{(mutation.error as any)?.response?.data?.detail ?? 'Failed to create route'}</span>
+              <span>{extractApiError(mutation.error, 'Failed to create route')}</span>
             </div>
           )}
 

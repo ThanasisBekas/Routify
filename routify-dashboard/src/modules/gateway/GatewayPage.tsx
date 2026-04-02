@@ -211,7 +211,7 @@ function OverviewTab({ config }: { config: GatewayConfig }) {
   const health = wsHealth ?? status?.health
 
   // Loaded-route count — priority: WS metric > gateway /status > active routes from DB
-  const gatewayRouteCount = (status?.routes as any)?.count as number | undefined
+  const gatewayRouteCount = status?.routes?.count
   const loadedRoutes =
     wsLoadedRoutes ??          // real-time WS metric (if backend sends it)
     gatewayRouteCount ??       // HTTP /status poll
@@ -243,7 +243,7 @@ function OverviewTab({ config }: { config: GatewayConfig }) {
             {health?.components && Object.entries(health.components as Record<string, {status:string}>).map(([k, v]) => (
               <div key={k} className="flex justify-between">
                 <span className="capitalize">{k}</span>
-                <StatusBadge state={(v as any).status ?? 'UNKNOWN'} />
+                <StatusBadge state={(v as { status: string }).status ?? 'UNKNOWN'} />
               </div>
             ))}
           </div>
@@ -1624,7 +1624,7 @@ function NetworkingTab({ initialProxy, initialHttp, onSaveProxy, onSaveHttp, isP
             { key: 'acquireTimeoutMs',      label: 'Acquire Timeout (ms)' },
           ].map(({ key, label }) => (
             <Field key={key} label={label}>
-              <input type="number" value={(http as any)[key]} onChange={e => setHttp(p => ({ ...p, [key]: Number(e.target.value) }))}
+              <input type="number" value={http[key as keyof GatewayHttpClientConfig] as number} onChange={e => setHttp(p => ({ ...p, [key]: Number(e.target.value) }))}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
             </Field>
           ))}

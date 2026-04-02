@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import type { CertGroupDto } from '../../types'
 import { X, Layers, Loader2, AlertCircle, Info } from 'lucide-react'
+import { extractApiError } from '../../lib/errorUtils'
 
 interface Props {
   tenantId: string
@@ -23,13 +24,13 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
   const createMutation = useMutation({
     mutationFn: () => certVaultApi.createGroup(tenantId, { logicalId, alias, description: description || undefined }),
     onSuccess:  () => onSuccess(),
-    onError:    (e: any) => setError(e?.response?.data?.detail ?? e.message ?? 'Creation failed'),
+    onError:    (e: unknown) => setError(extractApiError(e, 'Creation failed')),
   })
 
   const updateMutation = useMutation({
     mutationFn: () => certVaultApi.updateGroup(group!.id, tenantId, { alias, description: description || undefined }),
     onSuccess:  () => onSuccess(),
-    onError:    (e: any) => setError(e?.response?.data?.detail ?? e.message ?? 'Update failed'),
+    onError:    (e: unknown) => setError(extractApiError(e, 'Update failed')),
   })
 
   const isPending = createMutation.isPending || updateMutation.isPending
@@ -43,7 +44,7 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
       setError('Logical ID must be URL-safe (lowercase alphanumeric, hyphens, underscores, dots)')
       return
     }
-    isEdit ? updateMutation.mutate() : createMutation.mutate()
+    if (isEdit) { updateMutation.mutate() } else { createMutation.mutate() }
   }
 
   return (

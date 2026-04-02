@@ -417,7 +417,7 @@ export const auditEvents: AuditEntry[] = [
 
 // ─── Gateway Configuration ────────────────────────────────────────────────────
 
-export let gatewayConfig: GatewayConfig = {
+export const gatewayConfig: GatewayConfig = {
   updatedAt: daysAgo(1),
   updatedBy: 'admin',  cors: {
     enabled: true,
@@ -609,7 +609,7 @@ export const requestLogs: RequestLogDto[] = Array.from({ length: 80 }, (_, i) =>
 
 // ─── Failed requests store (mutable for replay simulation) ───────────────────
 
-export let failedRequests: FailedRequestDto[] = requestLogs
+export const failedRequests: FailedRequestDto[] = requestLogs
   .filter(r => r.failed)
   .map(r => ({
     id: r.id,

@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import type { CertGroupDto, CertificateDto } from '../../types'
 import { X, Plus, Loader2, AlertCircle, ShieldCheck, CheckCircle2 } from 'lucide-react'
+import { extractApiError } from '../../lib/errorUtils'
 import { cn } from '../../lib/utils'
 
 interface Props {
@@ -33,7 +34,7 @@ export default function CertGroupAddMemberModal({ group, tenantId, onClose, onSu
       memberAlias: memberAlias.trim() || undefined,
     }),
     onSuccess: () => onSuccess(),
-    onError:   (e: any) => setError(e?.response?.data?.detail ?? e.message ?? 'Failed to add member'),
+    onError:   (e: unknown) => setError(extractApiError(e, 'Failed to add member')),
   })
 
   const handleSubmit = (e: React.FormEvent) => {
