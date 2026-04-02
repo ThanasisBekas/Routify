@@ -87,6 +87,27 @@ jobs:
       - name: Push release branch
         run: git push origin "release/${{ inputs.release_number }}"
 
+      - name: Bump develop to next SNAPSHOT
+        run: |
+          SNAPSHOT_VERSION="${{ steps.version.outputs.release_version }}-SNAPSHOT"
+          git checkout develop
+
+          mvn versions:set \
+            -DnewVersion=${SNAPSHOT_VERSION} \
+            -DgenerateBackupPoms=false \
+            -B -q
+
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('routify-dashboard/package.json', 'utf8'));
+            pkg.version = '${SNAPSHOT_VERSION}';
+            fs.writeFileSync('routify-dashboard/package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+          git add -A
+          git commit -m "chore: bump develop to ${SNAPSHOT_VERSION} after release/${{ inputs.release_number }}"
+          git push origin develop
+
       - name: Create GitHub Release (draft)
         uses: softprops/action-gh-release@v2
         with:
@@ -104,5 +125,6 @@ jobs:
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Branch | \`release/${{ inputs.release_number }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Version | \`${{ steps.version.outputs.release_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Develop | \`${{ steps.version.outputs.release_version }}-SNAPSHOT\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Source | \`develop\` @ \`$(git rev-parse --short HEAD~1)\` |" >> "$GITHUB_STEP_SUMMARY"
 
