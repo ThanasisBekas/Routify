@@ -6,9 +6,9 @@ name: Routify CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'release/**']
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, 'release/**']
 
 concurrency:
   group: ci-${{ github.ref }}
