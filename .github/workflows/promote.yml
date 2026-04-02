@@ -1,10 +1,10 @@
-name: Promote Release to Main
+name: Promote Release to Master
 
 on:
   workflow_dispatch:
     inputs:
       release_number:
-        description: 'Release number to promote (e.g. 123 merges release/123 into main)'
+        description: 'Release number to promote (e.g. 123 merges release/123 into master)'
         required: true
         type: string
 
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   promote:
-    name: Merge Release into Main
+    name: Merge Release into Master
     runs-on: ubuntu-latest
     steps:
       - name: Validate input
@@ -27,10 +27,10 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout main
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: master
           fetch-depth: 0
 
       - name: Configure git
@@ -48,18 +48,18 @@ jobs:
       - name: Fetch release branch
         run: git fetch origin "release/${{ inputs.release_number }}"
 
-      - name: Merge release into main
+      - name: Merge release into master
         run: |
           RELEASE_VERSION="1.0.${{ inputs.release_number }}"
           git merge \
             --no-ff \
             "origin/release/${{ inputs.release_number }}" \
-            -m "release: merge release/${RELEASE_NUMBER} (v${RELEASE_VERSION}) into main"
+            -m "release: merge release/${RELEASE_NUMBER} (v${RELEASE_VERSION}) into master"
         env:
           RELEASE_NUMBER: ${{ inputs.release_number }}
 
-      - name: Push main
-        run: git push origin main
+      - name: Push master
+        run: git push origin master
 
       - name: Tag release
         run: |
@@ -75,11 +75,11 @@ jobs:
           draft: false
           generate_release_notes: true
 
-      - name: Back-merge main into develop
+      - name: Back-merge master into develop
         run: |
           git fetch origin develop
           git checkout develop
-          git merge main -m "chore: back-merge main into develop after release/${{ inputs.release_number }}"
+          git merge master -m "chore: back-merge master into develop after release/${{ inputs.release_number }}"
           git push origin develop
 
       - name: Delete release branch
@@ -93,8 +93,7 @@ jobs:
           echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Version | \`v${RELEASE_VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Merged | \`release/${{ inputs.release_number }}\` → \`main\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Merged | \`release/${{ inputs.release_number }}\` → \`master\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Tag | \`v${RELEASE_VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Back-merged | \`main\` → \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Back-merged | \`master\` → \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Cleanup | \`release/${{ inputs.release_number }}\` branch deleted |" >> "$GITHUB_STEP_SUMMARY"
-
