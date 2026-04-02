@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.admin.gateway.dto.GatewayConfigDto;
 import gr.routify.admin.gateway.dto.GatewayConfigDto.*;
 import gr.routify.common.web.RoutifyHeaders;
+import gr.routify.common.web.Sensitive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -169,8 +170,6 @@ public class GatewayConfigService {
         return persistAndNotify(cfg, updatedBy, "RESILIENCE");
     }
 
-    /** Sentinel returned by the controller's maskSecrets() — never persist it back over the real secret. */
-    private static final String SECRET_MASK = "••••••••";
 
     public GatewayConfigDto upsertAuthProvider(AuthProviderDto provider, String updatedBy) {
         GatewayConfigDto cfg = getConfig();
@@ -181,10 +180,10 @@ public class GatewayConfigService {
             .filter(p -> provider.getId() != null && provider.getId().equals(p.getId()))
             .findFirst()
             .ifPresent(existing -> {
-                if (SECRET_MASK.equals(provider.getClientSecret())) {
+                if (Sensitive.isMasked(provider.getClientSecret())) {
                     provider.setClientSecret(existing.getClientSecret());
                 }
-                if (SECRET_MASK.equals(provider.getPassword())) {
+                if (Sensitive.isMasked(provider.getPassword())) {
                     provider.setPassword(existing.getPassword());
                 }
             });
@@ -211,7 +210,7 @@ public class GatewayConfigService {
         if (tls != null && tls.getFileSources() != null && cfg.getTlsConfig() != null
                 && cfg.getTlsConfig().getFileSources() != null) {
             tls.getFileSources().forEach(incoming -> {
-                if (SECRET_MASK.equals(incoming.getPrivateKeyPassword())) {
+                if (Sensitive.isMasked(incoming.getPrivateKeyPassword())) {
                     cfg.getTlsConfig().getFileSources().stream()
                             .filter(existing -> incoming.getLogicalId() != null
                                     && incoming.getLogicalId().equals(existing.getLogicalId()))
@@ -223,7 +222,7 @@ public class GatewayConfigService {
         if (tls != null && tls.getDirectorySources() != null && cfg.getTlsConfig() != null
                 && cfg.getTlsConfig().getDirectorySources() != null) {
             tls.getDirectorySources().forEach(incoming -> {
-                if (SECRET_MASK.equals(incoming.getPrivateKeyPassword())) {
+                if (Sensitive.isMasked(incoming.getPrivateKeyPassword())) {
                     cfg.getTlsConfig().getDirectorySources().stream()
                             .filter(existing -> incoming.getDirectoryPath() != null
                                     && incoming.getDirectoryPath().equals(existing.getDirectoryPath()))
@@ -240,7 +239,7 @@ public class GatewayConfigService {
     public GatewayConfigDto updateProxyConfig(ProxyConfigDto proxy, String updatedBy) {
         GatewayConfigDto cfg = getConfig();
         // Preserve the stored password when the mask sentinel is submitted
-        if (proxy != null && SECRET_MASK.equals(proxy.getPassword())
+        if (proxy != null && Sensitive.isMasked(proxy.getPassword())
                 && cfg.getProxyConfig() != null) {
             proxy.setPassword(cfg.getProxyConfig().getPassword());
         }

@@ -3,6 +3,7 @@ package gr.routify.admin.controller;
 import gr.routify.admin.client.RouteFilterMessagingClient;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.AsyncAcknowledgement;
+import gr.routify.common.web.RoutifyHeaders;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -33,7 +34,7 @@ public class AdminRoutesController {
 
     @GetMapping
     public ResponseEntity<QueryResponse.RoutesPage> listRoutes(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -46,7 +47,7 @@ public class AdminRoutesController {
     @GetMapping("/{id}")
     public ResponseEntity<QueryResponse.RouteDetail> getRoute(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId) {
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
         return ResponseEntity.ok(messagingClient.getRoute(id, tenantId));
     }
 
@@ -54,11 +55,11 @@ public class AdminRoutesController {
 
     @PostMapping
     public ResponseEntity<AsyncAcknowledgement> createRoute(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendCreateRoute(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Route creation in progress"));
@@ -67,11 +68,11 @@ public class AdminRoutesController {
     @PutMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> updateRoute(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendUpdateRoute(id, tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Route update in progress"));
@@ -80,10 +81,10 @@ public class AdminRoutesController {
     @PostMapping("/{id}/activate")
     public ResponseEntity<AsyncAcknowledgement> activateRoute(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendActivateRoute(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Route activation in progress"));
@@ -92,10 +93,10 @@ public class AdminRoutesController {
     @PostMapping("/{id}/deactivate")
     public ResponseEntity<AsyncAcknowledgement> deactivateRoute(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendDeactivateRoute(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Route deactivation in progress"));
@@ -104,10 +105,10 @@ public class AdminRoutesController {
     @DeleteMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> deleteRoute(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendDeleteRoute(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Route deletion in progress"));
@@ -116,10 +117,10 @@ public class AdminRoutesController {
     @PostMapping("/{id}/clone")
     public ResponseEntity<QueryResponse.RouteDetail> cloneRoute(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(messagingClient.cloneRoute(id, tenantId, actor));
     }
@@ -129,11 +130,11 @@ public class AdminRoutesController {
     @PostMapping("/{id}/filters")
     public ResponseEntity<AsyncAcknowledgement> attachFilter(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor   = resolveActor(userId, auth);
+        String actor   = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         UUID filterId  = UUID.fromString(request.get("filterId").toString());
         int  order     = request.get("order") != null ? Integer.parseInt(request.get("order").toString()) : 0;
         String phase   = request.getOrDefault("phase", "PRE").toString();
@@ -146,19 +147,12 @@ public class AdminRoutesController {
     public ResponseEntity<AsyncAcknowledgement> detachFilter(
             @PathVariable UUID id,
             @PathVariable UUID filterId,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendDetachFilter(id, filterId, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Filter detach in progress"));
-    }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-
-    private static String resolveActor(String userId, Authentication auth) {
-        if (userId != null && !userId.isBlank()) return userId;
-        return auth != null ? auth.getName() : "system";
     }
 }

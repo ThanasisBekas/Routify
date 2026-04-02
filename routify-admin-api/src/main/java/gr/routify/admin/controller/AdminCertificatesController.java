@@ -3,6 +3,7 @@ package gr.routify.admin.controller;
 import gr.routify.admin.client.CertVaultMessagingClient;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.AsyncAcknowledgement;
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +38,7 @@ public class AdminCertificatesController {
 
     @GetMapping
     public ResponseEntity<QueryResponse.CertsPage> listCertificates(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -52,7 +53,7 @@ public class AdminCertificatesController {
     @GetMapping("/{id}")
     public ResponseEntity<QueryResponse.CertDetail> getCertificate(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId) {
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
         return ResponseEntity.ok(messagingClient.getCertificate(id, tenantId));
     }
 
@@ -60,7 +61,7 @@ public class AdminCertificatesController {
 
     @GetMapping("/stats")
     public ResponseEntity<QueryResponse.CertStatsResult> getStats(
-            @RequestHeader(value = "X-Tenant-Id", required = false) UUID tenantId) {
+            @RequestHeader(value = RoutifyHeaders.TENANT_ID, required = false) UUID tenantId) {
         return ResponseEntity.ok(messagingClient.getCertVaultStats(tenantId));
     }
 
@@ -87,11 +88,11 @@ public class AdminCertificatesController {
      */
     @PostMapping
     public ResponseEntity<AsyncAcknowledgement> uploadCertificate(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendUploadCertificate(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate upload in progress"));
@@ -102,10 +103,10 @@ public class AdminCertificatesController {
     @PostMapping("/{id}/revoke")
     public ResponseEntity<AsyncAcknowledgement> revokeCertificate(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendRevokeCertificate(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate revocation in progress"));
@@ -116,19 +117,12 @@ public class AdminCertificatesController {
     @DeleteMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> deleteCertificate(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendDeleteCertificate(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate deletion in progress"));
-    }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    private static String resolveActor(String userId, Authentication auth) {
-        if (userId != null && !userId.isBlank()) return userId;
-        return auth != null ? auth.getName() : "system";
     }
 }

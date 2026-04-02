@@ -3,6 +3,7 @@ package gr.routify.admin.controller;
 import gr.routify.admin.client.RouteFilterMessagingClient;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.AsyncAcknowledgement;
+import gr.routify.common.web.RoutifyHeaders;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,7 +29,7 @@ public class AdminFiltersController {
 
     @GetMapping
     public ResponseEntity<QueryResponse.FiltersPage> listFilters(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -40,17 +41,17 @@ public class AdminFiltersController {
     @GetMapping("/{id}")
     public ResponseEntity<QueryResponse.FilterDetail> getFilter(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId) {
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
         return ResponseEntity.ok(messagingClient.getFilter(id, tenantId));
     }
 
     @PostMapping
     public ResponseEntity<AsyncAcknowledgement> createFilter(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendCreateFilter(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Filter creation in progress"));
@@ -59,11 +60,11 @@ public class AdminFiltersController {
     @PutMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> updateFilter(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendUpdateFilter(id, tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Filter update in progress"));
@@ -72,10 +73,10 @@ public class AdminFiltersController {
     @DeleteMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> deleteFilter(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendDeleteFilter(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Filter deletion in progress"));

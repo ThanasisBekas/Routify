@@ -48,7 +48,7 @@ public class AdminUsersController {
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = auth != null ? auth.getName() : "system";
+        String actor = RoutifyHeaders.resolveActor(null, auth != null ? auth.getName() : null);
         messagingClient.sendCreateUser(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("User creation in progress"));
@@ -60,7 +60,7 @@ public class AdminUsersController {
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = auth != null ? auth.getName() : "system";
+        String actor = RoutifyHeaders.resolveActor(null, auth != null ? auth.getName() : null);
         messagingClient.sendUpdateUser(id, tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("User update in progress"));
@@ -71,7 +71,7 @@ public class AdminUsersController {
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             Authentication auth) {
-        String actor = auth != null ? auth.getName() : "system";
+        String actor = RoutifyHeaders.resolveActor(null, auth != null ? auth.getName() : null);
         messagingClient.sendDeleteUser(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("User deletion in progress"));

@@ -7,6 +7,7 @@ import gr.routify.admin.gateway.service.GatewayConfigService;
 import gr.routify.admin.client.CertVaultMessagingClient;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.RoutifyHeaders;
+import gr.routify.common.web.Sensitive;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -173,7 +174,9 @@ public class GatewayConfigController {
 
     @GetMapping("/auth-providers")
     public ResponseEntity<List<AuthProviderDto>> getAuthProviders() {
-        return ResponseEntity.ok(maskSecrets(configService.getAuthProviders()));
+        List<AuthProviderDto> providers = configService.getAuthProviders();
+        providers.forEach(Sensitive::maskFields);
+        return ResponseEntity.ok(providers);
     }
 
     @PutMapping("/auth-providers/{providerId}")
@@ -197,7 +200,9 @@ public class GatewayConfigController {
 
     @GetMapping("/tls")
     public ResponseEntity<TlsConfigDto> getTlsConfig() {
-        return ResponseEntity.ok(maskTlsSecrets(configService.getTlsConfig()));
+        TlsConfigDto tls = configService.getTlsConfig();
+        Sensitive.maskFields(tls);
+        return ResponseEntity.ok(tls);
     }
 
     @PutMapping("/tls")
@@ -228,7 +233,7 @@ public class GatewayConfigController {
     @GetMapping("/proxy")
     public ResponseEntity<ProxyConfigDto> getProxyConfig() {
         ProxyConfigDto proxy = configService.getProxyConfig();
-        if (proxy != null) proxy.setPassword(mask(proxy.getPassword()));
+        Sensitive.maskFields(proxy);
         return ResponseEntity.ok(proxy);
     }
 
@@ -284,47 +289,6 @@ public class GatewayConfigController {
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private String actor(Authentication auth) {
-        return auth != null ? auth.getName() : "system";
-    }
-
-    private List<AuthProviderDto> maskSecrets(List<AuthProviderDto> providers) {
-        return providers.stream().map(p -> {
-            var copy = new AuthProviderDto();
-            copy.setId(p.getId());
-            copy.setName(p.getName());
-            copy.setType(p.getType());
-            copy.setUri(p.getUri());
-            copy.setClientId(p.getClientId());
-            copy.setClientSecret(mask(p.getClientSecret()));
-            copy.setScope(p.getScope());
-            copy.setUsername(p.getUsername());
-            copy.setPassword(mask(p.getPassword()));
-            copy.setParameterStyle(p.getParameterStyle());
-            copy.setParameterName(p.getParameterName());
-            copy.setAdditionalParameters(p.getAdditionalParameters());
-            copy.setEnabled(p.isEnabled());
-            copy.setJwksUri(p.getJwksUri());
-            copy.setIssuer(p.getIssuer());
-            copy.setAudience(p.getAudience());
-            copy.setAlgorithm(p.getAlgorithm());
-            return copy;
-        }).toList();
-    }
-
-
-    private String mask(String value) {
-        if (value == null || value.isBlank()) return null;
-        return "••••••••";
-    }
-
-    private TlsConfigDto maskTlsSecrets(TlsConfigDto tls) {
-        if (tls == null) return null;
-        if (tls.getFileSources() != null) {
-            tls.getFileSources().forEach(s -> s.setPrivateKeyPassword(mask(s.getPrivateKeyPassword())));
-        }
-        if (tls.getDirectorySources() != null) {
-            tls.getDirectorySources().forEach(s -> s.setPrivateKeyPassword(mask(s.getPrivateKeyPassword())));
-        }
-        return tls;
+        return RoutifyHeaders.resolveActor(null, auth != null ? auth.getName() : null);
     }
 }
