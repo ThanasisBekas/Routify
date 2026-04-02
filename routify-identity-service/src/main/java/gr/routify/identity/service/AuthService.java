@@ -113,7 +113,7 @@ public class AuthService {
 
             AppUser user = userRepository.findById(
                     java.util.UUID.fromString(claims.getSubject()))
-                    .orElseThrow(() -> new RoutifyException.Unauthorized("User not found"));
+                    .orElseThrow(() -> new RoutifyException.Unauthorized("Invalid or expired refresh token"));
 
             if (!user.isActive()) {
                 throw new RoutifyException.Unauthorized("Account is not active");

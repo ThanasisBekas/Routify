@@ -232,6 +232,20 @@ export default function FilterDefinitionForm({
     setGatewayConfigRef(null)
   }
 
+  // When a VAULT_CERT ref is selected, sync the logicalId into config automatically
+  const handleGatewayConfigRefChange = (ref: GatewayConfigRef | null) => {
+    setGatewayConfigRef(ref)
+    if (ref?.refType === 'VAULT_CERT') {
+      setConfig(prev => ({ ...prev, logicalId: ref.refId }))
+    } else if (ref === null) {
+      // Clear logicalId when unlinking a VAULT_CERT ref
+      const currentRefType = FILTER_TYPES_WITH_GATEWAY_REF[filterType]
+      if (currentRefType === 'VAULT_CERT') {
+        setConfig(prev => ({ ...prev, logicalId: '' }))
+      }
+    }
+  }
+
   const createMutation = useMutation({
     mutationFn: (req: CreateFilterRequest) => filtersApi.create(req),
     onSuccess: onSaved,
@@ -341,7 +355,7 @@ export default function FilterDefinitionForm({
                 <GatewayConfigRefPicker
                   filterType={filterType}
                   value={gatewayConfigRef}
-                  onChange={setGatewayConfigRef}
+                  onChange={handleGatewayConfigRefChange}
                   onNavigateToGateway={() => {
                     // Open gateway page in a new tab — users can also navigate via the sidebar
                     window.open('/gateway', '_blank')

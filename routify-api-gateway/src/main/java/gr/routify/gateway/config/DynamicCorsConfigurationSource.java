@@ -26,9 +26,9 @@ import java.util.Objects;
  *
  * <h3>Fallback chain</h3>
  * <ol>
- *   <li>DB config (loaded from route-service via {@code GatewayConfigLoader})</li>
- *   <li>Env-var {@code CORS_ALLOWED_ORIGINS} — used when DB config is absent/disabled</li>
- *   <li>Hard-coded default {@code http://localhost:5173}</li>
+ *   <li>DB config present + {@code enabled=true}  → full dynamic CORS config</li>
+ *   <li>DB config present + {@code enabled=false} → {@code null} returned; CORS is fully off</li>
+ *   <li>DB config absent (not yet loaded)         → env-var {@code CORS_ALLOWED_ORIGINS} / hard-coded {@code http://localhost:5173}</li>
  * </ol>
  *
  * <h3>Thread safety</h3>
@@ -55,12 +55,20 @@ public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
     public CorsConfiguration getCorsConfiguration(@NonNull ServerWebExchange exchange) {
         CorsConfig dbCors = loadFromDb();
 
-        if (dbCors != null && dbCors.isEnabled()) {
+        if (dbCors != null) {
+            // Config is present in DB: honour the enabled flag explicitly.
+            if (!dbCors.isEnabled()) {
+                // CORS is intentionally disabled — return null so the gateway
+                // applies no CORS headers at all (browser preflight will be refused).
+                log.debug("CORS: DB config is present but disabled — CORS is off");
+                return null;
+            }
             return buildFromDbConfig(dbCors, exchange.getRequest());
         }
 
-        // Fallback: env-var / hard-coded defaults
-        log.debug("CORS: DB config absent or disabled — using fallback origins: {}", fallbackOrigins);
+        // Config not yet loaded from DB (startup race or route-service unavailable).
+        // Fall back to env-var / hard-coded origins so the dashboard remains usable.
+        log.debug("CORS: DB config not yet available — using fallback origins: {}", fallbackOrigins);
         return buildFallback();
     }
 

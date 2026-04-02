@@ -158,8 +158,8 @@ public class RouteDefinitionBuilder {
             case "AUTH_API_KEY" -> customFilter("ApiKeyAuth", cfg);
             case "AUTH_BASIC" -> customFilter("BasicAuth", cfg);
             case "AUTH_OAUTH2" -> customFilter("OAuth2TokenIntrospect", cfg);
-            case "AUTH_MTLS" -> customFilter("MtlsAuth", cfg);
-            case "AUTH_CLIENT_ID" -> customFilter("ClientIdAuth", cfg);
+            case "AUTH_MTLS" -> indexedValuesFilter("MtlsAuth", cfg);
+            case "AUTH_CLIENT_ID" -> indexedValuesFilter("ClientIdAuth", cfg);
             case "AUTH_NONE" -> null; // No filter needed
 
             // ─── Downstream Auth Injection ────────────────────────────────────
@@ -295,6 +295,55 @@ public class RouteDefinitionBuilder {
                 yield null;
             }
         };
+    }
+
+    /**
+     * Builds a {@link FilterDefinition} for filter factories whose Config class has a
+     * {@code List<SomeComplexType> values} field (e.g. {@code ClientIdAuth}, {@code MtlsAuth}).
+     *
+     * <p>Spring Cloud Gateway's property binder cannot convert a flat {@link String} to a
+     * {@code List<NameValueConfig>} or similar complex list type. Instead we expand the
+     * {@code values} entry — which must be a {@link java.util.List} of {@link java.util.Map}s —
+     * into indexed args: {@code values[0].name}, {@code values[0].value}, etc.
+     *
+     * <p>All other config entries are serialised as flat strings via the usual
+     * {@link #customFilter} path.
+     *
+     * @param name the SCG filter factory name
+     * @param cfg  the resolved config map (may contain a {@code values} key with a List of Maps)
+     */
+    @SuppressWarnings("unchecked")
+    private static FilterDefinition indexedValuesFilter(String name, Map<String, Object> cfg) {
+        var f = new FilterDefinition();
+        f.setName(name);
+        var args = new LinkedHashMap<String, String>();
+
+        cfg.forEach((k, v) -> {
+            if (!"values".equals(k)) {
+                args.put(k, v != null ? v.toString() : "");
+                return;
+            }
+            // Expand values list into indexed args: values[i].fieldName = fieldValue
+            if (v instanceof List<?> list) {
+                for (int i = 0; i < list.size(); i++) {
+                    Object entry = list.get(i);
+                    if (entry instanceof Map<?, ?> entryMap) {
+                        for (Map.Entry<?, ?> e : entryMap.entrySet()) {
+                            args.put("values[" + i + "]." + e.getKey(),
+                                    e.getValue() != null ? e.getValue().toString() : "");
+                        }
+                    }
+                }
+            } else if (v != null) {
+                // Fallback: store as-is (should not happen in normal operation)
+                log.warn("indexedValuesFilter({}): 'values' is not a List — storing as flat string. " +
+                        "This will likely cause a BindException.", name);
+                args.put(k, v.toString());
+            }
+        });
+
+        f.setArgs(args);
+        return f;
     }
 
     private static FilterDefinition namedFilter(String name) {

@@ -1,13 +1,13 @@
 package gr.routify.gateway.telemetry;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.common.client.KafkaServiceClientSupport;
 import gr.routify.common.event.KafkaTopics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -20,47 +20,45 @@ import java.util.UUID;
  * a complete, append-only record of all traffic for auditing, analytics, SLA monitoring,
  * and replay.
  *
- * <p>Phase 4.10 fix: uses the Spring-managed {@link ObjectMapper} bean (injected via
- * constructor) instead of a static instance. This ensures consistency with the gateway's
- * configured serialisation settings (custom serialisers, naming strategies, etc.).
+ * <p>Extends {@link KafkaServiceClientSupport} so all serialisation, partition-key
+ * resolution, and delivery logging are handled consistently via the shared
+ * {@link #publish(String, String, Object)} method. The {@code TelemetryEvent} record
+ * is serialised directly by Jackson — no intermediate {@code toMap()} step — which
+ * eliminates the fragile manual conversion that previously caused malformed payloads
+ * and drove records to the DLQ.
  */
 @Slf4j
 @Component
-public class GatewayTelemetryPublisher {
-
-    private final ObjectMapper objectMapper;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+public class GatewayTelemetryPublisher extends KafkaServiceClientSupport {
 
     public GatewayTelemetryPublisher(KafkaTemplate<String, Object> kafkaTemplate,
-                                      ObjectMapper objectMapper) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
+                                     ObjectMapper objectMapper) {
+        super(kafkaTemplate, objectMapper, "api-gateway");
     }
 
     /**
      * Publishes a telemetry event for a completed (successful or failed) request.
      *
+     * <p>The correlationId is used as the Kafka partition key so all events for the
+     * same request land on the same partition, preserving ordering for replay.
+     *
      * @param event the telemetry event to publish
      */
     public void publish(TelemetryEvent event) {
-        try {
-            String json = objectMapper.writeValueAsString(event.toMap());
-            // Use correlationId as partition key so all events for same request go to same partition
-            String key = event.correlationId() != null ? event.correlationId() : UUID.randomUUID().toString();
-            kafkaTemplate.send(KafkaTopics.REQUEST_TELEMETRY, key, json)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.warn("Failed to publish telemetry for correlationId={}: {}",
-                                    event.correlationId(), ex.getMessage());
-                        }
-                    });
-        } catch (Exception e) {
-            log.warn("Failed to serialize telemetry event: {}", e.getMessage());
-        }
+        String key = event.correlationId() != null ? event.correlationId() : UUID.randomUUID().toString();
+        // Delegates to KafkaServiceClientSupport#publish — handles serialisation,
+        // whenComplete logging, and surfaces errors as RoutifyException.GatewayError
+        // rather than silently swallowing them (which left records in an inconsistent state).
+        publish(KafkaTopics.REQUEST_TELEMETRY, key, event);
     }
 
     /**
      * Immutable record representing a single request telemetry event.
+     *
+     * <p>Serialised directly by Jackson. All fields map 1-to-1 to the JSON property
+     * names expected by {@code RequestTelemetryConsumer} in routify-audit-service.
+     * {@link Instant} fields are rendered as ISO-8601 strings by the shared
+     * {@code JavaTimeModule} registered on the gateway's {@link ObjectMapper}.
      */
     public record TelemetryEvent(
             String correlationId,
@@ -85,34 +83,7 @@ public class GatewayTelemetryPublisher {
             Map<String, String> responseHeaders,
             String requestBody,
             String responseBody
-    ) {
-        Map<String, Object> toMap() {
-            Map<String, Object> m = new HashMap<>();
-            m.put("correlationId",      correlationId);
-            m.put("tenantId",           tenantId);
-            m.put("routeId",            routeId);
-            m.put("routeName",          routeName);
-            m.put("method",             method);
-            m.put("path",               path);
-            m.put("queryString",        queryString);
-            m.put("upstreamUri",        upstreamUri);
-            m.put("clientIp",           clientIp);
-            m.put("userId",             userId);
-            m.put("responseStatus",     responseStatus);
-            m.put("durationMs",         durationMs);
-            m.put("requestSizeBytes",   requestSizeBytes);
-            m.put("responseSizeBytes",  responseSizeBytes);
-            m.put("errorMessage",       errorMessage);
-            m.put("failed",             failed);
-            m.put("requestedAt",        requestedAt != null ? requestedAt.toString() : null);
-            m.put("filterTrace",        filterTrace);
-            m.put("requestHeaders",     requestHeaders);
-            m.put("responseHeaders",    responseHeaders);
-            m.put("requestBody",        requestBody);
-            m.put("responseBody",       responseBody);
-            return m;
-        }
-    }
+    ) {}
 
     /**
      * Represents the execution span of a single filter in the chain.

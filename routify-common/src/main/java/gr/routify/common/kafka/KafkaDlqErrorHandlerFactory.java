@@ -3,10 +3,13 @@ package gr.routify.common.kafka;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.slf4j.MDC;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.util.backoff.ExponentialBackOff;
+
+import java.util.UUID;
 
 /**
  * Factory for the standard Routify Kafka Dead-Letter Queue error handler.
@@ -57,10 +60,27 @@ public final class KafkaDlqErrorHandlerFactory {
                 kafkaTemplate,
                 (ConsumerRecord<?, ?> record, Exception ex) -> {
                     String dlqTopic = record.topic() + ".DLQ";
-                    log.error("[DLQ] Forwarding unprocessable record to {} " +
-                                    "(partition={} offset={} key={}): {}",
-                            dlqTopic, record.partition(), record.offset(),
-                            record.key(), ex.getMessage());
+
+                    // Ensure a correlationId is present in MDC so the log pattern
+                    // renders correctly. Use the record key if available, otherwise
+                    // generate a new UUID for traceability.
+                    boolean mdcOwned = MDC.get("correlationId") == null;
+                    if (mdcOwned) {
+                        String fallbackId = record.key() != null
+                                ? record.key().toString()
+                                : UUID.randomUUID().toString();
+                        MDC.put("correlationId", fallbackId);
+                    }
+                    try {
+                        log.error("[DLQ] Forwarding unprocessable record to {} " +
+                                        "(partition={} offset={} key={}): {}",
+                                dlqTopic, record.partition(), record.offset(),
+                                record.key(), ex.getMessage());
+                    } finally {
+                        if (mdcOwned) {
+                            MDC.remove("correlationId");
+                        }
+                    }
                     return new TopicPartition(dlqTopic, record.partition());
                 });
 

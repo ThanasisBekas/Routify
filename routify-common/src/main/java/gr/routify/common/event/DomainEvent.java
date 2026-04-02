@@ -29,7 +29,7 @@ import java.util.UUID;
  * }
  * }</pre>
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = DomainEvent.Unknown.class)
 @JsonSubTypes({
     @JsonSubTypes.Type(value = DomainEvent.RouteCreated.class,      name = "ROUTE_CREATED"),
     @JsonSubTypes.Type(value = DomainEvent.RouteCloned.class,       name = "ROUTE_CLONED"),
@@ -73,7 +73,8 @@ public sealed interface DomainEvent
             DomainEvent.UserDeleted,
         DomainEvent.CertRotated,
         DomainEvent.GatewayReloadRequested,
-        DomainEvent.GatewayConfigChanged {
+        DomainEvent.GatewayConfigChanged,
+        DomainEvent.Unknown {
 
     UUID eventId();
     UUID tenantId();
@@ -303,5 +304,19 @@ public sealed interface DomainEvent
             String correlationId,
             String actor
     ) implements DomainEvent {}
+
+    /**
+     * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.
+     * Prevents {@link com.fasterxml.jackson.databind.exc.InvalidTypeIdException} from being
+     * thrown during deserialisation (e.g. legacy messages or services that haven't yet been
+     * rebuilt with the latest {@code routify-common}).
+     */
+    record Unknown() implements DomainEvent {
+        @Override public UUID eventId()        { return null; }
+        @Override public UUID tenantId()       { return null; }
+        @Override public Instant occurredAt()  { return null; }
+        @Override public String correlationId(){ return null; }
+        @Override public String actor()        { return null; }
+    }
 }
 

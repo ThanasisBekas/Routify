@@ -39,7 +39,7 @@ import java.util.UUID;
  *         new QueryRequest.RoutesQuery(...), QueryResponse.RoutesPage.class);
  * }</pre>
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = QueryResponse.Unknown.class)
 @JsonSubTypes({
     // ─── routify-route-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.GatewaySnapshotList.class,  name = "GATEWAY_SNAPSHOT_LIST"),
@@ -106,7 +106,8 @@ public sealed interface QueryResponse
             QueryResponse.CertGroupDetail,
             QueryResponse.CertGroupMembersList,
             QueryResponse.GatewayStatus,
-            QueryResponse.CertRegistrySnapshot {
+            QueryResponse.CertRegistrySnapshot,
+            QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
     // routify-route-service
@@ -617,5 +618,13 @@ public sealed interface QueryResponse
                 int version
         ) {}
     }
+
+    /**
+     * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.
+     * Prevents {@link com.fasterxml.jackson.databind.exc.InvalidTypeIdException} from being
+     * thrown during deserialisation (e.g. legacy messages or services that haven't yet been
+     * rebuilt with the latest {@code routify-common}).
+     */
+    record Unknown() implements QueryResponse {}
 }
 

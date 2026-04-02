@@ -34,7 +34,7 @@ import java.util.UUID;
  *            QueryResponse.RoutesPage.class);
  * }</pre>
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = QueryRequest.Unknown.class)
 @JsonSubTypes({
     // ─── routify-route-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.GatewaySnapshot.class,   name = "GATEWAY_SNAPSHOT"),
@@ -112,7 +112,8 @@ public sealed interface QueryRequest
             QueryRequest.CertFetchMaterial,
             QueryRequest.CertGroupsQuery,
             QueryRequest.CertGroupGet,
-            QueryRequest.CertGroupMembers {
+            QueryRequest.CertGroupMembers,
+            QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
 
@@ -284,5 +285,13 @@ public sealed interface QueryRequest
 
     /** List all certificate members of a group. */
     record CertGroupMembers(UUID groupId, UUID tenantId) implements QueryRequest {}
+
+    /**
+     * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.
+     * Prevents {@link com.fasterxml.jackson.databind.exc.InvalidTypeIdException} from being
+     * thrown during deserialisation (e.g. legacy messages or services that haven't yet been
+     * rebuilt with the latest {@code routify-common}).
+     */
+    record Unknown() implements QueryRequest {}
 }
 
