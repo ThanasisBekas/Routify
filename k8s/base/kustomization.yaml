@@ -1,0 +1,17 @@
+# Phase 6.4: Kustomize base for Routify
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: routify
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - api-gateway/deployment.yaml
+  - api-gateway/pdb.yaml
+  - api-gateway/hpa.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: routify
+  app.kubernetes.io/managed-by: kustomize
+

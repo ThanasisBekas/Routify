@@ -1,0 +1,8 @@
+# Phase 6.4: Kubernetes namespace for Routify
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: routify
+  labels:
+    app.kubernetes.io/part-of: routify
+

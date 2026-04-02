@@ -1,0 +1,128 @@
+spring:
+  application:
+    name: routify-admin-api
+
+  threads:
+    virtual:
+      enabled: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: routify-admin-api
+      auto-offset-reset: latest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  # ─── RabbitMQ — sync request/reply requester ────────────────────────────────
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:routify}
+    # No default — must be supplied via RABBITMQ_PASS environment variable.
+    password: ${RABBITMQ_PASS:}
+    virtual-host: /
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8082
+  shutdown: graceful
+
+# ─── Actuator / Management ─────────────────────────────────────────────────
+management:
+  server:
+    port: 9082
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+routify:
+  # HTTP URLs below are kept for future reference and external tooling only.
+  # All internal service-to-service communication uses RabbitMQ (sync) and Kafka (async).
+  route-service:
+    url: ${ROUTE_SERVICE_URL:http://localhost:8081}
+  identity-service:
+    url: ${IDENTITY_SERVICE_URL:http://localhost:8083}
+  audit-service:
+    url: ${AUDIT_SERVICE_URL:http://localhost:8084}
+  cert-vault:
+    url: ${CERT_VAULT_URL:http://localhost:8085}
+  gateway:
+    url: ${GATEWAY_URL:http://localhost:8080}
+
+  # ─── Startup secret validation ────────────────────────────────────────────────
+  required-secrets: >-
+    spring.rabbitmq.password
+
+
+
+logging:
+  level:
+    gr.routify: DEBUG
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+
+# ─── Resilience4j — Circuit Breakers + Time Limiters (H2) ──────────────────
+# One circuit breaker instance per downstream service.
+# The time limiter acts as a hard cap that is consistent with the
+# RabbitTemplate reply timeout (5 s) configured in RabbitExchangeConfig.
+resilience4j:
+  circuitbreaker:
+    instances:
+      route-service:
+        sliding-window-size: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+      identity-service:
+        sliding-window-size: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+      audit-service:
+        sliding-window-size: 20
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+      cert-vault:
+        sliding-window-size: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+  timelimiter:
+    instances:
+      route-service:
+        timeout-duration: 5s
+      identity-service:
+        timeout-duration: 5s
+      audit-service:
+        timeout-duration: 5s
+      cert-vault:
+        timeout-duration: 5s

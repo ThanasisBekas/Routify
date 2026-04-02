@@ -1,0 +1,70 @@
+# ========================
+# Environment / Secrets
+# ========================
+#.env
+#.env.*
+#!.env.example
+#!.env.*.example
+
+# ========================
+# Java / Maven
+# ========================
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+*.log
+*.ctxt
+.mtj.tmp/
+hs_err_pid*
+replay_pid*
+
+# Maven build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ========================
+# Frontend (Vite / React)
+# ========================
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# ========================
+# IDE - IntelliJ IDEA
+# ========================
+# Ignore most of .idea, but keep shareable project-level settings
+.idea/
+!.idea/compiler.xml
+!.idea/encodings.xml
+!.idea/jarRepositories.xml
+!.idea/misc.xml
+# Never commit data source credentials or workspace state
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
+.idea/shelf/
+*.iws
+*.iml
+*.ipr
+out/
+
+# IDE - VS Code
+.vscode/
+
+# ========================
+# OS
+# ========================
+.DS_Store
+Thumbs.db
