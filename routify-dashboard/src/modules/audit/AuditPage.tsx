@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { auditApi } from '../../api/auditApi'
 import { useWsStore } from '../../store/wsStore'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import {
   ClipboardList, RefreshCw, Activity, Clock, Wifi, Radio,
   AlertTriangle, RotateCcw, CheckCircle2, XCircle, SkipForward,
@@ -55,10 +56,10 @@ function MethodBadge({ method }: { method: string }) {
 }
 
 function ReplayStatsBar() {
-  const { data } = useQuery({
+  const { data } = useRealtimeQuery({
     queryKey: ['replay-stats'],
     queryFn: () => auditApi.getReplayStats(),
-    refetchInterval: 15_000,
+    wsEvents: ['replay', 'audit'],
   })
   if (!data) return null
   const total = data.pending + data.inProgress + data.succeeded + data.failed + data.skipped
@@ -124,22 +125,25 @@ export default function AuditPage() {
     ? recentEvents.filter(e => !['metrics', 'connected', 'pong', 'gateway.config.changed', 'gateway.reloaded'].includes(e.type))
     : []
 
-  const eventsQuery = useQuery({
+  const eventsQuery = useRealtimeQuery({
     queryKey: ['audit-events', page],
     queryFn: () => auditApi.listEvents({ page, size: 50 }),
     enabled: tab === 'events',
+    wsEvents: ['route', 'filter', 'gateway', 'audit'],
   })
-  const requestsQuery = useQuery({
+  const requestsQuery = useRealtimeQuery({
     queryKey: ['audit-requests', page],
     queryFn: () => auditApi.listRequests({ page, size: 50 }),
     enabled: tab === 'requests',
+    wsEvents: ['audit'],
   })
-  const failedQuery = useQuery({
+  const failedQuery = useRealtimeQuery({
     queryKey: ['audit-failed', replayFilter, page],
     queryFn: () => replayFilter === 'pending'
       ? auditApi.listPendingReplay({ page, size: 50 })
       : auditApi.listFailed({ page, size: 50 }),
     enabled: tab === 'replay',
+    wsEvents: ['replay', 'audit'],
   })
 
   const replaySingle = useMutation({

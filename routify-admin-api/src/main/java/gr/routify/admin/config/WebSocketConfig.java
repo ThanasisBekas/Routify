@@ -11,7 +11,8 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  *
  * <p>Clients connect to {@code /ws} (with SockJS fallback) and subscribe to:
  * <ul>
- *   <li>{@code /topic/events} — all domain events (route, filter, gateway, config changes)</li>
+ *   <li>{@code /topic/events} — all domain events (route, filter, gateway, config,
+ *       certificate, cert-group, user, tenant, audit, replay)</li>
  *   <li>{@code /topic/metrics} — live gateway metrics (circuit breakers, request rates)</li>
  *   <li>{@code /topic/audit}  — live audit events as they are persisted</li>
  * </ul>

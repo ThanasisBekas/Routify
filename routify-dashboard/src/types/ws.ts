@@ -4,11 +4,19 @@
 
 export type WsEventType =
   | 'connected' | 'pong'
-  | 'route.created'   | 'route.updated'    | 'route.activated'
+  | 'route.created'   | 'route.cloned'     | 'route.updated'    | 'route.activated'
   | 'route.deactivated' | 'route.deleted'
   | 'filter.created'  | 'filter.updated'   | 'filter.deleted'
   | 'filter.attached' | 'filter.detached'
   | 'gateway.reloaded' | 'gateway.config.changed'
+  | 'certificate.uploaded' | 'certificate.revoked' | 'certificate.deleted'
+  | 'certificate.mapped' | 'certificate.unmapped' | 'certificate.rotated'
+  | 'certificate.group.created' | 'certificate.group.updated' | 'certificate.group.archived'
+  | 'certificate.group.deleted' | 'certificate.group.member.added' | 'certificate.group.member.removed'
+  | 'user.created'    | 'user.updated'     | 'user.deleted'
+  | 'tenant.created'  | 'tenant.updated'   | 'tenant.suspended' | 'tenant.reactivated'
+  | 'replay.completed' | 'replay.bulk.completed'
+  | 'audit.request.logged'
   | 'metrics'
 
 /**

@@ -12,6 +12,7 @@ import { STATUS_CONFIG, type StatusFilterTab } from './routeConstants'
 import RouteListHeader from './components/RouteListHeader'
 import RouteWorkflowCard from './components/RouteWorkflowCard'
 import RoutePagination from './components/RoutePagination'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
 export default function RouteWorkflowPage() {
   const qc = useQueryClient()
@@ -27,12 +28,13 @@ export default function RouteWorkflowPage() {
 
   const wsStatus = useWsStore(s => s.status)
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
+  const { data, isLoading, isFetching, refetch } = useRealtimeQuery({
     queryKey: ['routes', statusFilter, page],
     queryFn: () => routesApi.list({
       ...(statusFilter ? { status: statusFilter } : {}),
       page, size: 20, sortBy: 'createdAt', sortDir: 'DESC',
     }),
+    wsEvents: ['route'],
   })
 
   const { data: curlRoute } = useQuery({

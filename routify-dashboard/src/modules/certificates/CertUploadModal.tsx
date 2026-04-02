@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import type { CertGroupDto, UploadCertificateRequest } from '../../types'
 import { X, Upload, Loader2, AlertCircle, Layers, CheckCircle2, Info } from 'lucide-react'
 import { extractApiError } from '../../lib/errorUtils'
 import { Select } from '../../components/ui/Select'
 import { cn } from '../../lib/utils'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
 interface Props {
   tenantId:          string
@@ -27,10 +28,11 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
   })
   const [error, setError] = useState<string>('')
 
-  const { data: groupsPage } = useQuery({
+  const { data: groupsPage } = useRealtimeQuery({
     queryKey: ['cert-groups', tenantId, 'ACTIVE'],
     queryFn:  () => certVaultApi.listGroups({ tenantId, status: 'ACTIVE', size: 100 }),
     enabled:  !!tenantId && !preselectedGroup,
+    wsEvents: ['certificate'],
   })
   const availableGroups: CertGroupDto[] = groupsPage?.content ?? []
   const selectedGroup = preselectedGroup ?? availableGroups.find(g => g.id === selectedGroupId)

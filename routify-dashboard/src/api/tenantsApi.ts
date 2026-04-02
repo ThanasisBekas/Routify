@@ -13,6 +13,12 @@ export interface CreateWorkspaceRequest {
   contactEmail?: string
 }
 
+export interface UpdateWorkspaceRequest {
+  name?: string
+  plan?: string
+  contactEmail?: string
+}
+
 export const tenantsApi = {
   /**
    * Public — lists active workspaces (name + slug) for the login dropdown.
@@ -39,6 +45,10 @@ export const tenantsApi = {
   /** Create workspace — SUPER_ADMIN only. */
   create: (req: CreateWorkspaceRequest) =>
     apiClient.post<TenantDto>('/api/v1/admin/tenants', req).then((r) => r.data),
+
+  /** Update workspace — SUPER_ADMIN only. */
+  update: (id: string, req: UpdateWorkspaceRequest) =>
+    apiClient.put<TenantDto>(`/api/v1/admin/tenants/${id}`, req).then((r) => r.data),
 
   /** Suspend workspace. */
   suspend: (id: string, reason?: string) =>

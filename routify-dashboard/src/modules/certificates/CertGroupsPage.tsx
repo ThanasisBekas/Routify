@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import {
   Layers,
   Plus,
@@ -213,16 +214,18 @@ export default function CertGroupsPage() {
     qc.invalidateQueries({ queryKey: ['cert-stats'] })
   }
 
-  const { data: pageData, isLoading } = useQuery({
+  const { data: pageData, isLoading } = useRealtimeQuery({
     queryKey: ['cert-groups', tenantId, statusFilter],
     queryFn:  () => certVaultApi.listGroups({ tenantId, status: statusFilter || undefined, size: 100 }),
     enabled:  !!tenantId,
+    wsEvents: ['certificate'],
   })
 
-  const { data: groupDetail, isLoading: isLoadingDetail } = useQuery({
+  const { data: groupDetail, isLoading: isLoadingDetail } = useRealtimeQuery({
     queryKey: ['cert-group-detail', selectedGroup?.id, tenantId],
     queryFn:  () => certVaultApi.getGroup(selectedGroup!.id, tenantId),
     enabled:  !!selectedGroup && !!tenantId,
+    wsEvents: ['certificate'],
   })
 
   const archiveMutation = useMutation({

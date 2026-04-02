@@ -84,6 +84,32 @@ public class AdminTenantsController {
         return messagingClient.tenantCommand("SUSPEND_TENANT", id, Map.of("reason", reason));
     }
 
+    /** Update workspace — SUPER_ADMIN only. */
+    @Secured("ROLE_SUPER_ADMIN")
+    @PutMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> updateTenant(
+            @PathVariable UUID id,
+            @Valid @RequestBody Map<String, Object> request) {
+        Map<String, Object> result = messagingClient.tenantCommand("UPDATE_TENANT", id, request);
+        if (result.containsKey("error")) {
+            String message = String.valueOf(result.get("error"));
+            String code    = String.valueOf(result.getOrDefault("code", ""));
+            HttpStatus status = switch (code) {
+                case "Conflict"          -> HttpStatus.CONFLICT;
+                case "NotFound"          -> HttpStatus.NOT_FOUND;
+                case "Forbidden"         -> HttpStatus.FORBIDDEN;
+                case "Validation",
+                     "BadRequest"        -> HttpStatus.UNPROCESSABLE_ENTITY;
+                default -> Boolean.TRUE.equals(result.get("circuitOpen"))
+                        ? HttpStatus.SERVICE_UNAVAILABLE
+                        : HttpStatus.UNPROCESSABLE_ENTITY;
+            };
+            return ResponseEntity.status(status)
+                    .body(Map.of("detail", message, "status", status.value(), "code", code));
+        }
+        return ResponseEntity.ok(result);
+    }
+
     @PostMapping("/{id}/reactivate")
     public Map<String, Object> reactivateTenant(@PathVariable UUID id) {
         return messagingClient.tenantCommand("REACTIVATE_TENANT", id, Map.of());

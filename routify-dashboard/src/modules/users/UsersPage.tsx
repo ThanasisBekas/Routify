@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi } from '../../api/usersApi'
 import { authApi } from '../../api/authApi'
 import { tenantsApi } from '../../api/tenantsApi'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { useAuthStore } from '../../store/authStore'
 import { cn } from '../../lib/utils'
 import { extractApiError } from '../../lib/errorUtils'
@@ -502,17 +503,19 @@ export default function UsersPage() {
   const [resetTarget,   setResetTarget]   = useState<UserDto | undefined>()
   const [showChangeOwn, setShowChangeOwn] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useRealtimeQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list({ size: 100 }),
+    wsEvents: ['user'],
   })
 
   // Fetch all tenants so we can (a) show workspace name in the table and
   // (b) populate the workspace picker in the create modal — both need the same data.
-  const { data: tenantsData, isLoading: tenantsLoading } = useQuery({
+  const { data: tenantsData, isLoading: tenantsLoading } = useRealtimeQuery({
     queryKey: ['tenants-for-user-create'],
     queryFn: () => tenantsApi.list(0, 200),
     enabled: isSuperAdmin,
+    wsEvents: ['tenant'],
   })
   const tenants = tenantsData?.content ?? []
   // Build id → tenant map for O(1) lookup in the table

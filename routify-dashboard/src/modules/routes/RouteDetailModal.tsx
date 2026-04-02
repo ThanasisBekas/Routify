@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { X, Play, Pause, Zap, Terminal, Pencil, Network, List, RefreshCw } from 'lucide-react'
 import { routesApi } from '../../api/routesApi'
 import { cn } from '../../lib/utils'
@@ -7,6 +7,7 @@ import RouteFlowCanvas from './RouteFlowCanvas'
 import RouteCurlModal from './RouteCurlModal'
 import RouteFormModal from './RouteFormModal'
 import { useRouteActions } from './useRouteActions'
+import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
 export default function RouteDetailModal({ routeId, onClose }: { routeId: string; onClose: () => void }) {
   const qc = useQueryClient()
@@ -14,9 +15,10 @@ export default function RouteDetailModal({ routeId, onClose }: { routeId: string
   const [curlOpen, setCurlOpen]   = useState(false)
   const [editOpen, setEditOpen]   = useState(false)
 
-  const { data: route, isLoading } = useQuery({
+  const { data: route, isLoading } = useRealtimeQuery({
     queryKey: ['route', routeId],
     queryFn:  () => routesApi.get(routeId),
+    wsEvents: ['route'],
   })
 
   const { activateMutation, deactivateMutation } = useRouteActions(routeId)

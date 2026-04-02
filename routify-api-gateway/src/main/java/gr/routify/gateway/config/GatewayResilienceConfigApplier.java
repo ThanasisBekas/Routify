@@ -2,6 +2,7 @@ package gr.routify.gateway.config;
 
 import gr.routify.gateway.certificate.CertificateFileWatcher;
 import gr.routify.gateway.certificate.CertificateStoreProperties;
+import gr.routify.gateway.certificate.CertificateVaultLoader;
 import gr.routify.gateway.net.HttpClientProperties;
 import gr.routify.gateway.net.ProxyProperties;
 import gr.routify.gateway.net.WebClientRegistry;
@@ -58,6 +59,7 @@ public class GatewayResilienceConfigApplier {
     private final TimeLimiterRegistry       timeLimiterRegistry;
     private final CertificateStoreProperties certificateStoreProperties;
     private final CertificateFileWatcher    certificateFileWatcher;
+    private final CertificateVaultLoader    certificateVaultLoader;
     private final ProxyProperties           globalProxyProperties;
     private final HttpClientProperties      globalHttpClientProperties;
     private final WebClientRegistry         webClientRegistry;
@@ -67,6 +69,7 @@ public class GatewayResilienceConfigApplier {
             TimeLimiterRegistry timeLimiterRegistry,
             CertificateStoreProperties certificateStoreProperties,
             CertificateFileWatcher certificateFileWatcher,
+            CertificateVaultLoader certificateVaultLoader,
             @Qualifier("globalProxyProperties")      ProxyProperties globalProxyProperties,
             @Qualifier("globalHttpClientProperties") HttpClientProperties globalHttpClientProperties,
             WebClientRegistry webClientRegistry) {
@@ -74,6 +77,7 @@ public class GatewayResilienceConfigApplier {
         this.timeLimiterRegistry       = timeLimiterRegistry;
         this.certificateStoreProperties = certificateStoreProperties;
         this.certificateFileWatcher    = certificateFileWatcher;
+        this.certificateVaultLoader    = certificateVaultLoader;
         this.globalProxyProperties     = globalProxyProperties;
         this.globalHttpClientProperties = globalHttpClientProperties;
         this.webClientRegistry         = webClientRegistry;
@@ -199,11 +203,14 @@ public class GatewayResilienceConfigApplier {
     /**
      * Applies the {@code tlsConfig} section from the live gateway config to
      * {@link CertificateStoreProperties} and triggers an immediate certificate reload
-     * via {@link CertificateFileWatcher#reloadSources()}.
+     * for <em>both</em> file-based sources (via {@link CertificateFileWatcher#reloadSources()})
+     * and vault-backed sources (via {@link CertificateVaultLoader#loadVaultCertificates()}).
      *
      * <p>This ensures that when an admin saves a new TLS config (e.g. adds/removes a
      * file source or changes the expiry warning window) through the dashboard, the
-     * gateway picks up the change without a restart.
+     * gateway picks up the change without a restart — including certificates used by the
+     * {@code AUTH_CERT_VAULT} and {@code CERT_VAULT_EXPIRY_CHECK} filters that rely on
+     * vault-backed entries in the {@link gr.routify.gateway.certificate.CertificateRegistry}.
      */
     @SuppressWarnings("unchecked")
     private void applyTlsConfig(Map<String, Object> tls) {
@@ -264,10 +271,24 @@ public class GatewayResilienceConfigApplier {
                 certificateStoreProperties.setDirectorySources(dirSources);
             }
 
-
             // Reload file/directory sources immediately so the new config takes effect
             certificateFileWatcher.reloadSources();
-            log.info("GatewayResilienceConfigApplier: TLS config applied and certificate sources reloaded");
+
+            // Reload vault-backed certificates so AUTH_CERT_VAULT and
+            // CERT_VAULT_EXPIRY_CHECK filters pick up the latest material
+            // from cert-vault. This is safe: CertificateRegistry.register()
+            // deduplicates identical active certs, so already-loaded entries
+            // are a no-op.
+            try {
+                certificateVaultLoader.loadVaultCertificates();
+            } catch (Exception vaultEx) {
+                log.warn("GatewayResilienceConfigApplier: vault certificate reload failed " +
+                        "(cert-vault may be unavailable) — vault-backed certs will refresh " +
+                        "on next Kafka event: {}", vaultEx.getMessage());
+            }
+
+            log.info("GatewayResilienceConfigApplier: TLS config applied — " +
+                    "file sources and vault certificates reloaded");
 
         } catch (Exception e) {
             log.error("GatewayResilienceConfigApplier: failed to apply tlsConfig: {}", e.getMessage(), e);
