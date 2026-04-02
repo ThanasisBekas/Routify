@@ -1,6 +1,7 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.IdentityMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -44,26 +45,24 @@ public class AdminAuthController {
     private final IdentityMessagingClient messagingClient;
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, Object> body,
-                                                     HttpServletResponse response) {
+    public ResponseEntity<?> login(@RequestBody Map<String, Object> body,
+                                   HttpServletResponse response) {
         String username   = str(body.get("username"));
         String password   = str(body.get("password"));
         String tenantSlug = str(body.get("tenantSlug"));
 
-        Map<String, Object> result = messagingClient.login(username, password, tenantSlug);
-
-        if (result.containsKey("error")) {
-            return ResponseEntity.status(resolveErrorStatus(result)).body(result);
+        QueryResponse.LoginResult result = messagingClient.login(username, password, tenantSlug);
+        if (result == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "identity-service temporarily unavailable"));
         }
 
-        // Extract the refresh token from the RPC response and deliver it as an HttpOnly cookie.
-        // Remove it from the JSON body so it is never exposed to JavaScript.
-        String refreshToken = str(result.remove("refreshToken"));
-        if (!refreshToken.isBlank()) {
-            writeRefreshCookie(refreshToken, response);
+        // Deliver the refresh token as an HttpOnly cookie; strip it from the JSON body
+        if (result.refreshToken() != null && !result.refreshToken().isBlank()) {
+            writeRefreshCookie(result.refreshToken(), response);
         }
-
-        return ResponseEntity.ok(result);
+        // Return a copy without the refresh token
+        return ResponseEntity.ok(withoutRefreshToken(result));
     }
 
     /**
@@ -72,30 +71,26 @@ public class AdminAuthController {
      * identity-service via RabbitMQ RPC.  On success a rotated cookie is written.
      */
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, Object>> refresh(HttpServletRequest request,
-                                                       HttpServletResponse response) {
+    public ResponseEntity<?> refresh(HttpServletRequest request,
+                                     HttpServletResponse response) {
         String refreshToken = extractRefreshCookie(request);
-
         if (refreshToken == null || refreshToken.isBlank()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("code", "Unauthorized", "error", "Missing refresh token cookie"));
         }
 
-        Map<String, Object> result = messagingClient.refresh(refreshToken);
-
-        if (result.containsKey("error")) {
-            // Clear the stale cookie so the browser doesn't keep sending it
+        QueryResponse.LoginResult result = messagingClient.refresh(refreshToken);
+        if (result == null) {
             clearRefreshCookie(response);
-            return ResponseEntity.status(resolveErrorStatus(result)).body(result);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "identity-service temporarily unavailable"));
         }
 
-        // Token rotation — write the new refresh token cookie and strip it from the JSON response
-        String newRefreshToken = str(result.remove("refreshToken"));
-        if (!newRefreshToken.isBlank()) {
-            writeRefreshCookie(newRefreshToken, response);
+        // Token rotation
+        if (result.refreshToken() != null && !result.refreshToken().isBlank()) {
+            writeRefreshCookie(result.refreshToken(), response);
         }
-
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(withoutRefreshToken(result));
     }
 
     @PostMapping("/logout")
@@ -117,7 +112,7 @@ public class AdminAuthController {
      * which unblocks users who were forced into the change-password wall on first login.
      */
     @PostMapping("/change-password")
-    public ResponseEntity<Map<String, Object>> changePassword(
+    public ResponseEntity<?> changePassword(
             @RequestBody Map<String, Object> body,
             Authentication auth) {
 
@@ -126,7 +121,7 @@ public class AdminAuthController {
                     .body(Map.of("error", "Not authenticated"));
         }
 
-        String userIdStr      = str(body.get("userId"));
+        String userIdStr       = str(body.get("userId"));
         String currentPassword = str(body.get("currentPassword"));
         String newPassword     = str(body.get("newPassword"));
 
@@ -137,9 +132,11 @@ public class AdminAuthController {
 
         try {
             java.util.UUID userId = java.util.UUID.fromString(userIdStr);
-            Map<String, Object> result = messagingClient.changePassword(userId, currentPassword, newPassword);
-            if (result.containsKey("error")) {
-                return ResponseEntity.status(resolveErrorStatus(result)).body(result);
+            QueryResponse.PasswordChangeResult result =
+                    messagingClient.changePassword(userId, currentPassword, newPassword);
+            if (result == null || !result.success()) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("error", "Password change failed"));
             }
             return ResponseEntity.ok(Map.of("success", true, "message", "Password changed successfully"));
         } catch (IllegalArgumentException e) {
@@ -159,7 +156,6 @@ public class AdminAuthController {
     }
 
     private void writeRefreshCookie(String token, HttpServletResponse response) {
-        // 7 days in seconds — matches identity-service default JWT_REFRESH_TTL
         int maxAge = 7 * 24 * 3600;
         response.addHeader("Set-Cookie", buildSetCookieHeader(token, maxAge));
     }
@@ -168,19 +164,6 @@ public class AdminAuthController {
         response.addHeader("Set-Cookie", buildSetCookieHeader("", 0));
     }
 
-    /**
-     * Builds a {@code Set-Cookie} header with {@code SameSite=Lax}.
-     * <ul>
-     *   <li>{@code SameSite=Lax} — cookie is sent on same-site and top-level cross-site
-     *       navigations, which covers the dev proxy and production gateway.
-     *       {@code SameSite=Strict} was too restrictive: it silently drops the cookie on
-     *       every cross-origin request, including the Vite dev-proxy scenario.</li>
-     *   <li>{@code Secure} flag is controlled by the {@code COOKIE_SECURE} env var
-     *       (default {@code false} for HTTP-based local development, {@code true} in prod).</li>
-     *   <li>Path is widened to {@code /api/v1/auth} so the cookie is also forwarded on
-     *       the {@code /logout} call.</li>
-     * </ul>
-     */
     private String buildSetCookieHeader(String value, int maxAge) {
         String base = String.format(
                 "%s=%s; Path=/api/v1/auth; Max-Age=%d; HttpOnly; SameSite=Lax",
@@ -188,19 +171,19 @@ public class AdminAuthController {
         return cookieSecure ? base + "; Secure" : base;
     }
 
+    /**
+     * Returns a view of the login result without the refresh token field
+     * (it is delivered as an HttpOnly cookie instead).
+     */
+    private static QueryResponse.LoginResult withoutRefreshToken(QueryResponse.LoginResult r) {
+        return new QueryResponse.LoginResult(
+                r.accessToken(), null, r.tokenType(),
+                r.expiresIn(), r.mustChangePassword(), r.user());
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private static String str(Object val) {
         return val != null ? val.toString() : "";
-    }
-
-    private static HttpStatus resolveErrorStatus(Map<String, Object> result) {
-        String code = result.getOrDefault("code", "").toString();
-        return switch (code) {
-            case "Unauthorized"      -> HttpStatus.UNAUTHORIZED;
-            case "Forbidden"         -> HttpStatus.FORBIDDEN;
-            case "NotFoundException" -> HttpStatus.NOT_FOUND;
-            default                  -> HttpStatus.SERVICE_UNAVAILABLE;
-        };
     }
 }

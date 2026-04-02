@@ -1,6 +1,7 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.CertVaultMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -44,7 +45,7 @@ public class AdminCertGroupsController {
     // ─── List groups ──────────────────────────────────────────────────────────
 
     @GetMapping
-    public Map<String, Object> listGroups(
+    public QueryResponse.CertGroupsPage listGroups(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
@@ -57,7 +58,7 @@ public class AdminCertGroupsController {
     // ─── Get single group (with members) ─────────────────────────────────────
 
     @GetMapping("/{id}")
-    public Map<String, Object> getGroup(
+    public QueryResponse.CertGroupDetail getGroup(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.getCertGroup(id, tenantId);
@@ -133,7 +134,7 @@ public class AdminCertGroupsController {
     // ─── Group members ────────────────────────────────────────────────────────
 
     @GetMapping("/{id}/members")
-    public Object listGroupMembers(
+    public QueryResponse.CertGroupMembersList listGroupMembers(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.listCertGroupMembers(id, tenantId);

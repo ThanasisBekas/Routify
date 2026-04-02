@@ -21,17 +21,17 @@ import java.util.UUID;
  * <h2>Handler usage</h2>
  * <pre>{@code
  * @RabbitListener(queues = RabbitTopology.QUEUE_ROUTES_QUERY)
- * public String handleRoutesQuery(String json) {
- *     QueryRequest.RoutesQuery req = objectMapper.readValue(json, QueryRequest.RoutesQuery.class);
+ * public QueryResponse.RoutesPage handleRoutesQuery(QueryRequest.RoutesQuery req) {
  *     var page = routeService.findAll(req.tenantId(), req.status(), req.pageable());
- *     return objectMapper.writeValueAsString(page);
+ *     return new QueryResponse.RoutesPage(page.map(mapper::toSummary).toList(), ...);
  * }
  * }</pre>
  *
  * <h2>Producer usage</h2>
  * <pre>{@code
  * return rpc(RabbitTopology.RK_ROUTES_QUERY,
- *            new QueryRequest.RoutesQuery(tenantId, status, page, size, sortBy, sortDir));
+ *            new QueryRequest.RoutesQuery(tenantId, status, page, size, sortBy, sortDir),
+ *            QueryResponse.RoutesPage.class);
  * }</pre>
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

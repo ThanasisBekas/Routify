@@ -1,6 +1,7 @@
 package gr.routify.admin.sse;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import lombok.RequiredArgsConstructor;
@@ -8,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.List;
@@ -73,12 +73,10 @@ public class DashboardEventBroadcaster {
             groupId = "routify-admin-sse",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void onDomainEvent(String eventJson) {
+    public void onDomainEvent(DomainEvent event) {
         if (emitters.isEmpty()) return;
 
         try {
-            DomainEvent event = objectMapper.readValue(eventJson, DomainEvent.class);
-
             String sseEventType = switch (event) {
                 case DomainEvent.RouteCreated ignored        -> "route.created";
                 case DomainEvent.RouteCloned ignored         -> "route.cloned";
@@ -102,7 +100,7 @@ public class DashboardEventBroadcaster {
                 case DomainEvent.GatewayConfigChanged ignored   -> "gateway.config.changed";
             };
 
-            broadcast(sseEventType, eventJson);
+            broadcast(sseEventType, objectMapper.writeValueAsString(event));
         } catch (Exception e) {
             log.warn("Failed to process SSE event: {}", e.getMessage());
         }
@@ -195,4 +193,3 @@ public class DashboardEventBroadcaster {
 
     public int getSubscriberCount() { return emitters.size(); }
 }
-

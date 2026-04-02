@@ -1,10 +1,10 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.AuditMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -22,7 +22,7 @@ public class AdminReplayController {
     private final AuditMessagingClient messagingClient;
 
     @GetMapping("/failed")
-    public Map<String, Object> listFailed(
+    public QueryResponse.RequestLogsPage listFailed(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) UUID routeId,
             @RequestParam(defaultValue = "0") int page,
@@ -31,7 +31,7 @@ public class AdminReplayController {
     }
 
     @GetMapping("/pending")
-    public Map<String, Object> listPending(
+    public QueryResponse.RequestLogsPage listPending(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) UUID routeId,
             @RequestParam(defaultValue = "0") int page,
@@ -40,19 +40,19 @@ public class AdminReplayController {
     }
 
     @GetMapping("/stats")
-    public Map<String, Object> getStats(@RequestHeader("X-Tenant-Id") UUID tenantId) {
+    public QueryResponse.ReplayStatsResult getStats(@RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.getReplayStats(tenantId);
     }
 
     @PostMapping("/{id}")
-    public Map<String, Object> replaySingle(
+    public QueryResponse.ReplaySingleResult replaySingle(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.replaySingle(id, tenantId);
     }
 
     @PostMapping("/bulk")
-    public Map<String, Object> replayBulk(
+    public QueryResponse.ReplayBulkResult replayBulk(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(defaultValue = "50") int limit) {
         return messagingClient.replayBulk(tenantId, limit);

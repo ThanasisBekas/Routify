@@ -1,10 +1,10 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.AuditMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -21,7 +21,7 @@ public class AdminAuditController {
     private final AuditMessagingClient messagingClient;
 
     @GetMapping("/events")
-    public Map<String, Object> listAuditEvents(
+    public QueryResponse.AuditEventsPage listAuditEvents(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) String eventType,
             @RequestParam(required = false) String aggregateType,
@@ -35,7 +35,7 @@ public class AdminAuditController {
     }
 
     @GetMapping("/requests")
-    public Map<String, Object> listRequestLogs(
+    public QueryResponse.RequestLogsPage listRequestLogs(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) UUID routeId,
             @RequestParam(required = false) String from,
@@ -46,14 +46,14 @@ public class AdminAuditController {
     }
 
     @GetMapping("/requests/stats/{routeId}")
-    public Map<String, Object> getRouteRequestStats(
+    public QueryResponse.RequestStatsResult getRouteRequestStats(
             @PathVariable UUID routeId,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.getRequestStats(tenantId, routeId);
     }
 
     @GetMapping("/events/route/{routeId}")
-    public Map<String, Object> getRouteHistory(
+    public QueryResponse.AuditEventsPage getRouteHistory(
             @PathVariable UUID routeId,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.queryAuditEvents(
@@ -61,11 +61,10 @@ public class AdminAuditController {
     }
 
     @GetMapping("/events/filter/{filterId}")
-    public Map<String, Object> getFilterHistory(
+    public QueryResponse.AuditEventsPage getFilterHistory(
             @PathVariable UUID filterId,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.queryAuditEvents(
                 tenantId, null, "FILTER", filterId.toString(), null, null, 0, 100);
     }
 }
-

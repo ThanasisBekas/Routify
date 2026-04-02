@@ -50,7 +50,7 @@ public final class KafkaDlqErrorHandlerFactory {
      * @param kafkaTemplate the template used to publish to DLQ topics —
      *                      must use the same bootstrap servers as the consumer
      */
-    public static DefaultErrorHandler create(KafkaTemplate<String, String> kafkaTemplate) {
+    public static DefaultErrorHandler create(KafkaTemplate<String, Object> kafkaTemplate) {
 
         // Route failed records to <topic>.DLQ on the same partition
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(

@@ -7,6 +7,7 @@ import gr.routify.common.domain.FilterType;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +38,7 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
 
     public RouteFilterMessagingClient(RabbitTemplate rabbitTemplate,
                                       ObjectMapper objectMapper,
-                                      KafkaTemplate<String, String> kafkaTemplate) {
+                                      KafkaTemplate<String, Object> kafkaTemplate) {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_ROUTE_SERVICE, "admin-api");
         this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
     }
@@ -45,92 +46,99 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     // ─── Route Queries (RabbitMQ) ─────────────────────────────────────────────
 
     @CircuitBreaker(name = "route-service", fallbackMethod = "queryRoutesFallback")
-    public Map<String, Object> queryRoutes(UUID tenantId, String status, int page, int size,
-                                           String sortBy, String sortDir) {
+    public QueryResponse.RoutesPage queryRoutes(UUID tenantId, String status, int page, int size,
+                                                String sortBy, String sortDir) {
         try {
             return rpc(RabbitTopology.RK_ROUTES_QUERY,
-                    new QueryRequest.RoutesQuery(tenantId, status, page, size, sortBy, sortDir));
+                    new QueryRequest.RoutesQuery(tenantId, status, page, size, sortBy, sortDir),
+                    QueryResponse.RoutesPage.class);
         } catch (Exception e) {
             log.error("queryRoutes failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> queryRoutesFallback(UUID tenantId, String status, int page, int size,
-                                                     String sortBy, String sortDir, Throwable t) {
+    private QueryResponse.RoutesPage queryRoutesFallback(UUID tenantId, String status, int page, int size,
+                                                         String sortBy, String sortDir, Throwable t) {
         log.warn("queryRoutes circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "route-service temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.RoutesPage(java.util.List.of(), 0L, 0, page, size);
     }
 
     @CircuitBreaker(name = "route-service", fallbackMethod = "getRouteFallback")
-    public Map<String, Object> getRoute(UUID id, UUID tenantId) {
+    public QueryResponse.RouteDetail getRoute(UUID id, UUID tenantId) {
         try {
-            return rpc(RabbitTopology.RK_ROUTES_GET, new QueryRequest.RouteGet(id, tenantId));
+            return rpc(RabbitTopology.RK_ROUTES_GET,
+                    new QueryRequest.RouteGet(id, tenantId),
+                    QueryResponse.RouteDetail.class);
         } catch (Exception e) {
             log.error("getRoute failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getRouteFallback(UUID id, UUID tenantId, Throwable t) {
+    private QueryResponse.RouteDetail getRouteFallback(UUID id, UUID tenantId, Throwable t) {
         log.warn("getRoute circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "route-service temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     @CircuitBreaker(name = "route-service", fallbackMethod = "cloneRouteFallback")
-    public Map<String, Object> cloneRoute(UUID sourceId, UUID tenantId, String userId) {
+    public QueryResponse.RouteDetail cloneRoute(UUID sourceId, UUID tenantId, String userId) {
         try {
             return rpc(RabbitTopology.RK_ROUTES_CLONE,
-                    new QueryRequest.RouteClone(sourceId, tenantId, userId));
+                    new QueryRequest.RouteClone(sourceId, tenantId, userId),
+                    QueryResponse.RouteDetail.class);
         } catch (Exception e) {
             log.error("cloneRoute failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> cloneRouteFallback(UUID sourceId, UUID tenantId, String userId, Throwable t) {
+    private QueryResponse.RouteDetail cloneRouteFallback(UUID sourceId, UUID tenantId, String userId, Throwable t) {
         log.warn("cloneRoute circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "route-service temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     // ─── Filter Queries (RabbitMQ) ────────────────────────────────────────────
 
     @CircuitBreaker(name = "route-service", fallbackMethod = "queryFiltersFallback")
-    public Map<String, Object> queryFilters(UUID tenantId, int page, int size,
-                                            String sortBy, String sortDir) {
+    public QueryResponse.FiltersPage queryFilters(UUID tenantId, int page, int size,
+                                                  String sortBy, String sortDir) {
         try {
             return rpc(RabbitTopology.RK_FILTERS_QUERY,
-                    new QueryRequest.FiltersQuery(tenantId, page, size, sortBy, sortDir));
+                    new QueryRequest.FiltersQuery(tenantId, page, size, sortBy, sortDir),
+                    QueryResponse.FiltersPage.class);
         } catch (Exception e) {
             log.error("queryFilters failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> queryFiltersFallback(UUID tenantId, int page, int size,
-                                                      String sortBy, String sortDir, Throwable t) {
+    private QueryResponse.FiltersPage queryFiltersFallback(UUID tenantId, int page, int size,
+                                                           String sortBy, String sortDir, Throwable t) {
         log.warn("queryFilters circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "route-service temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.FiltersPage(java.util.List.of(), 0L, 0, page, size);
     }
 
     @CircuitBreaker(name = "route-service", fallbackMethod = "getFilterFallback")
-    public Map<String, Object> getFilter(UUID id, UUID tenantId) {
+    public QueryResponse.FilterDetail getFilter(UUID id, UUID tenantId) {
         try {
-            return rpc(RabbitTopology.RK_FILTERS_GET, new QueryRequest.FilterGet(id, tenantId));
+            return rpc(RabbitTopology.RK_FILTERS_GET,
+                    new QueryRequest.FilterGet(id, tenantId),
+                    QueryResponse.FilterDetail.class);
         } catch (Exception e) {
             log.error("getFilter failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getFilterFallback(UUID id, UUID tenantId, Throwable t) {
+    private QueryResponse.FilterDetail getFilterFallback(UUID id, UUID tenantId, Throwable t) {
         log.warn("getFilter circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "route-service temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     // ─── Route Commands (Kafka) ───────────────────────────────────────────────
@@ -218,5 +226,3 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
         return v instanceof Map ? (Map<String, Object>) v : null;
     }
 }
-
-

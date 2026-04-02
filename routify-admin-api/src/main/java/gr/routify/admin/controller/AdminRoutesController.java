@@ -1,6 +1,7 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.RouteFilterMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,7 +29,7 @@ public class AdminRoutesController {
     private final RouteFilterMessagingClient messagingClient;
 
     @GetMapping
-    public Map<String, Object> listRoutes(
+    public QueryResponse.RoutesPage listRoutes(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
@@ -39,7 +40,7 @@ public class AdminRoutesController {
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> getRoute(
+    public QueryResponse.RouteDetail getRoute(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.getRoute(id, tenantId);
@@ -104,16 +105,13 @@ public class AdminRoutesController {
     }
 
     @PostMapping("/{id}/clone")
-    public ResponseEntity<Map<String, Object>> cloneRoute(
+    public ResponseEntity<QueryResponse.RouteDetail> cloneRoute(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        Map<String, Object> cloned = messagingClient.cloneRoute(id, tenantId, actor);
-        if (cloned.containsKey("error")) {
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(cloned);
-        }
+        QueryResponse.RouteDetail cloned = messagingClient.cloneRoute(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.CREATED).body(cloned);
     }
 
@@ -146,4 +144,3 @@ public class AdminRoutesController {
         return Map.of("status", "accepted", "message", "Filter detach in progress");
     }
 }
-

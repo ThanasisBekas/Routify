@@ -26,7 +26,7 @@ public class KafkaProducerConfig {
     private String bootstrapServers;
 
     @Bean
-    public ProducerFactory<String, String> adminProducerFactory() {
+    public ProducerFactory<String, Object> adminProducerFactory() {
         return new DefaultKafkaProducerFactory<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
@@ -39,7 +39,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate() {
+    public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(adminProducerFactory());
     }
 }

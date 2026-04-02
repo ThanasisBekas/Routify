@@ -1,6 +1,5 @@
 package gr.routify.identity.messaging;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.security.RedisKeys;
@@ -33,7 +32,6 @@ public class AuthCommandKafkaConsumer {
     @Deprecated
     public static final String BLACKLIST_PREFIX = RedisKeys.BLOCKLIST_PREFIX;
 
-    private final ObjectMapper       objectMapper;
     private final StringRedisTemplate redisTemplate;
     private final gr.routify.identity.security.JwtService jwtService;
 
@@ -42,10 +40,8 @@ public class AuthCommandKafkaConsumer {
             groupId = "routify-identity-service-auth-commands",
             containerFactory = "userCommandKafkaListenerContainerFactory"
     )
-    public void onAuthCommand(String commandJson, Acknowledgment ack) {
+    public void onAuthCommand(CommandEvent cmd, Acknowledgment ack) {
         try {
-            CommandEvent cmd = objectMapper.readValue(commandJson, CommandEvent.class);
-
             switch (cmd) {
                 case CommandEvent.Logout c -> handleLogout(c.refreshToken());
                 default -> log.warn("Unknown auth command type: {}", cmd.getClass().getSimpleName());

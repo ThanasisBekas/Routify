@@ -11,6 +11,7 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 
 import java.util.Map;
 
@@ -37,7 +38,7 @@ public class KafkaConsumerConfig {
     private String groupId;
 
     @Bean
-    public ConsumerFactory<String, String> adminConsumerFactory() {
+    public ConsumerFactory<String, Object> adminConsumerFactory() {
         return new DefaultKafkaConsumerFactory<>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ConsumerConfig.GROUP_ID_CONFIG,                 groupId,
@@ -49,10 +50,11 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-            KafkaTemplate<String, String> kafkaTemplate) {
-        var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            KafkaTemplate<String, Object> kafkaTemplate) {
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(adminConsumerFactory());
+        factory.setRecordMessageConverter(new StringJsonMessageConverter());
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));

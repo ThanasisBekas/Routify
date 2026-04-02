@@ -12,6 +12,7 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 
 import java.util.Map;
 
@@ -35,7 +36,7 @@ public class CertVaultKafkaConfig {
     // ─── Producer ─────────────────────────────────────────────────────────────
 
     @Bean
-    public ProducerFactory<String, String> certProducerFactory() {
+    public ProducerFactory<String, Object> certProducerFactory() {
         return new DefaultKafkaProducerFactory<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,          bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,       StringSerializer.class,
@@ -48,14 +49,14 @@ public class CertVaultKafkaConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate() {
+    public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(certProducerFactory());
     }
 
     // ─── Consumer (command topics from admin-api) ─────────────────────────────
 
     @Bean
-    public ConsumerFactory<String, String> certCommandConsumerFactory() {
+    public ConsumerFactory<String, Object> certCommandConsumerFactory() {
         return new DefaultKafkaConsumerFactory<>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,          bootstrapServers,
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,     StringDeserializer.class,
@@ -66,11 +67,12 @@ public class CertVaultKafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> certCommandKafkaListenerContainerFactory(
-            KafkaTemplate<String, String> kafkaTemplate) {
-        var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
+    public ConcurrentKafkaListenerContainerFactory<String, Object> certCommandKafkaListenerContainerFactory(
+            KafkaTemplate<String, Object> kafkaTemplate) {
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(certCommandConsumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setRecordMessageConverter(new StringJsonMessageConverter());
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));

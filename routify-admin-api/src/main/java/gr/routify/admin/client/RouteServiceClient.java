@@ -3,20 +3,18 @@ package gr.routify.admin.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.client.AmqpServiceClientSupport;
 import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
  * RabbitMQ client for miscellaneous routify-route-service and routify-api-gateway calls
  * that are not covered by {@link RouteFilterMessagingClient} (stats, gateway status).
- *
- * <p>Uses the RabbitMQ Direct Reply-To pattern via {@link AmqpServiceClientSupport}.
  */
 @Slf4j
 @Component
@@ -26,33 +24,27 @@ public class RouteServiceClient extends AmqpServiceClientSupport {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_ROUTE_SERVICE, "admin-api");
     }
 
-    /**
-     * Fetches route statistics (counts by status) for a given tenant.
-     */
     @CircuitBreaker(name = "route-service", fallbackMethod = "getRouteStatsFallback")
-    public Map<String, Object> getRouteStats(UUID tenantId) {
+    public QueryResponse.RouteStatsResult getRouteStats(UUID tenantId) {
         try {
-            return rpc(RabbitTopology.RK_ROUTE_STATS, new QueryRequest.RouteStats(tenantId));
+            return rpc(RabbitTopology.RK_ROUTE_STATS,
+                    new QueryRequest.RouteStats(tenantId),
+                    QueryResponse.RouteStatsResult.class);
         } catch (Exception e) {
             log.error("Failed to fetch route stats via RabbitMQ: {}", e.getMessage());
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getRouteStatsFallback(UUID tenantId, Throwable t) {
+    private QueryResponse.RouteStatsResult getRouteStatsFallback(UUID tenantId, Throwable t) {
         log.warn("getRouteStats circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "route-service temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.RouteStatsResult(0L, 0L, 0L, 0L, tenantId);
     }
 
-    /**
-     * Fetches gateway status from routify-api-gateway via RabbitMQ.
-     * Note: sends to the gateway exchange, not the route-service exchange.
-     */
     @CircuitBreaker(name = "route-service", fallbackMethod = "getGatewayStatusFallback")
-    public Map<String, Object> getGatewayStatus() {
+    public QueryResponse.GatewayStatus getGatewayStatus() {
         try {
-            // The gateway lives on its own exchange — call rabbitTemplate directly
             var req = objectMapper.writeValueAsString(new QueryRequest.GatewaySnapshot());
             var msg = org.springframework.amqp.core.MessageBuilder
                     .withBody(req.getBytes(java.nio.charset.StandardCharsets.UTF_8))
@@ -60,20 +52,22 @@ public class RouteServiceClient extends AmqpServiceClientSupport {
                     .build();
             var reply = rabbitTemplate.sendAndReceive(
                     RabbitTopology.EXCHANGE_GATEWAY, RabbitTopology.RK_GATEWAY_STATUS_REQUEST, msg);
-            if (reply == null) return Map.of("status", "DOWN", "error", "gateway unavailable");
+            if (reply == null) {
+                return new QueryResponse.GatewayStatus("DOWN", 0, null, null, null);
+            }
             return objectMapper.readValue(
                     new String(reply.getBody(), java.nio.charset.StandardCharsets.UTF_8),
-                    new com.fasterxml.jackson.core.type.TypeReference<>() {});
+                    QueryResponse.GatewayStatus.class);
         } catch (Exception e) {
             log.warn("Failed to fetch gateway status via RabbitMQ: {}", e.getMessage());
-            return Map.of("status", "UNKNOWN", "error", e.getMessage());
+            return new QueryResponse.GatewayStatus("UNKNOWN", 0, null, null, null);
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getGatewayStatusFallback(Throwable t) {
+    private QueryResponse.GatewayStatus getGatewayStatusFallback(Throwable t) {
         log.warn("getGatewayStatus circuit open or timed out: {}", t.getMessage());
-        return Map.of("status", "UNKNOWN", "error", "gateway temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.GatewayStatus("UNKNOWN", 0, null, null, null);
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
@@ -85,4 +79,3 @@ public class RouteServiceClient extends AmqpServiceClientSupport {
         return props;
     }
 }
-

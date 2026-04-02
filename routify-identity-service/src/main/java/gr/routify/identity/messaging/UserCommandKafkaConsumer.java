@@ -1,6 +1,5 @@
 package gr.routify.identity.messaging;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.identity.dto.AuthDto;
@@ -25,17 +24,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserCommandKafkaConsumer {
 
-    private final UserService  userService;
-    private final ObjectMapper objectMapper;
+    private final UserService userService;
 
     @KafkaListener(
             topics = KafkaTopics.USER_COMMANDS,
             groupId = "routify-identity-service-user-commands",
             containerFactory = "userCommandKafkaListenerContainerFactory"
     )
-    public void onUserCommand(String commandJson, Acknowledgment ack) {
+    public void onUserCommand(CommandEvent cmd, Acknowledgment ack) {
         try {
-            CommandEvent cmd = objectMapper.readValue(commandJson, CommandEvent.class);
             log.info("User command received: type={} tenantId={}",
                     cmd.getClass().getSimpleName(), cmd.tenantId());
 
@@ -58,7 +55,7 @@ public class UserCommandKafkaConsumer {
 
             ack.acknowledge();
         } catch (Exception e) {
-            log.error("Failed to process user command: {} — {}", commandJson, e.getMessage(), e);
+            log.error("Failed to process user command: type={} — {}", cmd.getClass().getSimpleName(), e.getMessage(), e);
         }
     }
 }

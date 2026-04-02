@@ -46,7 +46,7 @@ import java.util.concurrent.TimeoutException;
 public class OutboxPoller {
 
     private final OutboxEventRepository outboxRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
     @Value("${routify.outbox.batch-size:50}")

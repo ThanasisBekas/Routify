@@ -16,6 +16,7 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 
 import java.util.Map;
 
@@ -36,7 +37,7 @@ public class KafkaConsumerConfig {
     // ─── DLQ Producer ─────────────────────────────────────────────────────────
 
     @Bean
-    public ProducerFactory<String, String> identityDlqProducerFactory() {
+    public ProducerFactory<String, Object> identityDlqProducerFactory() {
         return new DefaultKafkaProducerFactory<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,    bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
@@ -47,14 +48,14 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> identityDlqKafkaTemplate() {
+    public KafkaTemplate<String, Object> identityDlqKafkaTemplate() {
         return new KafkaTemplate<>(identityDlqProducerFactory());
     }
 
     // ─── Consumer ─────────────────────────────────────────────────────────────
 
     @Bean
-    public ConsumerFactory<String, String> userCommandConsumerFactory() {
+    public ConsumerFactory<String, Object> userCommandConsumerFactory() {
         return new DefaultKafkaConsumerFactory<>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,   StringDeserializer.class,
@@ -65,12 +66,13 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> userCommandKafkaListenerContainerFactory(
-            ConsumerFactory<String, String> userCommandConsumerFactory,
-            KafkaTemplate<String, String> identityDlqKafkaTemplate) {
-        var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
+    public ConcurrentKafkaListenerContainerFactory<String, Object> userCommandKafkaListenerContainerFactory(
+            ConsumerFactory<String, Object> userCommandConsumerFactory,
+            KafkaTemplate<String, Object> identityDlqKafkaTemplate) {
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(userCommandConsumerFactory);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setRecordMessageConverter(new StringJsonMessageConverter());
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(identityDlqKafkaTemplate));

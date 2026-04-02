@@ -28,7 +28,7 @@ import java.util.UUID;
 public class TenantService {
 
     private final TenantRepository tenantRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)

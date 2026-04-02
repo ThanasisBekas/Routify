@@ -43,7 +43,7 @@ public class GatewayActuatorClient extends AmqpServiceClientSupport {
 
     public GatewayActuatorClient(RabbitTemplate rabbitTemplate,
                                  ObjectMapper objectMapper,
-                                 KafkaTemplate<String, String> kafkaTemplate) {
+                                 KafkaTemplate<String, Object> kafkaTemplate) {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_GATEWAY, "admin-api");
         this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
     }

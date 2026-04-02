@@ -1,6 +1,7 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.CertVaultMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +35,7 @@ public class AdminCertificatesController {
     // ─── List certificates ────────────────────────────────────────────────────
 
     @GetMapping
-    public Map<String, Object> listCertificates(
+    public QueryResponse.CertsPage listCertificates(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
@@ -47,7 +48,7 @@ public class AdminCertificatesController {
     // ─── Get single certificate ────────────────────────────────────────────────
 
     @GetMapping("/{id}")
-    public Map<String, Object> getCertificate(
+    public QueryResponse.CertDetail getCertificate(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.getCertificate(id, tenantId);
@@ -56,7 +57,7 @@ public class AdminCertificatesController {
     // ─── Vault statistics ─────────────────────────────────────────────────────
 
     @GetMapping("/stats")
-    public Map<String, Object> getStats(
+    public QueryResponse.CertStatsResult getStats(
             @RequestHeader(value = "X-Tenant-Id", required = false) UUID tenantId) {
         return messagingClient.getCertVaultStats(tenantId);
     }

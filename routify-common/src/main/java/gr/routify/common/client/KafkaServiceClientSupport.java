@@ -21,7 +21,7 @@ import java.util.concurrent.TimeoutException;
  * @Component
  * public class RouteFilterMessagingClient extends KafkaServiceClientSupport {
  *
- *     public RouteFilterMessagingClient(KafkaTemplate<String, String> kafka,
+ *     public RouteFilterMessagingClient(KafkaTemplate<String, Object> kafka,
  *                                       ObjectMapper mapper) {
  *         super(kafka, mapper, "route-service");
  *     }
@@ -54,7 +54,7 @@ public abstract class KafkaServiceClientSupport {
     /** Default broker-ACK timeout used by {@link #publishSync}. */
     private static final long DEFAULT_SYNC_TIMEOUT_SECONDS = 5L;
 
-    protected final KafkaTemplate<String, String> kafkaTemplate;
+    protected final KafkaTemplate<String, Object> kafkaTemplate;
     protected final ObjectMapper objectMapper;
 
     /** Logical name of the publishing service — appears in log messages. */
@@ -65,7 +65,7 @@ public abstract class KafkaServiceClientSupport {
      * @param objectMapper  Jackson mapper shared across the application context.
      * @param serviceName   Logical name of the <em>publishing</em> service (e.g. {@code "admin-api"}).
      */
-    protected KafkaServiceClientSupport(KafkaTemplate<String, String> kafkaTemplate,
+    protected KafkaServiceClientSupport(KafkaTemplate<String, Object> kafkaTemplate,
                                         ObjectMapper objectMapper,
                                         String serviceName) {
         this.kafkaTemplate = kafkaTemplate;

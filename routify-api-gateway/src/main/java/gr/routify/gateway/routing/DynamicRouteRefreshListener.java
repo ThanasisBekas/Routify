@@ -1,6 +1,5 @@
 package gr.routify.gateway.routing;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +31,6 @@ import org.springframework.stereotype.Component;
 public class DynamicRouteRefreshListener {
 
     private final DynamicRouteDefinitionLocator routeLocator;
-    private final ObjectMapper objectMapper;
 
     /**
      * Pre-warm route table on application startup.
@@ -65,10 +63,8 @@ public class DynamicRouteRefreshListener {
             groupId = "routify-gateway-reload",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void onGatewayReloadRequested(String eventJson) {
+    public void onGatewayReloadRequested(DomainEvent event) {
         try {
-            DomainEvent event = objectMapper.readValue(eventJson, DomainEvent.class);
-
             if (event instanceof DomainEvent.GatewayReloadRequested reload) {
                 log.info("Gateway reload requested: reason='{}' tenant={}",
                         reload.reason(), reload.tenantId());
@@ -91,9 +87,8 @@ public class DynamicRouteRefreshListener {
             groupId = "routify-gateway-route-events",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void onRouteEvent(String eventJson) {
+    public void onRouteEvent(DomainEvent event) {
         try {
-            DomainEvent event = objectMapper.readValue(eventJson, DomainEvent.class);
             boolean requiresReload = switch (event) {
                 case DomainEvent.RouteActivated ignored   -> true;
                 case DomainEvent.RouteDeactivated ignored -> true;
@@ -107,8 +102,7 @@ public class DynamicRouteRefreshListener {
                 routeLocator.refresh();
             }
         } catch (Exception e) {
-            log.warn("Failed to parse route event: {}", e.getMessage());
+            log.warn("Failed to process route event: {}", e.getMessage());
         }
     }
 }
-
