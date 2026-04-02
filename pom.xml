@@ -13,7 +13,7 @@
 
     <groupId>gr.routify</groupId>
     <artifactId>routify-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1</version>
     <packaging>pom</packaging>
     <name>Routify Parent</name>
     <description>Routify — Zero-downtime API Gateway Platform (Parent BOM)</description>
