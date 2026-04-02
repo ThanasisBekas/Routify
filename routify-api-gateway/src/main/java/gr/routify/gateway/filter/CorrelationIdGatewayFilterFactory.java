@@ -1,5 +1,6 @@
 package gr.routify.gateway.filter;
 
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -33,7 +34,8 @@ import java.util.UUID;
 public class CorrelationIdGatewayFilterFactory
         extends AbstractGatewayFilterFactory<CorrelationIdGatewayFilterFactory.Config> {
 
-    public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
+    /** @deprecated Use {@link RoutifyHeaders#CORRELATION_ID} directly. */
+    public static final String CORRELATION_ID_HEADER = RoutifyHeaders.CORRELATION_ID;
 
     public CorrelationIdGatewayFilterFactory() {
         super(Config.class);

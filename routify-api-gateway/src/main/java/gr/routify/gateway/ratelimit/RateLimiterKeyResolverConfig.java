@@ -1,5 +1,6 @@
 package gr.routify.gateway.ratelimit;
 
+import gr.routify.common.web.RoutifyHeaders;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,7 +38,7 @@ public class RateLimiterKeyResolverConfig {
     @Bean
     public KeyResolver userKeyResolver() {
         return exchange -> {
-            String userId = exchange.getRequest().getHeaders().getFirst("X-Auth-User-Id");
+            String userId = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID);
             return Mono.just(userId != null ? "user:" + userId : "anonymous");
         };
     }
@@ -49,7 +50,7 @@ public class RateLimiterKeyResolverConfig {
     @Bean
     public KeyResolver tenantKeyResolver() {
         return exchange -> {
-            String tenantId = exchange.getRequest().getHeaders().getFirst("X-Tenant-Id");
+            String tenantId = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.TENANT_ID);
             return Mono.just(tenantId != null ? "tenant:" + tenantId : "unknown-tenant");
         };
     }
@@ -61,7 +62,7 @@ public class RateLimiterKeyResolverConfig {
     @Bean
     public KeyResolver apiKeyResolver() {
         return exchange -> {
-            String apiKey = exchange.getRequest().getHeaders().getFirst("X-API-Key");
+            String apiKey = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.API_KEY);
             if (apiKey == null) {
                 apiKey = exchange.getRequest().getQueryParams().getFirst("apiKey");
             }
@@ -76,8 +77,8 @@ public class RateLimiterKeyResolverConfig {
     @Bean
     public KeyResolver tenantUserKeyResolver() {
         return exchange -> {
-            String tenantId = exchange.getRequest().getHeaders().getFirst("X-Tenant-Id");
-            String userId   = exchange.getRequest().getHeaders().getFirst("X-Auth-User-Id");
+            String tenantId = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.TENANT_ID);
+            String userId   = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID);
             String key = "%s:%s".formatted(
                     tenantId != null ? tenantId : "unknown",
                     userId   != null ? userId   : "anonymous");

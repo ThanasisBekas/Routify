@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.admin.gateway.dto.GatewayConfigDto;
 import gr.routify.admin.gateway.dto.GatewayConfigDto.*;
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -329,7 +330,7 @@ public class GatewayConfigService {
                         .allowedOriginPatterns(List.of("http://localhost:5173"))
                         .allowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"))
                         .allowedHeaders(List.of("*"))
-                        .exposedHeaders(List.of("X-Correlation-Id","X-Route-Version"))
+                        .exposedHeaders(List.of(RoutifyHeaders.CORRELATION_ID, RoutifyHeaders.ROUTE_VERSION))
                         .allowCredentials(true).maxAge(3600).paths(List.of("/**")).build())
                 .securityHeaders(SecurityHeadersConfig.builder()
                         .enabled(true).xContentTypeOptions(true).xFrameOptions(true)
@@ -364,19 +365,19 @@ public class GatewayConfigService {
                         .compressionEnabled(false).followRedirects(false).wiretapEnabled(false).build())
                 .globalFilters(GlobalFiltersConfig.builder()
                         .correlationId(CorrelationIdConfig.builder().enabled(true)
-                                .headerName("X-Correlation-Id").generateIfMissing(true).propagateToResponse(true).build())
+                                .headerName(RoutifyHeaders.CORRELATION_ID).generateIfMissing(true).propagateToResponse(true).build())
                         .requestLogger(RequestLoggerConfig.builder().enabled(true)
                                 .logRequestHeaders(true).logResponseHeaders(false)
                                 .logRequestBody(false).logResponseBody(false).maxBodyLogSize(4096)
                                 .excludePaths(List.of("/actuator/**"))
-                                .maskHeaders(List.of("Authorization","X-API-Key","Cookie")).build())
+                                .maskHeaders(List.of("Authorization", RoutifyHeaders.API_KEY, "Cookie")).build())
                         .securityHeaders(SecurityHeadersRef.builder().enabled(true).build())
                         .tenantContext(TenantContextConfig.builder().enabled(true)
-                                .tenantHeaderName("X-Tenant-Id").enforceOnAllRoutes(false).build())
+                                .tenantHeaderName(RoutifyHeaders.TENANT_ID).enforceOnAllRoutes(false).build())
                         .build())
                 .tenantIsolation(TenantIsolationConfig.builder()
                         .enabled(true).enforceHeaderPredicate(true)
-                        .tenantIdHeader("X-Tenant-Id").allowCrossTenantsForSuperAdmin(true).build())
+                        .tenantIdHeader(RoutifyHeaders.TENANT_ID).allowCrossTenantsForSuperAdmin(true).build())
                 .build();
     }
 }

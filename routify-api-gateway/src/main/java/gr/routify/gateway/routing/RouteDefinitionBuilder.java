@@ -1,5 +1,6 @@
 package gr.routify.gateway.routing;
 
+import gr.routify.common.web.RoutifyHeaders;
 import gr.routify.gateway.config.GatewayConfigLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class RouteDefinitionBuilder {
 
-    private static final String DEFAULT_TENANT_HEADER = "X-Tenant-Id";
+    private static final String DEFAULT_TENANT_HEADER = RoutifyHeaders.TENANT_ID;
 
     private final GatewayConfigRefResolver configRefResolver;
     private final GatewayConfigLoader      configLoader;

@@ -1,5 +1,6 @@
 package gr.routify.admin.config;
 
+import gr.routify.common.web.RoutifyHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,7 +30,7 @@ public class CorsConfig {
         }
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.addAllowedHeader("*");
-        config.setExposedHeaders(List.of("X-Correlation-Id", "X-Route-Version"));
+        config.setExposedHeaders(List.of(RoutifyHeaders.CORRELATION_ID, RoutifyHeaders.ROUTE_VERSION));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

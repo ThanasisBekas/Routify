@@ -1,5 +1,6 @@
 package gr.routify.gateway.filter;
 
+import gr.routify.common.web.RoutifyHeaders;
 import gr.routify.gateway.config.GatewayConfigLoader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -66,7 +67,7 @@ public class TenantContextGatewayFilterFactory
      */
     public static class TenantContextGatewayFilter implements GatewayFilter, Ordered {
 
-        private static final String DEFAULT_TENANT_HEADER = "X-Tenant-Id";
+        private static final String DEFAULT_TENANT_HEADER = RoutifyHeaders.TENANT_ID;
 
         private final GatewayConfigLoader configLoader;
 
@@ -89,7 +90,7 @@ public class TenantContextGatewayFilterFactory
             String            tenantHeader = resolveTenantIdHeader();
 
             // Authoritative tenant set by JwtAuthGatewayFilterFactory after signature validation.
-            String authTenantId  = request.getHeaders().getFirst("X-Auth-Tenant-Id");
+            String authTenantId  = request.getHeaders().getFirst(RoutifyHeaders.AUTH_TENANT_ID);
             // Tenant supplied by the caller and already matched by the route Header predicate.
             String routeTenantId = request.getHeaders().getFirst(tenantHeader);
 

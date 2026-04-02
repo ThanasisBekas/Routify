@@ -1,5 +1,6 @@
 package gr.routify.gateway.filter;
 
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -113,19 +114,19 @@ public class SlidingWindowRateLimitGatewayFilterFactory
     private String resolveKey(ServerWebExchange exchange, String keyResolver) {
         return switch (keyResolver != null ? keyResolver.toUpperCase() : "IP") {
             case "USER"        -> Optional.ofNullable(
-                    exchange.getRequest().getHeaders().getFirst("X-Auth-User-Id"))
+                    exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID))
                     .map(u -> "user:" + u).orElse("anonymous");
             case "TENANT"      -> Optional.ofNullable(
-                    exchange.getRequest().getHeaders().getFirst("X-Tenant-Id"))
+                    exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.TENANT_ID))
                     .map(t -> "tenant:" + t).orElse("unknown-tenant");
             case "API_KEY"     -> {
-                String k = exchange.getRequest().getHeaders().getFirst("X-API-Key");
+                String k = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.API_KEY);
                 if (k == null) k = exchange.getRequest().getQueryParams().getFirst("apiKey");
                 yield k != null ? "apikey:" + k.hashCode() : "no-key";
             }
             case "TENANT_USER" -> {
-                String t = exchange.getRequest().getHeaders().getFirst("X-Tenant-Id");
-                String u = exchange.getRequest().getHeaders().getFirst("X-Auth-User-Id");
+                String t = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.TENANT_ID);
+                String u = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID);
                 yield "%s:%s".formatted(
                         t != null ? t : "unknown",
                         u != null ? u : "anonymous");

@@ -6,6 +6,7 @@ import gr.routify.admin.gateway.service.GatewayActuatorClient;
 import gr.routify.admin.gateway.service.GatewayConfigService;
 import gr.routify.admin.client.CertVaultMessagingClient;
 import gr.routify.common.event.QueryResponse;
+import gr.routify.common.web.RoutifyHeaders;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -218,7 +219,7 @@ public class GatewayConfigController {
      */
     @GetMapping("/tls/vault-certs")
     public ResponseEntity<QueryResponse.CertsList> getVaultCertificates(
-            @RequestHeader(value = "X-Tenant-Id", required = false) java.util.UUID tenantId) {
+            @RequestHeader(value = RoutifyHeaders.TENANT_ID, required = false) java.util.UUID tenantId) {
         return ResponseEntity.ok(certVaultClient.listGatewayMappedCertificates(tenantId));
     }
 

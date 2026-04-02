@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.audit.domain.RequestLog;
 import gr.routify.audit.repository.RequestLogRepository;
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpMethod;
@@ -49,7 +50,7 @@ public class FailedRequestReplayService {
      * publishing — preventing a duplicate request_log row for the replayed call.
      * The header is stripped by the gateway before reaching the upstream.
      */
-    private static final String REPLAY_MARKER_HEADER = "X-Routify-Replay";
+    private static final String REPLAY_MARKER_HEADER = RoutifyHeaders.REPLAY_MARKER;
 
     private final RequestLogRepository requestLogRepository;
     private final ObjectMapper objectMapper;
