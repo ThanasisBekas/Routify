@@ -25,6 +25,7 @@ import type {
   FilterSummary, AttachFilterRequest,
 } from '../../types'
 import { cn } from '../../lib/utils'
+import { extractApiError } from '../../lib/errorUtils'
 import { METHOD_OPTIONS, METHOD_COLORS_MODAL as METHOD_COLORS } from './routeConstants'
 
 // ─── Schema ────────────────────────────────────────────────────────────────────
@@ -350,7 +351,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
               {submitError && (
                 <div className="flex items-start gap-2.5 p-3.5 bg-red-500/[0.08] border border-red-500/20 rounded-xl text-sm text-red-300">
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
-                  <span>{(submitError as any)?.response?.data?.detail ?? 'Failed to save route'}</span>
+                  <span>{extractApiError(submitError, 'Failed to save route')}</span>
                 </div>
               )}
 

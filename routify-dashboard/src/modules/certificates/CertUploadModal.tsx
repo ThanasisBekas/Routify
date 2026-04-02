@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import type { CertGroupDto, UploadCertificateRequest } from '../../types'
 import { X, Upload, Loader2, AlertCircle, Layers, CheckCircle2, Info } from 'lucide-react'
+import { extractApiError } from '../../lib/errorUtils'
 import { Select } from '../../components/ui/Select'
 import { cn } from '../../lib/utils'
 
@@ -45,7 +46,7 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
       privateKey:  form.privateKey || undefined,
     } as UploadCertificateRequest),
     onSuccess: () => onSuccess(),
-    onError:   (e: any) => setError(e?.response?.data?.detail ?? e.message ?? 'Upload failed'),
+    onError:   (e: unknown) => setError(extractApiError(e, 'Upload failed')),
   })
 
   const set = (key: keyof typeof form) =>
