@@ -97,6 +97,11 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
         log.info("DynamicRouteDefinitionLocator: refreshing route definitions via RabbitMQ...");
 
         redisTemplate.opsForValue().get(CACHE_KEY)
+                .onErrorResume(ex -> {
+                    log.warn("Redis cache read failed ({}), falling back to route-service fetch: {}",
+                            ex.getClass().getSimpleName(), ex.getMessage());
+                    return Mono.empty();
+                })
                 .flatMap(cachedJson -> {
                     try {
                         List<RouteSnapshotDto> snapshots = objectMapper.readValue(
@@ -124,7 +129,10 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
                 })
                 .doOnError(ex -> log.error("Failed to refresh route definitions: {}", ex.getMessage(), ex))
                 .doFinally(signal -> refreshInProgress.set(false))
-                .subscribe();
+                .subscribe(
+                        definitions -> { /* handled in doOnNext */ },
+                        ex -> log.error("Unhandled error in route refresh pipeline: {}", ex.getMessage(), ex)
+                );
     }
 
     /** Forces cache invalidation and re-fetches from route-service via RabbitMQ. */

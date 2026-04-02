@@ -2,8 +2,10 @@ package gr.routify.gateway.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.common.client.AmqpServiceClientSupport;
+import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
@@ -22,17 +24,20 @@ import java.util.UUID;
  *       when a {@code CERTIFICATE_MAPPED_TO_GATEWAY} Kafka event arrives.</li>
  * </ul>
  *
- * <p>Both calls use the RabbitMQ Direct Reply-To pattern (synchronous request/reply).
+ * <p>Both calls use the RabbitMQ Direct Reply-To pattern (synchronous request/reply)
+ * via {@link AmqpServiceClientSupport}, which serialises strongly-typed
+ * {@link QueryRequest} objects with the Jackson {@code "type"} discriminator that
+ * cert-vault's {@code Jackson2JsonMessageConverter} requires for deserialisation.
  * They are <em>blocking</em> at the AMQP level and must be called from a non-reactive
  * thread (e.g. a virtual thread or bounded-elastic scheduler).
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class CertVaultClient {
+public class CertVaultClient extends AmqpServiceClientSupport {
 
-    private final RabbitTemplate rabbitTemplate;
-    private final ObjectMapper   objectMapper;
+    public CertVaultClient(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_CERT_VAULT, "api-gateway");
+    }
 
     /**
      * Fetches all active certificates that have a gateway TLS mapping.
@@ -42,18 +47,14 @@ public class CertVaultClient {
      */
     public List<Map<String, Object>> fetchGatewayMappedCerts(UUID tenantId) {
         try {
-            String request = tenantId != null
-                    ? "{\"tenantId\":\"" + tenantId + "\"}"
-                    : "{}";
-            Object response = rabbitTemplate.convertSendAndReceive(
-                    RabbitTopology.EXCHANGE_CERT_VAULT,
+            QueryResponse.CertsList response = rpc(
                     RabbitTopology.RK_CERTS_GATEWAY_SNAPSHOT,
-                    request);
-            if (response == null) {
-                log.warn("cert-vault returned null for gateway snapshot (timeout or unavailable)");
-                return List.of();
-            }
-            return objectMapper.readValue(response.toString(), new TypeReference<>() {});
+                    new QueryRequest.CertsGatewaySnapshot(tenantId),
+                    QueryResponse.CertsList.class);
+            // Convert each CertSummary record to a Map for downstream consumers
+            return response.items().stream()
+                    .map(cert -> objectMapper.convertValue(cert, new TypeReference<Map<String, Object>>() {}))
+                    .toList();
         } catch (Exception e) {
             log.error("Failed to fetch gateway cert snapshot from cert-vault: {}", e.getMessage(), e);
             return List.of();
@@ -70,17 +71,12 @@ public class CertVaultClient {
      */
     public Map<String, String> fetchCertMaterial(UUID certId, UUID tenantId) {
         try {
-            String request = objectMapper.writeValueAsString(
-                    Map.of("id", certId.toString(), "tenantId", tenantId.toString()));
-            Object response = rabbitTemplate.convertSendAndReceive(
-                    RabbitTopology.EXCHANGE_CERT_VAULT,
+            QueryResponse.GatewayConfig response = rpc(
                     RabbitTopology.RK_CERTS_FETCH_MATERIAL,
-                    request);
-            if (response == null) {
-                log.warn("cert-vault returned null for fetch-material certId={} (timeout or unavailable)", certId);
-                return null;
-            }
-            Map<String, String> result = objectMapper.readValue(response.toString(), new TypeReference<>() {});
+                    new QueryRequest.CertFetchMaterial(certId, tenantId),
+                    QueryResponse.GatewayConfig.class);
+            @SuppressWarnings("unchecked")
+            Map<String, String> result = (Map<String, String>) (Map<?, ?>) response.config();
             if (result.containsKey("error")) {
                 log.error("cert-vault returned error for certId={}: {}", certId, result.get("error"));
                 return null;

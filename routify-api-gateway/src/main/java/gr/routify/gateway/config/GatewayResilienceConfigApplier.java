@@ -42,18 +42,34 @@ import java.util.Map;
  *
  * <h3>Registered instance names</h3>
  * <ul>
- *   <li>{@code "default"} — the primary instance name used by routes that specify
- *       {@code CIRCUIT_BREAKER} without an explicit name, and the registry's default config.</li>
- *   <li>{@code "default-cb"} — kept for backward compatibility with any routes that were
- *       configured before the name was standardised.</li>
+ *   <li>{@code "default-cb"} — the primary named configuration registered in the Resilience4j
+ *       registry. Routes that specify {@code CIRCUIT_BREAKER} without an explicit name fall back
+ *       to the registry's built-in default config, which cannot be replaced via
+ *       {@code addConfiguration} (Resilience4j forbids the name {@code "default"} there).
+ *       Existing {@code "default"} <em>instances</em> are evicted via {@code registry.remove()}
+ *       so that SCG recreates them from the updated named config on the next request.</li>
  * </ul>
  */
 @Slf4j
 @Component
 public class GatewayResilienceConfigApplier {
 
-    /** Instance names managed by this applier (applied atomically together). */
-    private static final List<String> MANAGED_NAMES = List.of("default", "default-cb");
+    /**
+     * Named configuration entries managed by this applier.
+     * <p><strong>Important:</strong> Resilience4j reserves the name {@code "default"} for its
+     * own built-in default and throws {@link IllegalArgumentException} if you try to register
+     * a configuration under that name via {@code addConfiguration()}. Therefore only
+     * {@code "default-cb"} is listed here. The {@code "default"} <em>instance</em> is still
+     * evicted (via {@code registry.remove()}) so SCG recreates it on the next request.
+     */
+    private static final List<String> MANAGED_NAMES = List.of("default-cb");
+
+    /**
+     * Instance names that are evicted from the registry so SCG recreates them from the
+     * updated configuration. This includes {@code "default"} even though we cannot register
+     * a named <em>config</em> under that name.
+     */
+    private static final List<String> EVICT_NAMES = List.of("default", "default-cb");
 
     private final CircuitBreakerRegistry    circuitBreakerRegistry;
     private final TimeLimiterRegistry       timeLimiterRegistry;
@@ -149,9 +165,12 @@ public class GatewayResilienceConfigApplier {
 
             CircuitBreakerConfig cbConfig = builder.build();
 
-            for (String name : MANAGED_NAMES) {
-                // Remove existing instance so SCG creates a fresh one from the updated config
+            // Evict all managed instances first (including "default") so SCG recreates them
+            for (String name : EVICT_NAMES) {
                 circuitBreakerRegistry.remove(name);
+            }
+            // Register the named config only for non-reserved names ("default" is forbidden)
+            for (String name : MANAGED_NAMES) {
                 circuitBreakerRegistry.addConfiguration(name, cbConfig);
                 log.debug("CircuitBreakerRegistry: updated config for '{}' — " +
                                 "windowSize={} failureRate={}% waitInOpen={} minCalls={}",
@@ -183,8 +202,10 @@ public class GatewayResilienceConfigApplier {
                     .cancelRunningFuture(cancelRunning)
                     .build();
 
-            for (String name : MANAGED_NAMES) {
+            for (String name : EVICT_NAMES) {
                 timeLimiterRegistry.remove(name);
+            }
+            for (String name : MANAGED_NAMES) {
                 timeLimiterRegistry.addConfiguration(name, tlConfig);
                 log.debug("TimeLimiterRegistry: updated config for '{}' — timeout={} cancel={}",
                         name, timeoutStr, cancelRunning);
@@ -445,6 +466,10 @@ public class GatewayResilienceConfigApplier {
         }
         if (v.endsWith("h")) {
             try { return Duration.ofHours(Long.parseLong(v.substring(0, v.length() - 1).trim())); }
+            catch (NumberFormatException ignored) { /* fall through */ }
+        }
+        if (v.endsWith("d")) {
+            try { return Duration.ofDays(Long.parseLong(v.substring(0, v.length() - 1).trim())); }
             catch (NumberFormatException ignored) { /* fall through */ }
         }
 

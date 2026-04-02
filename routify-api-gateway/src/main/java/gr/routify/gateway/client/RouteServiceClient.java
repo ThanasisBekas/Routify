@@ -1,10 +1,11 @@
 package gr.routify.gateway.client;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.common.client.AmqpServiceClientSupport;
+import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import gr.routify.gateway.routing.RouteSnapshotDto;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
@@ -15,14 +16,16 @@ import java.util.List;
 /**
  * RabbitMQ client for fetching route snapshots from routify-route-service.
  *
- * <p>Replaces the previous HTTP WebClient implementation. Uses the
- * RabbitMQ Direct Reply-To pattern for synchronous request/reply:
+ * <p>Uses the RabbitMQ Direct Reply-To pattern for synchronous request/reply via
+ * {@link AmqpServiceClientSupport}, which serialises the strongly-typed
+ * {@link QueryRequest.GatewaySnapshot} with the Jackson {@code "type"} discriminator
+ * that route-service's {@code Jackson2JsonMessageConverter} requires for deserialisation.
  *
  * <ol>
- *   <li>Sends an empty request to {@code routify.route-service} exchange
- *       with routing key {@code route.gateway.snapshot}</li>
- *   <li>route-service replies with the full JSON array of active routes</li>
- *   <li>Response is deserialized into a {@link Flux} of {@link RouteSnapshotDto}</li>
+ *   <li>Sends a {@link QueryRequest.GatewaySnapshot} to the {@code routify.route-service}
+ *       exchange with routing key {@code route.gateway.snapshot}</li>
+ *   <li>route-service replies with a {@link QueryResponse.GatewaySnapshotList}</li>
+ *   <li>Response is mapped into a {@link List} / {@link Flux} of {@link RouteSnapshotDto}</li>
  * </ol>
  *
  * <p>The call is blocking at the AMQP level but is wrapped in a reactive
@@ -32,11 +35,11 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class RouteServiceClient {
+public class RouteServiceClient extends AmqpServiceClientSupport {
 
-    private final RabbitTemplate rabbitTemplate;
-    private final ObjectMapper   objectMapper;
+    public RouteServiceClient(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_ROUTE_SERVICE, "api-gateway");
+    }
 
     /**
      * Fetches all active routes with their complete filter chain configurations
@@ -56,18 +59,23 @@ public class RouteServiceClient {
      */
     public List<RouteSnapshotDto> fetchGatewaySnapshotSync() {
         try {
-            Object response = rabbitTemplate.convertSendAndReceive(
-                    RabbitTopology.EXCHANGE_ROUTE_SERVICE,
+            QueryResponse.GatewaySnapshotList response = rpc(
                     RabbitTopology.RK_ROUTE_GATEWAY_SNAPSHOT,
-                    "{}");
+                    new QueryRequest.GatewaySnapshot(),
+                    QueryResponse.GatewaySnapshotList.class);
 
-            if (response == null) {
-                log.warn("route-service returned null for gateway snapshot (timeout or unavailable)");
-                return List.of();
-            }
+            List<RouteSnapshotDto> snapshots = response.routes().stream()
+                    .map(r -> new RouteSnapshotDto(
+                            r.routeId(), r.tenantId(), r.name(), r.pathPattern(),
+                            r.methods(), r.upstreamUri(), r.stripPrefix(), r.version(),
+                            r.filters() == null ? List.of() : r.filters().stream()
+                                    .map(f -> new RouteSnapshotDto.FilterSnapshotDto(
+                                            f.filterId(), f.filterType(), f.order(), f.phase(),
+                                            f.config(), f.gatewayConfigRef()))
+                                    .toList(),
+                            r.extraConfig()))
+                    .toList();
 
-            List<RouteSnapshotDto> snapshots = objectMapper.readValue(
-                    response.toString(), new TypeReference<List<RouteSnapshotDto>>() {});
             log.info("Fetched {} active routes via RabbitMQ", snapshots.size());
             return snapshots;
 

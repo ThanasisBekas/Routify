@@ -5,6 +5,7 @@ import gr.routify.common.client.AmqpServiceClientSupport;
 import gr.routify.common.client.KafkaServiceClientSupport;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
+import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.RabbitTopology;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -99,7 +100,7 @@ public class GatewayActuatorClient extends AmqpServiceClientSupport {
      */
     public Map<String, Object> getCertificates() {
         try {
-            return rpc(RabbitTopology.RK_GATEWAY_CERT_REGISTRY, Map.of());
+            return rpc(RabbitTopology.RK_GATEWAY_CERT_REGISTRY, new QueryRequest.GatewaySnapshot());
         } catch (Exception e) {
             log.warn("Failed to get cert registry snapshot from gateway: {}", e.getMessage());
             return Map.of("error", e.getMessage());
@@ -149,7 +150,7 @@ public class GatewayActuatorClient extends AmqpServiceClientSupport {
 
     private Map<String, Object> requestGatewayStatus() {
         try {
-            return rpc(RabbitTopology.RK_GATEWAY_STATUS_REQUEST, Map.of());
+            return rpc(RabbitTopology.RK_GATEWAY_STATUS_REQUEST, new QueryRequest.GatewaySnapshot());
         } catch (Exception e) {
             log.warn("Failed to get gateway status via RabbitMQ: {}", e.getMessage());
             return Map.of("status", "UNKNOWN", "error", e.getMessage());
