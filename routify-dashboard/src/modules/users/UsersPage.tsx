@@ -5,6 +5,7 @@ import { authApi } from '../../api/authApi'
 import { tenantsApi } from '../../api/tenantsApi'
 import { useAuthStore } from '../../store/authStore'
 import { cn } from '../../lib/utils'
+import { extractApiError } from '../../lib/errorUtils'
 import type { TenantDto, UserDto, UserRole, CreateUserRequest } from '../../types'
 import {
   Users, Plus, Pencil, Trash2, KeyRound,
@@ -151,8 +152,8 @@ function ResetPasswordModal({ target, onClose }: { target: UserDto; onClose: () 
   const mutation = useMutation({
     mutationFn: () => usersApi.resetPassword(target.id, password),
     onSuccess: () => setSuccess(true),
-    onError: (e: any) =>
-      setError(e?.response?.data?.error ?? e?.response?.data?.detail ?? 'Failed to reset password'),
+    onError: (e: unknown) =>
+      setError(extractApiError(e, 'Failed to reset password')),
   })
 
   const inputCls = "w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all"
@@ -253,8 +254,8 @@ function ChangeOwnPasswordModal({ userId, onClose }: { userId: string; onClose: 
       if (currentUser) setUser({ ...currentUser, mustChangePassword: false })
       setSuccess(true)
     },
-    onError: (e: any) =>
-      setError(e?.response?.data?.error ?? e?.response?.data?.detail ?? 'Failed to change password'),
+    onError: (e: unknown) =>
+      setError(extractApiError(e, 'Failed to change password')),
   })
 
   const inputCls = "w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all pr-10"
@@ -377,13 +378,13 @@ function UserModal({
     mutationFn: (req: CreateUserRequest) =>
       usersApi.create(req, isSuperAdmin ? targetTenantId : undefined),
     onSuccess: onSaved,
-    onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to create user'),
+    onError: (e: unknown) => setError(extractApiError(e, 'Failed to create user')),
   })
 
   const updateMutation = useMutation({
     mutationFn: () => usersApi.updateRole(editing!.id, role),
     onSuccess: onSaved,
-    onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to update user'),
+    onError: (e: unknown) => setError(extractApiError(e, 'Failed to update user')),
   })
 
   const isPending = createMutation.isPending || updateMutation.isPending

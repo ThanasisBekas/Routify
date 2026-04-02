@@ -26,6 +26,7 @@ import {
   MarkerType,
   BackgroundVariant,
   Panel,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
@@ -82,7 +83,8 @@ const STATUS_CFG = {
 
 // ─── Custom Nodes ──────────────────────────────────────────────────────────────
 
-function ClientNode({ data: _data }: NodeProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function ClientNode(_props: NodeProps) {
   return (
     <div className="flex flex-col items-center gap-2 px-4 py-3 bg-[#111318] border border-white/10 rounded-xl shadow-xl min-w-[100px]">
       <div className="w-10 h-10 rounded-full bg-indigo-500/15 border border-indigo-400/25 flex items-center justify-center">
@@ -568,7 +570,7 @@ export default function RouteFlowCanvas({ route, height = 480, onValidityChange 
   }, [nodes, setEdges])
 
   const attachedIds = useMemo(() => new Set((route.filters ?? []).map(f => f.filterId)), [route.filters])
-  const onInit = useCallback((i: any) => setTimeout(() => i.fitView({ padding: 0.14, duration: 400 }), 50), [])
+  const onInit = useCallback((i: ReactFlowInstance) => setTimeout(() => i.fitView({ padding: 0.14, duration: 400 }), 50), [])
 
   return (
     <div style={{ height }} className="w-full rounded-xl overflow-hidden border border-white/[0.06] bg-[#080a0f]">
