@@ -33,20 +33,20 @@ public class AdminTenantsController {
      * No authentication required.
      */
     @GetMapping("/workspaces")
-    public QueryResponse.ActiveWorkspacesList listWorkspaces() {
-        return messagingClient.listActiveWorkspaces();
+    public ResponseEntity<QueryResponse.ActiveWorkspacesList> listWorkspaces() {
+        return ResponseEntity.ok(messagingClient.listActiveWorkspaces());
     }
 
     @GetMapping
-    public QueryResponse.TenantsPage listTenants(
+    public ResponseEntity<QueryResponse.TenantsPage> listTenants(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return messagingClient.queryTenants(page, size);
+        return ResponseEntity.ok(messagingClient.queryTenants(page, size));
     }
 
     @GetMapping("/{id}")
-    public QueryResponse.TenantDetail getTenant(@PathVariable UUID id) {
-        return messagingClient.getTenant(id);
+    public ResponseEntity<QueryResponse.TenantDetail> getTenant(@PathVariable UUID id) {
+        return ResponseEntity.ok(messagingClient.getTenant(id));
     }
 
     /** Only SUPER_ADMIN may create new workspaces. */
@@ -59,23 +59,25 @@ public class AdminTenantsController {
     }
 
     @PostMapping("/{id}/suspend")
-    public QueryResponse.TenantDetail suspendTenant(
+    public ResponseEntity<QueryResponse.TenantDetail> suspendTenant(
             @PathVariable UUID id,
             @RequestParam(defaultValue = "Administrative action") String reason) {
-        return messagingClient.tenantCommand("SUSPEND_TENANT", id, Map.of("reason", reason));
+        return ResponseEntity.ok(
+                messagingClient.tenantCommand("SUSPEND_TENANT", id, Map.of("reason", reason)));
     }
 
     /** Update workspace — SUPER_ADMIN only. */
     @Secured("ROLE_SUPER_ADMIN")
     @PutMapping("/{id}")
-    public QueryResponse.TenantDetail updateTenant(
+    public ResponseEntity<QueryResponse.TenantDetail> updateTenant(
             @PathVariable UUID id,
             @Valid @RequestBody Map<String, Object> request) {
-        return messagingClient.tenantCommand("UPDATE_TENANT", id, request);
+        return ResponseEntity.ok(messagingClient.tenantCommand("UPDATE_TENANT", id, request));
     }
 
     @PostMapping("/{id}/reactivate")
-    public QueryResponse.TenantDetail reactivateTenant(@PathVariable UUID id) {
-        return messagingClient.tenantCommand("REACTIVATE_TENANT", id, Map.of());
+    public ResponseEntity<QueryResponse.TenantDetail> reactivateTenant(@PathVariable UUID id) {
+        return ResponseEntity.ok(
+                messagingClient.tenantCommand("REACTIVATE_TENANT", id, Map.of()));
     }
 }

@@ -3,6 +3,7 @@ package gr.routify.admin.controller;
 import gr.routify.admin.client.AuditMessagingClient;
 import gr.routify.common.event.QueryResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -21,7 +22,7 @@ public class AdminAuditController {
     private final AuditMessagingClient messagingClient;
 
     @GetMapping("/events")
-    public QueryResponse.AuditEventsPage listAuditEvents(
+    public ResponseEntity<QueryResponse.AuditEventsPage> listAuditEvents(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) String eventType,
             @RequestParam(required = false) String aggregateType,
@@ -30,41 +31,45 @@ public class AdminAuditController {
             @RequestParam(required = false) String to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return messagingClient.queryAuditEvents(
-                tenantId, eventType, aggregateType, aggregateId, from, to, page, size);
+        return ResponseEntity.ok(
+                messagingClient.queryAuditEvents(
+                        tenantId, eventType, aggregateType, aggregateId, from, to, page, size));
     }
 
     @GetMapping("/requests")
-    public QueryResponse.RequestLogsPage listRequestLogs(
+    public ResponseEntity<QueryResponse.RequestLogsPage> listRequestLogs(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) UUID routeId,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return messagingClient.queryRequestLogs(tenantId, routeId, from, to, page, size);
+        return ResponseEntity.ok(
+                messagingClient.queryRequestLogs(tenantId, routeId, from, to, page, size));
     }
 
     @GetMapping("/requests/stats/{routeId}")
-    public QueryResponse.RequestStatsResult getRouteRequestStats(
+    public ResponseEntity<QueryResponse.RequestStatsResult> getRouteRequestStats(
             @PathVariable UUID routeId,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
-        return messagingClient.getRequestStats(tenantId, routeId);
+        return ResponseEntity.ok(messagingClient.getRequestStats(tenantId, routeId));
     }
 
     @GetMapping("/events/route/{routeId}")
-    public QueryResponse.AuditEventsPage getRouteHistory(
+    public ResponseEntity<QueryResponse.AuditEventsPage> getRouteHistory(
             @PathVariable UUID routeId,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
-        return messagingClient.queryAuditEvents(
-                tenantId, null, "ROUTE", routeId.toString(), null, null, 0, 100);
+        return ResponseEntity.ok(
+                messagingClient.queryAuditEvents(
+                        tenantId, null, "ROUTE", routeId.toString(), null, null, 0, 100));
     }
 
     @GetMapping("/events/filter/{filterId}")
-    public QueryResponse.AuditEventsPage getFilterHistory(
+    public ResponseEntity<QueryResponse.AuditEventsPage> getFilterHistory(
             @PathVariable UUID filterId,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
-        return messagingClient.queryAuditEvents(
-                tenantId, null, "FILTER", filterId.toString(), null, null, 0, 100);
+        return ResponseEntity.ok(
+                messagingClient.queryAuditEvents(
+                        tenantId, null, "FILTER", filterId.toString(), null, null, 0, 100));
     }
 }
