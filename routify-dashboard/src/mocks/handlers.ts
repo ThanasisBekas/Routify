@@ -20,7 +20,7 @@ import type {
   GatewayResilienceDefaults, GatewayAuthProvider,
   GatewayTlsConfig, GatewayProxyConfig, GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
-  GatewayCertificateSource, CertGroupDto, CertificateDto,
+  GatewayCertificateSource, CertGroupDto, CertificateDto, CertFormat,
 } from '../types'
 
 const BASE = 'http://localhost:8082'
@@ -813,7 +813,7 @@ const mockCerts: CertificateDto[] = [
     groupLogicalId: 'api-inbound-tls',
     memberAlias: 'primary',
     effectiveGatewayLogicalId: 'api-inbound-tls',
-    gatewayTlsLogicalId: null,
+    gatewayTlsLogicalId: undefined,
     uploadedBy: 'admin',
     createdAt: '2024-01-01T10:00:00Z',
     updatedAt: '2024-01-01T10:00:00Z',
@@ -837,7 +837,7 @@ const mockCerts: CertificateDto[] = [
     keyAlgorithm: 'EC',
     keySize: 256,
     fingerprintSha1: '11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44',
-    fingerprintSha256: null,
+    fingerprintSha256: undefined,
     sanDns: [],
     sanIp: [],
     isCa: true,
@@ -846,7 +846,7 @@ const mockCerts: CertificateDto[] = [
     groupLogicalId: 'mtls-client-ca',
     memberAlias: 'ca-root',
     effectiveGatewayLogicalId: 'mtls-client-ca',
-    gatewayTlsLogicalId: null,
+    gatewayTlsLogicalId: undefined,
     uploadedBy: 'admin',
     createdAt: '2023-01-01T09:00:00Z',
     updatedAt: '2023-01-01T09:00:00Z',
@@ -910,7 +910,7 @@ const certGroupHandlers = [
       tenantId: 'ten-platform',
       logicalId: body.logicalId as string,
       alias: body.alias as string,
-      description: (body.description as string) ?? null,
+      description: (body.description as string) ?? undefined,
       status: 'ACTIVE',
       memberCount: 0,
       expiryHealthStatus: 'VALID',
@@ -951,7 +951,7 @@ const certGroupHandlers = [
     if (idx === -1) return HttpResponse.json({ status: 404 }, { status: 404 })
     // Detach members
     mockCerts.filter(c => c.groupId === params.id).forEach(c => {
-      c.groupId = null; c.groupLogicalId = null; c.memberAlias = null; c.effectiveGatewayLogicalId = c.gatewayTlsLogicalId
+      c.groupId = undefined; c.groupLogicalId = undefined; c.memberAlias = undefined; c.effectiveGatewayLogicalId = c.gatewayTlsLogicalId
     })
     mockCertGroups.splice(idx, 1)
     return new HttpResponse(null, { status: 202 })
@@ -975,7 +975,7 @@ const certGroupHandlers = [
     if (!cert) return HttpResponse.json({ status: 404, detail: 'Certificate not found' }, { status: 404 })
     cert.groupId = g.id
     cert.groupLogicalId = g.logicalId
-    cert.memberAlias = (body.memberAlias as string) ?? null
+    cert.memberAlias = (body.memberAlias as string) ?? undefined
     cert.effectiveGatewayLogicalId = g.logicalId
     syncGroupStats()
     return HttpResponse.json({ status: 'accepted', message: 'Certificate group member addition in progress' }, { status: 202 })
@@ -986,9 +986,9 @@ const certGroupHandlers = [
     await delay(LAT)
     const cert = mockCerts.find(c => c.id === params.certId)
     if (!cert) return HttpResponse.json({ status: 404 }, { status: 404 })
-    cert.groupId = null
-    cert.groupLogicalId = null
-    cert.memberAlias = null
+    cert.groupId = undefined
+    cert.groupLogicalId = undefined
+    cert.memberAlias = undefined
     cert.effectiveGatewayLogicalId = cert.gatewayTlsLogicalId
     syncGroupStats()
     return HttpResponse.json({ status: 'accepted', message: 'Certificate group member removal in progress' })
@@ -1040,8 +1040,8 @@ const certHandlers = [
       tenantId: 'ten-platform',
       logicalId: `cert-${certId}`,
       alias: body.alias as string,
-      description: (body.description as string) ?? null,
-      format: (body.format as string) ?? 'PEM',
+      description: (body.description as string) ?? undefined,
+      format: ((body.format as string) ?? 'PEM') as CertFormat,
       status: 'ACTIVE',
       expiryStatus: 'VALID',
       subjectDn: 'CN=uploaded.cert',
@@ -1052,17 +1052,17 @@ const certHandlers = [
       signatureAlg: 'SHA256withRSA',
       keyAlgorithm: 'RSA',
       keySize: 2048,
-      fingerprintSha1: null,
-      fingerprintSha256: null,
+      fingerprintSha1: undefined,
+      fingerprintSha256: undefined,
       sanDns: [],
       sanIp: [],
       isCa: false,
       hasPrivateKey: !!body.privateKey,
       groupId: group.id,
       groupLogicalId: group.logicalId,
-      memberAlias: body.memberAlias ?? null,
+      memberAlias: (body.memberAlias as string) ?? undefined,
       effectiveGatewayLogicalId: group.logicalId,
-      gatewayTlsLogicalId: null,
+      gatewayTlsLogicalId: undefined,
       uploadedBy: 'admin',
       createdAt: now(),
       updatedAt: now(),
