@@ -1,5 +1,6 @@
 package gr.routify.gateway.config;
 
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.lang.NonNull;
@@ -131,7 +132,7 @@ public class DynamicCorsConfigurationSource implements CorsConfigurationSource {
         applyFallbackOrigins(cfg);
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         cfg.addAllowedHeader("*");
-        cfg.setExposedHeaders(List.of("X-Correlation-Id", "X-Route-Version"));
+        cfg.setExposedHeaders(List.of(RoutifyHeaders.CORRELATION_ID, RoutifyHeaders.ROUTE_VERSION));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
         return cfg;

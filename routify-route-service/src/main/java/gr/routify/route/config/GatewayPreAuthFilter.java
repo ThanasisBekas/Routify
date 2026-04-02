@@ -1,5 +1,6 @@
 package gr.routify.route.config;
 
+import gr.routify.common.web.RoutifyHeaders;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,11 +41,11 @@ public class GatewayPreAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String userId = request.getHeader("X-Auth-User-Id");
+        String userId = request.getHeader(RoutifyHeaders.AUTH_USER_ID);
 
         if (userId != null && !userId.isBlank()) {
-            String role = request.getHeader("X-Auth-Role");
-            String tenantId = request.getHeader("X-Auth-Tenant-Id");
+            String role = request.getHeader(RoutifyHeaders.AUTH_ROLE);
+            String tenantId = request.getHeader(RoutifyHeaders.AUTH_TENANT_ID);
 
             List<SimpleGrantedAuthority> authorities = (role != null && !role.isBlank())
                     ? List.of(new SimpleGrantedAuthority("ROLE_" + role))

@@ -2,6 +2,7 @@ package gr.routify.admin.controller;
 
 import gr.routify.admin.client.IdentityMessagingClient;
 import gr.routify.common.event.QueryResponse;
+import gr.routify.common.exception.RoutifyException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -75,8 +76,7 @@ public class AdminAuthController {
                                      HttpServletResponse response) {
         String refreshToken = extractRefreshCookie(request);
         if (refreshToken == null || refreshToken.isBlank()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("code", "Unauthorized", "error", "Missing refresh token cookie"));
+            throw new RoutifyException.Unauthorized("Missing refresh token cookie");
         }
 
         QueryResponse.LoginResult result = messagingClient.refresh(refreshToken);

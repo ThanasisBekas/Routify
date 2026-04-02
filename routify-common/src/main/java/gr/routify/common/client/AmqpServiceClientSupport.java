@@ -7,6 +7,7 @@ import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import gr.routify.common.exception.RoutifyException;
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
@@ -240,7 +241,7 @@ public abstract class AmqpServiceClientSupport {
         MessageProperties props = new MessageProperties();
         props.setContentType(MessageProperties.CONTENT_TYPE_JSON);
         props.setHeader(RabbitTopology.HEADER_FROM_SERVICE, serviceName);
-        props.setHeader("X-Correlation-Id", resolveCorrelationId());
+        props.setHeader(RoutifyHeaders.CORRELATION_ID, resolveCorrelationId());
 
         return MessageBuilder
                 .withBody(json.getBytes(StandardCharsets.UTF_8))

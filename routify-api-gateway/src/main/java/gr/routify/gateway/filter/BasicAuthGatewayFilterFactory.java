@@ -1,5 +1,6 @@
 package gr.routify.gateway.filter;
 
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -75,8 +76,8 @@ public class BasicAuthGatewayFilterFactory
             log.debug("AUTH_BASIC: authenticated user '{}'", incomingUser);
 
             ServerHttpRequest mutated = exchange.getRequest().mutate()
-                    .header("X-Auth-User-Id", incomingUser)
-                    .header("X-Auth-Type", "BASIC")
+                    .header(RoutifyHeaders.AUTH_USER_ID, incomingUser)
+                    .header(RoutifyHeaders.AUTH_TYPE, "BASIC")
                     .build();
 
             return chain.filter(exchange.mutate().request(mutated).build());

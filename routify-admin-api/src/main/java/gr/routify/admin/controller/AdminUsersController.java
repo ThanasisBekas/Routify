@@ -3,6 +3,7 @@ package gr.routify.admin.controller;
 import gr.routify.admin.client.IdentityMessagingClient;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.AsyncAcknowledgement;
+import gr.routify.common.web.RoutifyHeaders;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,7 +30,7 @@ public class AdminUsersController {
 
     @GetMapping
     public ResponseEntity<QueryResponse.UsersPage> listUsers(
-            @RequestHeader(value = "X-Tenant-Id", required = false) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.TENANT_ID, required = false) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(messagingClient.queryUsers(tenantId, page, size));
@@ -38,13 +39,13 @@ public class AdminUsersController {
     @GetMapping("/{id}")
     public ResponseEntity<QueryResponse.UserDetail> getUser(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId) {
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
         return ResponseEntity.ok(messagingClient.getUser(id, tenantId));
     }
 
     @PostMapping
     public ResponseEntity<AsyncAcknowledgement> createUser(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
@@ -56,7 +57,7 @@ public class AdminUsersController {
     @PutMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> updateUser(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
@@ -68,7 +69,7 @@ public class AdminUsersController {
     @DeleteMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> deleteUser(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
         messagingClient.sendDeleteUser(id, tenantId, actor);
@@ -86,7 +87,7 @@ public class AdminUsersController {
     @PostMapping("/{id}/reset-password")
     public ResponseEntity<?> resetPassword(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestBody Map<String, Object> body,
             Authentication auth) {
 

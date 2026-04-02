@@ -11,6 +11,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -170,16 +171,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         AuthHeadersRequestWrapper(HttpServletRequest request, Claims claims) {
             super(request);
-            extraHeaders.put("X-Auth-User-Id",  claims.getSubject() != null ? claims.getSubject() : "");
-            extraHeaders.put("X-Auth-Tenant-Id", getVal(claims, "tenantId"));
-            extraHeaders.put("X-Auth-Role",      getVal(claims, "role"));
-            extraHeaders.put("X-Auth-Email",     getVal(claims, "email"));
+            extraHeaders.put(RoutifyHeaders.AUTH_USER_ID,  claims.getSubject() != null ? claims.getSubject() : "");
+            extraHeaders.put(RoutifyHeaders.AUTH_TENANT_ID, getVal(claims, "tenantId"));
+            extraHeaders.put(RoutifyHeaders.AUTH_ROLE,      getVal(claims, "role"));
+            extraHeaders.put(RoutifyHeaders.AUTH_EMAIL,     getVal(claims, "email"));
             // Only set X-Tenant-Id from JWT if the client did NOT send an explicit value.
             // This preserves SUPER_ADMIN cross-workspace operations where the dashboard
             // deliberately sends a different X-Tenant-Id to target another workspace.
-            String clientTenantId = request.getHeader("X-Tenant-Id");
+            String clientTenantId = request.getHeader(RoutifyHeaders.TENANT_ID);
             if (clientTenantId == null || clientTenantId.isBlank()) {
-                extraHeaders.put("X-Tenant-Id", getVal(claims, "tenantId"));
+                extraHeaders.put(RoutifyHeaders.TENANT_ID, getVal(claims, "tenantId"));
             }
         }
 

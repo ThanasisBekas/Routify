@@ -1,5 +1,6 @@
 package gr.routify.gateway.filter;
 
+import gr.routify.common.web.RoutifyHeaders;
 import gr.routify.gateway.telemetry.GatewayTelemetryPublisher;
 import gr.routify.gateway.telemetry.GatewayTelemetryPublisher.TelemetryEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -56,8 +57,8 @@ public class RequestLoggerGatewayFilterFactory
 
     /** Header names to suppress from captured request/response headers (security). */
     private static final List<String> REDACTED_HEADERS = List.of(
-            "Authorization", "X-Api-Key", "Cookie", "Set-Cookie", "X-Auth-Token",
-            "X-Routify-Replay"
+            "Authorization", RoutifyHeaders.API_KEY, "Cookie", "Set-Cookie", RoutifyHeaders.AUTH_TOKEN,
+            RoutifyHeaders.REPLAY_MARKER
     );
 
     /**
@@ -65,7 +66,7 @@ public class RequestLoggerGatewayFilterFactory
      * When present, the REQUEST_LOGGER skips telemetry publishing and strips
      * the header before forwarding to the upstream.
      */
-    public static final String REPLAY_HEADER = "X-Routify-Replay";
+    public static final String REPLAY_HEADER = RoutifyHeaders.REPLAY_MARKER;
 
     private final GatewayTelemetryPublisher telemetryPublisher;
 
@@ -101,7 +102,7 @@ public class RequestLoggerGatewayFilterFactory
             long startNano = System.nanoTime();
 
             ServerHttpRequest req = exchange.getRequest();
-            String correlationId = req.getHeaders().getFirst(CorrelationIdGatewayFilterFactory.CORRELATION_ID_HEADER);
+            String correlationId = req.getHeaders().getFirst(RoutifyHeaders.CORRELATION_ID);
 
             // ── Replay guard ─────────────────────────────────────────────────
             // Replayed requests carry X-Routify-Replay to prevent a second
@@ -257,8 +258,8 @@ public class RequestLoggerGatewayFilterFactory
             try {
                 ServerHttpRequest req = exchange.getRequest();
 
-                String tenantId  = req.getHeaders().getFirst("X-Tenant-Id");
-                String userId    = req.getHeaders().getFirst("X-Auth-User-Id");
+                String tenantId  = req.getHeaders().getFirst(RoutifyHeaders.TENANT_ID);
+                String userId    = req.getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID);
 
                 // Read route id and name from the SCG matched-route exchange attribute.
                 // The route id is stored as "{tenantId}::{routeId}" — strip the prefix to get the bare UUID.
