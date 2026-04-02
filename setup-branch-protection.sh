@@ -32,8 +32,8 @@ gh api --method PUT "repos/${REPO}/branches/develop/protection" \
 EOF
 
 echo ""
-echo "=== Protecting 'main' branch ==="
-gh api --method PUT "repos/${REPO}/branches/main/protection" \
+echo "=== Protecting 'master' branch ==="
+gh api --method PUT "repos/${REPO}/branches/master/protection" \
   --input - <<'EOF'
 {
   "required_status_checks": null,
@@ -93,7 +93,7 @@ echo ""
 echo "Summary:"
 echo "  - Default branch: develop"
 echo "  - develop: PRs required, admin can bypass"
-echo "  - main: PRs required, admin can bypass"
+echo "  - master: PRs required, admin can bypass"
 echo "  - release/*: PRs required, admin can bypass"
 echo ""
 echo "You (${OWNER}) can push directly to any branch."

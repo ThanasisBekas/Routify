@@ -1,14 +1,14 @@
-# Phase 6.3: Routify CI Pipeline
-# Runs on every push to main/develop and on every PR.
+# Routify CI Pipeline
+# Runs on every push to master/develop and on every PR.
 # Three parallel jobs: backend (Maven), frontend (npm), and security scan.
 
 name: Routify CI
 
 on:
   push:
-    branches: [main, develop, 'release/**']
+    branches: [master, develop, 'release/**']
   pull_request:
-    branches: [main, develop, 'release/**']
+    branches: [master, develop, 'release/**']
 
 concurrency:
   group: ci-${{ github.ref }}
