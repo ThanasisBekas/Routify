@@ -4,6 +4,7 @@ import { tenantsApi } from '../../api/tenantsApi'
 import type { CreateWorkspaceRequest } from '../../api/tenantsApi'
 import { useAuthStore } from '../../store/authStore'
 import { cn } from '../../lib/utils'
+import { extractApiError } from '../../lib/errorUtils'
 import type { TenantDto, TenantPlan } from '../../types'
 import {
   Building2, Plus, Loader2, AlertCircle, CheckCircle2, X,
@@ -55,7 +56,7 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
       setSuccess(true)
     },
-    onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to create workspace.'),
+    onError: (e: unknown) => setError(extractApiError(e, 'Failed to create workspace.')),
   })
 
   const slugify = (name: string) =>

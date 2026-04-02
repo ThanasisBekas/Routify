@@ -140,7 +140,7 @@ export default function RouteWorkflowCard({
 
           {/* Response */}
           <PipelineNode
-            icon={route.status === 'ACTIVE' ? <CheckCircle className="w-3.5 h-3.5" /> : undefined as any}
+            icon={route.status === 'ACTIVE' ? <CheckCircle className="w-3.5 h-3.5" /> : null}
             label="Response"
             color={route.status === 'ACTIVE' ? 'text-emerald-400' : 'text-gray-500'}
             bg={route.status === 'ACTIVE' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.04] border-white/10'}

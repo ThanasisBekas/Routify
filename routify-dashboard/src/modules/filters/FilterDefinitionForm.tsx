@@ -11,6 +11,7 @@ import { FILTER_TYPES_WITH_GATEWAY_REF } from '../../types'
 import FilterConfigFields, { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './FilterConfigFields'
 import GatewayConfigRefPicker from './GatewayConfigRefPicker'
 import { cn } from '../../lib/utils'
+import { extractApiError } from '../../lib/errorUtils'
 
 // ─── Filter type catalogue ────────────────────────────────────────────────────
 
@@ -387,7 +388,7 @@ export default function FilterDefinitionForm({
                 <div className="flex items-start gap-2.5 p-3.5 bg-red-500/[0.08] border border-red-500/20 rounded-xl">
                   <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
                   <span className="text-sm text-red-300">
-                    {(error as any)?.response?.data?.detail ?? 'Failed to save filter'}
+                    {extractApiError(error, 'Failed to save filter')}
                   </span>
                 </div>
               )}

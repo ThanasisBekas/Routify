@@ -14,7 +14,7 @@ import { gatewayApi } from '../../api/gatewayApi'
 import { useAuthStore } from '../../store/authStore'
 import type {
   FilterType, GatewayConfig, GatewayConfigRef, GatewayAuthProvider,
-  GatewayRateLimitPolicy, CertGroupDto,
+  GatewayRateLimitPolicy, CertGroupDto, GatewayCertificateSource,
 } from '../../types'
 import { FILTER_TYPES_WITH_GATEWAY_REF } from '../../types'
 import { cn } from '../../lib/utils'
@@ -56,18 +56,18 @@ function extractEntries(
       return [{
         id: '__circuit_breaker_defaults__',
         name: 'Circuit Breaker Defaults',
-        subtitle: `Failure rate: ${(config.circuitBreakerDefaults as any)?.failureRateThreshold ?? '?'}% · Window: ${(config.circuitBreakerDefaults as any)?.slidingWindowSize ?? '?'}`,
+        subtitle: `Failure rate: ${config.circuitBreakerDefaults?.failureRateThreshold ?? '?'}% · Window: ${config.circuitBreakerDefaults?.slidingWindowSize ?? '?'}`,
         enabled: true,
       }]
     case 'RESILIENCE_DEFAULTS':
       return [{
         id: '__resilience_defaults__',
         name: 'Resilience Defaults',
-        subtitle: `Retry: ${(config.resilienceDefaults as any)?.retryMaxAttempts ?? '?'} attempts · Timeout: ${(config.resilienceDefaults as any)?.timeoutDuration ?? '?'}`,
+        subtitle: `Retry: ${config.resilienceDefaults?.retryMaxAttempts ?? '?'} attempts · Timeout: ${config.resilienceDefaults?.timeoutDuration ?? '?'}`,
         enabled: true,
       }]
     case 'TLS_SOURCE':
-      return (config.tlsConfig?.fileSources ?? []).map((s: any) => ({
+      return (config.tlsConfig?.fileSources ?? []).map((s: GatewayCertificateSource) => ({
         id: s.logicalId,
         name: s.logicalId,
         subtitle: s.certificatePath,
@@ -83,7 +83,7 @@ function extractEntries(
         enabled: g.status === 'ACTIVE',
       }))
     case 'DOWNSTREAM_CREDENTIAL':
-      return (config.downstreamCredentials ?? []).map((c: any) => ({
+      return ((config as Record<string, unknown>).downstreamCredentials as Record<string, unknown>[] ?? []).map((c: Record<string, unknown>) => ({
         id: c.id,
         name: c.name,
         subtitle: `${c.type}${c.username ? ` · ${c.username}` : ''}`,

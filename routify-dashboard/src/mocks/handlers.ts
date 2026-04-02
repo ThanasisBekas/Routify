@@ -20,6 +20,7 @@ import type {
   GatewayResilienceDefaults, GatewayAuthProvider,
   GatewayTlsConfig, GatewayProxyConfig, GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
+  GatewayCertificateSource, CertGroupDto, CertificateDto,
 } from '../types'
 
 const BASE = 'http://localhost:8082'
@@ -477,7 +478,7 @@ const auditHandlers = [
       .filter(r => (r.replayStatus === 'PENDING' || r.replayStatus === 'FAILED') && r.replayCount < 5)
       .slice(0, limit)
 
-    let succeeded = 0, failed = 0, skipped = 0
+    let succeeded = 0, failed = 0; const skipped = 0
     candidates.forEach(entry => {
       const idx = failedRequests.findIndex(r => r.id === entry.id)
       if (idx === -1) return
@@ -658,7 +659,7 @@ const gatewayHandlers = [
     const registryEntries: Record<string, {
       fingerprint?: string; notAfter?: string; source?: string; status?: string
     }> = {}
-    gatewayConfig.tlsConfig.fileSources.forEach((s: any) => {
+    gatewayConfig.tlsConfig.fileSources.forEach((s: GatewayCertificateSource) => {
       if (s.logicalId) {
         registryEntries[s.logicalId] = {
           fingerprint: 'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD',
@@ -669,11 +670,11 @@ const gatewayHandlers = [
       }
     })
     // Add group-bound active certs under their group's logicalId (effectiveGatewayLogicalId)
-    mockCertGroups.filter((g: any) => g.status === 'ACTIVE').forEach((g: any) => {
-      const activeMembers = mockCerts.filter((c: any) => c.groupId === g.id && c.status === 'ACTIVE')
+    mockCertGroups.filter((g: CertGroupDto) => g.status === 'ACTIVE').forEach((g: CertGroupDto) => {
+      const activeMembers = mockCerts.filter((c: CertificateDto) => c.groupId === g.id && c.status === 'ACTIVE')
       if (activeMembers.length > 0) {
-        const worst = activeMembers.find((c: any) => c.expiryStatus === 'EXPIRED')
-          ?? activeMembers.find((c: any) => c.expiryStatus === 'EXPIRING_SOON')
+        const worst = activeMembers.find((c: CertificateDto) => c.expiryStatus === 'EXPIRED')
+          ?? activeMembers.find((c: CertificateDto) => c.expiryStatus === 'EXPIRING_SOON')
           ?? activeMembers[0]
         registryEntries[g.logicalId] = {
           fingerprint: worst.fingerprintSha256 ?? worst.fingerprintSha1 ?? 'group-cert-fp',
@@ -689,7 +690,7 @@ const gatewayHandlers = [
   http.get(`${BASE}/api/v1/admin/gateway/tls/vault-certs`, async () => {
     await delay(LAT)
     // Return active certs that have an effective gateway logical ID
-    return HttpResponse.json(mockCerts.filter((c: any) => c.status === 'ACTIVE' && c.effectiveGatewayLogicalId))
+    return HttpResponse.json(mockCerts.filter((c: CertificateDto) => c.status === 'ACTIVE' && c.effectiveGatewayLogicalId))
   }),
   http.put(`${BASE}/api/v1/admin/gateway/tls`, async ({ request }) => {
     await delay(LAT)
@@ -754,7 +755,7 @@ const gatewayHandlers = [
 // ─── Certificate Vault Handlers ───────────────────────────────────────────────
 
 // ── In-memory cert groups store ───────────────────────────────────────────────
-const mockCertGroups: any[] = [
+const mockCertGroups: CertGroupDto[] = [
   {
     id: 'grp-001',
     tenantId: 'ten-platform',
@@ -784,7 +785,7 @@ const mockCertGroups: any[] = [
 ]
 
 // ── In-memory certs store (linked to groups) ──────────────────────────────────
-const mockCerts: any[] = [
+const mockCerts: CertificateDto[] = [
   {
     id: 'cert-001',
     tenantId: 'ten-platform',
@@ -858,7 +859,7 @@ function syncGroupStats() {
   mockCertGroups.forEach(g => {
     const members = mockCerts.filter(c => c.groupId === g.id && c.status !== 'DELETED')
     g.memberCount = members.length
-    const statuses = members.filter(c => c.status === 'ACTIVE').map((c: any) => c.expiryStatus as string)
+    const statuses = members.filter(c => c.status === 'ACTIVE').map((c: CertificateDto) => c.expiryStatus as string)
     if (statuses.includes('EXPIRED'))       g.expiryHealthStatus = 'EXPIRED'
     else if (statuses.includes('EXPIRING_SOON')) g.expiryHealthStatus = 'EXPIRING_SOON'
     else g.expiryHealthStatus = 'VALID'
@@ -866,7 +867,7 @@ function syncGroupStats() {
 }
 
 // Helper: build group detail (with members array)
-function buildGroupDetail(g: any) {
+function buildGroupDetail(g: CertGroupDto) {
   const members = mockCerts.filter(c => c.groupId === g.id && c.status !== 'DELETED')
   return { ...g, members }
 }
@@ -897,19 +898,19 @@ const certGroupHandlers = [
   // CREATE group
   http.post(`${BASE}/api/v1/admin/cert-groups`, async ({ request }) => {
     await delay(LAT * 2)
-    const body = await request.json() as any
+    const body = await request.json() as Record<string, unknown>
     if (mockCertGroups.find(g => g.logicalId === body.logicalId)) {
       return HttpResponse.json({ status: 409, detail: `Group with logicalId '${body.logicalId}' already exists` }, { status: 409 })
     }
     if (mockCertGroups.find(g => g.alias === body.alias)) {
       return HttpResponse.json({ status: 409, detail: `Group with alias '${body.alias}' already exists` }, { status: 409 })
     }
-    const newGroup: any = {
+    const newGroup: CertGroupDto = {
       id: `grp-${Date.now()}`,
       tenantId: 'ten-platform',
-      logicalId: body.logicalId,
-      alias: body.alias,
-      description: body.description ?? null,
+      logicalId: body.logicalId as string,
+      alias: body.alias as string,
+      description: (body.description as string) ?? null,
       status: 'ACTIVE',
       memberCount: 0,
       expiryHealthStatus: 'VALID',
@@ -926,9 +927,9 @@ const certGroupHandlers = [
     await delay(LAT)
     const g = mockCertGroups.find(g => g.id === params.id)
     if (!g) return HttpResponse.json({ status: 404 }, { status: 404 })
-    const body = await request.json() as any
-    if (body.alias) g.alias = body.alias
-    if (body.description !== undefined) g.description = body.description
+    const body = await request.json() as Record<string, unknown>
+    if (body.alias) g.alias = body.alias as string
+    if (body.description !== undefined) g.description = body.description as string
     g.updatedAt = now()
     return HttpResponse.json({ status: 'accepted', message: 'Certificate group update in progress' })
   }),
@@ -969,12 +970,12 @@ const certGroupHandlers = [
     await delay(LAT)
     const g = mockCertGroups.find(g => g.id === params.id)
     if (!g) return HttpResponse.json({ status: 404 }, { status: 404 })
-    const body = await request.json() as any
+    const body = await request.json() as Record<string, unknown>
     const cert = mockCerts.find(c => c.id === body.certId)
     if (!cert) return HttpResponse.json({ status: 404, detail: 'Certificate not found' }, { status: 404 })
     cert.groupId = g.id
     cert.groupLogicalId = g.logicalId
-    cert.memberAlias = body.memberAlias ?? null
+    cert.memberAlias = (body.memberAlias as string) ?? null
     cert.effectiveGatewayLogicalId = g.logicalId
     syncGroupStats()
     return HttpResponse.json({ status: 'accepted', message: 'Certificate group member addition in progress' }, { status: 202 })
@@ -1028,19 +1029,19 @@ const certHandlers = [
   // Upload certificate — now expects groupId + memberAlias instead of logicalId
   http.post(`${BASE}/api/v1/admin/certificates`, async ({ request }) => {
     await delay(LAT * 2)
-    const body = await request.json() as any
+    const body = await request.json() as Record<string, unknown>
     const group = mockCertGroups.find(g => g.id === body.groupId)
     if (!group) {
       return HttpResponse.json({ status: 400, detail: 'Certificate group not found' }, { status: 400 })
     }
     const certId  = `cert-${Date.now()}`
-    const newCert: any = {
+    const newCert: CertificateDto = {
       id: certId,
       tenantId: 'ten-platform',
       logicalId: `cert-${certId}`,
-      alias: body.alias,
-      description: body.description ?? null,
-      format: body.format ?? 'PEM',
+      alias: body.alias as string,
+      description: (body.description as string) ?? null,
+      format: (body.format as string) ?? 'PEM',
       status: 'ACTIVE',
       expiryStatus: 'VALID',
       subjectDn: 'CN=uploaded.cert',

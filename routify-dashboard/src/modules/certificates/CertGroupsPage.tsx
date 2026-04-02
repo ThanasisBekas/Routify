@@ -467,7 +467,7 @@ export default function CertGroupsPage() {
                       isDeleting={deleteCertMutation.isPending && deleteCertMutation.variables === cert.id}
                       isRemoving={
                         removeMemberMutation.isPending &&
-                        (removeMemberMutation.variables as any)?.certId === cert.id
+                        (removeMemberMutation.variables as { groupId: string; certId: string } | undefined)?.certId === cert.id
                       }
                     />
                   ))}
