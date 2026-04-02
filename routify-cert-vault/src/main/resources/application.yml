@@ -1,0 +1,126 @@
+spring:
+  application:
+    name: routify-cert-vault
+
+  threads:
+    virtual:
+      enabled: true   # Java 21 Virtual Threads via Tomcat
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:routify}
+    username: ${DB_USER:routify}
+    # No default — must be supplied via DB_PASS environment variable.
+    password: ${DB_PASS:}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 3
+      connection-timeout: 30000
+      pool-name: cert-vault-pool
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: routify_cert
+        format_sql: false
+        jdbc:
+          batch_size: 20
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    schemas: routify_cert
+    default-schema: routify_cert
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    connect-retries: 5
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+
+  # ─── RabbitMQ — sync request/reply responder ────────────────────────────────
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:routify}
+    # No default — must be supplied via RABBITMQ_PASS environment variable.
+    password: ${RABBITMQ_PASS:}
+    virtual-host: /
+    listener:
+      simple:
+        concurrency: 2
+        max-concurrency: 5
+        prefetch: 10
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8085
+  shutdown: graceful
+
+# ─── Actuator / Management ─────────────────────────────────────────────────
+management:
+  server:
+    port: 9085
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ─── Routify Configuration ───────────────────────────────────────────────────
+routify:
+  outbox:
+    poll-interval-ms: 250
+    retry-interval-ms: 30000
+    batch-size: 50
+    retry-batch-size: 50   # C6/M9: configurable retry batch (was hardcoded 5)
+    max-retries: 5
+
+  jwt:
+    # RSA public key for validating inter-service JWTs (issued by routify-identity-service)
+    public-key: ${JWT_PUBLIC_KEY:}
+
+  cert-vault:
+    # AES-256 encryption key for certificate material (base64-encoded, exactly 32 decoded bytes).
+    # No default — must be supplied via CERT_VAULT_ENCRYPTION_KEY environment variable.
+    # Generate a valid key with: openssl rand -base64 32
+    encryption-key: ${CERT_VAULT_ENCRYPTION_KEY:}
+    # Maximum certificate file size (bytes) — default 128 KB
+    max-cert-size-bytes: 131072
+
+  # ─── Startup secret validation ────────────────────────────────────────────────
+  required-secrets: >-
+    spring.datasource.password,
+    spring.rabbitmq.password,
+    routify.cert-vault.encryption-key
+
+logging:
+  level:
+    gr.routify: DEBUG
+    org.springframework.kafka: WARN
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+

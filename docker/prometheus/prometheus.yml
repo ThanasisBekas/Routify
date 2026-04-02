@@ -1,0 +1,43 @@
+# Phase 4.6: Prometheus scrape configuration for Routify services
+# Each service exposes metrics on its own dedicated management port (app port + 1000).
+#   api-gateway      → 9080
+#   route-service    → 9081
+#   admin-api        → 9082
+#   identity-service → 9083
+#   audit-service    → 9084
+#   cert-vault       → 9085
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'routify-admin-api'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['admin-api:9082']
+
+  - job_name: 'routify-api-gateway'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['api-gateway:9080']
+
+  - job_name: 'routify-route-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['route-service:9081']
+
+  - job_name: 'routify-identity-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['identity-service:9083']
+
+  - job_name: 'routify-audit-service'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['audit-service:9084']
+
+  - job_name: 'routify-cert-vault'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['cert-vault:9085']
+

@@ -1,0 +1,215 @@
+# docker-compose.app.yml — Routify Application Services
+# Usage: docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
+#
+# Prerequisites:
+#   1. Run `mvn clean package -DskipTests` to build all JARs.
+#   2. Copy env.example → .env and fill in all required values.
+#
+# ⚠  DEV / LOCAL USE ONLY.
+#    All secrets below are resolved from environment variables.
+#    Copy env.example → .env and supply real values before starting.
+
+services:
+
+  identity-service:
+    build:
+      context: ./routify-identity-service
+      dockerfile: Dockerfile
+    container_name: routify-identity
+    ports:
+      - "8083:8083"
+      - "9083:9083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/routify
+      DB_HOST: postgres
+      DB_USER: routify
+      DB_PASS: ${DB_PASS}
+      KAFKA_BOOTSTRAP: kafka:9092
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      REDIS_HOST: redis
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [routify]
+
+  route-service:
+    build:
+      context: ./routify-route-service
+      dockerfile: Dockerfile
+    container_name: routify-route
+    ports:
+      - "8081:8081"
+      - "9081:9081"
+    environment:
+      DB_HOST: postgres
+      DB_USER: routify
+      DB_PASS: ${DB_PASS}
+      KAFKA_BOOTSTRAP: kafka:9092
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      REDIS_HOST: redis
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [routify]
+
+  audit-service:
+    build:
+      context: ./routify-audit-service
+      dockerfile: Dockerfile
+    container_name: routify-audit
+    ports:
+      - "8084:8084"
+      - "9084:9084"
+    environment:
+      DB_HOST: postgres
+      DB_USER: routify
+      DB_PASS: ${DB_PASS}
+      KAFKA_BOOTSTRAP: kafka:9092
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      ROUTIFY_REPLAY_GATEWAY_BASE_URL: http://api-gateway:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [routify]
+
+  cert-vault:
+    build:
+      context: ./routify-cert-vault
+      dockerfile: Dockerfile
+    container_name: routify-cert-vault
+    ports:
+      - "8085:8085"
+      - "9085:9085"
+    environment:
+      DB_HOST: postgres
+      DB_USER: routify
+      DB_PASS: ${DB_PASS}
+      KAFKA_BOOTSTRAP: kafka:9092
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      CERT_VAULT_ENCRYPTION_KEY: ${CERT_VAULT_ENCRYPTION_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [routify]
+
+  admin-api:
+    build:
+      context: ./routify-admin-api
+      dockerfile: Dockerfile
+    container_name: routify-admin-api
+    ports:
+      - "8082:8082"
+      - "9082:9082"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      REDIS_HOST: redis
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      route-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [routify]
+
+  api-gateway:
+    build:
+      context: ./routify-api-gateway
+      dockerfile: Dockerfile
+    container_name: routify-gateway
+    ports:
+      - "8080:8080"
+      - "9080:9080"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      SPRING_DATA_REDIS_HOST: redis
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+    depends_on:
+      route-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [routify]
+
+  dashboard:
+    build:
+      context: ./routify-dashboard
+      dockerfile: Dockerfile
+    container_name: routify-dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      admin-api:
+        condition: service_healthy
+    networks: [routify]
+
+networks:
+  routify:
+    driver: bridge
+

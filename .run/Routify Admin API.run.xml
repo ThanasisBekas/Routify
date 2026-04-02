@@ -1,0 +1,26 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Routify Admin API" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="routify-admin-api" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.admin.RoutifyAdminApiApplication" />
+    <option name="ACTIVE_PROFILES" value="dev" />
+    <option name="ALTERNATIVE_JRE_PATH" />
+    <envs>
+      <env name="SPRING_PROFILES_ACTIVE" value="dev" />
+      <env name="KAFKA_BOOTSTRAP" value="localhost:9092" />
+      <env name="RABBITMQ_HOST" value="localhost" />
+      <env name="RABBITMQ_PORT" value="5672" />
+      <env name="RABBITMQ_USER" value="routify" />
+      <env name="RABBITMQ_PASS" value="lqUolXrlbdzlxjulYRVJg3ax" />
+      <env name="REDIS_HOST" value="localhost" />
+      <env name="REDIS_PORT" value="6379" />
+      <env name="IDENTITY_SERVICE_URL" value="http://localhost:8083" />
+      <env name="ROUTE_SERVICE_URL" value="http://localhost:8081" />
+      <env name="AUDIT_SERVICE_URL" value="http://localhost:8084" />
+      <env name="CERT_VAULT_URL" value="http://localhost:8085" />
+      <env name="GATEWAY_URL" value="http://localhost:8080" />
+    </envs>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
