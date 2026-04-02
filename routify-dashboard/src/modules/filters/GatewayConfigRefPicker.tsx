@@ -83,12 +83,12 @@ function extractEntries(
         enabled: g.status === 'ACTIVE',
       }))
     case 'DOWNSTREAM_CREDENTIAL':
-      return ((config as Record<string, unknown>).downstreamCredentials as Record<string, unknown>[] ?? []).map((c: Record<string, unknown>) => ({
-        id: c.id,
-        name: c.name,
+      return ((config as unknown as Record<string, unknown>).downstreamCredentials as Record<string, unknown>[] ?? []).map((c: Record<string, unknown>) => ({
+        id: c.id as string,
+        name: c.name as string,
         subtitle: `${c.type}${c.username ? ` · ${c.username}` : ''}`,
-        type: c.type,
-        enabled: c.enabled,
+        type: c.type as string,
+        enabled: c.enabled as boolean,
       }))
     default:
       return []
