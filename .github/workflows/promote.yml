@@ -1,0 +1,100 @@
+name: Promote Release to Main
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_number:
+        description: 'Release number to promote (e.g. 123 merges release/123 into main)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Merge Release into Main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate input
+        run: |
+          if ! [[ "${{ inputs.release_number }}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Release number must be a positive integer (e.g. 123)"
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Verify release branch exists
+        run: |
+          if ! git ls-remote --exit-code --heads origin "release/${{ inputs.release_number }}"; then
+            echo "::error::Branch release/${{ inputs.release_number }} does not exist on remote"
+            exit 1
+          fi
+
+      - name: Fetch release branch
+        run: git fetch origin "release/${{ inputs.release_number }}"
+
+      - name: Merge release into main
+        run: |
+          RELEASE_VERSION="1.0.${{ inputs.release_number }}"
+          git merge \
+            --no-ff \
+            "origin/release/${{ inputs.release_number }}" \
+            -m "release: merge release/${RELEASE_NUMBER} (v${RELEASE_VERSION}) into main"
+        env:
+          RELEASE_NUMBER: ${{ inputs.release_number }}
+
+      - name: Push main
+        run: git push origin main
+
+      - name: Tag release
+        run: |
+          RELEASE_VERSION="1.0.${{ inputs.release_number }}"
+          git tag -a "v${RELEASE_VERSION}" -m "Release v${RELEASE_VERSION}"
+          git push origin "v${RELEASE_VERSION}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ inputs.release_number }}
+          name: Routify v1.0.${{ inputs.release_number }}
+          draft: false
+          generate_release_notes: true
+
+      - name: Back-merge main into develop
+        run: |
+          git fetch origin develop
+          git checkout develop
+          git merge main -m "chore: back-merge main into develop after release/${{ inputs.release_number }}"
+          git push origin develop
+
+      - name: Delete release branch
+        run: git push origin --delete "release/${{ inputs.release_number }}"
+
+      - name: Summary
+        run: |
+          RELEASE_VERSION="1.0.${{ inputs.release_number }}"
+          echo "### Release Promoted :ship:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | \`v${RELEASE_VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Merged | \`release/${{ inputs.release_number }}\` → \`main\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tag | \`v${RELEASE_VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Back-merged | \`main\` → \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Cleanup | \`release/${{ inputs.release_number }}\` branch deleted |" >> "$GITHUB_STEP_SUMMARY"
+
