@@ -84,7 +84,7 @@ public class AdminCertGroupsController {
             @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        messagingClient.sendCertCommand("CREATE_CERT_GROUP", request, tenantId, actor);
+        messagingClient.sendCreateCertGroup(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(Map.of("status", "accepted", "message", "Certificate group creation in progress"));
     }
@@ -99,9 +99,7 @@ public class AdminCertGroupsController {
             @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        java.util.LinkedHashMap<String, Object> payload = new java.util.LinkedHashMap<>(request);
-        payload.put("id", id.toString());
-        messagingClient.sendCertCommand("UPDATE_CERT_GROUP", payload, tenantId, actor);
+        messagingClient.sendUpdateCertGroup(id, tenantId, actor, request);
         return Map.of("status", "accepted", "message", "Certificate group update in progress");
     }
 
@@ -114,8 +112,7 @@ public class AdminCertGroupsController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        messagingClient.sendCertCommand("ARCHIVE_CERT_GROUP",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendArchiveCertGroup(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "Certificate group archival in progress");
     }
 
@@ -129,8 +126,7 @@ public class AdminCertGroupsController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        messagingClient.sendCertCommand("DELETE_CERT_GROUP",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendDeleteCertGroup(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "Certificate group deletion in progress");
     }
 
@@ -162,9 +158,7 @@ public class AdminCertGroupsController {
             @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        java.util.LinkedHashMap<String, Object> payload = new java.util.LinkedHashMap<>(request);
-        payload.put("groupId", id.toString());
-        messagingClient.sendCertCommand("ADD_CERT_TO_GROUP", payload, tenantId, actor);
+        messagingClient.sendAddCertToGroup(id, tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(Map.of("status", "accepted", "message", "Certificate group member addition in progress"));
     }
@@ -181,8 +175,7 @@ public class AdminCertGroupsController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        messagingClient.sendCertCommand("REMOVE_CERT_FROM_GROUP",
-                Map.of("groupId", id.toString(), "certId", certId.toString()), tenantId, actor);
+        messagingClient.sendRemoveCertFromGroup(id, certId, tenantId, actor);
         return Map.of("status", "accepted", "message", "Certificate group member removal in progress");
     }
 

@@ -48,7 +48,7 @@ public class AdminFiltersController {
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        messagingClient.sendFilterCommand("CREATE_FILTER", request, tenantId, actor);
+        messagingClient.sendCreateFilter(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(Map.of("status", "accepted", "message", "Filter creation in progress"));
     }
@@ -61,8 +61,7 @@ public class AdminFiltersController {
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        request.put("id", id.toString());
-        messagingClient.sendFilterCommand("UPDATE_FILTER", request, tenantId, actor);
+        messagingClient.sendUpdateFilter(id, tenantId, actor, request);
         return Map.of("status", "accepted", "message", "Filter update in progress");
     }
 
@@ -74,8 +73,7 @@ public class AdminFiltersController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        messagingClient.sendFilterCommand("DELETE_FILTER",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendDeleteFilter(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "Filter deletion in progress");
     }
 }

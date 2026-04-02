@@ -1,34 +1,30 @@
 package gr.routify.admin.client;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.common.client.AmqpServiceClientSupport;
+import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.RabbitTopology;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageBuilder;
-import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * Admin-API messaging client for audit log and request log queries in routify-audit-service.
  *
- * <p>All audit queries use RabbitMQ request/reply. Audit data is immutable —
- * there are no command operations from the dashboard.
+ * <p>All audit queries use RabbitMQ request/reply via strongly-typed {@link QueryRequest} records.
+ * Audit data is immutable — there are no command operations from the dashboard.
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class AuditMessagingClient {
+public class AuditMessagingClient extends AmqpServiceClientSupport {
 
-    private final RabbitTemplate rabbitTemplate;
-    private final ObjectMapper   objectMapper;
+    public AuditMessagingClient(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_AUDIT_SERVICE, "admin-api");
+    }
 
     // ─── Audit Event Queries ──────────────────────────────────────────────────
 
@@ -37,16 +33,9 @@ public class AuditMessagingClient {
                                                 String aggregateType, String aggregateId,
                                                 String from, String to, int page, int size) {
         try {
-            var req = new java.util.LinkedHashMap<String, Object>();
-            req.put("tenantId",      tenantId != null ? tenantId.toString() : "");
-            req.put("eventType",     eventType);
-            req.put("aggregateType", aggregateType);
-            req.put("aggregateId",   aggregateId);
-            req.put("from",          from);
-            req.put("to",            to);
-            req.put("page",          page);
-            req.put("size",          size);
-            return rpcAuditService(RabbitTopology.RK_AUDIT_EVENTS_QUERY, req);
+            return rpc(RabbitTopology.RK_AUDIT_EVENTS_QUERY,
+                    new QueryRequest.AuditEventsQuery(tenantId, eventType, aggregateType,
+                            aggregateId, from, to, page, size));
         } catch (Exception e) {
             log.error("queryAuditEvents failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -68,14 +57,8 @@ public class AuditMessagingClient {
     public Map<String, Object> queryRequestLogs(UUID tenantId, UUID routeId,
                                                 String from, String to, int page, int size) {
         try {
-            var req = new java.util.LinkedHashMap<String, Object>();
-            req.put("tenantId", tenantId != null ? tenantId.toString() : "");
-            req.put("routeId",  routeId != null ? routeId.toString() : null);
-            req.put("from",     from);
-            req.put("to",       to);
-            req.put("page",     page);
-            req.put("size",     size);
-            return rpcAuditService(RabbitTopology.RK_AUDIT_REQUESTS_QUERY, req);
+            return rpc(RabbitTopology.RK_AUDIT_REQUESTS_QUERY,
+                    new QueryRequest.AuditRequestsQuery(tenantId, routeId, from, to, page, size));
         } catch (Exception e) {
             log.error("queryRequestLogs failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -93,11 +76,8 @@ public class AuditMessagingClient {
     @CircuitBreaker(name = "audit-service", fallbackMethod = "getRequestStatsFallback")
     public Map<String, Object> getRequestStats(UUID tenantId, UUID routeId) {
         try {
-            var req = Map.of(
-                    "tenantId", tenantId != null ? tenantId.toString() : "",
-                    "routeId",  routeId.toString()
-            );
-            return rpcAuditService(RabbitTopology.RK_AUDIT_REQUESTS_STATS, req);
+            return rpc(RabbitTopology.RK_AUDIT_REQUESTS_STATS,
+                    new QueryRequest.AuditRequestStats(tenantId, routeId));
         } catch (Exception e) {
             log.error("getRequestStats failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -115,12 +95,8 @@ public class AuditMessagingClient {
     @CircuitBreaker(name = "audit-service", fallbackMethod = "queryReplayFailedFallback")
     public Map<String, Object> queryReplayFailed(UUID tenantId, UUID routeId, int page, int size) {
         try {
-            var req = new java.util.LinkedHashMap<String, Object>();
-            req.put("tenantId", tenantId != null ? tenantId.toString() : "");
-            req.put("routeId",  routeId != null ? routeId.toString() : null);
-            req.put("page",     page);
-            req.put("size",     size);
-            return rpcAuditService(RabbitTopology.RK_AUDIT_REPLAY_FAILED_QUERY, req);
+            return rpc(RabbitTopology.RK_AUDIT_REPLAY_FAILED_QUERY,
+                    new QueryRequest.ReplayFailedQuery(tenantId, routeId, page, size));
         } catch (Exception e) {
             log.error("queryReplayFailed failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -137,12 +113,8 @@ public class AuditMessagingClient {
     @CircuitBreaker(name = "audit-service", fallbackMethod = "queryReplayPendingFallback")
     public Map<String, Object> queryReplayPending(UUID tenantId, UUID routeId, int page, int size) {
         try {
-            var req = new java.util.LinkedHashMap<String, Object>();
-            req.put("tenantId", tenantId != null ? tenantId.toString() : "");
-            req.put("routeId",  routeId != null ? routeId.toString() : null);
-            req.put("page",     page);
-            req.put("size",     size);
-            return rpcAuditService(RabbitTopology.RK_AUDIT_REPLAY_PENDING_QUERY, req);
+            return rpc(RabbitTopology.RK_AUDIT_REPLAY_PENDING_QUERY,
+                    new QueryRequest.ReplayPendingQuery(tenantId, routeId, page, size));
         } catch (Exception e) {
             log.error("queryReplayPending failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -159,8 +131,7 @@ public class AuditMessagingClient {
     @CircuitBreaker(name = "audit-service", fallbackMethod = "getReplayStatsFallback")
     public Map<String, Object> getReplayStats(UUID tenantId) {
         try {
-            var req = Map.of("tenantId", tenantId != null ? tenantId.toString() : "");
-            return rpcAuditService(RabbitTopology.RK_AUDIT_REPLAY_STATS, req);
+            return rpc(RabbitTopology.RK_AUDIT_REPLAY_STATS, new QueryRequest.ReplayStats(tenantId));
         } catch (Exception e) {
             log.error("getReplayStats failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -178,11 +149,7 @@ public class AuditMessagingClient {
     @CircuitBreaker(name = "audit-service", fallbackMethod = "replaySingleFallback")
     public Map<String, Object> replaySingle(UUID id, UUID tenantId) {
         try {
-            var req = Map.of(
-                    "id",       id.toString(),
-                    "tenantId", tenantId != null ? tenantId.toString() : ""
-            );
-            return rpcAuditService(RabbitTopology.RK_AUDIT_REPLAY_SINGLE, req);
+            return rpc(RabbitTopology.RK_AUDIT_REPLAY_SINGLE, new QueryRequest.ReplaySingle(id, tenantId));
         } catch (Exception e) {
             log.error("replaySingle failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -198,11 +165,7 @@ public class AuditMessagingClient {
     @CircuitBreaker(name = "audit-service", fallbackMethod = "replayBulkFallback")
     public Map<String, Object> replayBulk(UUID tenantId, int limit) {
         try {
-            var req = Map.of(
-                    "tenantId", tenantId != null ? tenantId.toString() : "",
-                    "limit",    limit
-            );
-            return rpcAuditService(RabbitTopology.RK_AUDIT_REPLAY_BULK, req);
+            return rpc(RabbitTopology.RK_AUDIT_REPLAY_BULK, new QueryRequest.ReplayBulk(tenantId, limit));
         } catch (Exception e) {
             log.error("replayBulk failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -214,21 +177,4 @@ public class AuditMessagingClient {
         log.warn("replayBulk circuit open or timed out: {}", t.getMessage());
         return Map.of("error", "audit-service temporarily unavailable", "circuitOpen", true);
     }
-
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> rpcAuditService(String routingKey, Object requestBody) throws Exception {
-        String body = objectMapper.writeValueAsString(requestBody);
-        MessageProperties props = new MessageProperties();
-        props.setContentType(MessageProperties.CONTENT_TYPE_JSON);
-        Message msg = MessageBuilder.withBody(body.getBytes(StandardCharsets.UTF_8))
-                .andProperties(props).build();
-        Message reply = rabbitTemplate.sendAndReceive(
-                RabbitTopology.EXCHANGE_AUDIT_SERVICE, routingKey, msg);
-        if (reply == null) return Map.of("error", "audit-service unavailable");
-        return objectMapper.readValue(
-                new String(reply.getBody(), StandardCharsets.UTF_8), new TypeReference<>() {});
-    }
 }
-
