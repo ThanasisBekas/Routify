@@ -52,7 +52,7 @@ public class AdminRoutesController {
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        messagingClient.sendRouteCommand("CREATE_ROUTE", request, tenantId, actor);
+        messagingClient.sendCreateRoute(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(Map.of("status", "accepted", "message", "Route creation in progress"));
     }
@@ -65,8 +65,7 @@ public class AdminRoutesController {
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        request.put("id", id.toString());
-        messagingClient.sendRouteCommand("UPDATE_ROUTE", request, tenantId, actor);
+        messagingClient.sendUpdateRoute(id, tenantId, actor, request);
         return Map.of("status", "accepted", "message", "Route update in progress");
     }
 
@@ -77,8 +76,7 @@ public class AdminRoutesController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        messagingClient.sendRouteCommand("ACTIVATE_ROUTE",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendActivateRoute(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "Route activation in progress");
     }
 
@@ -89,8 +87,7 @@ public class AdminRoutesController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        messagingClient.sendRouteCommand("DEACTIVATE_ROUTE",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendDeactivateRoute(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "Route deactivation in progress");
     }
 
@@ -102,8 +99,7 @@ public class AdminRoutesController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        messagingClient.sendRouteCommand("DELETE_ROUTE",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendDeleteRoute(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "Route deletion in progress");
     }
 
@@ -131,8 +127,10 @@ public class AdminRoutesController {
             @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        request.put("routeId", id.toString());
-        messagingClient.sendRouteCommand("ATTACH_FILTER", request, tenantId, actor);
+        UUID filterId = UUID.fromString(request.get("filterId").toString());
+        int  order    = request.get("order") != null ? Integer.parseInt(request.get("order").toString()) : 0;
+        String phase  = request.getOrDefault("phase", "PRE").toString();
+        messagingClient.sendAttachFilter(id, filterId, order, phase, tenantId, actor);
         return Map.of("status", "accepted", "message", "Filter attach in progress");
     }
 
@@ -144,8 +142,7 @@ public class AdminRoutesController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = userId != null ? userId : (auth != null ? auth.getName() : "system");
-        messagingClient.sendRouteCommand("DETACH_FILTER",
-                Map.of("routeId", id.toString(), "filterId", filterId.toString()), tenantId, actor);
+        messagingClient.sendDetachFilter(id, filterId, tenantId, actor);
         return Map.of("status", "accepted", "message", "Filter detach in progress");
     }
 }

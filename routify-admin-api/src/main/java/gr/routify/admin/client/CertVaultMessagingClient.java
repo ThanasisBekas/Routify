@@ -2,19 +2,19 @@ package gr.routify.admin.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.common.client.AmqpServiceClientSupport;
+import gr.routify.common.client.KafkaServiceClientSupport;
+import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.KafkaTopics;
+import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.RabbitTopology;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.MessageBuilder;
-import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -30,12 +30,16 @@ import java.util.UUID;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class CertVaultMessagingClient {
+public class CertVaultMessagingClient extends AmqpServiceClientSupport {
 
-    private final RabbitTemplate               rabbitTemplate;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper                  objectMapper;
+    private final KafkaServiceClientSupport kafka;
+
+    public CertVaultMessagingClient(RabbitTemplate rabbitTemplate,
+                                    ObjectMapper objectMapper,
+                                    KafkaTemplate<String, String> kafkaTemplate) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_CERT_VAULT, "admin-api");
+        this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
+    }
 
     // ─── Queries (RabbitMQ) ────────────────────────────────────────────────────
 
@@ -43,14 +47,8 @@ public class CertVaultMessagingClient {
     public Map<String, Object> queryCertificates(UUID tenantId, String status, int page, int size,
                                                   String sortBy, String sortDir) {
         try {
-            var req = Map.of(
-                    "tenantId", tenantId != null ? tenantId.toString() : "",
-                    "status",   status != null ? status : "",
-                    "page",     page, "size", size,
-                    "sortBy",   sortBy  != null ? sortBy  : "createdAt",
-                    "sortDir",  sortDir != null ? sortDir : "DESC"
-            );
-            return rpcCertVault(RabbitTopology.RK_CERTS_QUERY, req);
+            return rpc(RabbitTopology.RK_CERTS_QUERY,
+                    new QueryRequest.CertsQuery(tenantId, status, page, size, sortBy, sortDir));
         } catch (Exception e) {
             log.error("queryCertificates failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -67,8 +65,7 @@ public class CertVaultMessagingClient {
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "getCertificateFallback")
     public Map<String, Object> getCertificate(UUID id, UUID tenantId) {
         try {
-            var req = Map.of("id", id.toString(), "tenantId", tenantId.toString());
-            return rpcCertVault(RabbitTopology.RK_CERTS_GET, req);
+            return rpc(RabbitTopology.RK_CERTS_GET, new QueryRequest.CertGet(id, tenantId));
         } catch (Exception e) {
             log.error("getCertificate failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -84,17 +81,9 @@ public class CertVaultMessagingClient {
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "listActiveCertificatesFallback")
     public Object listActiveCertificates(UUID tenantId) {
         try {
-            var req = Map.of("tenantId", tenantId != null ? tenantId.toString() : "");
-            String body = objectMapper.writeValueAsString(req);
-            Message msg = MessageBuilder
-                    .withBody(body.getBytes(StandardCharsets.UTF_8))
-                    .andProperties(buildJsonProps())
-                    .build();
-            Message reply = rabbitTemplate.sendAndReceive(
-                    RabbitTopology.EXCHANGE_CERT_VAULT, RabbitTopology.RK_CERTS_ACTIVE_LIST, msg);
-            if (reply == null) return java.util.List.of();
-            return objectMapper.readValue(
-                    new String(reply.getBody(), StandardCharsets.UTF_8), new TypeReference<java.util.List<?>>() {});
+            return rpc(RabbitTopology.RK_CERTS_ACTIVE_LIST,
+                    new QueryRequest.CertsActiveList(tenantId),
+                    new TypeReference<java.util.List<?>>() {});
         } catch (Exception e) {
             log.error("listActiveCertificates failed: {}", e.getMessage(), e);
             return java.util.List.of();
@@ -115,17 +104,9 @@ public class CertVaultMessagingClient {
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "listGatewayMappedCertsFallback")
     public Object listGatewayMappedCertificates(UUID tenantId) {
         try {
-            var req = Map.of("tenantId", tenantId != null ? tenantId.toString() : "");
-            String body = objectMapper.writeValueAsString(req);
-            Message msg = MessageBuilder
-                    .withBody(body.getBytes(StandardCharsets.UTF_8))
-                    .andProperties(buildJsonProps())
-                    .build();
-            Message reply = rabbitTemplate.sendAndReceive(
-                    RabbitTopology.EXCHANGE_CERT_VAULT, RabbitTopology.RK_CERTS_GATEWAY_SNAPSHOT, msg);
-            if (reply == null) return java.util.List.of();
-            return objectMapper.readValue(
-                    new String(reply.getBody(), StandardCharsets.UTF_8), new TypeReference<java.util.List<?>>() {});
+            return rpc(RabbitTopology.RK_CERTS_GATEWAY_SNAPSHOT,
+                    new QueryRequest.CertsGatewaySnapshot(tenantId),
+                    new TypeReference<java.util.List<?>>() {});
         } catch (Exception e) {
             log.error("listGatewayMappedCertificates failed: {}", e.getMessage(), e);
             return java.util.List.of();
@@ -141,8 +122,7 @@ public class CertVaultMessagingClient {
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "getCertVaultStatsFallback")
     public Map<String, Object> getCertVaultStats(UUID tenantId) {
         try {
-            var req = Map.of("tenantId", tenantId != null ? tenantId.toString() : "");
-            return rpcCertVault(RabbitTopology.RK_CERTS_STATS, req);
+            return rpc(RabbitTopology.RK_CERTS_STATS, new QueryRequest.CertStats(tenantId));
         } catch (Exception e) {
             log.error("getCertVaultStats failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -161,14 +141,8 @@ public class CertVaultMessagingClient {
     public Map<String, Object> queryCertGroups(UUID tenantId, String status, int page, int size,
                                                 String sortBy, String sortDir) {
         try {
-            var req = Map.of(
-                    "tenantId", tenantId != null ? tenantId.toString() : "",
-                    "status",   status != null ? status : "",
-                    "page",     page, "size", size,
-                    "sortBy",   sortBy  != null ? sortBy  : "createdAt",
-                    "sortDir",  sortDir != null ? sortDir : "DESC"
-            );
-            return rpcCertVault(RabbitTopology.RK_CERT_GROUPS_QUERY, req);
+            return rpc(RabbitTopology.RK_CERT_GROUPS_QUERY,
+                    new QueryRequest.CertGroupsQuery(tenantId, status, page, size, sortBy, sortDir));
         } catch (Exception e) {
             log.error("queryCertGroups failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -185,8 +159,7 @@ public class CertVaultMessagingClient {
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "getCertGroupFallback")
     public Map<String, Object> getCertGroup(UUID id, UUID tenantId) {
         try {
-            var req = Map.of("id", id.toString(), "tenantId", tenantId.toString());
-            return rpcCertVault(RabbitTopology.RK_CERT_GROUPS_GET, req);
+            return rpc(RabbitTopology.RK_CERT_GROUPS_GET, new QueryRequest.CertGroupGet(id, tenantId));
         } catch (Exception e) {
             log.error("getCertGroup failed: {}", e.getMessage(), e);
             return Map.of("error", e.getMessage());
@@ -202,17 +175,9 @@ public class CertVaultMessagingClient {
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "listCertGroupMembersFallback")
     public Object listCertGroupMembers(UUID groupId, UUID tenantId) {
         try {
-            var req = Map.of("groupId", groupId.toString(), "tenantId", tenantId.toString());
-            String body = objectMapper.writeValueAsString(req);
-            Message msg = MessageBuilder
-                    .withBody(body.getBytes(StandardCharsets.UTF_8))
-                    .andProperties(buildJsonProps())
-                    .build();
-            Message reply = rabbitTemplate.sendAndReceive(
-                    RabbitTopology.EXCHANGE_CERT_VAULT, RabbitTopology.RK_CERT_GROUPS_MEMBERS, msg);
-            if (reply == null) return java.util.List.of();
-            return objectMapper.readValue(
-                    new String(reply.getBody(), StandardCharsets.UTF_8), new TypeReference<java.util.List<?>>() {});
+            return rpc(RabbitTopology.RK_CERT_GROUPS_MEMBERS,
+                    new QueryRequest.CertGroupMembers(groupId, tenantId),
+                    new TypeReference<java.util.List<?>>() {});
         } catch (Exception e) {
             log.error("listCertGroupMembers failed: {}", e.getMessage(), e);
             return java.util.List.of();
@@ -227,45 +192,72 @@ public class CertVaultMessagingClient {
 
     // ─── Commands (Kafka) ─────────────────────────────────────────────────────
 
-    public void sendCertCommand(String command, Map<String, Object> payload, UUID tenantId, String userId) {
-        try {
-            var envelope = new java.util.LinkedHashMap<String, Object>();
-            envelope.put("command",     command);
-            envelope.put("tenantId",    tenantId != null ? tenantId.toString() : null);
-            envelope.put("requestedBy", userId);
-            envelope.put("payload",     payload);
-            envelope.put("commandId",   UUID.randomUUID().toString());
-            kafkaTemplate.send(
-                    KafkaTopics.CERT_COMMANDS,
-                    tenantId != null ? tenantId.toString() : "global",
-                    objectMapper.writeValueAsString(envelope));
-            log.info("Cert command published: command={} tenantId={} by={}", command, tenantId, userId);
-        } catch (Exception e) {
-            log.error("Failed to publish cert command {}: {}", command, e.getMessage(), e);
-            throw new RuntimeException("Failed to publish cert command: " + command, e);
-        }
+    // ─── Commands (Kafka) ─────────────────────────────────────────────────────
+
+    public void sendUploadCertificate(UUID tenantId, String actor, Map<String, Object> req) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS, new CommandEvent.UploadCertificate(
+                UUID.randomUUID(), tenantId, actor, Instant.now(),
+                uuid(req, "groupId"), str(req, "memberAlias"),
+                str(req, "alias"), str(req, "description"),
+                req.getOrDefault("format", "PEM").toString(),
+                str(req, "certPem"), str(req, "privateKey")));
+    }
+
+    public void sendRevokeCertificate(UUID id, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS,
+                new CommandEvent.RevokeCertificate(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
+    }
+
+    public void sendDeleteCertificate(UUID id, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS,
+                new CommandEvent.DeleteCertificate(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
+    }
+
+    public void sendCreateCertGroup(UUID tenantId, String actor, Map<String, Object> req) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS, new CommandEvent.CreateCertGroup(
+                UUID.randomUUID(), tenantId, actor, Instant.now(),
+                str(req, "logicalId"), str(req, "alias"), str(req, "description")));
+    }
+
+    public void sendUpdateCertGroup(UUID id, UUID tenantId, String actor, Map<String, Object> req) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS, new CommandEvent.UpdateCertGroup(
+                UUID.randomUUID(), tenantId, actor, Instant.now(),
+                id, str(req, "alias"), str(req, "description")));
+    }
+
+    public void sendArchiveCertGroup(UUID id, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS,
+                new CommandEvent.ArchiveCertGroup(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
+    }
+
+    public void sendDeleteCertGroup(UUID id, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS,
+                new CommandEvent.DeleteCertGroup(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
+    }
+
+    public void sendAddCertToGroup(UUID groupId, UUID tenantId, String actor, Map<String, Object> req) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS, new CommandEvent.AddCertToGroup(
+                UUID.randomUUID(), tenantId, actor, Instant.now(),
+                groupId, uuid(req, "certId"), str(req, "memberAlias")));
+    }
+
+    public void sendRemoveCertFromGroup(UUID groupId, UUID certId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.CERT_COMMANDS,
+                new CommandEvent.RemoveCertFromGroup(UUID.randomUUID(), tenantId, actor, Instant.now(),
+                        groupId, certId));
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> rpcCertVault(String routingKey, Object requestBody) throws Exception {
-        String body = objectMapper.writeValueAsString(requestBody);
-        Message msg = MessageBuilder
-                .withBody(body.getBytes(StandardCharsets.UTF_8))
-                .andProperties(buildJsonProps())
-                .build();
-        Message reply = rabbitTemplate.sendAndReceive(
-                RabbitTopology.EXCHANGE_CERT_VAULT, routingKey, msg);
-        if (reply == null) return Map.of("error", "cert-vault unavailable");
-        return objectMapper.readValue(
-                new String(reply.getBody(), StandardCharsets.UTF_8), new TypeReference<>() {});
+    private static String str(Map<String, Object> m, String key) {
+        Object v = m.get(key);
+        return v != null ? v.toString() : null;
     }
 
-    private MessageProperties buildJsonProps() {
-        MessageProperties props = new MessageProperties();
-        props.setContentType(MessageProperties.CONTENT_TYPE_JSON);
-        return props;
+    private static UUID uuid(Map<String, Object> m, String key) {
+        Object v = m.get(key);
+        return v != null ? UUID.fromString(v.toString()) : null;
     }
 }
+
 

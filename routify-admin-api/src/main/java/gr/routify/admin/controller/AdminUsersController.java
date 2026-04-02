@@ -46,7 +46,7 @@ public class AdminUsersController {
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
-        messagingClient.sendUserCommand("CREATE_USER", request, tenantId, actor);
+        messagingClient.sendCreateUser(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(Map.of("status", "accepted", "message", "User creation in progress"));
     }
@@ -58,8 +58,7 @@ public class AdminUsersController {
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
-        request.put("id", id.toString());
-        messagingClient.sendUserCommand("UPDATE_USER", request, tenantId, actor);
+        messagingClient.sendUpdateUser(id, tenantId, actor, request);
         return Map.of("status", "accepted", "message", "User update in progress");
     }
 
@@ -70,8 +69,7 @@ public class AdminUsersController {
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
-        messagingClient.sendUserCommand("DELETE_USER",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendDeleteUser(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "User deletion in progress");
     }
 

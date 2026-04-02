@@ -1,6 +1,5 @@
 package gr.routify.audit.messaging;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.audit.domain.AuditLogEntry;
 import gr.routify.audit.domain.RequestLog;
@@ -8,6 +7,7 @@ import gr.routify.audit.replay.FailedRequestReplayService;
 import gr.routify.audit.repository.AuditLogRepository;
 import gr.routify.audit.repository.RequestLogRepository;
 import gr.routify.common.event.KafkaTopics;
+import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.RabbitTopology;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import java.util.UUID;
 /**
  * RabbitMQ request/reply handler for routify-audit-service.
  *
- * <p>Responds to audit log, request log, and replay queries/commands from routify-admin-api.
+ * <p>All request bodies are deserialised into strongly-typed {@link QueryRequest} records.
  * Audit data is immutable — only replay commands mutate state.
  */
 @Slf4j
@@ -47,30 +47,24 @@ public class AuditRabbitHandler {
     public String handleAuditEventsQuery(String requestBody) {
         log.debug("RabbitMQ: received audit.events.query request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID   tenantId      = parseUuid(req.get("tenantId"));
-            String eventType     = str(req.get("eventType"));
-            String aggregateType = str(req.get("aggregateType"));
-            String aggregateId   = str(req.get("aggregateId"));
-            String fromStr       = str(req.get("from"));
-            String toStr         = str(req.get("to"));
-            int    page          = parseInt(req.get("page"), 0);
-            int    size          = parseInt(req.get("size"), 50);
+            QueryRequest.AuditEventsQuery req = objectMapper.readValue(
+                    requestBody, QueryRequest.AuditEventsQuery.class);
 
-            var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "occurredAt"));
+            var pageable = PageRequest.of(req.page(), req.size(),
+                    Sort.by(Sort.Direction.DESC, "occurredAt"));
 
             Page<AuditLogEntry> result;
-            if (fromStr != null && toStr != null) {
+            if (req.from() != null && req.to() != null) {
                 result = auditLogRepository.findByTenantAndTimeRange(
-                        tenantId, Instant.parse(fromStr), Instant.parse(toStr), pageable);
-            } else if (eventType != null) {
+                        req.tenantId(), Instant.parse(req.from()), Instant.parse(req.to()), pageable);
+            } else if (req.eventType() != null) {
                 result = auditLogRepository.findByTenantIdAndEventTypeOrderByOccurredAtDesc(
-                        tenantId, eventType, pageable);
-            } else if (aggregateType != null && aggregateId != null) {
+                        req.tenantId(), req.eventType(), pageable);
+            } else if (req.aggregateType() != null && req.aggregateId() != null) {
                 result = auditLogRepository.findByTenantIdAndAggregateTypeAndAggregateIdOrderByOccurredAtDesc(
-                        tenantId, aggregateType, aggregateId, pageable);
+                        req.tenantId(), req.aggregateType(), req.aggregateId(), pageable);
             } else {
-                result = auditLogRepository.findByTenantIdOrderByOccurredAtDesc(tenantId, pageable);
+                result = auditLogRepository.findByTenantIdOrderByOccurredAtDesc(req.tenantId(), pageable);
             }
 
             Map<String, Object> response = new HashMap<>();
@@ -92,24 +86,21 @@ public class AuditRabbitHandler {
     public String handleRequestsQuery(String requestBody) {
         log.debug("RabbitMQ: received audit.requests.query request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID   tenantId  = parseUuid(req.get("tenantId"));
-            UUID   routeId   = parseUuid(req.get("routeId"));
-            String fromStr   = str(req.get("from"));
-            String toStr     = str(req.get("to"));
-            int    page      = parseInt(req.get("page"), 0);
-            int    size      = parseInt(req.get("size"), 50);
+            QueryRequest.AuditRequestsQuery req = objectMapper.readValue(
+                    requestBody, QueryRequest.AuditRequestsQuery.class);
 
-            var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "requestedAt"));
+            var pageable = PageRequest.of(req.page(), req.size(),
+                    Sort.by(Sort.Direction.DESC, "requestedAt"));
 
             Page<RequestLog> result;
-            if (routeId != null) {
-                result = requestLogRepository.findByTenantIdAndRouteIdOrderByRequestedAtDesc(tenantId, routeId, pageable);
-            } else if (fromStr != null && toStr != null) {
+            if (req.routeId() != null) {
+                result = requestLogRepository.findByTenantIdAndRouteIdOrderByRequestedAtDesc(
+                        req.tenantId(), req.routeId(), pageable);
+            } else if (req.from() != null && req.to() != null) {
                 result = requestLogRepository.findByTenantAndTimeRange(
-                        tenantId, Instant.parse(fromStr), Instant.parse(toStr), pageable);
+                        req.tenantId(), Instant.parse(req.from()), Instant.parse(req.to()), pageable);
             } else {
-                result = requestLogRepository.findByTenantIdOrderByRequestedAtDesc(tenantId, pageable);
+                result = requestLogRepository.findByTenantIdOrderByRequestedAtDesc(req.tenantId(), pageable);
             }
 
             Map<String, Object> response = new HashMap<>();
@@ -129,15 +120,14 @@ public class AuditRabbitHandler {
     public String handleRequestStats(String requestBody) {
         log.debug("RabbitMQ: received audit.requests.stats request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            UUID routeId  = parseUuid(req.get("routeId"));
+            QueryRequest.AuditRequestStats req = objectMapper.readValue(
+                    requestBody, QueryRequest.AuditRequestStats.class);
 
             Instant since = Instant.now().minusSeconds(86400);
-            Object[] stats = requestLogRepository.getRouteStats(tenantId, routeId, since);
+            Object[] stats = requestLogRepository.getRouteStats(req.tenantId(), req.routeId(), since);
 
             Map<String, Object> result = new HashMap<>();
-            result.put("routeId", routeId != null ? routeId.toString() : null);
+            result.put("routeId", req.routeId() != null ? req.routeId().toString() : null);
             if (stats != null && stats[0] != null) {
                 result.put("totalRequests",  ((Number) stats[0]).longValue());
                 result.put("avgDurationMs",  stats[1] != null ? ((Number) stats[1]).doubleValue() : 0.0);
@@ -162,16 +152,15 @@ public class AuditRabbitHandler {
     public String handleReplayFailedQuery(String requestBody) {
         log.debug("RabbitMQ: received audit.replay.failed.query request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            UUID routeId  = parseUuid(req.get("routeId"));
-            int  page     = parseInt(req.get("page"), 0);
-            int  size     = parseInt(req.get("size"), 50);
+            QueryRequest.ReplayFailedQuery req = objectMapper.readValue(
+                    requestBody, QueryRequest.ReplayFailedQuery.class);
 
-            var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "requestedAt"));
-            Page<RequestLog> result = routeId != null
-                    ? requestLogRepository.findFailedByTenantIdAndRouteId(tenantId, routeId, pageable)
-                    : requestLogRepository.findFailedByTenantId(tenantId, pageable);
+            var pageable = PageRequest.of(req.page(), req.size(),
+                    Sort.by(Sort.Direction.DESC, "requestedAt"));
+            Page<RequestLog> result = req.routeId() != null
+                    ? requestLogRepository.findFailedByTenantIdAndRouteId(
+                            req.tenantId(), req.routeId(), pageable)
+                    : requestLogRepository.findFailedByTenantId(req.tenantId(), pageable);
 
             Map<String, Object> response = new HashMap<>();
             response.put("content",       result.getContent().stream().map(this::requestLogToMap).toList());
@@ -190,16 +179,15 @@ public class AuditRabbitHandler {
     public String handleReplayPendingQuery(String requestBody) {
         log.debug("RabbitMQ: received audit.replay.pending.query request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            UUID routeId  = parseUuid(req.get("routeId"));
-            int  page     = parseInt(req.get("page"), 0);
-            int  size     = parseInt(req.get("size"), 50);
+            QueryRequest.ReplayPendingQuery req = objectMapper.readValue(
+                    requestBody, QueryRequest.ReplayPendingQuery.class);
 
-            var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "requestedAt"));
-            Page<RequestLog> result = routeId != null
-                    ? requestLogRepository.findPendingReplayByTenantIdAndRouteId(tenantId, routeId, pageable)
-                    : requestLogRepository.findPendingReplayByTenantId(tenantId, pageable);
+            var pageable = PageRequest.of(req.page(), req.size(),
+                    Sort.by(Sort.Direction.DESC, "requestedAt"));
+            Page<RequestLog> result = req.routeId() != null
+                    ? requestLogRepository.findPendingReplayByTenantIdAndRouteId(
+                            req.tenantId(), req.routeId(), pageable)
+                    : requestLogRepository.findPendingReplayByTenantId(req.tenantId(), pageable);
 
             Map<String, Object> response = new HashMap<>();
             response.put("content",       result.getContent().stream().map(this::requestLogToMap).toList());
@@ -218,12 +206,11 @@ public class AuditRabbitHandler {
     public String handleReplayStats(String requestBody) {
         log.debug("RabbitMQ: received audit.replay.stats request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID tenantId = parseUuid(req.get("tenantId"));
+            QueryRequest.ReplayStats req = objectMapper.readValue(
+                    requestBody, QueryRequest.ReplayStats.class);
 
-            List<Object[]> rows = requestLogRepository.countFailedByReplayStatus(tenantId);
+            List<Object[]> rows = requestLogRepository.countFailedByReplayStatus(req.tenantId());
 
-            // Initialise all expected keys to 0 so the frontend always receives a complete object
             Map<String, Object> result = new HashMap<>();
             result.put("pending",    0L);
             result.put("inProgress", 0L);
@@ -234,7 +221,6 @@ public class AuditRabbitHandler {
             for (Object[] row : rows) {
                 String dbKey = row[0] != null ? String.valueOf(row[0]) : null;
                 long   count = ((Number) row[1]).longValue();
-                // Map DB enum values to the camelCase keys expected by the dashboard
                 String apiKey = switch (dbKey != null ? dbKey : "") {
                     case "PENDING"     -> "pending";
                     case "IN_PROGRESS" -> "inProgress";
@@ -243,9 +229,7 @@ public class AuditRabbitHandler {
                     case "SKIPPED"     -> "skipped";
                     default            -> null;
                 };
-                if (apiKey != null) {
-                    result.put(apiKey, count);
-                }
+                if (apiKey != null) result.put(apiKey, count);
             }
             return objectMapper.writeValueAsString(result);
         } catch (Exception e) {
@@ -260,11 +244,10 @@ public class AuditRabbitHandler {
     public String handleReplaySingle(String requestBody) {
         log.debug("RabbitMQ: received audit.replay.single command");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID id       = parseUuid(req.get("id"));
-            UUID tenantId = parseUuid(req.get("tenantId"));
+            QueryRequest.ReplaySingle req = objectMapper.readValue(
+                    requestBody, QueryRequest.ReplaySingle.class);
 
-            FailedRequestReplayService.ReplayResult result = replayService.replay(id, tenantId);
+            FailedRequestReplayService.ReplayResult result = replayService.replay(req.id(), req.tenantId());
 
             Map<String, Object> response = new HashMap<>();
             response.put("requestLogId",   result.requestLogId() != null ? result.requestLogId().toString() : null);
@@ -272,9 +255,7 @@ public class AuditRabbitHandler {
             response.put("responseStatus", result.responseStatus());
             response.put("message",        result.message());
 
-            // Publish replay event to Kafka for real-time WebSocket broadcast
-            publishReplayEvent("REPLAY_COMPLETED", tenantId, response);
-
+            publishReplayEvent("REPLAY_COMPLETED", req.tenantId(), response);
             return objectMapper.writeValueAsString(response);
         } catch (Exception e) {
             log.error("RabbitMQ: audit.replay.single failed: {}", e.getMessage(), e);
@@ -286,11 +267,11 @@ public class AuditRabbitHandler {
     public String handleReplayBulk(String requestBody) {
         log.debug("RabbitMQ: received audit.replay.bulk command");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            int  limit    = parseInt(req.get("limit"), 50);
+            QueryRequest.ReplayBulk req = objectMapper.readValue(
+                    requestBody, QueryRequest.ReplayBulk.class);
 
-            FailedRequestReplayService.BulkReplayResult result = replayService.replayAll(tenantId, limit);
+            FailedRequestReplayService.BulkReplayResult result =
+                    replayService.replayAll(req.tenantId(), req.limit());
 
             Map<String, Object> response = new HashMap<>();
             response.put("total",     result.total());
@@ -298,9 +279,7 @@ public class AuditRabbitHandler {
             response.put("failed",    result.failed());
             response.put("skipped",   result.skipped());
 
-            // Publish bulk replay event to Kafka for real-time WebSocket broadcast
-            publishReplayEvent("REPLAY_BULK_COMPLETED", tenantId, response);
-
+            publishReplayEvent("REPLAY_BULK_COMPLETED", req.tenantId(), response);
             return objectMapper.writeValueAsString(response);
         } catch (Exception e) {
             log.error("RabbitMQ: audit.replay.bulk failed: {}", e.getMessage(), e);
@@ -371,18 +350,4 @@ public class AuditRabbitHandler {
         m.put("requestedAt",          r.getRequestedAt() != null ? r.getRequestedAt().toString() : null);
         return m;
     }
-
-    private UUID parseUuid(Object val) {
-        if (val == null || val.toString().isBlank()) return null;
-        return UUID.fromString(val.toString());
-    }
-
-    private int parseInt(Object val, int def) {
-        try { return val != null ? Integer.parseInt(val.toString()) : def; } catch (Exception e) { return def; }
-    }
-
-    private String str(Object val) {
-        return (val != null && !val.toString().isBlank()) ? val.toString() : null;
-    }
 }
-

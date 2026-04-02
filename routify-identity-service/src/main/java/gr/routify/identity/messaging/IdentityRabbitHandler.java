@@ -1,8 +1,9 @@
 package gr.routify.identity.messaging;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.domain.TenantPlan;
+import gr.routify.common.event.CommandEvent;
+import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.RabbitTopology;
 import gr.routify.identity.domain.AppUser;
 import gr.routify.identity.domain.Tenant;
@@ -20,10 +21,13 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * RabbitMQ request/reply handler for routify-identity-service.
+ *
+ * <p>All request bodies are deserialised into strongly-typed {@link QueryRequest}
+ * or {@link CommandEvent} records. The {@code "type"} discriminator embedded by
+ * Jackson makes the wire format self-describing.
  */
 @Slf4j
 @Component
@@ -41,11 +45,8 @@ public class IdentityRabbitHandler {
     public String handleAuthLogin(String requestBody) {
         log.debug("RabbitMQ: received auth.login request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            var loginReq = new AuthDto.LoginRequest(
-                    str(req.get("username")),
-                    str(req.get("password")),
-                    str(req.get("tenantSlug")));
+            QueryRequest.AuthLogin req = objectMapper.readValue(requestBody, QueryRequest.AuthLogin.class);
+            var loginReq = new AuthDto.LoginRequest(req.username(), req.password(), req.tenantSlug());
             AuthDto.LoginResponse resp = authService.login(loginReq);
             return objectMapper.writeValueAsString(loginResponseToMap(resp));
         } catch (Exception e) {
@@ -58,8 +59,8 @@ public class IdentityRabbitHandler {
     public String handleAuthRefresh(String requestBody) {
         log.debug("RabbitMQ: received auth.refresh request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            var refreshReq = new AuthDto.RefreshRequest(str(req.get("refreshToken")));
+            QueryRequest.AuthRefresh req = objectMapper.readValue(requestBody, QueryRequest.AuthRefresh.class);
+            var refreshReq = new AuthDto.RefreshRequest(req.refreshToken());
             AuthDto.LoginResponse resp = authService.refresh(refreshReq);
             return objectMapper.writeValueAsString(loginResponseToMap(resp));
         } catch (Exception e) {
@@ -72,9 +73,9 @@ public class IdentityRabbitHandler {
     public String handleAuthChangePassword(String requestBody) {
         log.debug("RabbitMQ: received auth.change-password request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            java.util.UUID userId = parseUuid(req.get("userId"));
-            authService.changePassword(userId, str(req.get("currentPassword")), str(req.get("newPassword")));
+            QueryRequest.AuthChangePassword req = objectMapper.readValue(
+                    requestBody, QueryRequest.AuthChangePassword.class);
+            authService.changePassword(req.userId(), req.currentPassword(), req.newPassword());
             return objectMapper.writeValueAsString(Map.of("success", true));
         } catch (Exception e) {
             log.warn("RabbitMQ: auth.change-password failed: {}", e.getMessage());
@@ -86,10 +87,9 @@ public class IdentityRabbitHandler {
     public String handleUsersChangePassword(String requestBody) {
         log.debug("RabbitMQ: received users.change-password request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            java.util.UUID targetUserId = parseUuid(req.get("userId"));
-            java.util.UUID tenantId     = parseUuid(req.get("tenantId"));
-            authService.adminResetPassword(targetUserId, tenantId, str(req.get("newPassword")));
+            QueryRequest.AdminResetPassword req = objectMapper.readValue(
+                    requestBody, QueryRequest.AdminResetPassword.class);
+            authService.adminResetPassword(req.userId(), req.tenantId(), req.newPassword());
             return objectMapper.writeValueAsString(Map.of("success", true));
         } catch (Exception e) {
             log.warn("RabbitMQ: users.change-password failed: {}", e.getMessage());
@@ -103,12 +103,8 @@ public class IdentityRabbitHandler {
     public String handleUsersQuery(String requestBody) {
         log.debug("RabbitMQ: received users.query request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            int  page     = parseInt(req.get("page"), 0);
-            int  size     = parseInt(req.get("size"), 20);
-
-            Page<AppUser> result = userService.findAll(tenantId, PageRequest.of(page, size));
+            QueryRequest.UsersQuery req = objectMapper.readValue(requestBody, QueryRequest.UsersQuery.class);
+            Page<AppUser> result = userService.findAll(req.tenantId(), PageRequest.of(req.page(), req.size()));
 
             Map<String, Object> response = new HashMap<>();
             response.put("content",       result.getContent().stream().map(this::userToMap).toList());
@@ -127,10 +123,8 @@ public class IdentityRabbitHandler {
     public String handleUserGet(String requestBody) {
         log.debug("RabbitMQ: received users.get request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID id       = parseUuid(req.get("id"));
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            AppUser user = userService.findById(id, tenantId);
+            QueryRequest.UserGet req = objectMapper.readValue(requestBody, QueryRequest.UserGet.class);
+            AppUser user = userService.findById(req.id(), req.tenantId());
             return objectMapper.writeValueAsString(userToMap(user));
         } catch (Exception e) {
             log.error("RabbitMQ: users.get failed: {}", e.getMessage(), e);
@@ -144,11 +138,8 @@ public class IdentityRabbitHandler {
     public String handleTenantsQuery(String requestBody) {
         log.debug("RabbitMQ: received tenants.query request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            int page = parseInt(req.get("page"), 0);
-            int size = parseInt(req.get("size"), 20);
-
-            Page<Tenant> result = tenantService.findAll(PageRequest.of(page, size));
+            QueryRequest.TenantsQuery req = objectMapper.readValue(requestBody, QueryRequest.TenantsQuery.class);
+            Page<Tenant> result = tenantService.findAll(PageRequest.of(req.page(), req.size()));
 
             Map<String, Object> response = new HashMap<>();
             response.put("content",       result.getContent().stream().map(this::tenantToMap).toList());
@@ -167,9 +158,8 @@ public class IdentityRabbitHandler {
     public String handleTenantGet(String requestBody) {
         log.debug("RabbitMQ: received tenants.get request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID id = parseUuid(req.get("id"));
-            Tenant tenant = tenantService.findById(id);
+            QueryRequest.TenantGet req = objectMapper.readValue(requestBody, QueryRequest.TenantGet.class);
+            Tenant tenant = tenantService.findById(req.id());
             return objectMapper.writeValueAsString(tenantToMap(tenant));
         } catch (Exception e) {
             log.error("RabbitMQ: tenants.get failed: {}", e.getMessage(), e);
@@ -182,9 +172,10 @@ public class IdentityRabbitHandler {
      * login-page dropdown.  This is intentionally minimal — no sensitive data.
      */
     @RabbitListener(queues = RabbitTopology.QUEUE_TENANTS_LIST_ACTIVE)
-    public String handleTenantsListActive(String requestBody) {
+    public String handleTenantsListActive(@SuppressWarnings("unused") String requestBody) {
         log.debug("RabbitMQ: received tenants.list-active request");
         try {
+            // No fields needed — QueryRequest.ListActiveWorkspaces is a no-arg record
             List<Map<String, Object>> workspaces = tenantService
                     .findAll(PageRequest.of(0, 200))
                     .getContent()
@@ -210,42 +201,25 @@ public class IdentityRabbitHandler {
     public String handleTenantCommand(String requestBody) {
         log.info("RabbitMQ: received tenants.command request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            String command  = str(req.get("command"));
-            UUID   tenantId = parseUuid(req.get("tenantId"));
+            // Deserialise into the CommandEvent sealed hierarchy using the "type" discriminator
+            CommandEvent command = objectMapper.readValue(requestBody, CommandEvent.class);
 
             Tenant result = switch (command) {
-                case "CREATE_TENANT" -> {
-                    // Default to FREE if plan is missing or blank — "BASIC" is not a valid TenantPlan.
-                    String planStr = str(req.get("plan"));
-                    TenantPlan plan;
-                    try {
-                        plan = (planStr != null && !planStr.isBlank())
-                                ? TenantPlan.valueOf(planStr.toUpperCase())
-                                : TenantPlan.FREE;
-                    } catch (IllegalArgumentException ex) {
-                        log.warn("Unknown plan '{}' — defaulting to FREE", planStr);
-                        plan = TenantPlan.FREE;
-                    }
+                case CommandEvent.CreateTenant c -> {
+                    TenantPlan plan = c.plan() != null ? c.plan() : TenantPlan.FREE;
                     var createReq = new AuthDto.CreateTenantRequest(
-                            str(req.get("name")),
-                            str(req.get("slug")),
-                            plan,
-                            str(req.get("contactEmail")));
+                            c.name(), c.slug(), plan, c.contactEmail());
                     yield tenantService.create(createReq);
                 }
-                case "SUSPEND_TENANT"    -> tenantService.suspend(tenantId, str(req.getOrDefault("reason", "Administrative action")));
-                case "REACTIVATE_TENANT" -> tenantService.reactivate(tenantId);
-                case "UPDATE_TENANT"     -> {
-                    String planStr = str(req.get("plan"));
-                    TenantPlan plan = null;
-                    if (planStr != null && !planStr.isBlank()) {
-                        try { plan = TenantPlan.valueOf(planStr.toUpperCase()); }
-                        catch (IllegalArgumentException ex) { log.warn("Unknown plan '{}' — ignoring", planStr); }
-                    }
-                    yield tenantService.update(tenantId, str(req.get("name")), plan, str(req.get("contactEmail")));
-                }
-                default -> throw new IllegalArgumentException("Unknown tenant command: " + command);
+                case CommandEvent.SuspendTenant c ->
+                        tenantService.suspend(c.tenantId(),
+                                c.reason() != null ? c.reason() : "Administrative action");
+                case CommandEvent.ReactivateTenant c ->
+                        tenantService.reactivate(c.tenantId());
+                case CommandEvent.UpdateTenant c ->
+                        tenantService.update(c.tenantId(), c.name(), c.plan(), c.contactEmail());
+                default -> throw new IllegalArgumentException(
+                        "Unexpected command type: " + command.getClass().getSimpleName());
             };
 
             return objectMapper.writeValueAsString(tenantToMap(result));
@@ -311,18 +285,4 @@ public class IdentityRabbitHandler {
         m.put("createdAt",    t.getCreatedAt() != null ? t.getCreatedAt().toString() : null);
         return m;
     }
-
-    private UUID parseUuid(Object val) {
-        if (val == null || val.toString().isBlank()) return null;
-        return UUID.fromString(val.toString());
-    }
-
-    private int parseInt(Object val, int def) {
-        try { return val != null ? Integer.parseInt(val.toString()) : def; } catch (Exception e) { return def; }
-    }
-
-    private String str(Object val) {
-        return val != null ? val.toString() : null;
-    }
 }
-

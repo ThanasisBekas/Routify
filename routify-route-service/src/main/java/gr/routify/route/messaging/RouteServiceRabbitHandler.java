@@ -1,9 +1,9 @@
 package gr.routify.route.messaging;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import gr.routify.common.event.RabbitTopology;
 import gr.routify.common.domain.RouteStatus;
+import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.RabbitTopology;
 import gr.routify.route.mapper.RouteMapper;
 import gr.routify.route.service.FilterDefinitionService;
 import gr.routify.route.service.GatewayConfigService;
@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import gr.routify.route.dto.RouteStatusCount;
@@ -25,19 +24,8 @@ import java.util.UUID;
 /**
  * RabbitMQ request/reply handler for routify-route-service.
  *
- * <p>Responds to synchronous queries from other services — primarily from
- * routify-admin-api (the sole dashboard backend):
- * <ul>
- *   <li><b>Gateway snapshot</b>: routify-api-gateway on startup and forced refresh.</li>
- *   <li><b>Gateway config GET/SAVE</b>: routify-admin-api gateway config management.</li>
- *   <li><b>Route stats</b>: routify-admin-api dashboard overview.</li>
- *   <li><b>Routes query / get</b>: routify-admin-api dashboard route list and detail.</li>
- *   <li><b>Filters query / get</b>: routify-admin-api dashboard filter list and detail.</li>
- * </ul>
- *
- * <p>Write operations (create/update/delete route/filter) arrive as Kafka command
- * events on {@code routify.route.commands} and {@code routify.filter.commands} topics,
- * consumed by {@code RouteCommandKafkaConsumer}.
+ * <p>All request bodies are deserialised into strongly-typed {@link QueryRequest} records.
+ * The {@code "type"} discriminator embedded by Jackson makes the wire format self-describing.
  */
 @Slf4j
 @Component
@@ -76,17 +64,16 @@ public class RouteServiceRabbitHandler {
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_GATEWAY_CONFIG_SAVE)
-    public String handleGatewayConfigSave(
-            String requestBody,
-            @Header(value = RabbitTopology.HEADER_CHANGED_BY,    required = false) String changedBy,
-            @Header(value = RabbitTopology.HEADER_CONFIG_SECTION, required = false) String section) {
-        log.info("RabbitMQ: gateway config SAVE: section={} by={}", section, changedBy);
+    public String handleGatewayConfigSave(String requestBody) {
+        log.debug("RabbitMQ: received gateway config SAVE request");
         try {
-            Map<String, Object> configMap = objectMapper.readValue(requestBody, new TypeReference<>() {});
+            QueryRequest.GatewayConfigSave req = objectMapper.readValue(
+                    requestBody, QueryRequest.GatewayConfigSave.class);
+            String section    = req.section()    != null ? req.section()    : "full";
+            String changedBy  = req.changedBy()  != null ? req.changedBy()  : "system";
             Map<String, Object> saved = gatewayConfigService.saveGlobalConfig(
-                    configMap,
-                    changedBy != null ? changedBy : "system",
-                    section   != null ? section   : "full");
+                    req.config(), changedBy, section);
+            log.info("RabbitMQ: gateway config SAVE complete: section={} by={}", section, changedBy);
             return objectMapper.writeValueAsString(saved);
         } catch (Exception e) {
             log.error("RabbitMQ: failed to save gateway config: {}", e.getMessage(), e);
@@ -98,25 +85,19 @@ public class RouteServiceRabbitHandler {
     public String handleRouteStats(String requestBody) {
         log.debug("RabbitMQ: received route stats request");
         try {
+            QueryRequest.RouteStats req = objectMapper.readValue(
+                    requestBody, QueryRequest.RouteStats.class);
+            UUID tenantId = req.tenantId();
+
             Map<String, Object> stats = new HashMap<>();
-            UUID tenantId = null;
-
-            if (requestBody != null && !requestBody.isBlank() && !requestBody.equals("{}")) {
-                Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-                Object tid = req.get("tenantId");
-                if (tid != null && !tid.toString().isBlank()) tenantId = UUID.fromString(tid.toString());
-            }
-
             if (tenantId != null) {
                 var page = routeService.findAll(tenantId, null, PageRequest.of(0, 1));
                 stats.put("total",    page.getTotalElements());
                 stats.put("tenantId", tenantId.toString());
             }
-
             for (RouteStatusCount row : routeService.countByStatus(tenantId)) {
                 stats.put(row.status().name().toLowerCase(), row.count());
             }
-
             return objectMapper.writeValueAsString(stats);
         } catch (Exception e) {
             log.error("RabbitMQ: failed to build route stats: {}", e.getMessage(), e);
@@ -130,19 +111,16 @@ public class RouteServiceRabbitHandler {
     public String handleRoutesQuery(String requestBody) {
         log.debug("RabbitMQ: received routes.query request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            String statusStr = str(req.get("status"));
-            RouteStatus status = (statusStr != null && !statusStr.isBlank())
-                    ? RouteStatus.valueOf(statusStr.toUpperCase()) : null;
-            int page  = parseInt(req.get("page"), 0);
-            int size  = parseInt(req.get("size"), 20);
-            String sortBy  = str(req.get("sortBy"),  "createdAt");
-            String sortDir = str(req.get("sortDir"), "DESC");
+            QueryRequest.RoutesQuery req = objectMapper.readValue(
+                    requestBody, QueryRequest.RoutesQuery.class);
+            RouteStatus status = (req.status() != null && !req.status().isBlank())
+                    ? RouteStatus.valueOf(req.status().toUpperCase()) : null;
+            String sortBy  = req.sortBy()  != null ? req.sortBy()  : "createdAt";
+            String sortDir = req.sortDir() != null ? req.sortDir() : "DESC";
 
-            var pageable = PageRequest.of(page, size,
+            var pageable = PageRequest.of(req.page(), req.size(),
                     Sort.by(Sort.Direction.fromString(sortDir), sortBy));
-            var result = routeService.findAllWithFilters(tenantId, status, pageable);
+            var result = routeService.findAllWithFilters(req.tenantId(), status, pageable);
 
             Map<String, Object> response = new HashMap<>();
             response.put("content",        result.getContent().stream().map(routeMapper::toSummary).toList());
@@ -161,10 +139,9 @@ public class RouteServiceRabbitHandler {
     public String handleRouteGet(String requestBody) {
         log.debug("RabbitMQ: received routes.get request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID id       = parseUuid(req.get("id"));
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            var route = routeService.findByIdWithFilters(id, tenantId);
+            QueryRequest.RouteGet req = objectMapper.readValue(
+                    requestBody, QueryRequest.RouteGet.class);
+            var route = routeService.findByIdWithFilters(req.id(), req.tenantId());
             return objectMapper.writeValueAsString(routeMapper.toResponse(route));
         } catch (Exception e) {
             log.error("RabbitMQ: routes.get failed: {}", e.getMessage(), e);
@@ -176,11 +153,10 @@ public class RouteServiceRabbitHandler {
     public String handleRouteClone(String requestBody) {
         log.debug("RabbitMQ: received routes.clone request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID sourceId  = parseUuid(req.get("id"));
-            UUID tenantId  = parseUuid(req.get("tenantId"));
-            String actor   = str(req.get("requestedBy"), "system");
-            var cloned = routeService.clone(sourceId, tenantId, actor);
+            QueryRequest.RouteClone req = objectMapper.readValue(
+                    requestBody, QueryRequest.RouteClone.class);
+            String actor = req.requestedBy() != null ? req.requestedBy() : "system";
+            var cloned = routeService.clone(req.id(), req.tenantId(), actor);
             return objectMapper.writeValueAsString(routeMapper.toResponse(cloned));
         } catch (Exception e) {
             log.error("RabbitMQ: routes.clone failed: {}", e.getMessage(), e);
@@ -194,16 +170,14 @@ public class RouteServiceRabbitHandler {
     public String handleFiltersQuery(String requestBody) {
         log.debug("RabbitMQ: received filters.query request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID tenantId  = parseUuid(req.get("tenantId"));
-            int page  = parseInt(req.get("page"), 0);
-            int size  = parseInt(req.get("size"), 20);
-            String sortBy  = str(req.get("sortBy"),  "createdAt");
-            String sortDir = str(req.get("sortDir"), "DESC");
+            QueryRequest.FiltersQuery req = objectMapper.readValue(
+                    requestBody, QueryRequest.FiltersQuery.class);
+            String sortBy  = req.sortBy()  != null ? req.sortBy()  : "createdAt";
+            String sortDir = req.sortDir() != null ? req.sortDir() : "DESC";
 
-            var pageable = PageRequest.of(page, size,
+            var pageable = PageRequest.of(req.page(), req.size(),
                     Sort.by(Sort.Direction.fromString(sortDir), sortBy));
-            var result = filterService.findAll(tenantId, pageable);
+            var result = filterService.findAll(req.tenantId(), pageable);
 
             Map<String, Object> response = new HashMap<>();
             response.put("content",        result.getContent().stream().map(routeMapper::toFilterSummary).toList());
@@ -222,34 +196,13 @@ public class RouteServiceRabbitHandler {
     public String handleFilterGet(String requestBody) {
         log.debug("RabbitMQ: received filters.get request");
         try {
-            Map<String, Object> req = objectMapper.readValue(requestBody, new TypeReference<>() {});
-            UUID id       = parseUuid(req.get("id"));
-            UUID tenantId = parseUuid(req.get("tenantId"));
-            var filter = filterService.findById(id, tenantId);
+            QueryRequest.FilterGet req = objectMapper.readValue(
+                    requestBody, QueryRequest.FilterGet.class);
+            var filter = filterService.findById(req.id(), req.tenantId());
             return objectMapper.writeValueAsString(routeMapper.toFilterResponse(filter));
         } catch (Exception e) {
             log.error("RabbitMQ: filters.get failed: {}", e.getMessage(), e);
             return "{\"error\":\"" + e.getMessage() + "\"}";
         }
     }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    private UUID parseUuid(Object val) {
-        if (val == null || val.toString().isBlank()) return null;
-        return UUID.fromString(val.toString());
-    }
-
-    private int parseInt(Object val, int def) {
-        try { return val != null ? Integer.parseInt(val.toString()) : def; } catch (Exception e) { return def; }
-    }
-
-    private String str(Object val) {
-        return val != null && !val.toString().isBlank() ? val.toString() : null;
-    }
-
-    private String str(Object val, String def) {
-        return val != null && !val.toString().isBlank() ? val.toString() : def;
-    }
 }
-

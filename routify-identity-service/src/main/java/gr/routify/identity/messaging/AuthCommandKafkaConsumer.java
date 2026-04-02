@@ -1,7 +1,7 @@
 package gr.routify.identity.messaging;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.security.RedisKeys;
 import io.jsonwebtoken.Claims;
@@ -14,16 +14,14 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 
 /**
- * Kafka consumer for auth commands published by routify-admin-api.
+ * Kafka consumer for auth {@link CommandEvent}s published by routify-admin-api.
  *
  * <p>Currently handles:
  * <ul>
- *   <li>{@code LOGOUT} — extracts the refresh token's JTI and stores it in Redis
- *       with a TTL equal to the remaining token lifetime. The {@code AuthService}
- *       checks this blacklist before issuing new tokens on refresh.</li>
+ *   <li>{@link CommandEvent.Logout} — extracts the refresh token's JTI and stores it
+ *       in Redis with a TTL equal to the remaining token lifetime.</li>
  * </ul>
  */
 @Slf4j
@@ -46,13 +44,11 @@ public class AuthCommandKafkaConsumer {
     )
     public void onAuthCommand(String commandJson, Acknowledgment ack) {
         try {
-            Map<String, Object> envelope = objectMapper.readValue(commandJson, new TypeReference<>() {});
-            String command = str(envelope.get("command"));
+            CommandEvent cmd = objectMapper.readValue(commandJson, CommandEvent.class);
 
-            if ("LOGOUT".equals(command)) {
-                handleLogout(str(envelope.get("refreshToken")));
-            } else {
-                log.warn("Unknown auth command: {}", command);
+            switch (cmd) {
+                case CommandEvent.Logout c -> handleLogout(c.refreshToken());
+                default -> log.warn("Unknown auth command type: {}", cmd.getClass().getSimpleName());
             }
 
             ack.acknowledge();
@@ -80,7 +76,6 @@ public class AuthCommandKafkaConsumer {
                 return;
             }
 
-            // TTL = remaining lifetime of the token so the entry auto-expires
             Instant expiry = claims.getExpiration().toInstant();
             long ttlSeconds = Duration.between(Instant.now(), expiry).getSeconds();
 
@@ -95,9 +90,4 @@ public class AuthCommandKafkaConsumer {
             log.warn("Could not blacklist refresh token (token may already be invalid): {}", e.getMessage());
         }
     }
-
-    private static String str(Object val) {
-        return val != null ? val.toString() : null;
-    }
 }
-

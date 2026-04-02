@@ -16,7 +16,8 @@ public sealed class RoutifyException extends RuntimeException
             RoutifyException.Forbidden,
             RoutifyException.RateLimitExceeded,
             RoutifyException.QuotaExceeded,
-            RoutifyException.GatewayError {
+            RoutifyException.GatewayError,
+            RoutifyException.HeuristicError {
 
     private final HttpStatus status;
     private final String errorCode;
@@ -100,6 +101,12 @@ public sealed class RoutifyException extends RuntimeException
         }
         public GatewayError(String message) {
             super(message, HttpStatus.BAD_GATEWAY, "GATEWAY_ERROR");
+        }
+    }
+
+    public static final class HeuristicError extends RoutifyException {
+        public HeuristicError(String message) {
+            super(message, HttpStatus.NOT_FOUND, "HEURISTIC_ERROR");
         }
     }
 }

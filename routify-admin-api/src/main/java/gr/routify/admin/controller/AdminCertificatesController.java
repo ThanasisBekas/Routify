@@ -89,7 +89,7 @@ public class AdminCertificatesController {
             @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        messagingClient.sendCertCommand("UPLOAD_CERTIFICATE", request, tenantId, actor);
+        messagingClient.sendUploadCertificate(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(Map.of("status", "accepted", "message", "Certificate upload in progress"));
     }
@@ -103,8 +103,7 @@ public class AdminCertificatesController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        messagingClient.sendCertCommand("REVOKE_CERTIFICATE",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendRevokeCertificate(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "Certificate revocation in progress");
     }
 
@@ -118,8 +117,7 @@ public class AdminCertificatesController {
             @RequestHeader(value = "X-User-Id", required = false) String userId,
             Authentication auth) {
         String actor = resolveActor(userId, auth);
-        messagingClient.sendCertCommand("DELETE_CERTIFICATE",
-                Map.of("id", id.toString()), tenantId, actor);
+        messagingClient.sendDeleteCertificate(id, tenantId, actor);
         return Map.of("status", "accepted", "message", "Certificate deletion in progress");
     }
 

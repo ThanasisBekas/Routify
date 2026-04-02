@@ -1,11 +1,11 @@
 package gr.routify.admin.gateway.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.common.client.AmqpServiceClientSupport;
+import gr.routify.common.client.KafkaServiceClientSupport;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.RabbitTopology;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -37,12 +37,16 @@ import java.util.UUID;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class GatewayActuatorClient {
+public class GatewayActuatorClient extends AmqpServiceClientSupport {
 
-    private final RabbitTemplate              rabbitTemplate;
-    private final KafkaTemplate<String,String> kafkaTemplate;
-    private final ObjectMapper                objectMapper;
+    private final KafkaServiceClientSupport kafka;
+
+    public GatewayActuatorClient(RabbitTemplate rabbitTemplate,
+                                 ObjectMapper objectMapper,
+                                 KafkaTemplate<String, String> kafkaTemplate) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_GATEWAY, "admin-api");
+        this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
+    }
 
     // ─── Status / Info ────────────────────────────────────────────────────────
 
@@ -50,7 +54,6 @@ public class GatewayActuatorClient {
      * Fetches live gateway status via RabbitMQ request/reply.
      * Returns route count, current config snapshot, and uptime.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> getHealth() {
         return requestGatewayStatus();
     }
@@ -58,7 +61,6 @@ public class GatewayActuatorClient {
     /**
      * Returns the list of currently loaded routes (from status reply).
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> getLiveRoutes() {
         Map<String, Object> status = requestGatewayStatus();
         return Map.of(
@@ -83,7 +85,6 @@ public class GatewayActuatorClient {
     /**
      * Circuit breaker states are now surfaced via Kafka metrics topic
      * or Prometheus scraping — not via HTTP actuator.
-     * Returns a placeholder indicating the new observability path.
      */
     public Map<String, Object> getCircuitBreakerStates() {
         return Map.of(
@@ -95,25 +96,10 @@ public class GatewayActuatorClient {
     /**
      * Fetches the live in-memory certificate registry from the gateway via RabbitMQ.
      * Returns a flat map: {@code logicalId → {fingerprint, notAfter, source, status, version}}.
-     * Used by the admin dashboard TLS tab to show which certs are currently loaded.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> getCertificates() {
         try {
-            Object response = rabbitTemplate.convertSendAndReceive(
-                    RabbitTopology.EXCHANGE_GATEWAY,
-                    RabbitTopology.RK_GATEWAY_CERT_REGISTRY,
-                    "{}");
-            if (response == null) {
-                log.warn("Gateway cert registry snapshot: no reply (gateway unavailable?)");
-                return Map.of();
-            }
-            String responseJson = switch (response) {
-                case String s -> s;
-                case byte[] b -> new String(b, java.nio.charset.StandardCharsets.UTF_8);
-                default       -> objectMapper.writeValueAsString(response);
-            };
-            return objectMapper.readValue(responseJson, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            return rpc(RabbitTopology.RK_GATEWAY_CERT_REGISTRY, Map.of());
         } catch (Exception e) {
             log.warn("Failed to get cert registry snapshot from gateway: {}", e.getMessage());
             return Map.of("error", e.getMessage());
@@ -150,8 +136,7 @@ public class GatewayActuatorClient {
                     null,
                     null
             );
-            String json = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send(KafkaTopics.GATEWAY_CONFIG_EVENTS, "gateway", json);
+            kafka.publishEvent(KafkaTopics.GATEWAY_CONFIG_EVENTS, event);
             log.info("Manual gateway reload triggered via Kafka");
             return Map.of("status", "reload_triggered", "timestamp", Instant.now().toString());
         } catch (Exception e) {
@@ -162,22 +147,9 @@ public class GatewayActuatorClient {
 
     // ─── Private ──────────────────────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> requestGatewayStatus() {
         try {
-            Object response = rabbitTemplate.convertSendAndReceive(
-                    RabbitTopology.EXCHANGE_GATEWAY,
-                    RabbitTopology.RK_GATEWAY_STATUS_REQUEST,
-                    "{}");
-            if (response == null) {
-                return Map.of("status", "DOWN", "error", "gateway unavailable (no reply)");
-            }
-            String responseJson = switch (response) {
-                case String s -> s;
-                case byte[] b -> new String(b, java.nio.charset.StandardCharsets.UTF_8);
-                default       -> objectMapper.writeValueAsString(response);
-            };
-            return objectMapper.readValue(responseJson, new TypeReference<>() {});
+            return rpc(RabbitTopology.RK_GATEWAY_STATUS_REQUEST, Map.of());
         } catch (Exception e) {
             log.warn("Failed to get gateway status via RabbitMQ: {}", e.getMessage());
             return Map.of("status", "UNKNOWN", "error", e.getMessage());
