@@ -1,6 +1,7 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.RouteFilterMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,7 +26,7 @@ public class AdminFiltersController {
     private final RouteFilterMessagingClient messagingClient;
 
     @GetMapping
-    public Map<String, Object> listFilters(
+    public QueryResponse.FiltersPage listFilters(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -35,7 +36,7 @@ public class AdminFiltersController {
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> getFilter(
+    public QueryResponse.FilterDetail getFilter(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.getFilter(id, tenantId);
@@ -77,4 +78,3 @@ public class AdminFiltersController {
         return Map.of("status", "accepted", "message", "Filter deletion in progress");
     }
 }
-

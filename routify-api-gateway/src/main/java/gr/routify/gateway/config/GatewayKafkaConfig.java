@@ -16,6 +16,7 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 
 import java.util.Map;
 
@@ -33,7 +34,7 @@ public class GatewayKafkaConfig {
     private String bootstrapServers;
 
     @Bean
-    public ConsumerFactory<String, String> gatewayConsumerFactory() {
+    public ConsumerFactory<String, Object> gatewayConsumerFactory() {
         return new DefaultKafkaConsumerFactory<>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ConsumerConfig.GROUP_ID_CONFIG,                 "routify-gateway",
@@ -45,11 +46,12 @@ public class GatewayKafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-            KafkaTemplate<String, String> kafkaTemplate) {
-        var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            KafkaTemplate<String, Object> kafkaTemplate) {
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(gatewayConsumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setRecordMessageConverter(new StringJsonMessageConverter());
         factory.setConcurrency(3);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
@@ -59,7 +61,7 @@ public class GatewayKafkaConfig {
     // ─── Producer ────────────────────────────────────────────────────────────
 
     @Bean
-    public ProducerFactory<String, String> gatewayProducerFactory() {
+    public ProducerFactory<String, Object> gatewayProducerFactory() {
         return new DefaultKafkaProducerFactory<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
@@ -72,7 +74,7 @@ public class GatewayKafkaConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate() {
+    public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(gatewayProducerFactory());
     }
 }

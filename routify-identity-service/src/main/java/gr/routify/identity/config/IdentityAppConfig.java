@@ -36,7 +36,7 @@ public class IdentityAppConfig {
     }
 
     @Bean
-    public ProducerFactory<String, String> identityProducerFactory() {
+    public ProducerFactory<String, Object> identityProducerFactory() {
         return new DefaultKafkaProducerFactory<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
@@ -47,7 +47,7 @@ public class IdentityAppConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate() {
+    public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(identityProducerFactory());
     }
 }

@@ -1,6 +1,5 @@
 package gr.routify.route.messaging;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.route.domain.FilterDefinition;
@@ -29,16 +28,14 @@ public class RouteCommandKafkaConsumer {
 
     private final RouteService            routeService;
     private final FilterDefinitionService filterService;
-    private final ObjectMapper            objectMapper;
 
     @KafkaListener(
             topics = KafkaTopics.ROUTE_COMMANDS,
             groupId = "routify-route-service-commands",
             containerFactory = "routeCommandKafkaListenerContainerFactory"
     )
-    public void onRouteCommand(String commandJson, Acknowledgment ack) {
+    public void onRouteCommand(CommandEvent cmd, Acknowledgment ack) {
         try {
-            CommandEvent cmd = objectMapper.readValue(commandJson, CommandEvent.class);
             log.info("Route command received: type={} tenantId={} by={}",
                     cmd.getClass().getSimpleName(), cmd.tenantId(), cmd.requestedBy());
 
@@ -76,7 +73,7 @@ public class RouteCommandKafkaConsumer {
             }
             ack.acknowledge();
         } catch (Exception e) {
-            log.error("Failed to process route command: {} — {}", commandJson, e.getMessage(), e);
+            log.error("Failed to process route command: type={} — {}", cmd.getClass().getSimpleName(), e.getMessage(), e);
             // Don't ack — let Kafka retry or route to DLQ
         }
     }
@@ -86,9 +83,8 @@ public class RouteCommandKafkaConsumer {
             groupId = "routify-route-service-filter-commands",
             containerFactory = "routeCommandKafkaListenerContainerFactory"
     )
-    public void onFilterCommand(String commandJson, Acknowledgment ack) {
+    public void onFilterCommand(CommandEvent cmd, Acknowledgment ack) {
         try {
-            CommandEvent cmd = objectMapper.readValue(commandJson, CommandEvent.class);
             log.info("Filter command received: type={} tenantId={} by={}",
                     cmd.getClass().getSimpleName(), cmd.tenantId(), cmd.requestedBy());
 
@@ -119,7 +115,7 @@ public class RouteCommandKafkaConsumer {
             }
             ack.acknowledge();
         } catch (Exception e) {
-            log.error("Failed to process filter command: {} — {}", commandJson, e.getMessage(), e);
+            log.error("Failed to process filter command: type={} — {}", cmd.getClass().getSimpleName(), e.getMessage(), e);
         }
     }
 }

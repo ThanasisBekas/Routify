@@ -1,22 +1,25 @@
 package gr.routify.cert.messaging;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.cert.dto.CertGroupDto;
+import gr.routify.cert.dto.CertificateDto;
 import gr.routify.cert.service.CertGroupService;
 import gr.routify.cert.service.CertificateVaultService;
 import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
+import java.util.List;
 
 /**
  * RabbitMQ request/reply handler for routify-cert-vault.
  *
- * <p>All request bodies are deserialised into strongly-typed {@link QueryRequest} records.
- * The {@code "type"} discriminator embedded by Jackson makes the wire format self-describing.
+ * <p>All request bodies are deserialised into strongly-typed {@link QueryRequest} records
+ * by the Jackson2JsonMessageConverter in the listener container.
+ * Return values are serialised back to JSON automatically by the same converter.
  *
  * <p>Write operations arrive via Kafka commands consumed by {@link CertCommandKafkaConsumer}.
  */
@@ -27,84 +30,55 @@ public class CertVaultRabbitHandler {
 
     private final CertificateVaultService vaultService;
     private final CertGroupService        groupService;
-    private final ObjectMapper            objectMapper;
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERTS_QUERY)
-    public String handleCertificatesQuery(String requestBody) {
+    public QueryResponse.CertsPage handleCertificatesQuery(QueryRequest.CertsQuery req) {
         log.debug("RabbitMQ: cert vault query received");
-        try {
-            QueryRequest.CertsQuery req = objectMapper.readValue(
-                    requestBody, QueryRequest.CertsQuery.class);
-            String sortBy  = req.sortBy()  != null ? req.sortBy()  : "createdAt";
-            String sortDir = req.sortDir() != null ? req.sortDir() : "DESC";
+        String sortBy  = req.sortBy()  != null ? req.sortBy()  : "createdAt";
+        String sortDir = req.sortDir() != null ? req.sortDir() : "DESC";
 
-            var pageResult = vaultService.listCertificates(
-                    req.tenantId(), req.status(), req.page(), req.size(), sortBy, sortDir);
-
-            Map<String, Object> response = Map.of(
-                    "content",       pageResult.getContent(),
-                    "totalElements", pageResult.getTotalElements(),
-                    "totalPages",    pageResult.getTotalPages(),
-                    "size",          pageResult.getSize(),
-                    "page",          pageResult.getNumber(),
-                    "first",         pageResult.isFirst(),
-                    "last",          pageResult.isLast()
-            );
-            return objectMapper.writeValueAsString(response);
-        } catch (Exception e) {
-            log.error("RabbitMQ: cert vault query failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        var pageResult = vaultService.listCertificates(
+                req.tenantId(), req.status(), req.page(), req.size(), sortBy, sortDir);
+        var content = pageResult.getContent().stream().map(this::toCertSummary).toList();
+        return new QueryResponse.CertsPage(content,
+                pageResult.getTotalElements(), pageResult.getTotalPages(),
+                pageResult.getNumber(), pageResult.getSize(),
+                pageResult.isFirst(), pageResult.isLast());
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERTS_GET)
-    public String handleCertificateGet(String requestBody) {
+    public QueryResponse.CertDetail handleCertificateGet(QueryRequest.CertGet req) {
         log.debug("RabbitMQ: cert get request received");
-        try {
-            QueryRequest.CertGet req = objectMapper.readValue(requestBody, QueryRequest.CertGet.class);
-            return objectMapper.writeValueAsString(vaultService.getCertificate(req.id(), req.tenantId()));
-        } catch (Exception e) {
-            log.error("RabbitMQ: cert get failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        return toCertDetail(vaultService.getCertificate(req.id(), req.tenantId()));
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERTS_ACTIVE_LIST)
-    public String handleActiveCertsList(String requestBody) {
+    public QueryResponse.CertsList handleActiveCertsList(QueryRequest.CertsActiveList req) {
         log.debug("RabbitMQ: active certs list request received");
-        try {
-            QueryRequest.CertsActiveList req = objectMapper.readValue(
-                    requestBody, QueryRequest.CertsActiveList.class);
-            return objectMapper.writeValueAsString(vaultService.listActiveCertificates(req.tenantId()));
-        } catch (Exception e) {
-            log.error("RabbitMQ: active certs list failed: {}", e.getMessage(), e);
-            return "[]";
-        }
+        var items = vaultService.listActiveCertificates(req.tenantId())
+                .stream().map(this::toCertSummary).toList();
+        return new QueryResponse.CertsList(items);
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERTS_STATS)
-    public String handleCertStats(String requestBody) {
+    public QueryResponse.CertStatsResult handleCertStats(QueryRequest.CertStats req) {
         log.debug("RabbitMQ: cert stats request received");
-        try {
-            QueryRequest.CertStats req = objectMapper.readValue(requestBody, QueryRequest.CertStats.class);
-            return objectMapper.writeValueAsString(vaultService.getStats(req.tenantId()));
-        } catch (Exception e) {
-            log.error("RabbitMQ: cert stats failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        var raw = vaultService.getStats(req.tenantId());
+        long total        = raw.get("total") instanceof Number n ? n.longValue() : 0L;
+        long active       = raw.get("active") instanceof Number n ? n.longValue() : 0L;
+        long expiringSoon = raw.get("expiringSoon") instanceof Number n ? n.longValue() : 0L;
+        @SuppressWarnings("unchecked")
+        var counts = raw.get("counts") instanceof java.util.Map<?, ?> m
+                ? (java.util.Map<String, Long>) m : java.util.Map.<String, Long>of();
+        return new QueryResponse.CertStatsResult(total, active, expiringSoon, counts);
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERTS_GATEWAY_SNAPSHOT)
-    public String handleGatewayMappedSnapshot(String requestBody) {
+    public QueryResponse.CertsList handleGatewayMappedSnapshot(QueryRequest.CertsGatewaySnapshot req) {
         log.debug("RabbitMQ: gateway cert snapshot request received");
-        try {
-            QueryRequest.CertsGatewaySnapshot req = objectMapper.readValue(
-                    requestBody, QueryRequest.CertsGatewaySnapshot.class);
-            return objectMapper.writeValueAsString(vaultService.listGatewayMappedCerts(req.tenantId()));
-        } catch (Exception e) {
-            log.error("RabbitMQ: gateway cert snapshot failed: {}", e.getMessage(), e);
-            return "[]";
-        }
+        var items = vaultService.listGatewayMappedCerts(req.tenantId())
+                .stream().map(this::toCertSummary).toList();
+        return new QueryResponse.CertsList(items);
     }
 
     /**
@@ -112,72 +86,90 @@ public class CertVaultRabbitHandler {
      * <strong>Internal only</strong> — this queue must not be accessible outside the service mesh.
      */
     @RabbitListener(queues = RabbitTopology.QUEUE_CERTS_FETCH_MATERIAL)
-    public String handleFetchMaterial(String requestBody) {
+    public QueryResponse.GatewayConfig handleFetchMaterial(QueryRequest.CertFetchMaterial req) {
         log.debug("RabbitMQ: cert fetch-material request received");
-        try {
-            QueryRequest.CertFetchMaterial req = objectMapper.readValue(
-                    requestBody, QueryRequest.CertFetchMaterial.class);
-            return objectMapper.writeValueAsString(
-                    vaultService.fetchDecryptedMaterial(req.id(), req.tenantId()));
-        } catch (Exception e) {
-            log.error("RabbitMQ: cert fetch-material failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}";
-        }
+        // fetchDecryptedMaterial returns Map<String, String> with "certPem" and optionally "privateKey"
+        var material = vaultService.fetchDecryptedMaterial(req.id(), req.tenantId());
+        return new QueryResponse.GatewayConfig(new java.util.LinkedHashMap<>(material));
     }
 
     // ─── Cert Group Query Handlers ────────────────────────────────────────────
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERT_GROUPS_QUERY)
-    public String handleCertGroupsQuery(String requestBody) {
+    public QueryResponse.CertGroupsPage handleCertGroupsQuery(QueryRequest.CertGroupsQuery req) {
         log.debug("RabbitMQ: cert-groups query received");
-        try {
-            QueryRequest.CertGroupsQuery req = objectMapper.readValue(
-                    requestBody, QueryRequest.CertGroupsQuery.class);
-            String sortBy  = req.sortBy()  != null ? req.sortBy()  : "createdAt";
-            String sortDir = req.sortDir() != null ? req.sortDir() : "DESC";
+        String sortBy  = req.sortBy()  != null ? req.sortBy()  : "createdAt";
+        String sortDir = req.sortDir() != null ? req.sortDir() : "DESC";
 
-            var pageResult = groupService.listGroups(
-                    req.tenantId(), req.status(), req.page(), req.size(), sortBy, sortDir);
-            Map<String, Object> response = Map.of(
-                    "content",       pageResult.getContent(),
-                    "totalElements", pageResult.getTotalElements(),
-                    "totalPages",    pageResult.getTotalPages(),
-                    "size",          pageResult.getSize(),
-                    "page",          pageResult.getNumber(),
-                    "first",         pageResult.isFirst(),
-                    "last",          pageResult.isLast()
-            );
-            return objectMapper.writeValueAsString(response);
-        } catch (Exception e) {
-            log.error("RabbitMQ: cert-groups query failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        var pageResult = groupService.listGroups(
+                req.tenantId(), req.status(), req.page(), req.size(), sortBy, sortDir);
+        var content = pageResult.getContent().stream().map(this::toCertGroupSummary).toList();
+        return new QueryResponse.CertGroupsPage(content,
+                pageResult.getTotalElements(), pageResult.getTotalPages(),
+                pageResult.getNumber(), pageResult.getSize(),
+                pageResult.isFirst(), pageResult.isLast());
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERT_GROUPS_GET)
-    public String handleCertGroupGet(String requestBody) {
+    public QueryResponse.CertGroupDetail handleCertGroupGet(QueryRequest.CertGroupGet req) {
         log.debug("RabbitMQ: cert-groups get received");
-        try {
-            QueryRequest.CertGroupGet req = objectMapper.readValue(
-                    requestBody, QueryRequest.CertGroupGet.class);
-            return objectMapper.writeValueAsString(groupService.getGroup(req.id(), req.tenantId()));
-        } catch (Exception e) {
-            log.error("RabbitMQ: cert-groups get failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        return toCertGroupDetail(groupService.getGroup(req.id(), req.tenantId()));
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERT_GROUPS_MEMBERS)
-    public String handleCertGroupMembers(String requestBody) {
+    public QueryResponse.CertGroupMembersList handleCertGroupMembers(QueryRequest.CertGroupMembers req) {
         log.debug("RabbitMQ: cert-groups members query received");
-        try {
-            QueryRequest.CertGroupMembers req = objectMapper.readValue(
-                    requestBody, QueryRequest.CertGroupMembers.class);
-            return objectMapper.writeValueAsString(
-                    groupService.listGroupMembers(req.groupId(), req.tenantId()));
-        } catch (Exception e) {
-            log.error("RabbitMQ: cert-groups members query failed: {}", e.getMessage(), e);
-            return "[]";
-        }
+        List<QueryResponse.CertSummary> members = groupService
+                .listGroupMembers(req.groupId(), req.tenantId())
+                .stream().map(this::toCertSummary).toList();
+        return new QueryResponse.CertGroupMembersList(members);
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    private QueryResponse.CertSummary toCertSummary(CertificateDto c) {
+        return new QueryResponse.CertSummary(
+                c.getId(), c.getTenantId(), c.getLogicalId(), c.getAlias(),
+                c.getDescription(), c.getFormat(), c.getStatus(), c.getExpiryStatus(),
+                c.getSubjectDn(), c.getIssuerDn(), c.getSerialNumber(),
+                c.getNotBefore(), c.getNotAfter(), c.getSignatureAlg(),
+                c.getKeyAlgorithm(), c.getKeySize(),
+                c.getFingerprintSha1(), c.getFingerprintSha256(),
+                c.getSanDns(), c.getSanIp(), c.isCa(), c.isHasPrivateKey(),
+                c.getGatewayTlsLogicalId(), c.getGroupId(), c.getGroupLogicalId(),
+                c.getMemberAlias(), c.getEffectiveGatewayLogicalId(),
+                c.getUploadedBy(), c.getCreatedAt(), c.getUpdatedAt(), c.getExpiresAt());
+    }
+
+    private QueryResponse.CertDetail toCertDetail(CertificateDto c) {
+        return new QueryResponse.CertDetail(
+                c.getId(), c.getTenantId(), c.getLogicalId(), c.getAlias(),
+                c.getDescription(), c.getFormat(), c.getStatus(), c.getExpiryStatus(),
+                c.getSubjectDn(), c.getIssuerDn(), c.getSerialNumber(),
+                c.getNotBefore(), c.getNotAfter(), c.getSignatureAlg(),
+                c.getKeyAlgorithm(), c.getKeySize(),
+                c.getFingerprintSha1(), c.getFingerprintSha256(),
+                c.getSanDns(), c.getSanIp(), c.isCa(), c.isHasPrivateKey(),
+                c.getGatewayTlsLogicalId(), c.getGroupId(), c.getGroupLogicalId(),
+                c.getMemberAlias(), c.getEffectiveGatewayLogicalId(),
+                c.getUploadedBy(), c.getCreatedAt(), c.getUpdatedAt(), c.getExpiresAt());
+    }
+
+    private QueryResponse.CertGroupSummary toCertGroupSummary(CertGroupDto g) {
+        return new QueryResponse.CertGroupSummary(
+                g.getId(), g.getTenantId(), g.getLogicalId(), g.getAlias(),
+                g.getDescription(), g.getStatus(), g.getMemberCount(),
+                g.getExpiryHealthStatus(), g.getCreatedBy(), g.getCreatedAt(), g.getUpdatedAt());
+    }
+
+    private QueryResponse.CertGroupDetail toCertGroupDetail(CertGroupDto g) {
+        List<QueryResponse.CertSummary> members = g.getMembers() != null
+                ? g.getMembers().stream().map(this::toCertSummary).toList()
+                : List.of();
+        return new QueryResponse.CertGroupDetail(
+                g.getId(), g.getTenantId(), g.getLogicalId(), g.getAlias(),
+                g.getDescription(), g.getStatus(), g.getMemberCount(),
+                g.getExpiryHealthStatus(), members,
+                g.getCreatedBy(), g.getCreatedAt(), g.getUpdatedAt());
     }
 }

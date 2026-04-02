@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import gr.routify.common.exception.RoutifyException;
 import lombok.extern.slf4j.Slf4j;
@@ -145,6 +146,61 @@ public abstract class AmqpServiceClientSupport {
      */
     protected final Map<String, Object> rpc(String routingKey, CommandEvent command) {
         return rpc(routingKey, (Object) command);
+    }
+
+    /**
+     * Typed overload — sends a {@link QueryRequest} and deserialises the reply into
+     * the specified {@link QueryResponse} subtype.
+     *
+     * @param routingKey   Routing key (see {@link RabbitTopology}).
+     * @param request      Strongly-typed query request record.
+     * @param responseType Concrete {@link QueryResponse} subtype class.
+     * @param <R>          Expected response type (must implement {@link QueryResponse}).
+     */
+    protected final <R extends QueryResponse> R rpc(String routingKey,
+                                                     QueryRequest request,
+                                                     Class<R> responseType) {
+        try {
+            Message reply = rabbitTemplate.sendAndReceive(exchange, routingKey, buildRequest(request));
+            if (reply == null) {
+                throw new gr.routify.common.exception.RoutifyException.GatewayError(
+                        "No reply from %s (exchange=%s, rk=%s) — timeout or service down"
+                                .formatted(serviceName, exchange, routingKey));
+            }
+            String json = new String(reply.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+            return objectMapper.readValue(json, responseType);
+        } catch (gr.routify.common.exception.RoutifyException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[{}] RPC failed — exchange={} rk={}: {}", serviceName, exchange, routingKey, e.getMessage(), e);
+            throw new gr.routify.common.exception.RoutifyException.GatewayError(
+                    "RPC call to %s failed: %s".formatted(serviceName, e.getMessage()), e);
+        }
+    }
+
+    /**
+     * Typed overload — sends a {@link CommandEvent} and deserialises the reply into
+     * the specified {@link QueryResponse} subtype.
+     */
+    protected final <R extends QueryResponse> R rpc(String routingKey,
+                                                     CommandEvent command,
+                                                     Class<R> responseType) {
+        try {
+            Message reply = rabbitTemplate.sendAndReceive(exchange, routingKey, buildRequest(command));
+            if (reply == null) {
+                throw new gr.routify.common.exception.RoutifyException.GatewayError(
+                        "No reply from %s (exchange=%s, rk=%s) — timeout or service down"
+                                .formatted(serviceName, exchange, routingKey));
+            }
+            String json = new String(reply.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+            return objectMapper.readValue(json, responseType);
+        } catch (gr.routify.common.exception.RoutifyException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[{}] RPC failed — exchange={} rk={}: {}", serviceName, exchange, routingKey, e.getMessage(), e);
+            throw new gr.routify.common.exception.RoutifyException.GatewayError(
+                    "RPC call to %s failed: %s".formatted(serviceName, e.getMessage()), e);
+        }
     }
 
     // ─── Fire-and-forget ──────────────────────────────────────────────────────

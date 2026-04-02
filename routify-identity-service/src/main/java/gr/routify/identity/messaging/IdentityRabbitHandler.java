@@ -1,9 +1,9 @@
 package gr.routify.identity.messaging;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.domain.TenantPlan;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import gr.routify.identity.domain.AppUser;
 import gr.routify.identity.domain.Tenant;
@@ -18,16 +18,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * RabbitMQ request/reply handler for routify-identity-service.
  *
  * <p>All request bodies are deserialised into strongly-typed {@link QueryRequest}
- * or {@link CommandEvent} records. The {@code "type"} discriminator embedded by
- * Jackson makes the wire format self-describing.
+ * or {@link CommandEvent} records by the Jackson2JsonMessageConverter.
+ * Return values are serialised back to JSON automatically by the same converter.
  */
 @Slf4j
 @Component
@@ -37,134 +35,70 @@ public class IdentityRabbitHandler {
     private final AuthService   authService;
     private final UserService   userService;
     private final TenantService tenantService;
-    private final ObjectMapper  objectMapper;
 
     // ─── Auth ─────────────────────────────────────────────────────────────────
 
     @RabbitListener(queues = RabbitTopology.QUEUE_AUTH_LOGIN)
-    public String handleAuthLogin(String requestBody) {
+    public QueryResponse.LoginResult handleAuthLogin(QueryRequest.AuthLogin req) {
         log.debug("RabbitMQ: received auth.login request");
-        try {
-            QueryRequest.AuthLogin req = objectMapper.readValue(requestBody, QueryRequest.AuthLogin.class);
-            var loginReq = new AuthDto.LoginRequest(req.username(), req.password(), req.tenantSlug());
-            AuthDto.LoginResponse resp = authService.login(loginReq);
-            return objectMapper.writeValueAsString(loginResponseToMap(resp));
-        } catch (Exception e) {
-            log.warn("RabbitMQ: auth.login failed: {}", e.getMessage());
-            return errorJson(e);
-        }
+        AuthDto.LoginResponse resp = authService.login(
+                new AuthDto.LoginRequest(req.username(), req.password(), req.tenantSlug()));
+        return toLoginResult(resp);
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_AUTH_REFRESH)
-    public String handleAuthRefresh(String requestBody) {
+    public QueryResponse.LoginResult handleAuthRefresh(QueryRequest.AuthRefresh req) {
         log.debug("RabbitMQ: received auth.refresh request");
-        try {
-            QueryRequest.AuthRefresh req = objectMapper.readValue(requestBody, QueryRequest.AuthRefresh.class);
-            var refreshReq = new AuthDto.RefreshRequest(req.refreshToken());
-            AuthDto.LoginResponse resp = authService.refresh(refreshReq);
-            return objectMapper.writeValueAsString(loginResponseToMap(resp));
-        } catch (Exception e) {
-            log.warn("RabbitMQ: auth.refresh failed: {}", e.getMessage());
-            return errorJson(e);
-        }
+        AuthDto.LoginResponse resp = authService.refresh(new AuthDto.RefreshRequest(req.refreshToken()));
+        return toLoginResult(resp);
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_AUTH_CHANGE_PASSWORD)
-    public String handleAuthChangePassword(String requestBody) {
+    public QueryResponse.PasswordChangeResult handleAuthChangePassword(QueryRequest.AuthChangePassword req) {
         log.debug("RabbitMQ: received auth.change-password request");
-        try {
-            QueryRequest.AuthChangePassword req = objectMapper.readValue(
-                    requestBody, QueryRequest.AuthChangePassword.class);
-            authService.changePassword(req.userId(), req.currentPassword(), req.newPassword());
-            return objectMapper.writeValueAsString(Map.of("success", true));
-        } catch (Exception e) {
-            log.warn("RabbitMQ: auth.change-password failed: {}", e.getMessage());
-            return errorJson(e);
-        }
+        authService.changePassword(req.userId(), req.currentPassword(), req.newPassword());
+        return new QueryResponse.PasswordChangeResult(true);
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_USERS_CHANGE_PASSWORD)
-    public String handleUsersChangePassword(String requestBody) {
+    public QueryResponse.PasswordChangeResult handleUsersChangePassword(QueryRequest.AdminResetPassword req) {
         log.debug("RabbitMQ: received users.change-password request");
-        try {
-            QueryRequest.AdminResetPassword req = objectMapper.readValue(
-                    requestBody, QueryRequest.AdminResetPassword.class);
-            authService.adminResetPassword(req.userId(), req.tenantId(), req.newPassword());
-            return objectMapper.writeValueAsString(Map.of("success", true));
-        } catch (Exception e) {
-            log.warn("RabbitMQ: users.change-password failed: {}", e.getMessage());
-            return errorJson(e);
-        }
+        authService.adminResetPassword(req.userId(), req.tenantId(), req.newPassword());
+        return new QueryResponse.PasswordChangeResult(true);
     }
 
     // ─── User Queries ─────────────────────────────────────────────────────────
 
     @RabbitListener(queues = RabbitTopology.QUEUE_USERS_QUERY)
-    public String handleUsersQuery(String requestBody) {
+    public QueryResponse.UsersPage handleUsersQuery(QueryRequest.UsersQuery req) {
         log.debug("RabbitMQ: received users.query request");
-        try {
-            QueryRequest.UsersQuery req = objectMapper.readValue(requestBody, QueryRequest.UsersQuery.class);
-            Page<AppUser> result = userService.findAll(req.tenantId(), PageRequest.of(req.page(), req.size()));
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("content",       result.getContent().stream().map(this::userToMap).toList());
-            response.put("totalElements", result.getTotalElements());
-            response.put("totalPages",    result.getTotalPages());
-            response.put("page",          result.getNumber());
-            response.put("size",          result.getSize());
-            return objectMapper.writeValueAsString(response);
-        } catch (Exception e) {
-            log.error("RabbitMQ: users.query failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        Page<AppUser> result = userService.findAll(req.tenantId(), PageRequest.of(req.page(), req.size()));
+        var content = result.getContent().stream().map(this::toUserSummary).toList();
+        return new QueryResponse.UsersPage(content, result.getTotalElements(),
+                result.getTotalPages(), result.getNumber(), result.getSize());
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_USERS_GET)
-    public String handleUserGet(String requestBody) {
+    public QueryResponse.UserDetail handleUserGet(QueryRequest.UserGet req) {
         log.debug("RabbitMQ: received users.get request");
-        try {
-            QueryRequest.UserGet req = objectMapper.readValue(requestBody, QueryRequest.UserGet.class);
-            AppUser user = userService.findById(req.id(), req.tenantId());
-            return objectMapper.writeValueAsString(userToMap(user));
-        } catch (Exception e) {
-            log.error("RabbitMQ: users.get failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        return toUserDetail(userService.findById(req.id(), req.tenantId()));
     }
 
     // ─── Tenant Queries ───────────────────────────────────────────────────────
 
     @RabbitListener(queues = RabbitTopology.QUEUE_TENANTS_QUERY)
-    public String handleTenantsQuery(String requestBody) {
+    public QueryResponse.TenantsPage handleTenantsQuery(QueryRequest.TenantsQuery req) {
         log.debug("RabbitMQ: received tenants.query request");
-        try {
-            QueryRequest.TenantsQuery req = objectMapper.readValue(requestBody, QueryRequest.TenantsQuery.class);
-            Page<Tenant> result = tenantService.findAll(PageRequest.of(req.page(), req.size()));
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("content",       result.getContent().stream().map(this::tenantToMap).toList());
-            response.put("totalElements", result.getTotalElements());
-            response.put("totalPages",    result.getTotalPages());
-            response.put("page",          result.getNumber());
-            response.put("size",          result.getSize());
-            return objectMapper.writeValueAsString(response);
-        } catch (Exception e) {
-            log.error("RabbitMQ: tenants.query failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        Page<Tenant> result = tenantService.findAll(PageRequest.of(req.page(), req.size()));
+        var content = result.getContent().stream().map(this::toTenantSummary).toList();
+        return new QueryResponse.TenantsPage(content, result.getTotalElements(),
+                result.getTotalPages(), result.getNumber(), result.getSize());
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_TENANTS_GET)
-    public String handleTenantGet(String requestBody) {
+    public QueryResponse.TenantDetail handleTenantGet(QueryRequest.TenantGet req) {
         log.debug("RabbitMQ: received tenants.get request");
-        try {
-            QueryRequest.TenantGet req = objectMapper.readValue(requestBody, QueryRequest.TenantGet.class);
-            Tenant tenant = tenantService.findById(req.id());
-            return objectMapper.writeValueAsString(tenantToMap(tenant));
-        } catch (Exception e) {
-            log.error("RabbitMQ: tenants.get failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        return toTenantDetail(tenantService.findById(req.id()));
     }
 
     /**
@@ -172,117 +106,80 @@ public class IdentityRabbitHandler {
      * login-page dropdown.  This is intentionally minimal — no sensitive data.
      */
     @RabbitListener(queues = RabbitTopology.QUEUE_TENANTS_LIST_ACTIVE)
-    public String handleTenantsListActive(@SuppressWarnings("unused") String requestBody) {
+    public QueryResponse.ActiveWorkspacesList handleTenantsListActive(
+            @SuppressWarnings("unused") QueryRequest.ListActiveWorkspaces request) {
         log.debug("RabbitMQ: received tenants.list-active request");
-        try {
-            // No fields needed — QueryRequest.ListActiveWorkspaces is a no-arg record
-            List<Map<String, Object>> workspaces = tenantService
-                    .findAll(PageRequest.of(0, 200))
-                    .getContent()
-                    .stream()
-                    .filter(t -> t.getStatus() == Tenant.Status.ACTIVE)
-                    .map(t -> {
-                        Map<String, Object> m = new HashMap<>();
-                        m.put("name", t.getName());
-                        m.put("slug", t.getSlug());
-                        return m;
-                    })
-                    .toList();
-            return objectMapper.writeValueAsString(Map.of("workspaces", workspaces));
-        } catch (Exception e) {
-            log.error("RabbitMQ: tenants.list-active failed: {}", e.getMessage(), e);
-            return "{\"error\":\"" + e.getMessage() + "\"}";
-        }
+        List<QueryResponse.ActiveWorkspacesList.WorkspaceInfo> workspaces = tenantService
+                .findAll(PageRequest.of(0, 200))
+                .getContent()
+                .stream()
+                .filter(t -> t.getStatus() == Tenant.Status.ACTIVE)
+                .map(t -> new QueryResponse.ActiveWorkspacesList.WorkspaceInfo(t.getName(), t.getSlug()))
+                .toList();
+        return new QueryResponse.ActiveWorkspacesList(workspaces);
     }
 
     // ─── Tenant Commands (sync — admin actions need immediate confirmation) ────
 
     @RabbitListener(queues = RabbitTopology.QUEUE_TENANTS_COMMAND)
-    public String handleTenantCommand(String requestBody) {
+    public QueryResponse.TenantDetail handleTenantCommand(CommandEvent command) {
         log.info("RabbitMQ: received tenants.command request");
-        try {
-            // Deserialise into the CommandEvent sealed hierarchy using the "type" discriminator
-            CommandEvent command = objectMapper.readValue(requestBody, CommandEvent.class);
-
-            Tenant result = switch (command) {
-                case CommandEvent.CreateTenant c -> {
-                    TenantPlan plan = c.plan() != null ? c.plan() : TenantPlan.FREE;
-                    var createReq = new AuthDto.CreateTenantRequest(
-                            c.name(), c.slug(), plan, c.contactEmail());
-                    yield tenantService.create(createReq);
-                }
-                case CommandEvent.SuspendTenant c ->
-                        tenantService.suspend(c.tenantId(),
-                                c.reason() != null ? c.reason() : "Administrative action");
-                case CommandEvent.ReactivateTenant c ->
-                        tenantService.reactivate(c.tenantId());
-                case CommandEvent.UpdateTenant c ->
-                        tenantService.update(c.tenantId(), c.name(), c.plan(), c.contactEmail());
-                default -> throw new IllegalArgumentException(
-                        "Unexpected command type: " + command.getClass().getSimpleName());
-            };
-
-            return objectMapper.writeValueAsString(tenantToMap(result));
-        } catch (Exception e) {
-            log.error("RabbitMQ: tenants.command failed: {}", e.getMessage(), e);
-            return errorJson(e);
-        }
+        Tenant result = switch (command) {
+            case CommandEvent.CreateTenant c -> {
+                TenantPlan plan = c.plan() != null ? c.plan() : TenantPlan.FREE;
+                yield tenantService.create(new AuthDto.CreateTenantRequest(
+                        c.name(), c.slug(), plan, c.contactEmail()));
+            }
+            case CommandEvent.SuspendTenant c ->
+                    tenantService.suspend(c.tenantId(),
+                            c.reason() != null ? c.reason() : "Administrative action");
+            case CommandEvent.ReactivateTenant c ->
+                    tenantService.reactivate(c.tenantId());
+            case CommandEvent.UpdateTenant c ->
+                    tenantService.update(c.tenantId(), c.name(), c.plan(), c.contactEmail());
+            default -> throw new IllegalArgumentException(
+                    "Unexpected command type: " + command.getClass().getSimpleName());
+        };
+        return toTenantDetail(result);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    private Map<String, Object> loginResponseToMap(AuthDto.LoginResponse r) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("accessToken",       r.accessToken());
-        m.put("refreshToken",      r.refreshToken());
-        m.put("tokenType",         r.tokenType());
-        m.put("expiresIn",         r.expiresIn());
-        m.put("mustChangePassword",r.mustChangePassword());
+    private QueryResponse.LoginResult toLoginResult(AuthDto.LoginResponse r) {
+        QueryResponse.LoginResult.UserInfo user = null;
         if (r.user() != null) {
-            Map<String, Object> u = new HashMap<>();
-            u.put("id",                r.user().id());
-            u.put("tenantId",          r.user().tenantId());
-            u.put("username",          r.user().username());
-            u.put("email",             r.user().email());
-            u.put("role",              r.user().role() != null ? r.user().role().name() : null);
-            u.put("mustChangePassword",r.user().mustChangePassword());
-            m.put("user", u);
+            user = new QueryResponse.LoginResult.UserInfo(
+                    r.user().id(), r.user().tenantId(), r.user().username(),
+                    r.user().email(), r.user().role(), r.user().mustChangePassword());
         }
-        return m;
+        return new QueryResponse.LoginResult(
+                r.accessToken(), r.refreshToken(), r.tokenType(),
+                r.expiresIn(), r.mustChangePassword(), user);
     }
 
-    private String errorJson(Exception e) {
-        String code = e.getClass().getSimpleName();
-        try {
-            return objectMapper.writeValueAsString(Map.of("error", e.getMessage(), "code", code));
-        } catch (Exception ex) {
-            return "{\"error\":\"internal error\"}";
-        }
+    private QueryResponse.UsersPage.UserSummary toUserSummary(AppUser u) {
+        return new QueryResponse.UsersPage.UserSummary(
+                u.getId(), u.getTenantId(), u.getUsername(), u.getEmail(),
+                u.getRole(), u.getStatus().name(), u.isMustChangePassword(),
+                u.getLastLoginAt(), u.getCreatedAt());
     }
 
-    private Map<String, Object> userToMap(AppUser u) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id",                u.getId());
-        m.put("tenantId",          u.getTenantId());
-        m.put("username",          u.getUsername());
-        m.put("email",             u.getEmail());
-        m.put("role",              u.getRole().name());
-        m.put("status",            u.getStatus().name());
-        m.put("mustChangePassword",u.isMustChangePassword());
-        m.put("lastLoginAt",       u.getLastLoginAt() != null ? u.getLastLoginAt().toString() : null);
-        m.put("createdAt",         u.getCreatedAt() != null ? u.getCreatedAt().toString() : null);
-        return m;
+    private QueryResponse.UserDetail toUserDetail(AppUser u) {
+        return new QueryResponse.UserDetail(
+                u.getId(), u.getTenantId(), u.getUsername(), u.getEmail(),
+                u.getRole(), u.getStatus().name(), u.isMustChangePassword(),
+                u.getLastLoginAt(), u.getCreatedAt());
     }
 
-    private Map<String, Object> tenantToMap(Tenant t) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id",           t.getId());
-        m.put("name",         t.getName());
-        m.put("slug",         t.getSlug());
-        m.put("status",       t.getStatus().name());
-        m.put("plan",         t.getPlan().name());
-        m.put("contactEmail", t.getContactEmail());
-        m.put("createdAt",    t.getCreatedAt() != null ? t.getCreatedAt().toString() : null);
-        return m;
+    private QueryResponse.TenantsPage.TenantSummary toTenantSummary(Tenant t) {
+        return new QueryResponse.TenantsPage.TenantSummary(
+                t.getId(), t.getName(), t.getSlug(),
+                t.getStatus().name(), t.getPlan(), t.getContactEmail(), t.getCreatedAt());
+    }
+
+    private QueryResponse.TenantDetail toTenantDetail(Tenant t) {
+        return new QueryResponse.TenantDetail(
+                t.getId(), t.getName(), t.getSlug(),
+                t.getStatus().name(), t.getPlan(), t.getContactEmail(), t.getCreatedAt());
     }
 }

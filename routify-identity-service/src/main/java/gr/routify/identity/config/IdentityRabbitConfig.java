@@ -6,7 +6,6 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.amqp.support.converter.SimpleMessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -145,15 +144,13 @@ public class IdentityRabbitConfig {
     // ─── Message converter & template ─────────────────────────────────────────
 
     /**
-     * SimpleMessageConverter is used by the auto-configured listener container factory.
-     * This ensures that incoming JSON payloads are passed as raw Strings to the
-     * @RabbitListener methods, which perform their own Jackson parsing.
-     * (Using Jackson2JsonMessageConverter here would cause it to try to deserialize
-     * the JSON object directly into a String, resulting in a MismatchedInputException.)
+     * Jackson2JsonMessageConverter is used by the auto-configured listener container factory.
+     * This allows @RabbitListener methods to receive and return strongly-typed objects
+     * (QueryRequest subtypes, response POJOs) without manual ObjectMapper calls.
      */
     @Bean
     public MessageConverter identityJsonMessageConverter() {
-        return new SimpleMessageConverter();
+        return new Jackson2JsonMessageConverter();
     }
 
     @Bean
@@ -164,4 +161,3 @@ public class IdentityRabbitConfig {
         return template;
     }
 }
-

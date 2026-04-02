@@ -5,6 +5,7 @@ import gr.routify.admin.gateway.dto.GatewayConfigDto.*;
 import gr.routify.admin.gateway.service.GatewayActuatorClient;
 import gr.routify.admin.gateway.service.GatewayConfigService;
 import gr.routify.admin.client.CertVaultMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -217,7 +218,7 @@ public class GatewayConfigController {
      * Routes through cert-vault's {@code certs.gateway.snapshot} RabbitMQ queue.
      */
     @GetMapping("/tls/vault-certs")
-    public Object getVaultCertificates(
+    public QueryResponse.CertsList getVaultCertificates(
             @RequestHeader(value = "X-Tenant-Id", required = false) java.util.UUID tenantId) {
         return certVaultClient.listGatewayMappedCertificates(tenantId);
     }

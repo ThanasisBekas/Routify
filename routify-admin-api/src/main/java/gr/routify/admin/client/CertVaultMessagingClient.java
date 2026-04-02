@@ -1,12 +1,12 @@
 package gr.routify.admin.client;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.client.AmqpServiceClientSupport;
 import gr.routify.common.client.KafkaServiceClientSupport;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +15,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -36,7 +37,7 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
 
     public CertVaultMessagingClient(RabbitTemplate rabbitTemplate,
                                     ObjectMapper objectMapper,
-                                    KafkaTemplate<String, String> kafkaTemplate) {
+                                    KafkaTemplate<String, Object> kafkaTemplate) {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_CERT_VAULT, "admin-api");
         this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
     }
@@ -44,153 +45,158 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
     // ─── Queries (RabbitMQ) ────────────────────────────────────────────────────
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "queryCertificatesFallback")
-    public Map<String, Object> queryCertificates(UUID tenantId, String status, int page, int size,
-                                                  String sortBy, String sortDir) {
+    public QueryResponse.CertsPage queryCertificates(UUID tenantId, String status, int page, int size,
+                                                     String sortBy, String sortDir) {
         try {
             return rpc(RabbitTopology.RK_CERTS_QUERY,
-                    new QueryRequest.CertsQuery(tenantId, status, page, size, sortBy, sortDir));
+                    new QueryRequest.CertsQuery(tenantId, status, page, size, sortBy, sortDir),
+                    QueryResponse.CertsPage.class);
         } catch (Exception e) {
             log.error("queryCertificates failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> queryCertificatesFallback(UUID tenantId, String status, int page, int size,
-                                                           String sortBy, String sortDir, Throwable t) {
+    private QueryResponse.CertsPage queryCertificatesFallback(UUID tenantId, String status, int page, int size,
+                                                              String sortBy, String sortDir, Throwable t) {
         log.warn("queryCertificates circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "cert-vault temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.CertsPage(List.of(), 0L, 0, page, size, true, true);
     }
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "getCertificateFallback")
-    public Map<String, Object> getCertificate(UUID id, UUID tenantId) {
+    public QueryResponse.CertDetail getCertificate(UUID id, UUID tenantId) {
         try {
-            return rpc(RabbitTopology.RK_CERTS_GET, new QueryRequest.CertGet(id, tenantId));
+            return rpc(RabbitTopology.RK_CERTS_GET,
+                    new QueryRequest.CertGet(id, tenantId),
+                    QueryResponse.CertDetail.class);
         } catch (Exception e) {
             log.error("getCertificate failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getCertificateFallback(UUID id, UUID tenantId, Throwable t) {
+    private QueryResponse.CertDetail getCertificateFallback(UUID id, UUID tenantId, Throwable t) {
         log.warn("getCertificate circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "cert-vault temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "listActiveCertificatesFallback")
-    public Object listActiveCertificates(UUID tenantId) {
+    public QueryResponse.CertsList listActiveCertificates(UUID tenantId) {
         try {
             return rpc(RabbitTopology.RK_CERTS_ACTIVE_LIST,
                     new QueryRequest.CertsActiveList(tenantId),
-                    new TypeReference<java.util.List<?>>() {});
+                    QueryResponse.CertsList.class);
         } catch (Exception e) {
             log.error("listActiveCertificates failed: {}", e.getMessage(), e);
-            return java.util.List.of();
+            return new QueryResponse.CertsList(List.of());
         }
     }
 
     @SuppressWarnings("unused")
-    private Object listActiveCertificatesFallback(UUID tenantId, Throwable t) {
+    private QueryResponse.CertsList listActiveCertificatesFallback(UUID tenantId, Throwable t) {
         log.warn("listActiveCertificates circuit open or timed out: {}", t.getMessage());
-        return java.util.List.of();
+        return new QueryResponse.CertsList(List.of());
     }
 
     /**
      * Lists only the active certificates that have a {@code gatewayTlsLogicalId} mapping.
      * Used by the admin-api TLS tab to show which vault certs are linked to the gateway.
-     * Routes to the {@code certs.gateway.snapshot} queue on cert-vault.
      */
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "listGatewayMappedCertsFallback")
-    public Object listGatewayMappedCertificates(UUID tenantId) {
+    public QueryResponse.CertsList listGatewayMappedCertificates(UUID tenantId) {
         try {
             return rpc(RabbitTopology.RK_CERTS_GATEWAY_SNAPSHOT,
                     new QueryRequest.CertsGatewaySnapshot(tenantId),
-                    new TypeReference<java.util.List<?>>() {});
+                    QueryResponse.CertsList.class);
         } catch (Exception e) {
             log.error("listGatewayMappedCertificates failed: {}", e.getMessage(), e);
-            return java.util.List.of();
+            return new QueryResponse.CertsList(List.of());
         }
     }
 
     @SuppressWarnings("unused")
-    private Object listGatewayMappedCertsFallback(UUID tenantId, Throwable t) {
+    private QueryResponse.CertsList listGatewayMappedCertsFallback(UUID tenantId, Throwable t) {
         log.warn("listGatewayMappedCertificates circuit open or timed out: {}", t.getMessage());
-        return java.util.List.of();
+        return new QueryResponse.CertsList(List.of());
     }
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "getCertVaultStatsFallback")
-    public Map<String, Object> getCertVaultStats(UUID tenantId) {
+    public QueryResponse.CertStatsResult getCertVaultStats(UUID tenantId) {
         try {
-            return rpc(RabbitTopology.RK_CERTS_STATS, new QueryRequest.CertStats(tenantId));
+            return rpc(RabbitTopology.RK_CERTS_STATS,
+                    new QueryRequest.CertStats(tenantId),
+                    QueryResponse.CertStatsResult.class);
         } catch (Exception e) {
             log.error("getCertVaultStats failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getCertVaultStatsFallback(UUID tenantId, Throwable t) {
+    private QueryResponse.CertStatsResult getCertVaultStatsFallback(UUID tenantId, Throwable t) {
         log.warn("getCertVaultStats circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "cert-vault temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.CertStatsResult(0L, 0L, 0L, Map.of());
     }
 
     // ─── Cert Group Queries (RabbitMQ) ────────────────────────────────────────
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "queryCertGroupsFallback")
-    public Map<String, Object> queryCertGroups(UUID tenantId, String status, int page, int size,
-                                                String sortBy, String sortDir) {
+    public QueryResponse.CertGroupsPage queryCertGroups(UUID tenantId, String status, int page, int size,
+                                                        String sortBy, String sortDir) {
         try {
             return rpc(RabbitTopology.RK_CERT_GROUPS_QUERY,
-                    new QueryRequest.CertGroupsQuery(tenantId, status, page, size, sortBy, sortDir));
+                    new QueryRequest.CertGroupsQuery(tenantId, status, page, size, sortBy, sortDir),
+                    QueryResponse.CertGroupsPage.class);
         } catch (Exception e) {
             log.error("queryCertGroups failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> queryCertGroupsFallback(UUID tenantId, String status, int page, int size,
-                                                         String sortBy, String sortDir, Throwable t) {
+    private QueryResponse.CertGroupsPage queryCertGroupsFallback(UUID tenantId, String status, int page, int size,
+                                                                  String sortBy, String sortDir, Throwable t) {
         log.warn("queryCertGroups circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "cert-vault temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.CertGroupsPage(List.of(), 0L, 0, page, size, true, true);
     }
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "getCertGroupFallback")
-    public Map<String, Object> getCertGroup(UUID id, UUID tenantId) {
+    public QueryResponse.CertGroupDetail getCertGroup(UUID id, UUID tenantId) {
         try {
-            return rpc(RabbitTopology.RK_CERT_GROUPS_GET, new QueryRequest.CertGroupGet(id, tenantId));
+            return rpc(RabbitTopology.RK_CERT_GROUPS_GET,
+                    new QueryRequest.CertGroupGet(id, tenantId),
+                    QueryResponse.CertGroupDetail.class);
         } catch (Exception e) {
             log.error("getCertGroup failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getCertGroupFallback(UUID id, UUID tenantId, Throwable t) {
+    private QueryResponse.CertGroupDetail getCertGroupFallback(UUID id, UUID tenantId, Throwable t) {
         log.warn("getCertGroup circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "cert-vault temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "listCertGroupMembersFallback")
-    public Object listCertGroupMembers(UUID groupId, UUID tenantId) {
+    public QueryResponse.CertGroupMembersList listCertGroupMembers(UUID groupId, UUID tenantId) {
         try {
             return rpc(RabbitTopology.RK_CERT_GROUPS_MEMBERS,
                     new QueryRequest.CertGroupMembers(groupId, tenantId),
-                    new TypeReference<java.util.List<?>>() {});
+                    QueryResponse.CertGroupMembersList.class);
         } catch (Exception e) {
             log.error("listCertGroupMembers failed: {}", e.getMessage(), e);
-            return java.util.List.of();
+            return new QueryResponse.CertGroupMembersList(List.of());
         }
     }
 
     @SuppressWarnings("unused")
-    private Object listCertGroupMembersFallback(UUID groupId, UUID tenantId, Throwable t) {
+    private QueryResponse.CertGroupMembersList listCertGroupMembersFallback(UUID groupId, UUID tenantId, Throwable t) {
         log.warn("listCertGroupMembers circuit open or timed out: {}", t.getMessage());
-        return java.util.List.of();
+        return new QueryResponse.CertGroupMembersList(List.of());
     }
-
-    // ─── Commands (Kafka) ─────────────────────────────────────────────────────
 
     // ─── Commands (Kafka) ─────────────────────────────────────────────────────
 
@@ -259,5 +265,3 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
         return v != null ? UUID.fromString(v.toString()) : null;
     }
 }
-
-

@@ -2,6 +2,7 @@ package gr.routify.admin.service;
 
 import gr.routify.admin.client.RouteServiceClient;
 import gr.routify.admin.gateway.service.GatewayActuatorClient;
+import gr.routify.common.event.QueryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,7 @@ public class DashboardStatsService {
     public Map<String, Object> getDashboardStats(UUID tenantId) {
         Map<String, Object> stats = new HashMap<>();
         try {
-            var routeStats = routeServiceClient.getRouteStats(tenantId);
+            QueryResponse.RouteStatsResult routeStats = routeServiceClient.getRouteStats(tenantId);
             stats.put("routes", routeStats);
         } catch (Exception e) {
             log.warn("Failed to fetch route stats: {}", e.getMessage());
@@ -50,4 +51,3 @@ public class DashboardStatsService {
         return status;
     }
 }
-

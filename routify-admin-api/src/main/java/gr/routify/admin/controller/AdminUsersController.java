@@ -1,6 +1,7 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.IdentityMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,7 @@ public class AdminUsersController {
     private final IdentityMessagingClient messagingClient;
 
     @GetMapping
-    public Map<String, Object> listUsers(
+    public QueryResponse.UsersPage listUsers(
             @RequestHeader(value = "X-Tenant-Id", required = false) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -34,7 +35,7 @@ public class AdminUsersController {
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> getUser(
+    public QueryResponse.UserDetail getUser(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return messagingClient.getUser(id, tenantId);
@@ -81,7 +82,7 @@ public class AdminUsersController {
      * able to call this endpoint; role enforcement is handled in the security layer.
      */
     @PostMapping("/{id}/reset-password")
-    public ResponseEntity<Map<String, Object>> resetPassword(
+    public ResponseEntity<?> resetPassword(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestBody Map<String, Object> body,
@@ -93,16 +94,11 @@ public class AdminUsersController {
                     .body(Map.of("error", "newPassword is required"));
         }
 
-        Map<String, Object> result = messagingClient.adminResetPassword(id, tenantId, newPassword);
-        if (result.containsKey("error")) {
-            String code = result.getOrDefault("code", "").toString();
-            HttpStatus status = switch (code) {
-                case "Unauthorized"      -> HttpStatus.UNAUTHORIZED;
-                case "Forbidden"         -> HttpStatus.FORBIDDEN;
-                case "NotFoundException" -> HttpStatus.NOT_FOUND;
-                default                  -> HttpStatus.SERVICE_UNAVAILABLE;
-            };
-            return ResponseEntity.status(status).body(result);
+        QueryResponse.PasswordChangeResult result =
+                messagingClient.adminResetPassword(id, tenantId, newPassword);
+        if (result == null || !result.success()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "Password reset failed — identity-service unavailable"));
         }
         return ResponseEntity.ok(Map.of("success", true,
                 "message", "Password reset. User must change password on next login."));

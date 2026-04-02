@@ -8,6 +8,7 @@ import gr.routify.common.domain.UserRole;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.QueryRequest;
+import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,7 +36,7 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     public IdentityMessagingClient(RabbitTemplate rabbitTemplate,
                                    ObjectMapper objectMapper,
-                                   KafkaTemplate<String, String> kafkaTemplate) {
+                                   KafkaTemplate<String, Object> kafkaTemplate) {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_IDENTITY_SERVICE, "admin-api");
         this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
     }
@@ -42,73 +44,78 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
     // ─── Auth (RabbitMQ) ──────────────────────────────────────────────────────
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "loginFallback")
-    public Map<String, Object> login(String username, String password, String tenantSlug) {
+    public QueryResponse.LoginResult login(String username, String password, String tenantSlug) {
         try {
             return rpc(RabbitTopology.RK_AUTH_LOGIN,
-                    new QueryRequest.AuthLogin(username, password, tenantSlug));
+                    new QueryRequest.AuthLogin(username, password, tenantSlug),
+                    QueryResponse.LoginResult.class);
         } catch (Exception e) {
             log.error("login RPC failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> loginFallback(String username, String password,
-                                               String tenantSlug, Throwable t) {
+    private QueryResponse.LoginResult loginFallback(String username, String password,
+                                                    String tenantSlug, Throwable t) {
         log.warn("login circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "refreshFallback")
-    public Map<String, Object> refresh(String refreshToken) {
+    public QueryResponse.LoginResult refresh(String refreshToken) {
         try {
-            return rpc(RabbitTopology.RK_AUTH_REFRESH, new QueryRequest.AuthRefresh(refreshToken));
+            return rpc(RabbitTopology.RK_AUTH_REFRESH,
+                    new QueryRequest.AuthRefresh(refreshToken),
+                    QueryResponse.LoginResult.class);
         } catch (Exception e) {
             log.error("refresh RPC failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> refreshFallback(String refreshToken, Throwable t) {
+    private QueryResponse.LoginResult refreshFallback(String refreshToken, Throwable t) {
         log.warn("refresh circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "changePasswordFallback")
-    public Map<String, Object> changePassword(UUID userId, String currentPassword, String newPassword) {
+    public QueryResponse.PasswordChangeResult changePassword(UUID userId, String currentPassword, String newPassword) {
         try {
             return rpc(RabbitTopology.RK_AUTH_CHANGE_PASSWORD,
-                    new QueryRequest.AuthChangePassword(userId, currentPassword, newPassword));
+                    new QueryRequest.AuthChangePassword(userId, currentPassword, newPassword),
+                    QueryResponse.PasswordChangeResult.class);
         } catch (Exception e) {
             log.error("changePassword RPC failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> changePasswordFallback(UUID userId, String currentPassword,
-                                                        String newPassword, Throwable t) {
+    private QueryResponse.PasswordChangeResult changePasswordFallback(UUID userId, String currentPassword,
+                                                                      String newPassword, Throwable t) {
         log.warn("changePassword circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.PasswordChangeResult(false);
     }
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "adminResetPasswordFallback")
-    public Map<String, Object> adminResetPassword(UUID targetUserId, UUID tenantId, String newPassword) {
+    public QueryResponse.PasswordChangeResult adminResetPassword(UUID targetUserId, UUID tenantId, String newPassword) {
         try {
             return rpc(RabbitTopology.RK_USERS_CHANGE_PASSWORD,
-                    new QueryRequest.AdminResetPassword(targetUserId, tenantId, newPassword));
+                    new QueryRequest.AdminResetPassword(targetUserId, tenantId, newPassword),
+                    QueryResponse.PasswordChangeResult.class);
         } catch (Exception e) {
             log.error("adminResetPassword RPC failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> adminResetPasswordFallback(UUID targetUserId, UUID tenantId,
-                                                            String newPassword, Throwable t) {
+    private QueryResponse.PasswordChangeResult adminResetPasswordFallback(UUID targetUserId, UUID tenantId,
+                                                                          String newPassword, Throwable t) {
         log.warn("adminResetPassword circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.PasswordChangeResult(false);
     }
 
     public void sendLogoutCommand(String refreshToken) {
@@ -119,106 +126,115 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
     // ─── User Queries (RabbitMQ) ──────────────────────────────────────────────
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "queryUsersFallback")
-    public Map<String, Object> queryUsers(UUID tenantId, int page, int size) {
+    public QueryResponse.UsersPage queryUsers(UUID tenantId, int page, int size) {
         try {
             return rpc(RabbitTopology.RK_USERS_QUERY,
-                    new QueryRequest.UsersQuery(tenantId, page, size));
+                    new QueryRequest.UsersQuery(tenantId, page, size),
+                    QueryResponse.UsersPage.class);
         } catch (Exception e) {
             log.error("queryUsers failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> queryUsersFallback(UUID tenantId, int page, int size, Throwable t) {
+    private QueryResponse.UsersPage queryUsersFallback(UUID tenantId, int page, int size, Throwable t) {
         log.warn("queryUsers circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.UsersPage(List.of(), 0L, 0, page, size);
     }
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "getUserFallback")
-    public Map<String, Object> getUser(UUID id, UUID tenantId) {
+    public QueryResponse.UserDetail getUser(UUID id, UUID tenantId) {
         try {
-            return rpc(RabbitTopology.RK_USERS_GET, new QueryRequest.UserGet(id, tenantId));
+            return rpc(RabbitTopology.RK_USERS_GET,
+                    new QueryRequest.UserGet(id, tenantId),
+                    QueryResponse.UserDetail.class);
         } catch (Exception e) {
             log.error("getUser failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getUserFallback(UUID id, UUID tenantId, Throwable t) {
+    private QueryResponse.UserDetail getUserFallback(UUID id, UUID tenantId, Throwable t) {
         log.warn("getUser circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     // ─── Tenant Queries (RabbitMQ) ────────────────────────────────────────────
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "listActiveWorkspacesFallback")
-    public Map<String, Object> listActiveWorkspaces() {
+    public QueryResponse.ActiveWorkspacesList listActiveWorkspaces() {
         try {
-            return rpc(RabbitTopology.RK_TENANTS_LIST_ACTIVE, new QueryRequest.ListActiveWorkspaces());
+            return rpc(RabbitTopology.RK_TENANTS_LIST_ACTIVE,
+                    new QueryRequest.ListActiveWorkspaces(),
+                    QueryResponse.ActiveWorkspacesList.class);
         } catch (Exception e) {
             log.error("listActiveWorkspaces failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> listActiveWorkspacesFallback(Throwable t) {
+    private QueryResponse.ActiveWorkspacesList listActiveWorkspacesFallback(Throwable t) {
         log.warn("listActiveWorkspaces circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.ActiveWorkspacesList(List.of());
     }
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "queryTenantsFallback")
-    public Map<String, Object> queryTenants(int page, int size) {
+    public QueryResponse.TenantsPage queryTenants(int page, int size) {
         try {
-            return rpc(RabbitTopology.RK_TENANTS_QUERY, new QueryRequest.TenantsQuery(page, size));
+            return rpc(RabbitTopology.RK_TENANTS_QUERY,
+                    new QueryRequest.TenantsQuery(page, size),
+                    QueryResponse.TenantsPage.class);
         } catch (Exception e) {
             log.error("queryTenants failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> queryTenantsFallback(int page, int size, Throwable t) {
+    private QueryResponse.TenantsPage queryTenantsFallback(int page, int size, Throwable t) {
         log.warn("queryTenants circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return new QueryResponse.TenantsPage(List.of(), 0L, 0, page, size);
     }
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "getTenantFallback")
-    public Map<String, Object> getTenant(UUID id) {
+    public QueryResponse.TenantDetail getTenant(UUID id) {
         try {
-            return rpc(RabbitTopology.RK_TENANTS_GET, new QueryRequest.TenantGet(id));
+            return rpc(RabbitTopology.RK_TENANTS_GET,
+                    new QueryRequest.TenantGet(id),
+                    QueryResponse.TenantDetail.class);
         } catch (Exception e) {
             log.error("getTenant failed: {}", e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> getTenantFallback(UUID id, Throwable t) {
+    private QueryResponse.TenantDetail getTenantFallback(UUID id, Throwable t) {
         log.warn("getTenant circuit open or timed out: {}", t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     // ─── Tenant Commands (RabbitMQ sync) ─────────────────────────────────────
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "tenantCommandFallback")
-    public Map<String, Object> tenantCommand(String command, UUID tenantId, Map<String, Object> payload) {
+    public QueryResponse.TenantDetail tenantCommand(String command, UUID tenantId, Map<String, Object> payload) {
         try {
             CommandEvent cmd = buildTenantCommand(command, tenantId, payload);
-            return rpc(RabbitTopology.RK_TENANTS_COMMAND, cmd);
+            return rpc(RabbitTopology.RK_TENANTS_COMMAND, cmd, QueryResponse.TenantDetail.class);
         } catch (Exception e) {
             log.error("tenantCommand {} failed: {}", command, e.getMessage(), e);
-            return Map.of("error", e.getMessage());
+            throw e;
         }
     }
 
     @SuppressWarnings("unused")
-    private Map<String, Object> tenantCommandFallback(String command, UUID tenantId,
-                                                       Map<String, Object> payload, Throwable t) {
+    private QueryResponse.TenantDetail tenantCommandFallback(String command, UUID tenantId,
+                                                             Map<String, Object> payload, Throwable t) {
         log.warn("tenantCommand {} circuit open or timed out: {}", command, t.getMessage());
-        return Map.of("error", "identity-service temporarily unavailable", "circuitOpen", true);
+        return null;
     }
 
     // ─── User Commands (Kafka) ────────────────────────────────────────────────
@@ -287,4 +303,3 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
         return v != null ? v.toString() : null;
     }
 }
-

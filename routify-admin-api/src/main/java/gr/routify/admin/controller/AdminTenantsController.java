@@ -1,6 +1,7 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.IdentityMessagingClient;
+import gr.routify.common.event.QueryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -32,53 +33,33 @@ public class AdminTenantsController {
      * No authentication required.
      */
     @GetMapping("/workspaces")
-    public Map<String, Object> listWorkspaces() {
+    public QueryResponse.ActiveWorkspacesList listWorkspaces() {
         return messagingClient.listActiveWorkspaces();
     }
 
     @GetMapping
-    public Map<String, Object> listTenants(
+    public QueryResponse.TenantsPage listTenants(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return messagingClient.queryTenants(page, size);
     }
 
     @GetMapping("/{id}")
-    public Map<String, Object> getTenant(@PathVariable UUID id) {
+    public QueryResponse.TenantDetail getTenant(@PathVariable UUID id) {
         return messagingClient.getTenant(id);
     }
 
     /** Only SUPER_ADMIN may create new workspaces. */
     @Secured("ROLE_SUPER_ADMIN")
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createTenant(
+    public ResponseEntity<QueryResponse.TenantDetail> createTenant(
             @Valid @RequestBody Map<String, Object> request) {
-        Map<String, Object> result = messagingClient.tenantCommand("CREATE_TENANT", null, request);
-        if (result.containsKey("error")) {
-            // errorJson() from IdentityRabbitHandler uses e.getClass().getSimpleName() as "code".
-            // RoutifyException inner classes are named "Conflict", "NotFound", "Forbidden", etc.
-            String message = String.valueOf(result.get("error"));
-            String code    = String.valueOf(result.getOrDefault("code", ""));
-            HttpStatus status = switch (code) {
-                case "Conflict"          -> HttpStatus.CONFLICT;
-                case "NotFound"          -> HttpStatus.NOT_FOUND;
-                case "Forbidden"         -> HttpStatus.FORBIDDEN;
-                case "Unauthorized"      -> HttpStatus.UNAUTHORIZED;
-                case "Validation",
-                     "BadRequest"        -> HttpStatus.UNPROCESSABLE_ENTITY;
-                case "QuotaExceeded"     -> HttpStatus.PAYMENT_REQUIRED;
-                default -> Boolean.TRUE.equals(result.get("circuitOpen"))
-                        ? HttpStatus.SERVICE_UNAVAILABLE
-                        : HttpStatus.UNPROCESSABLE_ENTITY;
-            };
-            return ResponseEntity.status(status)
-                    .body(Map.of("detail", message, "status", status.value(), "code", code));
-        }
+        QueryResponse.TenantDetail result = messagingClient.tenantCommand("CREATE_TENANT", null, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
     @PostMapping("/{id}/suspend")
-    public Map<String, Object> suspendTenant(
+    public QueryResponse.TenantDetail suspendTenant(
             @PathVariable UUID id,
             @RequestParam(defaultValue = "Administrative action") String reason) {
         return messagingClient.tenantCommand("SUSPEND_TENANT", id, Map.of("reason", reason));
@@ -87,31 +68,14 @@ public class AdminTenantsController {
     /** Update workspace — SUPER_ADMIN only. */
     @Secured("ROLE_SUPER_ADMIN")
     @PutMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> updateTenant(
+    public QueryResponse.TenantDetail updateTenant(
             @PathVariable UUID id,
             @Valid @RequestBody Map<String, Object> request) {
-        Map<String, Object> result = messagingClient.tenantCommand("UPDATE_TENANT", id, request);
-        if (result.containsKey("error")) {
-            String message = String.valueOf(result.get("error"));
-            String code    = String.valueOf(result.getOrDefault("code", ""));
-            HttpStatus status = switch (code) {
-                case "Conflict"          -> HttpStatus.CONFLICT;
-                case "NotFound"          -> HttpStatus.NOT_FOUND;
-                case "Forbidden"         -> HttpStatus.FORBIDDEN;
-                case "Validation",
-                     "BadRequest"        -> HttpStatus.UNPROCESSABLE_ENTITY;
-                default -> Boolean.TRUE.equals(result.get("circuitOpen"))
-                        ? HttpStatus.SERVICE_UNAVAILABLE
-                        : HttpStatus.UNPROCESSABLE_ENTITY;
-            };
-            return ResponseEntity.status(status)
-                    .body(Map.of("detail", message, "status", status.value(), "code", code));
-        }
-        return ResponseEntity.ok(result);
+        return messagingClient.tenantCommand("UPDATE_TENANT", id, request);
     }
 
     @PostMapping("/{id}/reactivate")
-    public Map<String, Object> reactivateTenant(@PathVariable UUID id) {
+    public QueryResponse.TenantDetail reactivateTenant(@PathVariable UUID id) {
         return messagingClient.tenantCommand("REACTIVATE_TENANT", id, Map.of());
     }
 }

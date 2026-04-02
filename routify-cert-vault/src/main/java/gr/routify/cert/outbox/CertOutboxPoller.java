@@ -30,7 +30,7 @@ import java.util.concurrent.TimeoutException;
 public class CertOutboxPoller {
 
     private final CertOutboxEventRepository outboxRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${routify.outbox.batch-size:50}")
     private int batchSize;

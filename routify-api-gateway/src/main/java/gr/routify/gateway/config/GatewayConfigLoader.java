@@ -72,16 +72,15 @@ public class GatewayConfigLoader {
             groupId = "routify-gateway-config",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void onGatewayConfigChanged(String eventJson) {
+    public void onGatewayConfigChanged(DomainEvent event) {
         try {
-            DomainEvent event = objectMapper.readValue(eventJson, DomainEvent.class);
             if (event instanceof DomainEvent.GatewayConfigChanged changed) {
                 log.info("GatewayConfigChanged received: section={} by={}",
                         changed.section(), changed.changedBy());
                 loadAndApplyConfig("kafka-event:section=" + changed.section());
             }
         } catch (Exception e) {
-            log.warn("Failed to parse GatewayConfigChanged event, reloading anyway: {}", e.getMessage());
+            log.warn("Failed to process GatewayConfigChanged event, reloading anyway: {}", e.getMessage());
             loadAndApplyConfig("kafka-event:parse-error");
         }
     }
@@ -110,22 +109,22 @@ public class GatewayConfigLoader {
             Object response = rabbitTemplate.convertSendAndReceive(
                     RabbitTopology.EXCHANGE_ROUTE_SERVICE,
                     RabbitTopology.RK_GATEWAY_CONFIG_GET,
-                    "{}");
+                    new gr.routify.common.event.QueryRequest.GatewayConfigGet());
 
             if (response == null) {
                 log.warn("route-service returned null for gateway config (trigger={}). Using last-known config.", trigger);
                 return;
             }
 
-            String responseJson = switch (response) {
-                case String s    -> s;
-                case byte[] b    -> new String(b, java.nio.charset.StandardCharsets.UTF_8);
-                default          -> objectMapper.writeValueAsString(response);
-            };
-
             @SuppressWarnings("unchecked")
-            Map<String, Object> config = objectMapper.readValue(
-                    responseJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> config = switch (response) {
+                case gr.routify.common.event.QueryResponse.GatewayConfig gc -> gc.config();
+                case Map<?, ?> m -> (Map<String, Object>) m;
+                case String s    -> objectMapper.readValue(s, new TypeReference<Map<String, Object>>() {});
+                case byte[] b    -> objectMapper.readValue(new String(b, java.nio.charset.StandardCharsets.UTF_8),
+                                            new TypeReference<Map<String, Object>>() {});
+                default          -> objectMapper.convertValue(response, new TypeReference<>() {});
+            };
 
             if (config != null && !config.isEmpty()) {
                 currentConfig.set(config);

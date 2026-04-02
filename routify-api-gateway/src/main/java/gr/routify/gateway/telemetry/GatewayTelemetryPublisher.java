@@ -29,9 +29,9 @@ import java.util.UUID;
 public class GatewayTelemetryPublisher {
 
     private final ObjectMapper objectMapper;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public GatewayTelemetryPublisher(KafkaTemplate<String, String> kafkaTemplate,
+    public GatewayTelemetryPublisher(KafkaTemplate<String, Object> kafkaTemplate,
                                       ObjectMapper objectMapper) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;

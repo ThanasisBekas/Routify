@@ -48,10 +48,8 @@ public class WebSocketEventBroadcaster {
             groupId = "routify-admin-ws",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void onDomainEvent(String eventJson) {
+    public void onDomainEvent(DomainEvent event) {
         try {
-            DomainEvent event = objectMapper.readValue(eventJson, DomainEvent.class);
-
             String type = resolveType(event);
             String queryKey = resolveQueryKey(event);
 
@@ -59,7 +57,7 @@ public class WebSocketEventBroadcaster {
             payload.put("type",       type);
             payload.put("queryKey",   queryKey);
             payload.put("occurredAt", Instant.now().toString());
-            payload.put("data",       objectMapper.readValue(eventJson, Map.class));
+            payload.put("data",       objectMapper.convertValue(event, Map.class));
 
             messaging.convertAndSend("/topic/events", payload);
 

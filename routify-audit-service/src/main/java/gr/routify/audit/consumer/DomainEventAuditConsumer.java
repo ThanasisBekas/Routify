@@ -43,13 +43,12 @@ public class DomainEventAuditConsumer {
             containerFactory = "kafkaListenerContainerFactory"
     )
     @Transactional
-    public void onDomainEvent(String eventJson,
+    public void onDomainEvent(DomainEvent event,
                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                                Acknowledgment ack) {
         try {
-            DomainEvent event = objectMapper.readValue(eventJson, DomainEvent.class);
+            String payload = objectMapper.writeValueAsString(event);
 
-            // Use Java 21 pattern matching to extract audit metadata
             AuditLogEntry entry = new AuditLogEntry(
                     event.eventId(),
                     event.tenantId(),
@@ -57,7 +56,7 @@ public class DomainEventAuditConsumer {
                     resolveAggregateType(event),
                     resolveAggregateId(event),
                     event.actor(),
-                    eventJson,
+                    payload,
                     event.correlationId(),
                     event.occurredAt()
             );
@@ -150,4 +149,3 @@ public class DomainEventAuditConsumer {
         };
     }
 }
-

@@ -1,6 +1,5 @@
 package gr.routify.cert.messaging;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.cert.service.CertGroupService;
 import gr.routify.cert.service.CertificateVaultService;
 import gr.routify.common.event.CommandEvent;
@@ -26,16 +25,14 @@ public class CertCommandKafkaConsumer {
 
     private final CertificateVaultService vaultService;
     private final CertGroupService        groupService;
-    private final ObjectMapper            objectMapper;
 
     @KafkaListener(
             topics = KafkaTopics.CERT_COMMANDS,
             groupId = "routify-cert-vault-commands",
             containerFactory = "certCommandKafkaListenerContainerFactory"
     )
-    public void onCertCommand(String commandJson, Acknowledgment ack) {
+    public void onCertCommand(CommandEvent cmd, Acknowledgment ack) {
         try {
-            CommandEvent cmd = objectMapper.readValue(commandJson, CommandEvent.class);
             log.info("Cert command received: type={} tenantId={} by={}",
                     cmd.getClass().getSimpleName(), cmd.tenantId(), cmd.requestedBy());
 
@@ -81,7 +78,7 @@ public class CertCommandKafkaConsumer {
             }
             ack.acknowledge();
         } catch (Exception e) {
-            log.error("Failed to process cert command: {} — {}", commandJson, e.getMessage(), e);
+            log.error("Failed to process cert command: type={} — {}", cmd.getClass().getSimpleName(), e.getMessage(), e);
             // Don't ack — let Kafka retry or route to DLQ
         }
     }
