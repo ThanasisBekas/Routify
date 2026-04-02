@@ -3,6 +3,7 @@ package gr.routify.admin.controller;
 import gr.routify.admin.client.CertVaultMessagingClient;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.AsyncAcknowledgement;
+import gr.routify.common.web.RoutifyHeaders;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -47,7 +48,7 @@ public class AdminCertGroupsController {
 
     @GetMapping
     public ResponseEntity<QueryResponse.CertGroupsPage> listGroups(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -62,7 +63,7 @@ public class AdminCertGroupsController {
     @GetMapping("/{id}")
     public ResponseEntity<QueryResponse.CertGroupDetail> getGroup(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId) {
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
         return ResponseEntity.ok(messagingClient.getCertGroup(id, tenantId));
     }
 
@@ -82,11 +83,11 @@ public class AdminCertGroupsController {
      */
     @PostMapping
     public ResponseEntity<AsyncAcknowledgement> createGroup(
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendCreateCertGroup(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate group creation in progress"));
@@ -97,11 +98,11 @@ public class AdminCertGroupsController {
     @PutMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> updateGroup(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendUpdateCertGroup(id, tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate group update in progress"));
@@ -112,10 +113,10 @@ public class AdminCertGroupsController {
     @PostMapping("/{id}/archive")
     public ResponseEntity<AsyncAcknowledgement> archiveGroup(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendArchiveCertGroup(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate group archival in progress"));
@@ -126,10 +127,10 @@ public class AdminCertGroupsController {
     @DeleteMapping("/{id}")
     public ResponseEntity<AsyncAcknowledgement> deleteGroup(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendDeleteCertGroup(id, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate group deletion in progress"));
@@ -140,7 +141,7 @@ public class AdminCertGroupsController {
     @GetMapping("/{id}/members")
     public ResponseEntity<QueryResponse.CertGroupMembersList> listGroupMembers(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId) {
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
         return ResponseEntity.ok(messagingClient.listCertGroupMembers(id, tenantId));
     }
 
@@ -158,11 +159,11 @@ public class AdminCertGroupsController {
     @PostMapping("/{id}/members")
     public ResponseEntity<AsyncAcknowledgement> addMemberToGroup(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             @RequestBody Map<String, Object> request,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendAddCertToGroup(id, tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate group member addition in progress"));
@@ -176,19 +177,12 @@ public class AdminCertGroupsController {
     public ResponseEntity<AsyncAcknowledgement> removeMemberFromGroup(
             @PathVariable UUID id,
             @PathVariable UUID certId,
-            @RequestHeader("X-Tenant-Id") UUID tenantId,
-            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
             Authentication auth) {
-        String actor = resolveActor(userId, auth);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendRemoveCertFromGroup(id, certId, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Certificate group member removal in progress"));
-    }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    private static String resolveActor(String userId, Authentication auth) {
-        if (userId != null && !userId.isBlank()) return userId;
-        return auth != null ? auth.getName() : "system";
     }
 }

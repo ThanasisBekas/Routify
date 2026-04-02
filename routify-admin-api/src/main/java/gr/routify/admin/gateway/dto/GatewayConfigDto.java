@@ -1,6 +1,7 @@
 package gr.routify.admin.gateway.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import gr.routify.common.web.SensitiveField;
 import lombok.*;
 
 import java.time.Instant;
@@ -152,9 +153,11 @@ public class GatewayConfigDto {
         private String type;           // OAUTH2_CLIENT_CREDENTIALS | OAUTH2_PASSWORD | OAUTH2_INTROSPECT | BASIC | JWT_VERIFY
         private String uri;
         private String clientId;
+        @SensitiveField
         private String clientSecret;   // masked in GET responses
         private String scope;
         private String username;       // for password grant
+        @SensitiveField
         private String password;       // masked
         private String parameterStyle; // BODY | HEADER (for introspection)
         private String parameterName;
@@ -181,9 +184,8 @@ public class GatewayConfigDto {
         private String logicalId;
         private String certificatePath;
         private String privateKeyPath;
+        @SensitiveField
         private String privateKeyPassword;  // write-only; masked in GET responses
-        private boolean watchForChanges;
-        private String  expiresAt;       // read-only, populated from registry
         private String  status;          // VALID | EXPIRING_SOON | EXPIRED
     }
 
@@ -192,6 +194,7 @@ public class GatewayConfigDto {
         private String directoryPath;
         private String logicalId;
         private String privateKeyPath;
+        @SensitiveField
         private String privateKeyPassword;  // write-only; masked in GET responses
         private boolean watchForChanges;
     }
@@ -203,6 +206,7 @@ public class GatewayConfigDto {
         private String  host;
         private int     port;
         private String  username;
+        @SensitiveField
         private String  password;       // masked
         private List<String> nonProxyHosts;
         private String  type;           // HTTP | HTTPS | SOCKS5

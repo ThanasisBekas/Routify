@@ -62,6 +62,16 @@ public final class RoutifyHeaders {
      */
     public static final String AUTH_TYPE = "X-Auth-Type";
 
+    /**
+     * Explicit user identifier supplied by the caller on write operations.
+     * When present it takes precedence over the authenticated principal name
+     * as the "actor" for audit purposes. Optional — falls back to the principal
+     * name or {@code "system"}.
+     *
+     * @see #resolveActor(String, String)
+     */
+    public static final String USER_ID = "X-User-Id";
+
     // ─── Tracing / observability ──────────────────────────────────────────────
 
     /**
@@ -97,5 +107,32 @@ public final class RoutifyHeaders {
      * Legacy auth-token header — treated as a secret credential; redacted from access logs.
      */
     public static final String AUTH_TOKEN = "X-Auth-Token";
+
+    // ─── Utilities ────────────────────────────────────────────────────────────
+
+    /**
+     * Resolves the acting principal for audit / command attribution.
+     *
+     * <p>Resolution order:
+     * <ol>
+     *   <li>The {@value #USER_ID} header value when explicitly supplied by the caller.</li>
+     *   <li>The authenticated principal name (e.g. {@code Authentication#getName()}).</li>
+     *   <li>The literal {@code "system"} fallback for unauthenticated / scheduled calls.</li>
+     * </ol>
+     *
+     * <p>Typical usage in a Spring MVC controller:
+     * <pre>{@code
+     * String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
+     * }</pre>
+     *
+     * @param userId        the value of the {@value #USER_ID} request header, may be {@code null}
+     * @param principalName the authenticated principal name, may be {@code null}
+     * @return a non-null, non-blank actor string
+     */
+    public static String resolveActor(String userId, String principalName) {
+        if (userId != null && !userId.isBlank()) return userId;
+        return principalName != null ? principalName : "system";
+    }
 }
+
 
