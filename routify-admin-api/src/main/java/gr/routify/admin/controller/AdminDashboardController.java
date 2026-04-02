@@ -4,6 +4,7 @@ import gr.routify.admin.sse.DashboardEventBroadcaster;
 import gr.routify.admin.service.DashboardStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -25,9 +26,9 @@ public class AdminDashboardController {
      * Dashboard overview statistics — routes, filters, users, gateway status.
      */
     @GetMapping("/stats")
-    public Map<String, Object> getStats(
+    public ResponseEntity<Map<String, Object>> getStats(
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
-        return statsService.getDashboardStats(tenantId);
+        return ResponseEntity.ok(statsService.getDashboardStats(tenantId));
     }
 
     /**
@@ -47,8 +48,8 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/dashboard/gateway-status")
-    public Map<String, Object> getGatewayStatus(
+    public ResponseEntity<Map<String, Object>> getGatewayStatus(
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
-        return statsService.getGatewayStatus(tenantId);
+        return ResponseEntity.ok(statsService.getGatewayStatus(tenantId));
     }
 }

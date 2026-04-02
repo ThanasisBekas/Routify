@@ -39,92 +39,92 @@ public class GatewayConfigController {
     // ─── Full config ─────────────────────────────────────────────────────────
 
     @GetMapping("/config")
-    public GatewayConfigDto getConfig() {
-        return configService.getConfig();
+    public ResponseEntity<GatewayConfigDto> getConfig() {
+        return ResponseEntity.ok(configService.getConfig());
     }
 
     @PutMapping("/config")
-    public GatewayConfigDto saveConfig(
+    public ResponseEntity<GatewayConfigDto> saveConfig(
             @RequestBody GatewayConfigDto dto,
             Authentication auth) {
-        return configService.saveConfig(dto, actor(auth));
+        return ResponseEntity.ok(configService.saveConfig(dto, actor(auth)));
     }
 
     // ─── Live status ─────────────────────────────────────────────────────────
 
     @GetMapping("/status")
-    public Map<String, Object> getStatus() {
+    public ResponseEntity<Map<String, Object>> getStatus() {
         Map<String, Object> health      = actuatorClient.getHealth();
         Map<String, Object> routes      = actuatorClient.getLiveRoutes();
         Map<String, Object> cbs         = actuatorClient.getCircuitBreakerStates();
         Map<String, Object> loadedConfig = actuatorClient.getLoadedConfig();
-        return Map.of(
+        return ResponseEntity.ok(Map.of(
                 "health",          health,
                 "routes",          routes,
                 "circuitBreakers", cbs,
                 "loadedConfig",    loadedConfig
-        );
+        ));
     }
 
     @PostMapping("/reload")
-    public Map<String, Object> triggerReload(Authentication auth) {
-        return actuatorClient.triggerConfigReload();
+    public ResponseEntity<Map<String, Object>> triggerReload(Authentication auth) {
+        return ResponseEntity.ok(actuatorClient.triggerConfigReload());
     }
 
     @GetMapping("/metrics")
-    public Map<String, Object> getMetrics() {
-        return actuatorClient.getGatewayMetrics();
+    public ResponseEntity<Map<String, Object>> getMetrics() {
+        return ResponseEntity.ok(actuatorClient.getGatewayMetrics());
     }
 
     // ─── CORS ────────────────────────────────────────────────────────────────
 
     @GetMapping("/cors")
-    public CorsConfig getCors() {
-        return configService.getCors();
+    public ResponseEntity<CorsConfig> getCors() {
+        return ResponseEntity.ok(configService.getCors());
     }
 
     @PutMapping("/cors")
-    public GatewayConfigDto updateCors(
+    public ResponseEntity<GatewayConfigDto> updateCors(
             @RequestBody @Valid CorsConfig cors,
             Authentication auth) {
-        return configService.updateCors(cors, actor(auth));
+        return ResponseEntity.ok(configService.updateCors(cors, actor(auth)));
     }
 
     // ─── Security Headers ────────────────────────────────────────────────────
 
     @GetMapping("/security-headers")
-    public SecurityHeadersConfig getSecurityHeaders() {
-        return configService.getSecurityHeaders();
+    public ResponseEntity<SecurityHeadersConfig> getSecurityHeaders() {
+        return ResponseEntity.ok(configService.getSecurityHeaders());
     }
 
     @PutMapping("/security-headers")
-    public GatewayConfigDto updateSecurityHeaders(
+    public ResponseEntity<GatewayConfigDto> updateSecurityHeaders(
             @RequestBody SecurityHeadersConfig sh,
             Authentication auth) {
-        return configService.updateSecurityHeaders(sh, actor(auth));
+        return ResponseEntity.ok(configService.updateSecurityHeaders(sh, actor(auth)));
     }
 
     // ─── Rate Limit Policies ─────────────────────────────────────────────────
 
     @GetMapping("/rate-limit-policies")
-    public List<RateLimitPolicyDto> getRateLimitPolicies() {
-        return configService.getRateLimitPolicies();
+    public ResponseEntity<List<RateLimitPolicyDto>> getRateLimitPolicies() {
+        return ResponseEntity.ok(configService.getRateLimitPolicies());
     }
 
     @PutMapping("/rate-limit-policies")
-    public GatewayConfigDto setRateLimitPolicies(
+    public ResponseEntity<GatewayConfigDto> setRateLimitPolicies(
             @RequestBody List<RateLimitPolicyDto> policies,
             Authentication auth) {
-        return configService.updateRateLimitPolicies(policies, actor(auth));
+        return ResponseEntity.ok(configService.updateRateLimitPolicies(policies, actor(auth)));
     }
 
     @PutMapping("/rate-limit-policies/{policyId}")
-    public GatewayConfigDto upsertRateLimitPolicy(
+    public ResponseEntity<GatewayConfigDto> upsertRateLimitPolicy(
             @PathVariable String policyId,
             @RequestBody RateLimitPolicyDto policy,
             Authentication auth) {
         policy.setId(policyId);
-        return configService.upsertRateLimitPolicy(policy, actor(auth));
+        return ResponseEntity.ok(configService.upsertRateLimitPolicy(policy, actor(auth)));
     }
 
     @DeleteMapping("/rate-limit-policies/{policyId}")
@@ -138,50 +138,50 @@ public class GatewayConfigController {
     // ─── Circuit Breaker Defaults ────────────────────────────────────────────
 
     @GetMapping("/circuit-breaker")
-    public CircuitBreakerDefaultsDto getCircuitBreakerDefaults() {
-        return configService.getCircuitBreakerDefaults();
+    public ResponseEntity<CircuitBreakerDefaultsDto> getCircuitBreakerDefaults() {
+        return ResponseEntity.ok(configService.getCircuitBreakerDefaults());
     }
 
     @PutMapping("/circuit-breaker")
-    public GatewayConfigDto updateCircuitBreakerDefaults(
+    public ResponseEntity<GatewayConfigDto> updateCircuitBreakerDefaults(
             @RequestBody CircuitBreakerDefaultsDto cb,
             Authentication auth) {
-        return configService.updateCircuitBreakerDefaults(cb, actor(auth));
+        return ResponseEntity.ok(configService.updateCircuitBreakerDefaults(cb, actor(auth)));
     }
 
     @GetMapping("/circuit-breaker/states")
-    public Map<String, Object> getCircuitBreakerStates() {
-        return actuatorClient.getCircuitBreakerStates();
+    public ResponseEntity<Map<String, Object>> getCircuitBreakerStates() {
+        return ResponseEntity.ok(actuatorClient.getCircuitBreakerStates());
     }
 
     // ─── Resilience Defaults (Retry / Timeout / Bulkhead) ───────────────────
 
     @GetMapping("/resilience")
-    public ResilienceDefaultsDto getResilienceDefaults() {
-        return configService.getResilienceDefaults();
+    public ResponseEntity<ResilienceDefaultsDto> getResilienceDefaults() {
+        return ResponseEntity.ok(configService.getResilienceDefaults());
     }
 
     @PutMapping("/resilience")
-    public GatewayConfigDto updateResilienceDefaults(
+    public ResponseEntity<GatewayConfigDto> updateResilienceDefaults(
             @RequestBody ResilienceDefaultsDto rd,
             Authentication auth) {
-        return configService.updateResilienceDefaults(rd, actor(auth));
+        return ResponseEntity.ok(configService.updateResilienceDefaults(rd, actor(auth)));
     }
 
     // ─── Auth Providers ──────────────────────────────────────────────────────
 
     @GetMapping("/auth-providers")
-    public List<AuthProviderDto> getAuthProviders() {
-        return maskSecrets(configService.getAuthProviders());
+    public ResponseEntity<List<AuthProviderDto>> getAuthProviders() {
+        return ResponseEntity.ok(maskSecrets(configService.getAuthProviders()));
     }
 
     @PutMapping("/auth-providers/{providerId}")
-    public GatewayConfigDto upsertAuthProvider(
+    public ResponseEntity<GatewayConfigDto> upsertAuthProvider(
             @PathVariable String providerId,
             @RequestBody AuthProviderDto provider,
             Authentication auth) {
         provider.setId(providerId);
-        return configService.upsertAuthProvider(provider, actor(auth));
+        return ResponseEntity.ok(configService.upsertAuthProvider(provider, actor(auth)));
     }
 
     @DeleteMapping("/auth-providers/{providerId}")
@@ -192,24 +192,23 @@ public class GatewayConfigController {
         return ResponseEntity.noContent().build();
     }
 
-
     // ─── TLS / Certificates ──────────────────────────────────────────────────
 
     @GetMapping("/tls")
-    public TlsConfigDto getTlsConfig() {
-        return maskTlsSecrets(configService.getTlsConfig());
+    public ResponseEntity<TlsConfigDto> getTlsConfig() {
+        return ResponseEntity.ok(maskTlsSecrets(configService.getTlsConfig()));
     }
 
     @PutMapping("/tls")
-    public GatewayConfigDto updateTlsConfig(
+    public ResponseEntity<GatewayConfigDto> updateTlsConfig(
             @RequestBody TlsConfigDto tls,
             Authentication auth) {
-        return configService.updateTlsConfig(tls, actor(auth));
+        return ResponseEntity.ok(configService.updateTlsConfig(tls, actor(auth)));
     }
 
     @GetMapping("/tls/certificates")
-    public Map<String, Object> getLiveCertificates() {
-        return actuatorClient.getCertificates();
+    public ResponseEntity<Map<String, Object>> getLiveCertificates() {
+        return ResponseEntity.ok(actuatorClient.getCertificates());
     }
 
     /**
@@ -218,70 +217,70 @@ public class GatewayConfigController {
      * Routes through cert-vault's {@code certs.gateway.snapshot} RabbitMQ queue.
      */
     @GetMapping("/tls/vault-certs")
-    public QueryResponse.CertsList getVaultCertificates(
+    public ResponseEntity<QueryResponse.CertsList> getVaultCertificates(
             @RequestHeader(value = "X-Tenant-Id", required = false) java.util.UUID tenantId) {
-        return certVaultClient.listGatewayMappedCertificates(tenantId);
+        return ResponseEntity.ok(certVaultClient.listGatewayMappedCertificates(tenantId));
     }
 
     // ─── Upstream Proxy ──────────────────────────────────────────────────────
 
     @GetMapping("/proxy")
-    public ProxyConfigDto getProxyConfig() {
+    public ResponseEntity<ProxyConfigDto> getProxyConfig() {
         ProxyConfigDto proxy = configService.getProxyConfig();
         if (proxy != null) proxy.setPassword(mask(proxy.getPassword()));
-        return proxy;
+        return ResponseEntity.ok(proxy);
     }
 
     @PutMapping("/proxy")
-    public GatewayConfigDto updateProxyConfig(
+    public ResponseEntity<GatewayConfigDto> updateProxyConfig(
             @RequestBody ProxyConfigDto proxy,
             Authentication auth) {
-        return configService.updateProxyConfig(proxy, actor(auth));
+        return ResponseEntity.ok(configService.updateProxyConfig(proxy, actor(auth)));
     }
 
     // ─── HTTP Client ─────────────────────────────────────────────────────────
 
     @GetMapping("/http-client")
-    public HttpClientConfigDto getHttpClientConfig() {
-        return configService.getHttpClientConfig();
+    public ResponseEntity<HttpClientConfigDto> getHttpClientConfig() {
+        return ResponseEntity.ok(configService.getHttpClientConfig());
     }
 
     @PutMapping("/http-client")
-    public GatewayConfigDto updateHttpClientConfig(
+    public ResponseEntity<GatewayConfigDto> updateHttpClientConfig(
             @RequestBody HttpClientConfigDto httpClient,
             Authentication auth) {
-        return configService.updateHttpClientConfig(httpClient, actor(auth));
+        return ResponseEntity.ok(configService.updateHttpClientConfig(httpClient, actor(auth)));
     }
 
     // ─── Global Filters ──────────────────────────────────────────────────────
 
     @GetMapping("/global-filters")
-    public GlobalFiltersConfig getGlobalFilters() {
-        return configService.getGlobalFilters();
+    public ResponseEntity<GlobalFiltersConfig> getGlobalFilters() {
+        return ResponseEntity.ok(configService.getGlobalFilters());
     }
 
     @PutMapping("/global-filters")
-    public GatewayConfigDto updateGlobalFilters(
+    public ResponseEntity<GatewayConfigDto> updateGlobalFilters(
             @RequestBody GlobalFiltersConfig gf,
             Authentication auth) {
-        return configService.updateGlobalFilters(gf, actor(auth));
+        return ResponseEntity.ok(configService.updateGlobalFilters(gf, actor(auth)));
     }
 
     // ─── Tenant Isolation ────────────────────────────────────────────────────
 
     @GetMapping("/tenant-isolation")
-    public TenantIsolationConfig getTenantIsolation() {
-        return configService.getTenantIsolation();
+    public ResponseEntity<TenantIsolationConfig> getTenantIsolation() {
+        return ResponseEntity.ok(configService.getTenantIsolation());
     }
 
     @PutMapping("/tenant-isolation")
-    public GatewayConfigDto updateTenantIsolation(
+    public ResponseEntity<GatewayConfigDto> updateTenantIsolation(
             @RequestBody TenantIsolationConfig ti,
             Authentication auth) {
-        return configService.updateTenantIsolation(ti, actor(auth));
+        return ResponseEntity.ok(configService.updateTenantIsolation(ti, actor(auth)));
     }
 
-    // ─── Helpers ───────────────────────────────────────────────────────────���─
+    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private String actor(Authentication auth) {
         return auth != null ? auth.getName() : "system";

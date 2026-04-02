@@ -2,6 +2,7 @@ package gr.routify.admin.controller;
 
 import gr.routify.admin.client.IdentityMessagingClient;
 import gr.routify.common.event.QueryResponse;
+import gr.routify.common.web.AsyncAcknowledgement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,51 +28,52 @@ public class AdminUsersController {
     private final IdentityMessagingClient messagingClient;
 
     @GetMapping
-    public QueryResponse.UsersPage listUsers(
+    public ResponseEntity<QueryResponse.UsersPage> listUsers(
             @RequestHeader(value = "X-Tenant-Id", required = false) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return messagingClient.queryUsers(tenantId, page, size);
+        return ResponseEntity.ok(messagingClient.queryUsers(tenantId, page, size));
     }
 
     @GetMapping("/{id}")
-    public QueryResponse.UserDetail getUser(
+    public ResponseEntity<QueryResponse.UserDetail> getUser(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
-        return messagingClient.getUser(id, tenantId);
+        return ResponseEntity.ok(messagingClient.getUser(id, tenantId));
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createUser(
+    public ResponseEntity<AsyncAcknowledgement> createUser(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
         messagingClient.sendCreateUser(tenantId, actor, request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(Map.of("status", "accepted", "message", "User creation in progress"));
+                .body(AsyncAcknowledgement.of("User creation in progress"));
     }
 
     @PutMapping("/{id}")
-    public Map<String, Object> updateUser(
+    public ResponseEntity<AsyncAcknowledgement> updateUser(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @Valid @RequestBody Map<String, Object> request,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
         messagingClient.sendUpdateUser(id, tenantId, actor, request);
-        return Map.of("status", "accepted", "message", "User update in progress");
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(AsyncAcknowledgement.of("User update in progress"));
     }
 
     @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public Map<String, Object> deleteUser(
+    public ResponseEntity<AsyncAcknowledgement> deleteUser(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             Authentication auth) {
         String actor = auth != null ? auth.getName() : "system";
         messagingClient.sendDeleteUser(id, tenantId, actor);
-        return Map.of("status", "accepted", "message", "User deletion in progress");
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(AsyncAcknowledgement.of("User deletion in progress"));
     }
 
     /**
