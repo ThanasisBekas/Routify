@@ -77,7 +77,8 @@ routify:
   audit:
     retention:
       request-log-days: 30
-      audit-log-days: 365
+      audit-log-days: 7
+      dlq-log-days: 7
       cron: "0 0 2 * * *"
   replay:
     # Base URL of the API gateway — replays are sent here so the full filter chain is re-applied.

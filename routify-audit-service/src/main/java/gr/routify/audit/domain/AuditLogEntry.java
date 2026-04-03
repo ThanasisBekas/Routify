@@ -14,8 +14,15 @@ import java.util.UUID;
  * <p>Records every route/filter/tenant/user change for compliance,
  * debugging, and audit trail requirements. Uses PostgreSQL native partitioning
  * by month for efficient time-based queries and retention management.
+ *
+ * <p><b>Composite PK note:</b> The {@code audit_log} table is partitioned by
+ * {@code occurred_at}. PostgreSQL requires the partition key to be part of the
+ * primary key, so the PK is {@code (event_id, occurred_at)}. The {@link AuditLogEntryId}
+ * {@code @IdClass} tells Hibernate to issue a direct {@code INSERT} instead of first
+ * doing a {@code SELECT} by {@code event_id} alone (which fails on partitioned tables).
  */
 @Entity
+@IdClass(AuditLogEntryId.class)
 @Table(
     name = "audit_log",
     schema = "routify_audit",
@@ -55,6 +62,7 @@ public class AuditLogEntry {
     @Column(name = "correlation_id", length = 36, updatable = false)
     private String correlationId;
 
+    @Id
     @Column(name = "occurred_at", nullable = false, updatable = false)
     private Instant occurredAt;
 

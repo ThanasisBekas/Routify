@@ -1,6 +1,7 @@
 package gr.routify.audit.repository;
 
 import gr.routify.audit.domain.AuditLogEntry;
+import gr.routify.audit.domain.AuditLogEntryId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface AuditLogRepository extends JpaRepository<AuditLogEntry, UUID> {
+public interface AuditLogRepository extends JpaRepository<AuditLogEntry, AuditLogEntryId> {
 
     Page<AuditLogEntry> findByTenantIdOrderByOccurredAtDesc(UUID tenantId, Pageable pageable);
 
@@ -62,8 +63,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLogEntry, UUID> {
     @Modifying
     @Query(value = """
             DELETE FROM routify_audit.audit_log
-            WHERE id IN (
-                SELECT id FROM routify_audit.audit_log
+            WHERE (event_id, occurred_at) IN (
+                SELECT event_id, occurred_at FROM routify_audit.audit_log
                 WHERE occurred_at < :cutoff
                 LIMIT :batchSize
             )

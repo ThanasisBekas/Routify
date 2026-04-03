@@ -1,6 +1,7 @@
 package gr.routify.audit.scheduler;
 
 import gr.routify.audit.repository.AuditLogRepository;
+import gr.routify.audit.repository.DlqEventRepository;
 import gr.routify.audit.repository.RequestLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,12 +35,16 @@ public class AuditRetentionScheduler {
 
     private final AuditLogRepository   auditLogRepository;
     private final RequestLogRepository requestLogRepository;
+    private final DlqEventRepository   dlqEventRepository;
 
     @Value("${routify.audit.retention.request-log-days:30}")
     private int requestLogRetentionDays;
 
     @Value("${routify.audit.retention.audit-log-days:365}")
     private int auditLogRetentionDays;
+
+    @Value("${routify.audit.retention.dlq-log-days:90}")
+    private int dlqLogRetentionDays;
 
     @Value("${routify.audit.retention.batch-size:1000}")
     private int batchSize;
@@ -49,9 +54,11 @@ public class AuditRetentionScheduler {
     public void enforceRetention() {
         Instant requestLogCutoff = Instant.now().minus(requestLogRetentionDays, ChronoUnit.DAYS);
         Instant auditLogCutoff   = Instant.now().minus(auditLogRetentionDays,   ChronoUnit.DAYS);
+        Instant dlqLogCutoff     = Instant.now().minus(dlqLogRetentionDays,     ChronoUnit.DAYS);
 
         int requestLogsDeleted = 0;
         int auditLogsDeleted   = 0;
+        int dlqLogsDeleted     = 0;
 
         try {
             requestLogsDeleted = deleteInBatches(requestLogCutoff, "request log",
@@ -67,8 +74,17 @@ public class AuditRetentionScheduler {
             log.error("Failed to purge old audit logs: {}", e.getMessage(), e);
         }
 
-        log.info("Retention enforcement complete: {} request logs purged (older than {} days), {} audit logs purged (older than {} days)",
-                requestLogsDeleted, requestLogRetentionDays, auditLogsDeleted, auditLogRetentionDays);
+        try {
+            dlqLogsDeleted = deleteInBatches(dlqLogCutoff, "DLQ event",
+                    (cutoff, bs) -> dlqEventRepository.deleteByFailedAtBefore(cutoff));
+        } catch (Exception e) {
+            log.error("Failed to purge old DLQ events: {}", e.getMessage(), e);
+        }
+
+        log.info("Retention enforcement complete: {} request logs purged ({}d), {} audit logs purged ({}d), {} DLQ events purged ({}d)",
+                requestLogsDeleted, requestLogRetentionDays,
+                auditLogsDeleted,   auditLogRetentionDays,
+                dlqLogsDeleted,     dlqLogRetentionDays);
     }
 
     /**

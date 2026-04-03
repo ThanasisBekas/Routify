@@ -54,7 +54,13 @@ public class KafkaConfig {
                 ProducerConfig.ACKS_CONFIG,                       "all",
                 ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,         "true",
                 ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5",
-                ProducerConfig.RETRIES_CONFIG,                    "3"
+                ProducerConfig.RETRIES_CONFIG,                    "3",
+                // Do NOT add __TypeId__ headers — consumers use @JsonTypeInfo / @JsonSubTypes
+                // on DomainEvent to resolve the concrete type from the "type" field in the JSON body.
+                // The __TypeId__ header causes StringJsonMessageConverter to attempt direct class
+                // loading of the inner record type (e.g. DomainEvent$RouteCreated), which
+                // bypasses @JsonSubTypes and fails with a ListenerExecutionFailedException.
+                JsonSerializer.ADD_TYPE_INFO_HEADERS,             false
         ));
     }
 

@@ -35,7 +35,10 @@ public class KafkaProducerConfig {
                 ProducerConfig.ACKS_CONFIG,                     "all",
                 ProducerConfig.RETRIES_CONFIG,                  3,
                 ProducerConfig.LINGER_MS_CONFIG,                5,
-                ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,       true
+                ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,       true,
+                // Do NOT add __TypeId__ headers — consumers use @JsonTypeInfo / @JsonSubTypes
+                // on DomainEvent to resolve the concrete type from the "type" field in the JSON body.
+                JsonSerializer.ADD_TYPE_INFO_HEADERS,           false
         ));
     }
 
