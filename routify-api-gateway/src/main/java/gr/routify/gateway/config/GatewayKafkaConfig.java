@@ -74,7 +74,10 @@ public class GatewayKafkaConfig {
                 ProducerConfig.ACKS_CONFIG,                     "1",
                 ProducerConfig.RETRIES_CONFIG,                  3,
                 ProducerConfig.LINGER_MS_CONFIG,                5,
-                ProducerConfig.COMPRESSION_TYPE_CONFIG,         "snappy"
+                ProducerConfig.COMPRESSION_TYPE_CONFIG,         "snappy",
+                // Do NOT add __TypeId__ headers — consumers use @JsonTypeInfo / @JsonSubTypes
+                // on DomainEvent to resolve the concrete type from the "type" field in the JSON body.
+                JsonSerializer.ADD_TYPE_INFO_HEADERS,           false
         ));
     }
 

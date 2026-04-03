@@ -103,5 +103,26 @@ public final class KafkaTopics {
      * Consumed by routify-api-gateway to keep the TLS registry in sync with group membership.
      */
     public static final String CERT_GROUP_EVENTS = "routify.cert.group.events";
+
+    // ─── Dead-Letter Queue Topics ─────────────────────────────────────────────
+    // Naming convention: <original-topic>.DLQ
+    // All services forward unprocessable records here after exhausting retries.
+    // Consumed exclusively by routify-audit-service for persistence and alerting.
+
+    public static final String DLQ_ROUTE_EVENTS       = ROUTE_EVENTS       + ".DLQ";
+    public static final String DLQ_FILTER_EVENTS      = FILTER_EVENTS      + ".DLQ";
+    public static final String DLQ_TENANT_EVENTS      = TENANT_EVENTS      + ".DLQ";
+    public static final String DLQ_USER_EVENTS        = USER_EVENTS        + ".DLQ";
+    public static final String DLQ_GATEWAY_RELOAD     = GATEWAY_RELOAD     + ".DLQ";
+    public static final String DLQ_GATEWAY_CONFIG     = GATEWAY_CONFIG_EVENTS + ".DLQ";
+    public static final String DLQ_CERT_EVENTS        = CERT_EVENTS        + ".DLQ";
+    public static final String DLQ_CERT_GROUP_EVENTS  = CERT_GROUP_EVENTS  + ".DLQ";
+    public static final String DLQ_REQUEST_TELEMETRY  = REQUEST_TELEMETRY  + ".DLQ";
+    public static final String DLQ_ROUTE_COMMANDS     = ROUTE_COMMANDS     + ".DLQ";
+    public static final String DLQ_FILTER_COMMANDS    = FILTER_COMMANDS    + ".DLQ";
+    public static final String DLQ_USER_COMMANDS      = USER_COMMANDS      + ".DLQ";
+    public static final String DLQ_TENANT_COMMANDS    = TENANT_COMMANDS    + ".DLQ";
+    public static final String DLQ_AUTH_COMMANDS      = AUTH_COMMANDS      + ".DLQ";
+    public static final String DLQ_CERT_COMMANDS      = CERT_COMMANDS      + ".DLQ";
 }
 

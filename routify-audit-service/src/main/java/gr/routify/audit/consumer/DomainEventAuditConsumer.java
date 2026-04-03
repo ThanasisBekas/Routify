@@ -37,7 +37,9 @@ public class DomainEventAuditConsumer {
                     KafkaTopics.FILTER_EVENTS,
                     KafkaTopics.TENANT_EVENTS,
                     KafkaTopics.USER_EVENTS,
-                    KafkaTopics.GATEWAY_RELOAD
+                    KafkaTopics.GATEWAY_RELOAD,
+                    KafkaTopics.CERT_EVENTS,
+                    KafkaTopics.CERT_GROUP_EVENTS
             },
             groupId = "routify-audit-consumer",
             containerFactory = "kafkaListenerContainerFactory"

@@ -21,7 +21,9 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.converter.StringJsonMessageConverter;
+import org.springframework.util.backoff.FixedBackOff;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
@@ -84,6 +86,45 @@ public class AuditServiceConfig {
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
         return factory;
+    }
+
+    /**
+     * Dedicated container factory for the DLQ consumer.
+     *
+     * <p>Key differences from the standard factory:
+     * <ul>
+     *   <li>Receives raw {@code String} values — no JSON conversion attempted,
+     *       because records arrive here precisely because they could not be parsed.</li>
+     *   <li>No DLQ error handler — a plain {@link DefaultErrorHandler} with zero
+     *       retries is used instead. If persisting a DLQ record fails the record is
+     *       acknowledged and the error is logged, preventing an infinite DLQ→DLQ loop.</li>
+     * </ul>
+     */
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> dlqListenerContainerFactory() {
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
+        factory.setConsumerFactory(dlqConsumerFactory());
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setConcurrency(1);
+        // No retries, no DLQ forwarding — the DlqEventConsumer handles failures itself
+        factory.setCommonErrorHandler(new DefaultErrorHandler(new FixedBackOff(0L, 0L)));
+        return factory;
+    }
+
+    /**
+     * Consumer factory for DLQ topics — deserializes both key and value as plain Strings.
+     * Must NOT reuse the main {@link #consumerFactory()} because that one uses
+     * {@link StringJsonMessageConverter} which would try to parse the raw payload.
+     */
+    @Bean
+    public ConsumerFactory<String, String> dlqConsumerFactory() {
+        return new DefaultKafkaConsumerFactory<>(Map.of(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,   StringDeserializer.class,
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,        "earliest",
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,       "false"
+        ));
     }
 
     /**

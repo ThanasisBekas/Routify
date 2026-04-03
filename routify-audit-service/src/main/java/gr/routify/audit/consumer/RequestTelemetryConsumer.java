@@ -76,6 +76,9 @@ public class RequestTelemetryConsumer {
 
         } catch (Exception e) {
             log.error("Failed to process request telemetry: {}", e.getMessage(), e);
+            // Do NOT acknowledge — let Kafka retry. After max retries the error handler
+            // will route the record to the DLQ (configured in AuditServiceConfig).
+            throw new RuntimeException("Failed to process request telemetry", e);
         }
     }
 
