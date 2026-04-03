@@ -77,6 +77,7 @@ public class OutboxEventStore {
             case DomainEvent.CertRotated c     -> "Certificate";
             case DomainEvent.GatewayReloadRequested g -> "Gateway";
             case DomainEvent.GatewayConfigChanged g   -> "GatewayConfig";
+            case DomainEvent.Unknown unknown -> "Unknown";
         };
     }
 
@@ -102,6 +103,7 @@ public class OutboxEventStore {
             case DomainEvent.CertRotated c     -> c.routeId().toString();
             case DomainEvent.GatewayReloadRequested g -> g.tenantId() != null ? g.tenantId().toString() : "platform";
             case DomainEvent.GatewayConfigChanged g   -> g.section() != null ? g.section() : "global";
+            case DomainEvent.Unknown u -> u.tenantId() != null ? u.tenantId().toString() : "platform";
         };
     }
 }

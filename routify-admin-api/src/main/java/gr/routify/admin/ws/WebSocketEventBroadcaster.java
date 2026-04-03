@@ -155,6 +155,7 @@ public class WebSocketEventBroadcaster {
             case DomainEvent.CertRotated ignored         -> "certificate.rotated";
             case DomainEvent.GatewayReloadRequested ignored -> "gateway.reloaded";
             case DomainEvent.GatewayConfigChanged ignored   -> "gateway.config.changed";
+            default -> throw new IllegalStateException("Unexpected value: " + event);
         };
     }
 
@@ -184,6 +185,7 @@ public class WebSocketEventBroadcaster {
             case DomainEvent.CertRotated ignored       -> "certificates";
             case DomainEvent.GatewayReloadRequested ignored -> "gateway-status";
             case DomainEvent.GatewayConfigChanged ignored   -> "gateway-config";
+            default -> throw new IllegalStateException("Unexpected value: " + event);
         };
     }
 

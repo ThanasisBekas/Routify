@@ -98,6 +98,7 @@ public class DashboardEventBroadcaster {
                 case DomainEvent.CertRotated ignored         -> "certificate.rotated";
                 case DomainEvent.GatewayReloadRequested ignored -> "gateway.reloaded";
                 case DomainEvent.GatewayConfigChanged ignored   -> "gateway.config.changed";
+                default -> throw new IllegalStateException("Unexpected value: " + event);
             };
 
             broadcast(sseEventType, objectMapper.writeValueAsString(event));
