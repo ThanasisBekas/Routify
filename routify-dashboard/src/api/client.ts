@@ -15,7 +15,13 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8082'
+// In mock mode use an empty base URL so all requests stay same-origin
+// (http://localhost:5173/api/...) and the MSW service worker can intercept them.
+// In production/dev-with-backend mode, use the configured API base URL which
+// Vite proxies (or the browser sends directly in prod).
+const BASE_URL = import.meta.env.VITE_MOCK === 'true'
+  ? ''
+  : (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8082')
 
 // ─── Refresh lock state ───────────────────────────────────────────────────────
 let isRefreshing = false

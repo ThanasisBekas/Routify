@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Routify Full Stack" type="CompoundRunConfigurationType">
     <toRun name="Routify Dashboard (dev)" type="js.build_tools.npm" />
+    <toRun name="Routify AI Service" type="SpringBootApplicationConfigurationType" />
     <toRun name="Routify API Gateway" type="SpringBootApplicationConfigurationType" />
     <toRun name="Routify Admin API" type="SpringBootApplicationConfigurationType" />
-    <toRun name="Routify AI Service" type="SpringBootApplicationConfigurationType" />
     <toRun name="Routify Audit Service" type="SpringBootApplicationConfigurationType" />
     <toRun name="Routify Cert Vault" type="SpringBootApplicationConfigurationType" />
     <toRun name="Routify Identity Service" type="SpringBootApplicationConfigurationType" />
@@ -11,4 +11,3 @@
     <method v="2" />
   </configuration>
 </component>
-

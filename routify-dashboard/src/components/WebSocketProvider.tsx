@@ -50,7 +50,12 @@ const AUDIT_EVENTS = new Set([
   'gateway.reloaded', 'gateway.config.changed',
 ])
 
-export function WebSocketProvider({ children }: { children: React.ReactNode }) {
+const IS_MOCK = import.meta.env.VITE_MOCK === 'true'
+
+// ─── Inner component: owns all real WebSocket hooks ───────────────────────────
+// Extracted so we can conditionally mount it (IS_MOCK=false) without calling
+// hooks conditionally — which would violate the Rules of Hooks.
+function RealWebSocketProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const qc = useQueryClient()
   const { setStatus, pushEvent, setMetrics } = useWsStore()
@@ -58,47 +63,30 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const handleMessage = (msg: WsMessage) => {
     if (msg.type === 'metrics') {
       setMetrics(msg)
-      // Metrics carry gateway health + CB states + loaded routes → also refresh gateway status cache
       qc.invalidateQueries({ queryKey: ['gateway-status'] })
       return
     }
-
-    // Push to event feed store
     pushEvent(msg)
-
-    // Invalidate affected React Query caches by server-emitted queryKey
     if (msg.queryKey && QUERY_KEY_MAP[msg.queryKey]) {
-      QUERY_KEY_MAP[msg.queryKey].forEach(key => {
-        qc.invalidateQueries({ queryKey: key })
-      })
+      QUERY_KEY_MAP[msg.queryKey].forEach(key => { qc.invalidateQueries({ queryKey: key }) })
     }
-
-    // ── Route lifecycle → gateway status + active-route count ──────────
     if (GATEWAY_ROUTE_EVENTS.has(msg.type)) {
       qc.invalidateQueries({ queryKey: ['gateway-status'] })
       qc.invalidateQueries({ queryKey: ['active-routes-count'] })
       qc.invalidateQueries({ queryKey: ['gateway-live-certs'] })
     }
-
-    // ── Gateway config changed → refresh all gateway-related caches ───
     if (msg.type === 'gateway.config.changed') {
       qc.invalidateQueries({ queryKey: ['gateway-config'] })
       qc.invalidateQueries({ queryKey: ['gateway-tls-config'] })
     }
-
-    // ── Audit events → refresh all audit caches ───────────────────────
     if (AUDIT_EVENTS.has(msg.type)) {
       qc.invalidateQueries({ queryKey: ['audit-events'] })
       qc.invalidateQueries({ queryKey: ['audit-requests'] })
     }
-
-    // ── Replay events → refresh replay caches ─────────────────────────
     if (msg.type.startsWith('replay.') || msg.queryKey === 'audit') {
       qc.invalidateQueries({ queryKey: ['audit-failed'] })
       qc.invalidateQueries({ queryKey: ['replay-stats'] })
     }
-
-    // ── Certificate events → refresh cert caches ──────────────────────
     if (msg.type.startsWith('certificate.') || msg.queryKey === 'certificates') {
       qc.invalidateQueries({ queryKey: ['cert-groups'] })
       qc.invalidateQueries({ queryKey: ['cert-group-detail'] })
@@ -107,25 +95,24 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       qc.invalidateQueries({ queryKey: ['gateway-live-certs'] })
       qc.invalidateQueries({ queryKey: ['cert-groups-details-tls'] })
     }
-
-    // ── User events → refresh user caches ─────────────────────────────
     if (msg.type.startsWith('user.') || msg.queryKey === 'users') {
       qc.invalidateQueries({ queryKey: ['users'] })
     }
-
-    // ── Tenant events → refresh tenant caches ─────────────────────────
     if (msg.type.startsWith('tenant.') || msg.queryKey === 'tenants') {
       qc.invalidateQueries({ queryKey: ['tenants'] })
       qc.invalidateQueries({ queryKey: ['tenants-for-user-create'] })
     }
   }
 
-  useWebSocket({
-    enabled: isAuthenticated,
-    onMessage: handleMessage,
-    onStatusChange: setStatus,
-  })
-
+  useWebSocket({ enabled: isAuthenticated, onMessage: handleMessage, onStatusChange: setStatus })
   return <>{children}</>
 }
 
+// ─── Public export ────────────────────────────────────────────────────────────
+
+export function WebSocketProvider({ children }: { children: React.ReactNode }) {
+  // In mock mode, wsStore is driven by mockWs.ts (started in main.tsx).
+  // Skip the real socket by mounting only the mock pass-through.
+  if (IS_MOCK) return <>{children}</>
+  return <RealWebSocketProvider>{children}</RealWebSocketProvider>
+}
