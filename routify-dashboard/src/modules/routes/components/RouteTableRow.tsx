@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Play, Pause, Trash2, Edit, RefreshCw, Filter, ChevronRight, Terminal } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary } from '../../../types'
-import { STATUS_CONFIG, METHOD_COLORS } from '../routeConstants'
+import { STATUS_CONFIG } from '../constants/routeStatusConfig'
+import { METHOD_COLORS } from '../routeConstants'
 import ConfirmDeletePopover from './ConfirmDeletePopover'
 
 interface Props {
