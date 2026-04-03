@@ -1,6 +1,8 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.IdentityMessagingClient;
+import gr.routify.admin.dto.CreateTenantRequest;
+import gr.routify.admin.dto.UpdateTenantRequest;
 import gr.routify.common.event.QueryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -53,8 +54,8 @@ public class AdminTenantsController {
     @Secured("ROLE_SUPER_ADMIN")
     @PostMapping
     public ResponseEntity<QueryResponse.TenantDetail> createTenant(
-            @Valid @RequestBody Map<String, Object> request) {
-        QueryResponse.TenantDetail result = messagingClient.tenantCommand("CREATE_TENANT", null, request);
+            @Valid @RequestBody CreateTenantRequest request) {
+        QueryResponse.TenantDetail result = messagingClient.createTenant(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
@@ -62,8 +63,7 @@ public class AdminTenantsController {
     public ResponseEntity<QueryResponse.TenantDetail> suspendTenant(
             @PathVariable UUID id,
             @RequestParam(defaultValue = "Administrative action") String reason) {
-        return ResponseEntity.ok(
-                messagingClient.tenantCommand("SUSPEND_TENANT", id, Map.of("reason", reason)));
+        return ResponseEntity.ok(messagingClient.suspendTenant(id, reason));
     }
 
     /** Update workspace — SUPER_ADMIN only. */
@@ -71,13 +71,12 @@ public class AdminTenantsController {
     @PutMapping("/{id}")
     public ResponseEntity<QueryResponse.TenantDetail> updateTenant(
             @PathVariable UUID id,
-            @Valid @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(messagingClient.tenantCommand("UPDATE_TENANT", id, request));
+            @Valid @RequestBody UpdateTenantRequest request) {
+        return ResponseEntity.ok(messagingClient.updateTenant(id, request));
     }
 
     @PostMapping("/{id}/reactivate")
     public ResponseEntity<QueryResponse.TenantDetail> reactivateTenant(@PathVariable UUID id) {
-        return ResponseEntity.ok(
-                messagingClient.tenantCommand("REACTIVATE_TENANT", id, Map.of()));
+        return ResponseEntity.ok(messagingClient.reactivateTenant(id));
     }
 }

@@ -1,6 +1,7 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.CertVaultMessagingClient;
+import gr.routify.admin.dto.UploadCertificateRequest;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.AsyncAcknowledgement;
 import gr.routify.common.web.RoutifyHeaders;
@@ -10,22 +11,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
  * Admin Certificate Vault Controller — dashboard management of inbound TLS certificates.
  *
- * <p>Certificates always belong to a {@code CertGroup}. The group's {@code logicalId}
- * is the stable key used by the gateway TLS registry and authorization filters.
- * Upload requires a {@code groupId}; the certificate's own logical ID is auto-generated.
- *
  * <p>All read operations are served via RabbitMQ request/reply to routify-cert-vault.
  * All write operations (upload, revoke, delete) are published as Kafka command events.
  * There are NO direct HTTP calls to cert-vault.
- *
- * <p>Gateway TLS binding is managed at the group level via
- * {@link AdminCertGroupsController} — not at the individual certificate level.
  */
 @RestController
 @RequestMapping("/api/v1/admin/certificates")
@@ -90,7 +83,7 @@ public class AdminCertificatesController {
     public ResponseEntity<AsyncAcknowledgement> uploadCertificate(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
-            @RequestBody Map<String, Object> request,
+            @RequestBody UploadCertificateRequest request,
             Authentication auth) {
         String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendUploadCertificate(tenantId, actor, request);

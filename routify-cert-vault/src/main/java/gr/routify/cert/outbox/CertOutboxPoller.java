@@ -1,7 +1,9 @@
 package gr.routify.cert.outbox;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.cert.domain.CertOutboxEvent;
 import gr.routify.cert.repository.CertOutboxEventRepository;
+import gr.routify.common.event.DomainEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,12 +19,11 @@ import java.util.concurrent.TimeoutException;
 /**
  * Transactional Outbox Poller — publishes PENDING cert outbox events to Kafka.
  *
- * <h2>C6 fix — markPublished() race condition resolved</h2>
- * <p>Uses synchronous {@code kafkaTemplate.send(...).get(5, SECONDS)} so that
- * {@code markPublished()} is only called after the broker has confirmed delivery.
- * Blocking on virtual threads (Java 21 Loom) has zero thread-pool cost.
- *
- * <p>Mirrors the pattern used in routify-route-service's {@code OutboxPoller}.
+ * <p>Reads each outbox entry, deserializes the stored JSON payload back to a
+ * typed {@link DomainEvent}, and publishes it via {@link KafkaTemplate} backed
+ * by {@link org.springframework.kafka.support.serializer.JsonSerializer}.
+ * This guarantees that Kafka wire messages are always typed domain events —
+ * never raw strings or maps.
  */
 @Slf4j
 @Component
@@ -31,6 +32,7 @@ public class CertOutboxPoller {
 
     private final CertOutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${routify.outbox.batch-size:50}")
     private int batchSize;
@@ -52,29 +54,33 @@ public class CertOutboxPoller {
 
         log.debug("CertOutboxPoller: processing {} pending events", pending.size());
 
-        for (CertOutboxEvent event : pending) {
+        for (CertOutboxEvent outboxEvent : pending) {
             try {
+                // Deserialize stored JSON back to a typed DomainEvent so the wire
+                // message is always a typed event — never a raw string.
+                DomainEvent domainEvent = objectMapper.readValue(outboxEvent.getPayload(), DomainEvent.class);
+
                 // Synchronous send — blocks until broker confirms (ACK) or times out.
                 // markPublished() is only called on confirmed delivery (C6 fix).
                 kafkaTemplate
-                        .send(event.getTopic(), event.getPartitionKey(), event.getPayload())
+                        .send(outboxEvent.getTopic(), outboxEvent.getPartitionKey(), domainEvent)
                         .get(KAFKA_SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-                event.markPublished();
+                outboxEvent.markPublished();
                 log.debug("Published cert outbox event {} type={} to topic={}",
-                        event.getId(), event.getEventType(), event.getTopic());
+                        outboxEvent.getId(), outboxEvent.getEventType(), outboxEvent.getTopic());
 
             } catch (TimeoutException e) {
                 String msg = "Kafka send timed out after " + KAFKA_SEND_TIMEOUT_SECONDS + "s";
                 log.error("Cert outbox event {} NOT published — {} (attempt {})",
-                        event.getId(), msg, event.getRetryCount() + 1);
-                event.markFailed(msg);
+                        outboxEvent.getId(), msg, outboxEvent.getRetryCount() + 1);
+                outboxEvent.markFailed(msg);
 
             } catch (Exception e) {
                 String msg = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
                 log.error("Cert outbox event {} NOT published — {} (attempt {})",
-                        event.getId(), msg, event.getRetryCount() + 1);
-                event.markFailed(msg);
+                        outboxEvent.getId(), msg, outboxEvent.getRetryCount() + 1);
+                outboxEvent.markFailed(msg);
             }
         }
     }
@@ -89,4 +95,3 @@ public class CertOutboxPoller {
         }
     }
 }
-

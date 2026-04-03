@@ -70,6 +70,11 @@ public class AdminAuthController {
      * Refresh endpoint — reads the {@code refresh_token} HttpOnly cookie sent automatically
      * by the browser.  No request body is required; the cookie value is forwarded to
      * identity-service via RabbitMQ RPC.  On success a rotated cookie is written.
+     *
+     * <p>If identity-service is unreachable (RabbitMQ timeout / circuit open) the method
+     * returns {@code 503 Service Unavailable} and clears the refresh-token cookie so the
+     * browser does not keep retrying with a stale token.  Any token-level rejection from
+     * identity-service (expired / revoked token) is surfaced as {@code 401 Unauthorized}.
      */
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request,
@@ -79,18 +84,32 @@ public class AdminAuthController {
             throw new RoutifyException.Unauthorized("Missing refresh token cookie");
         }
 
-        QueryResponse.LoginResult result = messagingClient.refresh(refreshToken);
-        if (result == null) {
+        try {
+            QueryResponse.LoginResult result = messagingClient.refresh(refreshToken);
+            if (result == null) {
+                // Circuit breaker fallback returned null — identity-service is unavailable
+                clearRefreshCookie(response);
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("error", "identity-service temporarily unavailable"));
+            }
+
+            // Token rotation
+            if (result.refreshToken() != null && !result.refreshToken().isBlank()) {
+                writeRefreshCookie(result.refreshToken(), response);
+            }
+            return ResponseEntity.ok(withoutRefreshToken(result));
+
+        } catch (RoutifyException.GatewayError e) {
+            log.warn("Token refresh failed — identity-service unreachable: {}", e.getMessage());
+            clearRefreshCookie(response);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "identity-service temporarily unavailable"));
+        } catch (RoutifyException.Unauthorized | RoutifyException.Forbidden e) {
+            log.debug("Token refresh rejected by identity-service: {}", e.getMessage());
             clearRefreshCookie(response);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "identity-service temporarily unavailable"));
+                    .body(Map.of("error", e.getMessage()));
         }
-
-        // Token rotation
-        if (result.refreshToken() != null && !result.refreshToken().isBlank()) {
-            writeRefreshCookie(result.refreshToken(), response);
-        }
-        return ResponseEntity.ok(withoutRefreshToken(result));
     }
 
     @PostMapping("/logout")

@@ -1,6 +1,9 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.RouteFilterMessagingClient;
+import gr.routify.admin.dto.AttachFilterRequest;
+import gr.routify.admin.dto.CreateRouteRequest;
+import gr.routify.admin.dto.UpdateRouteRequest;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.AsyncAcknowledgement;
 import gr.routify.common.web.RoutifyHeaders;
@@ -11,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -57,7 +59,7 @@ public class AdminRoutesController {
     public ResponseEntity<AsyncAcknowledgement> createRoute(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
-            @Valid @RequestBody Map<String, Object> request,
+            @Valid @RequestBody CreateRouteRequest request,
             Authentication auth) {
         String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendCreateRoute(tenantId, actor, request);
@@ -70,7 +72,7 @@ public class AdminRoutesController {
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
-            @Valid @RequestBody Map<String, Object> request,
+            @Valid @RequestBody UpdateRouteRequest request,
             Authentication auth) {
         String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         messagingClient.sendUpdateRoute(id, tenantId, actor, request);
@@ -132,13 +134,11 @@ public class AdminRoutesController {
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
-            @RequestBody Map<String, Object> request,
+            @Valid @RequestBody AttachFilterRequest request,
             Authentication auth) {
-        String actor   = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
-        UUID filterId  = UUID.fromString(request.get("filterId").toString());
-        int  order     = request.get("order") != null ? Integer.parseInt(request.get("order").toString()) : 0;
-        String phase   = request.getOrDefault("phase", "PRE").toString();
-        messagingClient.sendAttachFilter(id, filterId, order, phase, tenantId, actor);
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
+        String phase = request.phase() != null ? request.phase() : "PRE";
+        messagingClient.sendAttachFilter(id, request.filterId(), request.order(), phase, tenantId, actor);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Filter attach in progress"));
     }
