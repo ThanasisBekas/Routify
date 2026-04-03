@@ -1,7 +1,8 @@
 import { Plus, RefreshCw, Wifi } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary, RouteStatus } from '../../../types'
-import { STATUS_CONFIG, STATUS_FILTER_TABS, type StatusFilterTab } from '../routeConstants'
+import { STATUS_CONFIG } from '../constants/routeStatusConfig'
+import { STATUS_FILTER_TABS, type StatusFilterTab } from '../routeConstants'
 
 interface Props {
   total: number
