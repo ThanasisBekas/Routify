@@ -63,6 +63,13 @@
     "lightningcss-linux-arm64-musl": "*",
     "lightningcss-darwin-x64": "*",
     "lightningcss-darwin-arm64": "*",
-    "lightningcss-win32-x64-msvc": "*"
+    "lightningcss-win32-x64-msvc": "*",
+    "@tailwindcss/oxide-linux-x64-gnu": "*",
+    "@tailwindcss/oxide-linux-x64-musl": "*",
+    "@tailwindcss/oxide-linux-arm64-gnu": "*",
+    "@tailwindcss/oxide-linux-arm64-musl": "*",
+    "@tailwindcss/oxide-darwin-x64": "*",
+    "@tailwindcss/oxide-darwin-arm64": "*",
+    "@tailwindcss/oxide-win32-x64-msvc": "*"
   }
 }
