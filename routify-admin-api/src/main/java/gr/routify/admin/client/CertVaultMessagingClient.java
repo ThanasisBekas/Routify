@@ -1,6 +1,10 @@
 package gr.routify.admin.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.admin.dto.AddCertToGroupRequest;
+import gr.routify.admin.dto.CreateCertGroupRequest;
+import gr.routify.admin.dto.UpdateCertGroupRequest;
+import gr.routify.admin.dto.UploadCertificateRequest;
 import gr.routify.common.client.AmqpServiceClientSupport;
 import gr.routify.common.client.KafkaServiceClientSupport;
 import gr.routify.common.event.CommandEvent;
@@ -100,10 +104,6 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
         return new QueryResponse.CertsList(List.of());
     }
 
-    /**
-     * Lists only the active certificates that have a {@code gatewayTlsLogicalId} mapping.
-     * Used by the admin-api TLS tab to show which vault certs are linked to the gateway.
-     */
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "listGatewayMappedCertsFallback")
     public QueryResponse.CertsList listGatewayMappedCertificates(UUID tenantId) {
         try {
@@ -200,13 +200,13 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
 
     // ─── Commands (Kafka) ─────────────────────────────────────────────────────
 
-    public void sendUploadCertificate(UUID tenantId, String actor, Map<String, Object> req) {
+    public void sendUploadCertificate(UUID tenantId, String actor, UploadCertificateRequest req) {
         kafka.publishCommand(KafkaTopics.CERT_COMMANDS, new CommandEvent.UploadCertificate(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                uuid(req, "groupId"), str(req, "memberAlias"),
-                str(req, "alias"), str(req, "description"),
-                req.getOrDefault("format", "PEM").toString(),
-                str(req, "certPem"), str(req, "privateKey")));
+                req.groupId(), req.memberAlias(),
+                req.alias(), req.description(),
+                req.format() != null ? req.format() : "PEM",
+                req.certPem(), req.privateKey()));
     }
 
     public void sendRevokeCertificate(UUID id, UUID tenantId, String actor) {
@@ -219,16 +219,16 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.DeleteCertificate(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
     }
 
-    public void sendCreateCertGroup(UUID tenantId, String actor, Map<String, Object> req) {
+    public void sendCreateCertGroup(UUID tenantId, String actor, CreateCertGroupRequest req) {
         kafka.publishCommand(KafkaTopics.CERT_COMMANDS, new CommandEvent.CreateCertGroup(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                str(req, "logicalId"), str(req, "alias"), str(req, "description")));
+                req.logicalId(), req.alias(), req.description()));
     }
 
-    public void sendUpdateCertGroup(UUID id, UUID tenantId, String actor, Map<String, Object> req) {
+    public void sendUpdateCertGroup(UUID id, UUID tenantId, String actor, UpdateCertGroupRequest req) {
         kafka.publishCommand(KafkaTopics.CERT_COMMANDS, new CommandEvent.UpdateCertGroup(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                id, str(req, "alias"), str(req, "description")));
+                id, req.alias(), req.description()));
     }
 
     public void sendArchiveCertGroup(UUID id, UUID tenantId, String actor) {
@@ -241,27 +241,15 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.DeleteCertGroup(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
     }
 
-    public void sendAddCertToGroup(UUID groupId, UUID tenantId, String actor, Map<String, Object> req) {
+    public void sendAddCertToGroup(UUID groupId, UUID tenantId, String actor, AddCertToGroupRequest req) {
         kafka.publishCommand(KafkaTopics.CERT_COMMANDS, new CommandEvent.AddCertToGroup(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                groupId, uuid(req, "certId"), str(req, "memberAlias")));
+                groupId, req.certId(), req.memberAlias()));
     }
 
     public void sendRemoveCertFromGroup(UUID groupId, UUID certId, UUID tenantId, String actor) {
         kafka.publishCommand(KafkaTopics.CERT_COMMANDS,
                 new CommandEvent.RemoveCertFromGroup(UUID.randomUUID(), tenantId, actor, Instant.now(),
                         groupId, certId));
-    }
-
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
-    private static String str(Map<String, Object> m, String key) {
-        Object v = m.get(key);
-        return v != null ? v.toString() : null;
-    }
-
-    private static UUID uuid(Map<String, Object> m, String key) {
-        Object v = m.get(key);
-        return v != null ? UUID.fromString(v.toString()) : null;
     }
 }

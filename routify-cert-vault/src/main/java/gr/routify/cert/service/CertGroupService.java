@@ -9,6 +9,7 @@ import gr.routify.cert.dto.CertificateDto;
 import gr.routify.cert.repository.CertGroupRepository;
 import gr.routify.cert.repository.CertOutboxEventRepository;
 import gr.routify.cert.repository.StoredCertificateRepository;
+import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.exception.RoutifyException;
 import lombok.RequiredArgsConstructor;
@@ -19,9 +20,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -245,13 +244,24 @@ public class CertGroupService {
 
     private void publishGroupOutboxEvent(CertGroup group, String eventType) {
         try {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("groupId",   group.getId().toString());
-            payload.put("tenantId",  group.getTenantId().toString());
-            payload.put("logicalId", group.getLogicalId());
-            payload.put("alias",     group.getAlias());
-            payload.put("status",    group.getStatus().name());
-            payload.put("eventType", eventType);
+            java.time.Instant now = java.time.Instant.now();
+            java.util.UUID eventId = java.util.UUID.randomUUID();
+
+            DomainEvent event = switch (eventType) {
+                case "CERT_GROUP_CREATED" -> new DomainEvent.CertGroupCreated(
+                        eventId, group.getTenantId(), group.getId(),
+                        group.getLogicalId(), group.getAlias(), group.getStatus().name(),
+                        now, null, null);
+                case "CERT_GROUP_UPDATED" -> new DomainEvent.CertGroupUpdated(
+                        eventId, group.getTenantId(), group.getId(),
+                        group.getLogicalId(), group.getAlias(), group.getStatus().name(),
+                        now, null, null);
+                case "CERT_GROUP_ARCHIVED" -> new DomainEvent.CertGroupArchived(
+                        eventId, group.getTenantId(), group.getId(),
+                        group.getLogicalId(), group.getAlias(),
+                        now, null, null);
+                default -> throw new IllegalArgumentException("Unknown group event type: " + eventType);
+            };
 
             CertOutboxEvent outbox = CertOutboxEvent.of(
                     "CertGroup",
@@ -259,7 +269,7 @@ public class CertGroupService {
                     eventType,
                     KafkaTopics.CERT_GROUP_EVENTS,
                     group.getTenantId().toString(),
-                    objectMapper.writeValueAsString(payload)
+                    objectMapper.writeValueAsString(event)
             );
             outboxRepository.save(outbox);
         } catch (Exception e) {
@@ -269,11 +279,9 @@ public class CertGroupService {
 
     private void publishGroupDeletedEvent(UUID groupId, String logicalId, UUID tenantId) {
         try {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("groupId",   groupId.toString());
-            payload.put("tenantId",  tenantId.toString());
-            payload.put("logicalId", logicalId);
-            payload.put("eventType", "CERT_GROUP_DELETED");
+            DomainEvent event = new DomainEvent.CertGroupDeleted(
+                    java.util.UUID.randomUUID(), tenantId, groupId, logicalId,
+                    java.time.Instant.now(), null, null);
 
             CertOutboxEvent outbox = CertOutboxEvent.of(
                     "CertGroup",
@@ -281,7 +289,7 @@ public class CertGroupService {
                     "CERT_GROUP_DELETED",
                     KafkaTopics.CERT_GROUP_EVENTS,
                     tenantId.toString(),
-                    objectMapper.writeValueAsString(payload)
+                    objectMapper.writeValueAsString(event)
             );
             outboxRepository.save(outbox);
         } catch (Exception e) {
@@ -291,16 +299,24 @@ public class CertGroupService {
 
     private void publishMemberEvent(StoredCertificate cert, CertGroup group, String eventType) {
         try {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("groupId",         group.getId().toString());
-            payload.put("groupLogicalId",   group.getLogicalId());
-            payload.put("tenantId",         cert.getTenantId().toString());
-            payload.put("certId",           cert.getId().toString());
-            payload.put("certLogicalId",    cert.getLogicalId());
-            payload.put("certAlias",        cert.getAlias());
-            payload.put("memberAlias",      cert.getMemberAlias());
-            payload.put("certStatus",       cert.getStatus().name());
-            payload.put("eventType",        eventType);
+            java.time.Instant now = java.time.Instant.now();
+            java.util.UUID eventId = java.util.UUID.randomUUID();
+
+            DomainEvent event = switch (eventType) {
+                case "CERT_ADDED_TO_GROUP" -> new DomainEvent.CertAddedToGroup(
+                        eventId, cert.getTenantId(),
+                        group.getId(), group.getLogicalId(),
+                        cert.getId(), cert.getLogicalId(), cert.getAlias(),
+                        cert.getMemberAlias(), cert.getStatus().name(),
+                        now, null, null);
+                case "CERT_REMOVED_FROM_GROUP" -> new DomainEvent.CertRemovedFromGroup(
+                        eventId, cert.getTenantId(),
+                        group.getId(), group.getLogicalId(),
+                        cert.getId(), cert.getLogicalId(), cert.getAlias(),
+                        cert.getMemberAlias(),
+                        now, null, null);
+                default -> throw new IllegalArgumentException("Unknown member event type: " + eventType);
+            };
 
             CertOutboxEvent outbox = CertOutboxEvent.of(
                     "CertGroup",
@@ -308,7 +324,7 @@ public class CertGroupService {
                     eventType,
                     KafkaTopics.CERT_GROUP_EVENTS,
                     cert.getTenantId().toString(),
-                    objectMapper.writeValueAsString(payload)
+                    objectMapper.writeValueAsString(event)
             );
             outboxRepository.save(outbox);
         } catch (Exception e) {

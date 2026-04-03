@@ -1,7 +1,7 @@
 package gr.routify.route.outbox;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.DomainEvent;
-import gr.routify.common.event.KafkaTopics;
 import gr.routify.route.domain.OutboxEvent;
 import gr.routify.route.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,25 +19,11 @@ import java.util.concurrent.TimeoutException;
 /**
  * Transactional Outbox Poller — publishes PENDING outbox events to Kafka.
  *
- * <h2>C6 fix — markPublished() race condition resolved</h2>
- * <p>The previous implementation called {@code kafkaTemplate.send()} (async) and
- * then immediately called {@code event.markPublished()} on the main thread, before
- * Kafka had confirmed delivery. If the broker rejected the message the
- * {@code whenComplete} callback logged an error but the event was already
- * permanently marked PUBLISHED — causing silent event loss.
- *
- * <p>This version uses {@code kafkaTemplate.send(...).get(5, SECONDS)} to block
- * until the broker ACKs (or rejects) the record. Because all services run with
- * {@code spring.threads.virtual.enabled: true}, this blocking call pins a virtual
- * thread rather than a platform thread, so there is zero thread-pool starvation.
- *
- * <p>{@code markPublished()} is now only called after a confirmed ACK.
- * {@code markFailed()} is called on timeout or any broker error so the retry
- * poller can attempt re-delivery on the next cycle.
- *
- * <p>Polling interval: every 250ms (configurable via {@code routify.outbox.poll-interval-ms}).<br>
- * Poll batch size: configurable via {@code routify.outbox.batch-size} (default 50).<br>
- * Retry batch size: configurable via {@code routify.outbox.retry-batch-size} (default 50).
+ * <p>Reads each outbox entry, deserializes the stored JSON payload back to a
+ * typed {@link DomainEvent}, and publishes it via {@link KafkaTemplate} backed
+ * by {@link org.springframework.kafka.support.serializer.JsonSerializer}.
+ * This guarantees that Kafka wire messages are always typed domain events —
+ * never raw strings or maps.
  */
 @Slf4j
 @Component
@@ -46,6 +32,7 @@ public class OutboxPoller {
 
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${routify.outbox.batch-size:50}")
     private int batchSize;
@@ -67,29 +54,33 @@ public class OutboxPoller {
 
         log.debug("OutboxPoller: processing {} pending events", pending.size());
 
-        for (OutboxEvent event : pending) {
+        for (OutboxEvent outboxEvent : pending) {
             try {
+                // Deserialize stored JSON back to a typed DomainEvent so the wire
+                // message is always a typed event — never a raw string.
+                DomainEvent domainEvent = objectMapper.readValue(outboxEvent.getPayload(), DomainEvent.class);
+
                 // Synchronous send — blocks until broker confirms (ACK) or times out.
                 // markPublished() is only called on confirmed delivery (C6 fix).
                 kafkaTemplate
-                        .send(event.getTopic(), event.getPartitionKey(), event.getPayload())
+                        .send(outboxEvent.getTopic(), outboxEvent.getPartitionKey(), domainEvent)
                         .get(KAFKA_SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-                event.markPublished();
+                outboxEvent.markPublished();
                 log.debug("Published outbox event {} type={} to topic={}",
-                        event.getId(), event.getEventType(), event.getTopic());
+                        outboxEvent.getId(), outboxEvent.getEventType(), outboxEvent.getTopic());
 
             } catch (TimeoutException e) {
                 String msg = "Kafka send timed out after " + KAFKA_SEND_TIMEOUT_SECONDS + "s";
                 log.error("Outbox event {} NOT published — {} (attempt {})",
-                        event.getId(), msg, event.getRetryCount() + 1);
-                event.markFailed(msg);
+                        outboxEvent.getId(), msg, outboxEvent.getRetryCount() + 1);
+                outboxEvent.markFailed(msg);
 
             } catch (Exception e) {
                 String msg = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
                 log.error("Outbox event {} NOT published — {} (attempt {})",
-                        event.getId(), msg, event.getRetryCount() + 1);
-                event.markFailed(msg);
+                        outboxEvent.getId(), msg, outboxEvent.getRetryCount() + 1);
+                outboxEvent.markFailed(msg);
             }
         }
     }
@@ -104,4 +95,3 @@ public class OutboxPoller {
         }
     }
 }
-

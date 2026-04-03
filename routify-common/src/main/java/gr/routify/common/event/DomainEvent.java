@@ -48,7 +48,18 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = DomainEvent.UserCreated.class,       name = "USER_CREATED"),
     @JsonSubTypes.Type(value = DomainEvent.UserUpdated.class,       name = "USER_UPDATED"),
     @JsonSubTypes.Type(value = DomainEvent.UserDeleted.class,       name = "USER_DELETED"),
-    @JsonSubTypes.Type(value = DomainEvent.CertRotated.class,            name = "CERT_ROTATED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertRotated.class,                  name = "CERT_ROTATED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertificateUploaded.class,          name = "CERTIFICATE_UPLOADED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertificateRevoked.class,           name = "CERTIFICATE_REVOKED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertificateDeleted.class,           name = "CERTIFICATE_DELETED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertificateMappedToGateway.class,   name = "CERTIFICATE_MAPPED_TO_GATEWAY"),
+    @JsonSubTypes.Type(value = DomainEvent.CertificateUnmappedFromGateway.class, name = "CERTIFICATE_UNMAPPED_FROM_GATEWAY"),
+    @JsonSubTypes.Type(value = DomainEvent.CertGroupCreated.class,             name = "CERT_GROUP_CREATED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertGroupUpdated.class,             name = "CERT_GROUP_UPDATED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertGroupArchived.class,            name = "CERT_GROUP_ARCHIVED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertGroupDeleted.class,             name = "CERT_GROUP_DELETED"),
+    @JsonSubTypes.Type(value = DomainEvent.CertAddedToGroup.class,             name = "CERT_ADDED_TO_GROUP"),
+    @JsonSubTypes.Type(value = DomainEvent.CertRemovedFromGroup.class,         name = "CERT_REMOVED_FROM_GROUP"),
     @JsonSubTypes.Type(value = DomainEvent.GatewayReloadRequested.class, name = "GATEWAY_RELOAD_REQUESTED"),
     @JsonSubTypes.Type(value = DomainEvent.GatewayConfigChanged.class,   name = "GATEWAY_CONFIG_CHANGED"),
 })
@@ -71,10 +82,21 @@ public sealed interface DomainEvent
             DomainEvent.UserCreated,
             DomainEvent.UserUpdated,
             DomainEvent.UserDeleted,
-        DomainEvent.CertRotated,
-        DomainEvent.GatewayReloadRequested,
-        DomainEvent.GatewayConfigChanged,
-        DomainEvent.Unknown {
+            DomainEvent.CertRotated,
+            DomainEvent.CertificateUploaded,
+            DomainEvent.CertificateRevoked,
+            DomainEvent.CertificateDeleted,
+            DomainEvent.CertificateMappedToGateway,
+            DomainEvent.CertificateUnmappedFromGateway,
+            DomainEvent.CertGroupCreated,
+            DomainEvent.CertGroupUpdated,
+            DomainEvent.CertGroupArchived,
+            DomainEvent.CertGroupDeleted,
+            DomainEvent.CertAddedToGroup,
+            DomainEvent.CertRemovedFromGroup,
+            DomainEvent.GatewayReloadRequested,
+            DomainEvent.GatewayConfigChanged,
+            DomainEvent.Unknown {
 
     UUID eventId();
     UUID tenantId();
@@ -268,8 +290,170 @@ public sealed interface DomainEvent
             String actor
     ) implements DomainEvent {}
 
+    // ─── Certificate Events ───────────────────────────────────────────────────
+
+    /** Published by routify-cert-vault when a certificate is successfully uploaded. */
+    record CertificateUploaded(
+            UUID eventId,
+            UUID tenantId,
+            UUID certId,
+            String logicalId,
+            String alias,
+            String status,
+            UUID groupId,
+            String groupLogicalId,
+            String memberAlias,
+            String effectiveGatewayLogicalId,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate is revoked. */
+    record CertificateRevoked(
+            UUID eventId,
+            UUID tenantId,
+            UUID certId,
+            String logicalId,
+            String alias,
+            String gatewayTlsLogicalId,
+            String effectiveGatewayLogicalId,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate is deleted. */
+    record CertificateDeleted(
+            UUID eventId,
+            UUID tenantId,
+            UUID certId,
+            String logicalId,
+            String alias,
+            String gatewayTlsLogicalId,
+            String effectiveGatewayLogicalId,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate is mapped to a gateway TLS logical ID. */
+    record CertificateMappedToGateway(
+            UUID eventId,
+            UUID tenantId,
+            UUID certId,
+            String logicalId,
+            String alias,
+            String gatewayTlsLogicalId,
+            UUID groupId,
+            String groupLogicalId,
+            String effectiveGatewayLogicalId,
+            String memberAlias,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate is unmapped from a gateway TLS logical ID. */
+    record CertificateUnmappedFromGateway(
+            UUID eventId,
+            UUID tenantId,
+            UUID certId,
+            String logicalId,
+            String alias,
+            String gatewayTlsLogicalId,
+            String effectiveGatewayLogicalId,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    // ─── Certificate Group Events ─────────────────────────────────────────────
+
+    /** Published by routify-cert-vault when a certificate group is created. */
+    record CertGroupCreated(
+            UUID eventId,
+            UUID tenantId,
+            UUID groupId,
+            String logicalId,
+            String alias,
+            String status,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate group is updated. */
+    record CertGroupUpdated(
+            UUID eventId,
+            UUID tenantId,
+            UUID groupId,
+            String logicalId,
+            String alias,
+            String status,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate group is archived. */
+    record CertGroupArchived(
+            UUID eventId,
+            UUID tenantId,
+            UUID groupId,
+            String logicalId,
+            String alias,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate group is deleted. */
+    record CertGroupDeleted(
+            UUID eventId,
+            UUID tenantId,
+            UUID groupId,
+            String logicalId,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate is added to a group. */
+    record CertAddedToGroup(
+            UUID eventId,
+            UUID tenantId,
+            UUID groupId,
+            String groupLogicalId,
+            UUID certId,
+            String certLogicalId,
+            String certAlias,
+            String memberAlias,
+            String certStatus,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-cert-vault when a certificate is removed from a group. */
+    record CertRemovedFromGroup(
+            UUID eventId,
+            UUID tenantId,
+            UUID groupId,
+            String groupLogicalId,
+            UUID certId,
+            String certLogicalId,
+            String certAlias,
+            String memberAlias,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
     // ─── Infrastructure Events ────────────────────────────────────────────────
 
+    /** @deprecated Use the specific {@link CertificateRevoked}/{@link CertificateMappedToGateway} subtypes. */
+    @Deprecated
     record CertRotated(
             UUID eventId,
             UUID tenantId,

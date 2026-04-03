@@ -1,8 +1,8 @@
 package gr.routify.gateway.filter;
 
+import gr.routify.common.event.RequestTelemetryEvent;
 import gr.routify.common.web.RoutifyHeaders;
 import gr.routify.gateway.telemetry.GatewayTelemetryPublisher;
-import gr.routify.gateway.telemetry.GatewayTelemetryPublisher.TelemetryEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -288,7 +288,7 @@ public class RequestLoggerGatewayFilterFactory
 
                 String queryString = req.getURI().getRawQuery();
 
-                TelemetryEvent event = new TelemetryEvent(
+                RequestTelemetryEvent event = new RequestTelemetryEvent(
                         correlationId,
                         tenantId,
                         routeId,

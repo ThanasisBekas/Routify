@@ -1,6 +1,10 @@
 package gr.routify.admin.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.admin.dto.CreateTenantRequest;
+import gr.routify.admin.dto.CreateUserRequest;
+import gr.routify.admin.dto.UpdateTenantRequest;
+import gr.routify.admin.dto.UpdateUserRequest;
 import gr.routify.common.client.AmqpServiceClientSupport;
 import gr.routify.common.client.KafkaServiceClientSupport;
 import gr.routify.common.domain.TenantPlan;
@@ -18,7 +22,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -45,14 +48,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "loginFallback")
     public QueryResponse.LoginResult login(String username, String password, String tenantSlug) {
-        try {
-            return rpc(RabbitTopology.RK_AUTH_LOGIN,
-                    new QueryRequest.AuthLogin(username, password, tenantSlug),
-                    QueryResponse.LoginResult.class);
-        } catch (Exception e) {
-            log.error("login RPC failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_AUTH_LOGIN,
+                new QueryRequest.AuthLogin(username, password, tenantSlug),
+                QueryResponse.LoginResult.class);
     }
 
     @SuppressWarnings("unused")
@@ -64,14 +62,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "refreshFallback")
     public QueryResponse.LoginResult refresh(String refreshToken) {
-        try {
-            return rpc(RabbitTopology.RK_AUTH_REFRESH,
-                    new QueryRequest.AuthRefresh(refreshToken),
-                    QueryResponse.LoginResult.class);
-        } catch (Exception e) {
-            log.error("refresh RPC failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_AUTH_REFRESH,
+                new QueryRequest.AuthRefresh(refreshToken),
+                QueryResponse.LoginResult.class);
     }
 
     @SuppressWarnings("unused")
@@ -82,14 +75,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "changePasswordFallback")
     public QueryResponse.PasswordChangeResult changePassword(UUID userId, String currentPassword, String newPassword) {
-        try {
-            return rpc(RabbitTopology.RK_AUTH_CHANGE_PASSWORD,
-                    new QueryRequest.AuthChangePassword(userId, currentPassword, newPassword),
-                    QueryResponse.PasswordChangeResult.class);
-        } catch (Exception e) {
-            log.error("changePassword RPC failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_AUTH_CHANGE_PASSWORD,
+                new QueryRequest.AuthChangePassword(userId, currentPassword, newPassword),
+                QueryResponse.PasswordChangeResult.class);
     }
 
     @SuppressWarnings("unused")
@@ -101,14 +89,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "adminResetPasswordFallback")
     public QueryResponse.PasswordChangeResult adminResetPassword(UUID targetUserId, UUID tenantId, String newPassword) {
-        try {
-            return rpc(RabbitTopology.RK_USERS_CHANGE_PASSWORD,
-                    new QueryRequest.AdminResetPassword(targetUserId, tenantId, newPassword),
-                    QueryResponse.PasswordChangeResult.class);
-        } catch (Exception e) {
-            log.error("adminResetPassword RPC failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_USERS_CHANGE_PASSWORD,
+                new QueryRequest.AdminResetPassword(targetUserId, tenantId, newPassword),
+                QueryResponse.PasswordChangeResult.class);
     }
 
     @SuppressWarnings("unused")
@@ -127,14 +110,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "queryUsersFallback")
     public QueryResponse.UsersPage queryUsers(UUID tenantId, int page, int size) {
-        try {
-            return rpc(RabbitTopology.RK_USERS_QUERY,
-                    new QueryRequest.UsersQuery(tenantId, page, size),
-                    QueryResponse.UsersPage.class);
-        } catch (Exception e) {
-            log.error("queryUsers failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_USERS_QUERY,
+                new QueryRequest.UsersQuery(tenantId, page, size),
+                QueryResponse.UsersPage.class);
     }
 
     @SuppressWarnings("unused")
@@ -145,14 +123,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "getUserFallback")
     public QueryResponse.UserDetail getUser(UUID id, UUID tenantId) {
-        try {
-            return rpc(RabbitTopology.RK_USERS_GET,
-                    new QueryRequest.UserGet(id, tenantId),
-                    QueryResponse.UserDetail.class);
-        } catch (Exception e) {
-            log.error("getUser failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_USERS_GET,
+                new QueryRequest.UserGet(id, tenantId),
+                QueryResponse.UserDetail.class);
     }
 
     @SuppressWarnings("unused")
@@ -165,14 +138,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "listActiveWorkspacesFallback")
     public QueryResponse.ActiveWorkspacesList listActiveWorkspaces() {
-        try {
-            return rpc(RabbitTopology.RK_TENANTS_LIST_ACTIVE,
-                    new QueryRequest.ListActiveWorkspaces(),
-                    QueryResponse.ActiveWorkspacesList.class);
-        } catch (Exception e) {
-            log.error("listActiveWorkspaces failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_TENANTS_LIST_ACTIVE,
+                new QueryRequest.ListActiveWorkspaces(),
+                QueryResponse.ActiveWorkspacesList.class);
     }
 
     @SuppressWarnings("unused")
@@ -183,14 +151,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "queryTenantsFallback")
     public QueryResponse.TenantsPage queryTenants(int page, int size) {
-        try {
-            return rpc(RabbitTopology.RK_TENANTS_QUERY,
-                    new QueryRequest.TenantsQuery(page, size),
-                    QueryResponse.TenantsPage.class);
-        } catch (Exception e) {
-            log.error("queryTenants failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_TENANTS_QUERY,
+                new QueryRequest.TenantsQuery(page, size),
+                QueryResponse.TenantsPage.class);
     }
 
     @SuppressWarnings("unused")
@@ -201,14 +164,9 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     @CircuitBreaker(name = "identity-service", fallbackMethod = "getTenantFallback")
     public QueryResponse.TenantDetail getTenant(UUID id) {
-        try {
-            return rpc(RabbitTopology.RK_TENANTS_GET,
-                    new QueryRequest.TenantGet(id),
-                    QueryResponse.TenantDetail.class);
-        } catch (Exception e) {
-            log.error("getTenant failed: {}", e.getMessage(), e);
-            throw e;
-        }
+        return rpc(RabbitTopology.RK_TENANTS_GET,
+                new QueryRequest.TenantGet(id),
+                QueryResponse.TenantDetail.class);
     }
 
     @SuppressWarnings("unused")
@@ -219,43 +177,80 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     // ─── Tenant Commands (RabbitMQ sync) ─────────────────────────────────────
 
-    @CircuitBreaker(name = "identity-service", fallbackMethod = "tenantCommandFallback")
-    public QueryResponse.TenantDetail tenantCommand(String command, UUID tenantId, Map<String, Object> payload) {
-        try {
-            CommandEvent cmd = buildTenantCommand(command, tenantId, payload);
-            return rpc(RabbitTopology.RK_TENANTS_COMMAND, cmd, QueryResponse.TenantDetail.class);
-        } catch (Exception e) {
-            log.error("tenantCommand {} failed: {}", command, e.getMessage(), e);
-            throw e;
-        }
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "createTenantFallback")
+    public QueryResponse.TenantDetail createTenant(CreateTenantRequest req) {
+        TenantPlan plan = parsePlan(req.plan(), TenantPlan.FREE);
+        CommandEvent cmd = new CommandEvent.CreateTenant(
+                UUID.randomUUID(), null, "admin-api", Instant.now(),
+                req.name(), req.slug(), plan, req.contactEmail());
+        return rpc(RabbitTopology.RK_TENANTS_COMMAND, cmd, QueryResponse.TenantDetail.class);
     }
 
     @SuppressWarnings("unused")
-    private QueryResponse.TenantDetail tenantCommandFallback(String command, UUID tenantId,
-                                                             Map<String, Object> payload, Throwable t) {
-        log.warn("tenantCommand {} circuit open or timed out: {}", command, t.getMessage());
+    private QueryResponse.TenantDetail createTenantFallback(CreateTenantRequest req, Throwable t) {
+        log.warn("createTenant circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "updateTenantFallback")
+    public QueryResponse.TenantDetail updateTenant(UUID tenantId, UpdateTenantRequest req) {
+        TenantPlan plan = parsePlan(req.plan(), null);
+        CommandEvent cmd = new CommandEvent.UpdateTenant(
+                UUID.randomUUID(), tenantId, "admin-api", Instant.now(),
+                req.name(), plan, req.contactEmail());
+        return rpc(RabbitTopology.RK_TENANTS_COMMAND, cmd, QueryResponse.TenantDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.TenantDetail updateTenantFallback(UUID tenantId, UpdateTenantRequest req, Throwable t) {
+        log.warn("updateTenant circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "suspendTenantFallback")
+    public QueryResponse.TenantDetail suspendTenant(UUID tenantId, String reason) {
+        CommandEvent cmd = new CommandEvent.SuspendTenant(
+                UUID.randomUUID(), tenantId, "admin-api", Instant.now(), reason);
+        return rpc(RabbitTopology.RK_TENANTS_COMMAND, cmd, QueryResponse.TenantDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.TenantDetail suspendTenantFallback(UUID tenantId, String reason, Throwable t) {
+        log.warn("suspendTenant circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "reactivateTenantFallback")
+    public QueryResponse.TenantDetail reactivateTenant(UUID tenantId) {
+        CommandEvent cmd = new CommandEvent.ReactivateTenant(
+                UUID.randomUUID(), tenantId, "admin-api", Instant.now());
+        return rpc(RabbitTopology.RK_TENANTS_COMMAND, cmd, QueryResponse.TenantDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.TenantDetail reactivateTenantFallback(UUID tenantId, Throwable t) {
+        log.warn("reactivateTenant circuit open or timed out: {}", t.getMessage());
         return null;
     }
 
     // ─── User Commands (Kafka) ────────────────────────────────────────────────
 
-    public void sendCreateUser(UUID tenantId, String actor, Map<String, Object> req) {
-        UserRole role = req.get("role") != null
-                ? UserRole.valueOf(req.get("role").toString().toUpperCase())
+    public void sendCreateUser(UUID tenantId, String actor, CreateUserRequest req) {
+        UserRole role = req.role() != null
+                ? UserRole.valueOf(req.role().toUpperCase())
                 : UserRole.VIEWER;
         kafka.publishCommand(KafkaTopics.USER_COMMANDS, new CommandEvent.CreateUser(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                str(req, "username"), str(req, "email"),
-                str(req, "password"), role));
+                req.username(), req.email(), req.password(), role));
     }
 
-    public void sendUpdateUser(UUID id, UUID tenantId, String actor, Map<String, Object> req) {
-        UserRole role = req.get("role") != null
-                ? UserRole.valueOf(req.get("role").toString().toUpperCase())
+    public void sendUpdateUser(UUID id, UUID tenantId, String actor, UpdateUserRequest req) {
+        UserRole role = req.role() != null
+                ? UserRole.valueOf(req.role().toUpperCase())
                 : null;
         kafka.publishCommand(KafkaTopics.USER_COMMANDS, new CommandEvent.UpdateUser(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                id, str(req, "username"), str(req, "email"), role));
+                id, req.username(), req.email(), role));
     }
 
     public void sendDeleteUser(UUID id, UUID tenantId, String actor) {
@@ -265,41 +260,13 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     // ─── Private helpers ──────────────────────────────────────────────────────
 
-    private CommandEvent buildTenantCommand(String command, UUID tenantId, Map<String, Object> p) {
-        return switch (command) {
-            case "CREATE_TENANT" -> {
-                TenantPlan plan = TenantPlan.FREE;
-                if (p.get("plan") != null) {
-                    try { plan = TenantPlan.valueOf(p.get("plan").toString().toUpperCase()); }
-                    catch (IllegalArgumentException ex) {
-                        log.warn("Unknown plan '{}' — defaulting to FREE", p.get("plan"));
-                    }
-                }
-                yield new CommandEvent.CreateTenant(UUID.randomUUID(), null, "admin-api", Instant.now(),
-                        str(p, "name"), str(p, "slug"), plan, str(p, "contactEmail"));
-            }
-            case "UPDATE_TENANT" -> {
-                TenantPlan plan = null;
-                if (p.get("plan") != null) {
-                    try { plan = TenantPlan.valueOf(p.get("plan").toString().toUpperCase()); }
-                    catch (IllegalArgumentException ex) {
-                        log.warn("Unknown plan '{}' — ignoring", p.get("plan"));
-                    }
-                }
-                yield new CommandEvent.UpdateTenant(UUID.randomUUID(), tenantId, "admin-api",
-                        Instant.now(), str(p, "name"), plan, str(p, "contactEmail"));
-            }
-            case "SUSPEND_TENANT" -> new CommandEvent.SuspendTenant(
-                    UUID.randomUUID(), tenantId, "admin-api", Instant.now(),
-                    p.getOrDefault("reason", "Administrative action").toString());
-            case "REACTIVATE_TENANT" -> new CommandEvent.ReactivateTenant(
-                    UUID.randomUUID(), tenantId, "admin-api", Instant.now());
-            default -> throw new IllegalArgumentException("Unknown tenant command: " + command);
-        };
-    }
-
-    private static String str(Map<String, Object> m, String key) {
-        Object v = m.get(key);
-        return v != null ? v.toString() : null;
+    private TenantPlan parsePlan(String planStr, TenantPlan defaultPlan) {
+        if (planStr == null) return defaultPlan;
+        try {
+            return TenantPlan.valueOf(planStr.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            log.warn("Unknown plan '{}' — using default {}", planStr, defaultPlan);
+            return defaultPlan;
+        }
     }
 }

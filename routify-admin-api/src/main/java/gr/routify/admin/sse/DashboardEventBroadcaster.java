@@ -18,20 +18,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Real-time event broadcaster for the dashboard via Server-Sent Events (SSE).
  *
- * <p>The dashboard opens a persistent SSE connection to receive live updates when:
- * <ul>
- *   <li>A route is created/activated/deactivated/deleted</li>
- *   <li>A filter is created/updated/deleted</li>
- *   <li>Gateway reload is requested</li>
- *   <li>A tenant is created/updated/suspended</li>
- *   <li>A user is created/updated/deleted</li>
- *   <li>A certificate is uploaded/revoked/deleted/mapped</li>
- *   <li>A certificate group is created/updated/archived/deleted</li>
- *   <li>An audit or replay event occurs</li>
- * </ul>
- *
- * <p>This eliminates the need for dashboard polling — the UI updates instantly
- * when any changes are made by any user on any session.
+ * <p>All domain events — including certificate and cert-group lifecycle events — are
+ * broadcast as typed {@link DomainEvent} instances. No raw-string fallback is used.
  */
 @Slf4j
 @Component
@@ -42,7 +30,7 @@ public class DashboardEventBroadcaster {
     private final ObjectMapper objectMapper;
 
     /**
-     * Subscribe to real-time route events from the SSE endpoint.
+     * Subscribe to real-time events from the SSE endpoint.
      * Returns an SSE emitter that will receive all future events.
      */
     public SseEmitter subscribe() {
@@ -58,6 +46,7 @@ public class DashboardEventBroadcaster {
             emitter.send(SseEmitter.event()
                     .name("connected")
                     .data("{\"message\":\"Connected to Routify dashboard events\"}"));
+
         } catch (IOException e) {
             emitters.remove(emitter);
         }
@@ -66,10 +55,19 @@ public class DashboardEventBroadcaster {
         return emitter;
     }
 
+    // ─── Typed domain events (routes, filters, gateway, certs, tenants, users) ──
+
     @KafkaListener(
-            topics = {KafkaTopics.ROUTE_EVENTS, KafkaTopics.FILTER_EVENTS,
-                      KafkaTopics.GATEWAY_RELOAD, KafkaTopics.GATEWAY_CONFIG_EVENTS,
-                      KafkaTopics.TENANT_EVENTS, KafkaTopics.USER_EVENTS},
+            topics = {
+                KafkaTopics.ROUTE_EVENTS,
+                KafkaTopics.FILTER_EVENTS,
+                KafkaTopics.GATEWAY_RELOAD,
+                KafkaTopics.GATEWAY_CONFIG_EVENTS,
+                KafkaTopics.TENANT_EVENTS,
+                KafkaTopics.USER_EVENTS,
+                KafkaTopics.CERT_EVENTS,
+                KafkaTopics.CERT_GROUP_EVENTS
+            },
             groupId = "routify-admin-sse",
             containerFactory = "kafkaListenerContainerFactory"
     )
@@ -96,38 +94,34 @@ public class DashboardEventBroadcaster {
                 case DomainEvent.UserUpdated ignored         -> "user.updated";
                 case DomainEvent.UserDeleted ignored         -> "user.deleted";
                 case DomainEvent.CertRotated ignored         -> "certificate.rotated";
+                case DomainEvent.CertificateUploaded ignored         -> "certificate.uploaded";
+                case DomainEvent.CertificateRevoked ignored          -> "certificate.revoked";
+                case DomainEvent.CertificateDeleted ignored          -> "certificate.deleted";
+                case DomainEvent.CertificateMappedToGateway ignored  -> "certificate.mapped";
+                case DomainEvent.CertificateUnmappedFromGateway ignored -> "certificate.unmapped";
+                case DomainEvent.CertGroupCreated ignored            -> "certificate.group.created";
+                case DomainEvent.CertGroupUpdated ignored            -> "certificate.group.updated";
+                case DomainEvent.CertGroupArchived ignored           -> "certificate.group.archived";
+                case DomainEvent.CertGroupDeleted ignored            -> "certificate.group.deleted";
+                case DomainEvent.CertAddedToGroup ignored            -> "certificate.group.member.added";
+                case DomainEvent.CertRemovedFromGroup ignored        -> "certificate.group.member.removed";
                 case DomainEvent.GatewayReloadRequested ignored -> "gateway.reloaded";
                 case DomainEvent.GatewayConfigChanged ignored   -> "gateway.config.changed";
-                default -> throw new IllegalStateException("Unexpected value: " + event);
+                default -> {
+                    log.debug("SSE: ignoring unknown event type {}", event.getClass().getSimpleName());
+                    yield null;
+                }
             };
 
-            broadcast(sseEventType, objectMapper.writeValueAsString(event));
+            if (sseEventType != null) {
+                broadcast(sseEventType, objectMapper.writeValueAsString(event));
+            }
         } catch (Exception e) {
             log.warn("Failed to process SSE event: {}", e.getMessage());
         }
     }
 
-    // ─── Certificate events (plain JSON, not DomainEvent subtypes) ──────────────
-
-    @KafkaListener(
-            topics = KafkaTopics.CERT_EVENTS,
-            groupId = "routify-admin-sse-cert",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
-    public void onCertEvent(String eventJson) {
-        broadcastRawEvent(eventJson, "certificate");
-    }
-
-    @KafkaListener(
-            topics = KafkaTopics.CERT_GROUP_EVENTS,
-            groupId = "routify-admin-sse-cert-group",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
-    public void onCertGroupEvent(String eventJson) {
-        broadcastRawEvent(eventJson, "certificate");
-    }
-
-    // ─── Audit events ───────────────────────────────────────────────────────────
+    // ─── Audit events (raw JSON — no common type yet) ──────────────────────────
 
     @KafkaListener(
             topics = KafkaTopics.AUDIT_EVENTS,
@@ -145,31 +139,19 @@ public class DashboardEventBroadcaster {
         try {
             Map<String, Object> data = objectMapper.readValue(eventJson, new TypeReference<>() {});
             String rawEventType = data.get("eventType") != null ? data.get("eventType").toString() : null;
-            String sseType = resolveRawType(rawEventType, defaultDomain);
+            String sseType = rawEventType != null ? resolveAuditRawType(rawEventType) : defaultDomain + ".event";
             broadcast(sseType, eventJson);
         } catch (Exception e) {
             log.warn("Failed to process raw SSE event: {}", e.getMessage());
         }
     }
 
-    private String resolveRawType(String rawEventType, String defaultDomain) {
-        if (rawEventType == null) return defaultDomain + ".event";
+    private String resolveAuditRawType(String rawEventType) {
         return switch (rawEventType) {
-            case "CERTIFICATE_UPLOADED"                -> "certificate.uploaded";
-            case "CERTIFICATE_REVOKED"                 -> "certificate.revoked";
-            case "CERTIFICATE_DELETED"                 -> "certificate.deleted";
-            case "CERTIFICATE_MAPPED_TO_GATEWAY"       -> "certificate.mapped";
-            case "CERTIFICATE_UNMAPPED_FROM_GATEWAY"   -> "certificate.unmapped";
-            case "CERT_GROUP_CREATED"                  -> "certificate.group.created";
-            case "CERT_GROUP_UPDATED"                  -> "certificate.group.updated";
-            case "CERT_GROUP_ARCHIVED"                 -> "certificate.group.archived";
-            case "CERT_GROUP_DELETED"                  -> "certificate.group.deleted";
-            case "CERT_ADDED_TO_GROUP"                 -> "certificate.group.member.added";
-            case "CERT_REMOVED_FROM_GROUP"             -> "certificate.group.member.removed";
-            case "REPLAY_COMPLETED"                    -> "replay.completed";
-            case "REPLAY_BULK_COMPLETED"               -> "replay.bulk.completed";
-            case "REQUEST_LOGGED"                      -> "audit.request.logged";
-            default                                    -> defaultDomain + ".event";
+            case "REPLAY_COMPLETED"      -> "replay.completed";
+            case "REPLAY_BULK_COMPLETED" -> "replay.bulk.completed";
+            case "REQUEST_LOGGED"        -> "audit.request.logged";
+            default                      -> "audit.event";
         };
     }
 

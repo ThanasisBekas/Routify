@@ -8,6 +8,7 @@ import gr.routify.cert.dto.CertificateDto;
 import gr.routify.cert.repository.CertGroupRepository;
 import gr.routify.cert.repository.CertOutboxEventRepository;
 import gr.routify.cert.repository.StoredCertificateRepository;
+import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.exception.RoutifyException;
 import lombok.RequiredArgsConstructor;
@@ -351,21 +352,40 @@ public class CertificateVaultService {
 
     private void publishOutboxEvent(StoredCertificate cert, String eventType) {
         try {
-            Map<String, Object> payload = new java.util.LinkedHashMap<>();
-            payload.put("certId",                cert.getId().toString());
-            payload.put("tenantId",              cert.getTenantId().toString());
-            payload.put("logicalId",             cert.getLogicalId());
-            payload.put("alias",                 cert.getAlias());
-            payload.put("status",                cert.getStatus().name());
-            payload.put("eventType",             eventType);
-            payload.put("gatewayTlsLogicalId",   cert.getGatewayTlsLogicalId());
-            // Group fields — consumers use effectiveGatewayLogicalId as the registry key
-            if (cert.getGroup() != null) {
-                payload.put("groupId",               cert.getGroup().getId().toString());
-                payload.put("groupLogicalId",        cert.getGroup().getLogicalId());
-            }
-            payload.put("effectiveGatewayLogicalId", cert.effectiveGatewayLogicalId());
-            payload.put("memberAlias",           cert.getMemberAlias());
+            java.time.Instant now = java.time.Instant.now();
+            java.util.UUID eventId = java.util.UUID.randomUUID();
+            UUID groupId = cert.getGroup() != null ? cert.getGroup().getId() : null;
+            String groupLogicalId = cert.getGroup() != null ? cert.getGroup().getLogicalId() : null;
+
+            DomainEvent event = switch (eventType) {
+                case "CERTIFICATE_UPLOADED" -> new DomainEvent.CertificateUploaded(
+                        eventId, cert.getTenantId(), cert.getId(),
+                        cert.getLogicalId(), cert.getAlias(), cert.getStatus().name(),
+                        groupId, groupLogicalId, cert.getMemberAlias(),
+                        cert.effectiveGatewayLogicalId(), now, null, null);
+                case "CERTIFICATE_REVOKED" -> new DomainEvent.CertificateRevoked(
+                        eventId, cert.getTenantId(), cert.getId(),
+                        cert.getLogicalId(), cert.getAlias(),
+                        cert.getGatewayTlsLogicalId(), cert.effectiveGatewayLogicalId(),
+                        now, null, null);
+                case "CERTIFICATE_DELETED" -> new DomainEvent.CertificateDeleted(
+                        eventId, cert.getTenantId(), cert.getId(),
+                        cert.getLogicalId(), cert.getAlias(),
+                        cert.getGatewayTlsLogicalId(), cert.effectiveGatewayLogicalId(),
+                        now, null, null);
+                case "CERTIFICATE_MAPPED_TO_GATEWAY" -> new DomainEvent.CertificateMappedToGateway(
+                        eventId, cert.getTenantId(), cert.getId(),
+                        cert.getLogicalId(), cert.getAlias(),
+                        cert.getGatewayTlsLogicalId(), groupId, groupLogicalId,
+                        cert.effectiveGatewayLogicalId(), cert.getMemberAlias(),
+                        now, null, null);
+                case "CERTIFICATE_UNMAPPED_FROM_GATEWAY" -> new DomainEvent.CertificateUnmappedFromGateway(
+                        eventId, cert.getTenantId(), cert.getId(),
+                        cert.getLogicalId(), cert.getAlias(),
+                        cert.getGatewayTlsLogicalId(), cert.effectiveGatewayLogicalId(),
+                        now, null, null);
+                default -> throw new IllegalArgumentException("Unknown cert event type: " + eventType);
+            };
 
             CertOutboxEvent outbox = CertOutboxEvent.of(
                     "StoredCertificate",
@@ -373,7 +393,7 @@ public class CertificateVaultService {
                     eventType,
                     KafkaTopics.CERT_EVENTS,
                     cert.getTenantId().toString(),
-                    objectMapper.writeValueAsString(payload)
+                    objectMapper.writeValueAsString(event)
             );
             outboxRepository.save(outbox);
         } catch (Exception e) {

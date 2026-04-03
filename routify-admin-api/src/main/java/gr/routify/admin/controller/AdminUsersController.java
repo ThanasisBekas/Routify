@@ -1,6 +1,9 @@
 package gr.routify.admin.controller;
 
 import gr.routify.admin.client.IdentityMessagingClient;
+import gr.routify.admin.dto.CreateUserRequest;
+import gr.routify.admin.dto.ResetPasswordRequest;
+import gr.routify.admin.dto.UpdateUserRequest;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.web.AsyncAcknowledgement;
 import gr.routify.common.web.RoutifyHeaders;
@@ -46,7 +49,7 @@ public class AdminUsersController {
     @PostMapping
     public ResponseEntity<AsyncAcknowledgement> createUser(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
-            @Valid @RequestBody Map<String, Object> request,
+            @Valid @RequestBody CreateUserRequest request,
             Authentication auth) {
         String actor = RoutifyHeaders.resolveActor(null, auth != null ? auth.getName() : null);
         messagingClient.sendCreateUser(tenantId, actor, request);
@@ -58,7 +61,7 @@ public class AdminUsersController {
     public ResponseEntity<AsyncAcknowledgement> updateUser(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
-            @Valid @RequestBody Map<String, Object> request,
+            @Valid @RequestBody UpdateUserRequest request,
             Authentication auth) {
         String actor = RoutifyHeaders.resolveActor(null, auth != null ? auth.getName() : null);
         messagingClient.sendUpdateUser(id, tenantId, actor, request);
@@ -80,25 +83,16 @@ public class AdminUsersController {
     /**
      * Admin-initiated password reset — sets a temporary password and forces
      * the target user to change it on next login ({@code mustChangePassword=true}).
-     *
-     * <p>Only users with {@code TENANT_ADMIN} or {@code SUPER_ADMIN} role should be
-     * able to call this endpoint; role enforcement is handled in the security layer.
      */
     @PostMapping("/{id}/reset-password")
     public ResponseEntity<?> resetPassword(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
-            @RequestBody Map<String, Object> body,
+            @Valid @RequestBody ResetPasswordRequest body,
             Authentication auth) {
 
-        String newPassword = body.get("newPassword") != null ? body.get("newPassword").toString() : "";
-        if (newPassword.isBlank()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "newPassword is required"));
-        }
-
         QueryResponse.PasswordChangeResult result =
-                messagingClient.adminResetPassword(id, tenantId, newPassword);
+                messagingClient.adminResetPassword(id, tenantId, body.newPassword());
         if (result == null || !result.success()) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("error", "Password reset failed — identity-service unavailable"));

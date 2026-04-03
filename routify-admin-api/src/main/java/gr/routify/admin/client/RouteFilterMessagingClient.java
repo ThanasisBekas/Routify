@@ -1,6 +1,11 @@
 package gr.routify.admin.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.admin.dto.AttachFilterRequest;
+import gr.routify.admin.dto.CreateFilterRequest;
+import gr.routify.admin.dto.CreateRouteRequest;
+import gr.routify.admin.dto.UpdateFilterRequest;
+import gr.routify.admin.dto.UpdateRouteRequest;
 import gr.routify.common.client.AmqpServiceClientSupport;
 import gr.routify.common.client.KafkaServiceClientSupport;
 import gr.routify.common.domain.FilterType;
@@ -16,7 +21,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -143,21 +147,21 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
 
     // ─── Route Commands (Kafka) ───────────────────────────────────────────────
 
-    public void sendCreateRoute(UUID tenantId, String actor, Map<String, Object> req) {
+    public void sendCreateRoute(UUID tenantId, String actor, CreateRouteRequest req) {
         kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS, new CommandEvent.CreateRoute(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                str(req, "name"), str(req, "description"), str(req, "pathPattern"),
-                str(req, "methods"), str(req, "upstreamUri"), str(req, "stripPrefix"),
-                map(req, "extraConfig")));
+                req.name(), req.description(), req.pathPattern(),
+                req.methods(), req.upstreamUri(), req.stripPrefix(),
+                req.extraConfig()));
     }
 
-    public void sendUpdateRoute(UUID id, UUID tenantId, String actor, Map<String, Object> req) {
+    public void sendUpdateRoute(UUID id, UUID tenantId, String actor, UpdateRouteRequest req) {
         kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS, new CommandEvent.UpdateRoute(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
                 id,
-                str(req, "name"), str(req, "description"), str(req, "pathPattern"),
-                str(req, "methods"), str(req, "upstreamUri"), str(req, "stripPrefix"),
-                map(req, "extraConfig")));
+                req.name(), req.description(), req.pathPattern(),
+                req.methods(), req.upstreamUri(), req.stripPrefix(),
+                req.extraConfig()));
     }
 
     public void sendActivateRoute(UUID id, UUID tenantId, String actor) {
@@ -190,39 +194,26 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
 
     // ─── Filter Commands (Kafka) ──────────────────────────────────────────────
 
-    public void sendCreateFilter(UUID tenantId, String actor, Map<String, Object> req) {
-        FilterType type = req.get("filterType") != null
-                ? FilterType.valueOf(req.get("filterType").toString().toUpperCase())
+    public void sendCreateFilter(UUID tenantId, String actor, CreateFilterRequest req) {
+        FilterType type = req.filterType() != null
+                ? FilterType.valueOf(req.filterType().toUpperCase())
                 : FilterType.CUSTOM_SPEL;
         kafka.publishCommand(KafkaTopics.FILTER_COMMANDS, new CommandEvent.CreateFilter(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                str(req, "name"), str(req, "description"), type,
-                map(req, "config"), map(req, "gatewayConfigRef")));
+                req.name(), req.description(), type,
+                req.config(), req.gatewayConfigRef()));
     }
 
-    public void sendUpdateFilter(UUID id, UUID tenantId, String actor, Map<String, Object> req) {
+    public void sendUpdateFilter(UUID id, UUID tenantId, String actor, UpdateFilterRequest req) {
         kafka.publishCommand(KafkaTopics.FILTER_COMMANDS, new CommandEvent.UpdateFilter(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
                 id,
-                str(req, "name"), str(req, "description"),
-                map(req, "config"), map(req, "gatewayConfigRef")));
+                req.name(), req.description(),
+                req.config(), req.gatewayConfigRef()));
     }
 
     public void sendDeleteFilter(UUID id, UUID tenantId, String actor) {
         kafka.publishCommand(KafkaTopics.FILTER_COMMANDS,
                 new CommandEvent.DeleteFilter(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
-    }
-
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
-    private static String str(Map<String, Object> m, String key) {
-        Object v = m.get(key);
-        return v != null ? v.toString() : null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> map(Map<String, Object> m, String key) {
-        Object v = m.get(key);
-        return v instanceof Map ? (Map<String, Object>) v : null;
     }
 }

@@ -43,7 +43,9 @@ public class WebSocketEventBroadcaster {
                 KafkaTopics.GATEWAY_RELOAD,
                 KafkaTopics.GATEWAY_CONFIG_EVENTS,
                 KafkaTopics.TENANT_EVENTS,
-                KafkaTopics.USER_EVENTS
+                KafkaTopics.USER_EVENTS,
+                KafkaTopics.CERT_EVENTS,
+                KafkaTopics.CERT_GROUP_EVENTS
             },
             groupId = "routify-admin-ws",
             containerFactory = "kafkaListenerContainerFactory"
@@ -72,26 +74,6 @@ public class WebSocketEventBroadcaster {
         }
     }
 
-    // ─── Certificate events (plain JSON, not DomainEvent subtypes) ──────────────
-
-    @KafkaListener(
-            topics = KafkaTopics.CERT_EVENTS,
-            groupId = "routify-admin-ws-cert",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
-    public void onCertEvent(String eventJson) {
-        broadcastRawEvent(eventJson, "certificate");
-    }
-
-    @KafkaListener(
-            topics = KafkaTopics.CERT_GROUP_EVENTS,
-            groupId = "routify-admin-ws-cert-group",
-            containerFactory = "kafkaListenerContainerFactory"
-    )
-    public void onCertGroupEvent(String eventJson) {
-        broadcastRawEvent(eventJson, "certificate");
-    }
-
     // ─── Audit events (request telemetry, audit trail) ──────────────────────────
 
     @KafkaListener(
@@ -103,15 +85,15 @@ public class WebSocketEventBroadcaster {
         broadcastRawEvent(eventJson, "audit");
     }
 
-    // ─── Private: broadcast a raw JSON event from services that don't use DomainEvent ─
+    // ─── Private: broadcast a raw JSON audit event ──────────────────────────────
 
     private void broadcastRawEvent(String eventJson, String defaultDomain) {
         try {
             Map<String, Object> data = objectMapper.readValue(eventJson, new TypeReference<>() {});
 
             String rawEventType = str(data.get("eventType"));
-            String type     = resolveRawType(rawEventType, defaultDomain);
-            String queryKey = resolveRawQueryKey(rawEventType, defaultDomain);
+            String type     = resolveAuditRawType(rawEventType, defaultDomain);
+            String queryKey = resolveAuditRawQueryKey(rawEventType, defaultDomain);
 
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("type",       type);
@@ -120,8 +102,6 @@ public class WebSocketEventBroadcaster {
             payload.put("data",       data);
 
             messaging.convertAndSend("/topic/events", payload);
-
-            // Certificate & audit events are also audit-relevant
             messaging.convertAndSend("/topic/audit", payload);
 
             log.debug("WebSocket broadcast (raw): type={} queryKey={}", type, queryKey);
@@ -152,10 +132,21 @@ public class WebSocketEventBroadcaster {
             case DomainEvent.UserCreated ignored         -> "user.created";
             case DomainEvent.UserUpdated ignored         -> "user.updated";
             case DomainEvent.UserDeleted ignored         -> "user.deleted";
-            case DomainEvent.CertRotated ignored         -> "certificate.rotated";
+            case DomainEvent.CertRotated ignored                    -> "certificate.rotated";
+            case DomainEvent.CertificateUploaded ignored            -> "certificate.uploaded";
+            case DomainEvent.CertificateRevoked ignored             -> "certificate.revoked";
+            case DomainEvent.CertificateDeleted ignored             -> "certificate.deleted";
+            case DomainEvent.CertificateMappedToGateway ignored     -> "certificate.mapped";
+            case DomainEvent.CertificateUnmappedFromGateway ignored -> "certificate.unmapped";
+            case DomainEvent.CertGroupCreated ignored               -> "certificate.group.created";
+            case DomainEvent.CertGroupUpdated ignored               -> "certificate.group.updated";
+            case DomainEvent.CertGroupArchived ignored              -> "certificate.group.archived";
+            case DomainEvent.CertGroupDeleted ignored               -> "certificate.group.deleted";
+            case DomainEvent.CertAddedToGroup ignored               -> "certificate.group.member.added";
+            case DomainEvent.CertRemovedFromGroup ignored           -> "certificate.group.member.removed";
             case DomainEvent.GatewayReloadRequested ignored -> "gateway.reloaded";
             case DomainEvent.GatewayConfigChanged ignored   -> "gateway.config.changed";
-            default -> throw new IllegalStateException("Unexpected value: " + event);
+            default -> "unknown.event";
         };
     }
 
@@ -182,58 +173,46 @@ public class WebSocketEventBroadcaster {
             case DomainEvent.UserCreated ignored       -> "users";
             case DomainEvent.UserUpdated ignored       -> "users";
             case DomainEvent.UserDeleted ignored       -> "users";
-            case DomainEvent.CertRotated ignored       -> "certificates";
+            case DomainEvent.CertRotated ignored                    -> "certificates";
+            case DomainEvent.CertificateUploaded ignored            -> "certificates";
+            case DomainEvent.CertificateRevoked ignored             -> "certificates";
+            case DomainEvent.CertificateDeleted ignored             -> "certificates";
+            case DomainEvent.CertificateMappedToGateway ignored     -> "certificates";
+            case DomainEvent.CertificateUnmappedFromGateway ignored -> "certificates";
+            case DomainEvent.CertGroupCreated ignored               -> "cert-groups";
+            case DomainEvent.CertGroupUpdated ignored               -> "cert-groups";
+            case DomainEvent.CertGroupArchived ignored              -> "cert-groups";
+            case DomainEvent.CertGroupDeleted ignored               -> "cert-groups";
+            case DomainEvent.CertAddedToGroup ignored               -> "cert-groups";
+            case DomainEvent.CertRemovedFromGroup ignored           -> "cert-groups";
             case DomainEvent.GatewayReloadRequested ignored -> "gateway-status";
             case DomainEvent.GatewayConfigChanged ignored   -> "gateway-config";
-            default -> throw new IllegalStateException("Unexpected value: " + event);
+            default -> "unknown";
         };
     }
 
     /**
-     * Resolves a WebSocket event type from a raw (non-DomainEvent) payload's eventType field.
-     * Used for certificate vault events and audit events which publish plain JSON.
+     * Resolves a WebSocket event type from a raw audit payload's eventType field.
      */
-    private String resolveRawType(String rawEventType, String defaultDomain) {
+    private String resolveAuditRawType(String rawEventType, String defaultDomain) {
         if (rawEventType == null) return defaultDomain + ".event";
         return switch (rawEventType) {
-            // ── Certificate events ──
-            case "CERTIFICATE_UPLOADED"                -> "certificate.uploaded";
-            case "CERTIFICATE_REVOKED"                 -> "certificate.revoked";
-            case "CERTIFICATE_DELETED"                 -> "certificate.deleted";
-            case "CERTIFICATE_MAPPED_TO_GATEWAY"       -> "certificate.mapped";
-            case "CERTIFICATE_UNMAPPED_FROM_GATEWAY"   -> "certificate.unmapped";
-            // ── Certificate group events ──
-            case "CERT_GROUP_CREATED"                  -> "certificate.group.created";
-            case "CERT_GROUP_UPDATED"                  -> "certificate.group.updated";
-            case "CERT_GROUP_ARCHIVED"                 -> "certificate.group.archived";
-            case "CERT_GROUP_DELETED"                  -> "certificate.group.deleted";
-            case "CERT_ADDED_TO_GROUP"                 -> "certificate.group.member.added";
-            case "CERT_REMOVED_FROM_GROUP"             -> "certificate.group.member.removed";
-            // ── Audit / replay events ──
-            case "REPLAY_COMPLETED"                    -> "replay.completed";
-            case "REPLAY_BULK_COMPLETED"               -> "replay.bulk.completed";
-            case "REQUEST_LOGGED"                      -> "audit.request.logged";
-            default                                    -> defaultDomain + ".event";
+            case "REPLAY_COMPLETED"      -> "replay.completed";
+            case "REPLAY_BULK_COMPLETED" -> "replay.bulk.completed";
+            case "REQUEST_LOGGED"        -> "audit.request.logged";
+            default                      -> defaultDomain + ".event";
         };
     }
 
     /**
-     * Maps raw event types to the React Query cache key that should be invalidated.
+     * Maps raw audit event types to the React Query cache key that should be invalidated.
      */
-    private String resolveRawQueryKey(String rawEventType, String defaultDomain) {
+    private String resolveAuditRawQueryKey(String rawEventType, String defaultDomain) {
         if (rawEventType == null) return defaultDomain;
         return switch (rawEventType) {
-            case "CERTIFICATE_UPLOADED", "CERTIFICATE_REVOKED", "CERTIFICATE_DELETED",
-                 "CERTIFICATE_MAPPED_TO_GATEWAY", "CERTIFICATE_UNMAPPED_FROM_GATEWAY"
-                    -> "certificates";
-            case "CERT_GROUP_CREATED", "CERT_GROUP_UPDATED", "CERT_GROUP_ARCHIVED",
-                 "CERT_GROUP_DELETED", "CERT_ADDED_TO_GROUP", "CERT_REMOVED_FROM_GROUP"
-                    -> "cert-groups";
-            case "REPLAY_COMPLETED", "REPLAY_BULK_COMPLETED"
-                    -> "replay";
-            case "REQUEST_LOGGED"
-                    -> "audit";
-            default -> defaultDomain;
+            case "REPLAY_COMPLETED", "REPLAY_BULK_COMPLETED" -> "replay";
+            case "REQUEST_LOGGED"                            -> "audit";
+            default                                          -> defaultDomain;
         };
     }
 
