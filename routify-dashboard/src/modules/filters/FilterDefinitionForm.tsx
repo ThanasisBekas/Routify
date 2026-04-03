@@ -56,11 +56,14 @@ const FILTER_TYPES: { value: FilterType; label: string; category: string; descri
   { value: 'USER_ID_PAYLOAD_ROUTING', label: 'User ID Payload Routing', category: 'Routing', description: 'Route to an alternative upstream when userId in request body is in an allowlist' },
   // Custom
   { value: 'CUSTOM_SPEL', label: 'Custom (SpEL)', category: 'Custom', description: 'Evaluate a Spring Expression Language expression — returning false rejects with 403' },
+  // AI
+  { value: 'AI_FILTER',   label: 'AI Filter',   category: 'AI', description: 'LLM-powered, policy-driven request filtering — ALLOW / BLOCK / FLAG decisions via natural-language rules' },
+  { value: 'AI_MODIFIER', label: 'AI Modifier', category: 'AI', description: 'LLM-powered request mutation — PII scrubbing, payload translation, header rewriting before routing downstream' },
 ]
 
 const CATEGORY_ORDER = [
   'Authentication', 'Downstream Auth', 'Rate Limiting', 'Modification', 'Transformation',
-  'Validation', 'Resilience', 'Observability', 'Security', 'Versioning', 'Routing', 'Custom',
+  'Validation', 'Resilience', 'Observability', 'Security', 'Versioning', 'Routing', 'Custom', 'AI',
 ]
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -76,6 +79,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Versioning:        'text-teal-400 bg-teal-400/10 border-teal-400/20',
   Routing:           'text-pink-400 bg-pink-400/10 border-pink-400/20',
   Custom:            'text-gray-400 bg-gray-400/10 border-gray-400/20',
+  AI:                'text-fuchsia-400 bg-fuchsia-400/10 border-fuchsia-400/20',
 }
 
 // ─── Type Picker ──────────────────────────────────────────────────────────────

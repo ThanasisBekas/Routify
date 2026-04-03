@@ -5,9 +5,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { cn } from '../../lib/utils'
 import type { FilterType } from '../../types'
+import type { AiModificationTestRequest, AiModificationTestResult } from '../../types'
 import { Select } from '../../components/ui/Select'
 import { inputCls, monoInputCls } from './filterConfigConstants'
 import type { FilterConfig } from './filterConfigConstants'
+import { aiApi } from '../../api/aiApi'
 
 
 function Field({
@@ -803,6 +805,14 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── AI Filter ─────────────────────────────────────────────────────────────
+    case 'AI_FILTER':
+      return <AiFilterFields config={config} onChange={onChange} />
+
+    // ── AI Modifier ───────────────────────────────────────────────────────────
+    case 'AI_MODIFIER':
+      return <AiModifierFields config={config} onChange={onChange} />
+
     default:
       return (
         <div className="py-3 px-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
@@ -1101,6 +1111,310 @@ function KeyValueFields({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+
+// ─── AI Filter Fields ─────────────────────────────────────────────────────────
+
+function AiFilterFields({
+  config,
+  onChange,
+}: {
+  config: FilterConfig
+  onChange: (c: FilterConfig) => void
+}) {
+  const set  = (key: string, value: unknown) => onChange({ ...config, [key]: value })
+  const str  = (k: string, d = '') => (config[k] as string)   ?? d
+  const num  = (k: string, d = 0) => (config[k] as number)    ?? d
+  const bool = (k: string, d = false) => (config[k] as boolean) ?? d
+
+  const [testResult, setTestResult] = useState<{ action: string; reason: string; confidence: number } | null>(null)
+  const [testLoading, setTestLoading] = useState(false)
+  const [testError, setTestError]   = useState<string | null>(null)
+  const [sampleBody, setSampleBody] = useState('')
+  const [samplePath, setSamplePath] = useState('/api/v1/test')
+
+  const runTest = async () => {
+    if (!str('policyDescription').trim()) return
+    setTestLoading(true); setTestError(null); setTestResult(null)
+    try {
+      const result = await aiApi.testPolicy({
+        policyDescription: str('policyDescription'),
+        sampleRequest: { method: 'POST', path: samplePath, headers: {}, bodyExcerpt: sampleBody || null },
+      })
+      setTestResult(result)
+    } catch { setTestError('Test failed — check that the AI service is reachable') }
+    finally { setTestLoading(false) }
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-xs text-gray-500 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-lg px-3 py-2">
+        Evaluates each request against your natural-language policy using a local LLM.
+        Verdicts: <span className="text-emerald-300 font-semibold">ALLOW</span> · <span className="text-red-300 font-semibold">BLOCK</span> · <span className="text-amber-300 font-semibold">FLAG</span>.
+        Use <strong className="text-fuchsia-300">ASYNC mode</strong> first to monitor without blocking.
+      </p>
+
+      <Field label="Policy Description" hint="Natural-language rule for the LLM to enforce">
+        <textarea
+          value={str('policyDescription')}
+          onChange={e => set('policyDescription', e.target.value)}
+          rows={3} maxLength={2000}
+          placeholder="Block requests that appear to contain SQL injection patterns"
+          className={`${inputCls} resize-y`}
+        />
+        <p className="text-[10px] text-gray-600 text-right">{str('policyDescription').length}/2000</p>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Evaluation Mode">
+          <Select value={str('evaluationMode', 'SYNC')} onChange={v => set('evaluationMode', v)}
+            options={[
+              { value: 'SYNC',  label: 'SYNC — block until verdict' },
+              { value: 'ASYNC', label: 'ASYNC — monitor only (non-blocking)' },
+            ]} />
+        </Field>
+        <Field label="Fallback Action" hint="Applied when LLM is unavailable">
+          <Select value={str('fallbackAction', 'ALLOW')} onChange={v => set('fallbackAction', v)}
+            options={[
+              { value: 'ALLOW', label: 'ALLOW (fail-open)' },
+              { value: 'BLOCK', label: 'BLOCK (fail-closed)' },
+            ]} />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Confidence Threshold" hint="Min LLM confidence (0.0–1.0)">
+          <input type="number" min={0} max={1} step={0.05} value={num('confidenceThreshold', 0.85)}
+            onChange={e => set('confidenceThreshold', parseFloat(e.target.value))} className={inputCls} />
+        </Field>
+        <Field label="Cache TTL (s)">
+          <input type="number" min={0} value={num('cacheTtlSeconds', 30)}
+            onChange={e => set('cacheTtlSeconds', parseInt(e.target.value))} className={inputCls} />
+        </Field>
+      </div>
+
+      <SectionTitle>Body Analysis</SectionTitle>
+      <div className="divide-y divide-white/[0.04]">
+        <Toggle label="Include Body in Prompt" description="Send a body excerpt to the LLM"
+          checked={bool('includeBody')} onChange={v => set('includeBody', v)} />
+        <Toggle label="Enable Verdict Cache" description="Serve identical requests from Redis"
+          checked={bool('cacheEnabled', true)} onChange={v => set('cacheEnabled', v)} />
+      </div>
+      {bool('includeBody') && (
+        <Field label="Max Body Bytes">
+          <input type="number" min={64} max={8192} value={num('maxBodyBytes', 512)}
+            onChange={e => set('maxBodyBytes', parseInt(e.target.value))} className={inputCls} />
+        </Field>
+      )}
+
+      <SectionTitle>Test Policy (Dry Run)</SectionTitle>
+      <div className="space-y-3 rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
+        <p className="text-xs text-gray-500">Test against a sample before enabling on live traffic.</p>
+        <Field label="Sample Path" optional>
+          <input value={samplePath} onChange={e => setSamplePath(e.target.value)}
+            className={inputCls} placeholder="/api/v1/users?id=1 OR 1=1" />
+        </Field>
+        <Field label="Sample Body" optional>
+          <textarea value={sampleBody} onChange={e => setSampleBody(e.target.value)}
+            rows={2} placeholder='{"query":"SELECT * FROM users"}' className={`${monoInputCls} resize-y`} />
+        </Field>
+        <button type="button" onClick={runTest} disabled={testLoading || !str('policyDescription').trim()}
+          className="px-3 py-1.5 text-xs font-semibold bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white rounded-lg transition-all">
+          {testLoading ? 'Running…' : '▶ Run Test'}
+        </button>
+        {testError && <p className="text-xs text-red-400">{testError}</p>}
+        {testResult && (
+          <div className={cn('px-3 py-2.5 rounded-lg border text-xs space-y-1',
+            testResult.action === 'BLOCK' ? 'bg-red-500/10 border-red-500/30 text-red-300'
+            : testResult.action === 'FLAG' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300')}>
+            <div className="font-bold text-sm">{testResult.action}</div>
+            <div className="text-gray-400">{testResult.reason}</div>
+            <div className="text-gray-600">Confidence: {(testResult.confidence * 100).toFixed(0)}%</div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── AI Modifier Fields ───────────────────────────────────────────────────────
+
+function AiModifierFields({
+  config,
+  onChange,
+}: {
+  config: FilterConfig
+  onChange: (c: FilterConfig) => void
+}) {
+  const set  = (key: string, value: unknown) => onChange({ ...config, [key]: value })
+  const str  = (k: string, d = '') => (config[k] as string)   ?? d
+  const num  = (k: string, d = 0) => (config[k] as number)    ?? d
+  const bool = (k: string, d = false) => (config[k] as boolean) ?? d
+
+  const [testResult, setTestResult] = useState<AiModificationTestResult | null>(null)
+  const [testLoading, setTestLoading] = useState(false)
+  const [testError, setTestError]   = useState<string | null>(null)
+  const [sampleBody, setSampleBody] = useState('')
+  const [samplePath, setSamplePath] = useState('/api/v1/test')
+
+  const runTest = async () => {
+    if (!str('modificationPrompt').trim()) return
+    setTestLoading(true); setTestError(null); setTestResult(null)
+    try {
+      const req: AiModificationTestRequest = {
+        modificationPrompt: str('modificationPrompt'),
+        targetFields: str('targetFields', 'BODY'),
+        sampleRequest: { method: 'POST', path: samplePath, headers: {}, body: sampleBody || undefined },
+      }
+      setTestResult(await aiApi.testModification(req))
+    } catch { setTestError('Test failed — check that the AI service is reachable') }
+    finally { setTestLoading(false) }
+  }
+
+  const mutationBadgeClass = (t?: string) => {
+    switch (t) {
+      case 'PII_SCRUB':      return 'text-rose-300 bg-rose-500/10 border-rose-500/20'
+      case 'TRANSLATE':      return 'text-blue-300 bg-blue-500/10 border-blue-500/20'
+      case 'HEADER_REWRITE': return 'text-amber-300 bg-amber-500/10 border-amber-500/20'
+      case 'PASSTHROUGH':    return 'text-gray-400 bg-gray-500/10 border-gray-500/20'
+      default:               return 'text-fuchsia-300 bg-fuchsia-500/10 border-fuchsia-500/20'
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-xs text-gray-500 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-lg px-3 py-2">
+        The AI modifier uses a local LLM to <strong className="text-fuchsia-300">mutate the request</strong> before routing downstream —
+        PII scrubbing, payload translation, header rewriting. Only SHA-256 body hashes are audited; raw bodies are never logged.
+      </p>
+
+      <Field label="Modification Prompt" hint="Natural-language instruction for the LLM">
+        <textarea value={str('modificationPrompt')} onChange={e => set('modificationPrompt', e.target.value)}
+          rows={4} maxLength={2000}
+          placeholder="Scrub all email addresses from the JSON body and replace with [REDACTED_EMAIL]"
+          className={`${inputCls} resize-y`} />
+        <div className={cn('text-[10px] text-right', str('modificationPrompt').length > 1800 ? 'text-amber-400' : 'text-gray-600')}>
+          {str('modificationPrompt').length}/2000
+        </div>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Target Fields">
+          <Select value={str('targetFields', 'BODY')} onChange={v => set('targetFields', v)}
+            options={[
+              { value: 'BODY',         label: 'Body only' },
+              { value: 'HEADERS',      label: 'Headers only' },
+              { value: 'BODY,HEADERS', label: 'Body + Headers' },
+            ]} />
+        </Field>
+        <Field label="Fallback Behavior">
+          <Select value={str('fallbackBehavior', 'PASSTHROUGH')} onChange={v => set('fallbackBehavior', v)}
+            options={[
+              { value: 'PASSTHROUGH', label: 'Pass Through (safe default)' },
+              { value: 'BLOCK',       label: 'Block (503)' },
+            ]} />
+        </Field>
+      </div>
+
+      <SectionTitle>LLM Parameters</SectionTitle>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Temperature" hint="0.0 = deterministic, 1.0 = creative">
+          <input type="number" min={0} max={1} step={0.05} value={num('temperature', 0.1)}
+            onChange={e => set('temperature', parseFloat(e.target.value))} className={inputCls} />
+        </Field>
+        <Field label="Max Tokens">
+          <input type="number" min={256} max={4096} value={num('maxTokens', 1024)}
+            onChange={e => set('maxTokens', parseInt(e.target.value))} className={inputCls} />
+        </Field>
+        <Field label="Timeout (ms)">
+          <input type="number" min={500} value={num('timeoutMs', 4000)}
+            onChange={e => set('timeoutMs', parseInt(e.target.value))} className={inputCls} />
+        </Field>
+        <Field label="Max Body Bytes">
+          <input type="number" min={64} max={65536} value={num('maxBodyBytes', 2048)}
+            onChange={e => set('maxBodyBytes', parseInt(e.target.value))} className={inputCls} />
+        </Field>
+      </div>
+      <Field label="Model ID" hint="Leave blank for service default" optional>
+        <input value={str('modelId')} onChange={e => set('modelId', e.target.value)}
+          className={inputCls} placeholder="llama3:latest" />
+      </Field>
+
+      <SectionTitle>Caching</SectionTitle>
+      <div className="divide-y divide-white/[0.04]">
+        <Toggle label="Enable Mutation Cache"
+          description="Cache mutations in Redis. Recommended OFF unless mutations are request-fingerprint invariant"
+          checked={bool('cacheEnabled')} onChange={v => set('cacheEnabled', v)} />
+      </div>
+      {bool('cacheEnabled') && (
+        <div className="space-y-2">
+          <div className="px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs text-amber-300/80">
+            ⚠ Caching mutations may produce incorrect results when body content varies between requests.
+          </div>
+          <Field label="Cache TTL (s)">
+            <input type="number" min={1} value={num('cacheTtlSeconds', 60)}
+              onChange={e => set('cacheTtlSeconds', parseInt(e.target.value))} className={inputCls} />
+          </Field>
+        </div>
+      )}
+
+      <SectionTitle>Test Modification (Dry Run)</SectionTitle>
+      <div className="space-y-3 rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
+        <p className="text-xs text-gray-500">Validate your prompt against a sample before enabling on live traffic.</p>
+        <Field label="Sample Path" optional>
+          <input value={samplePath} onChange={e => setSamplePath(e.target.value)}
+            className={inputCls} placeholder="/api/v1/orders" />
+        </Field>
+        <Field label="Sample Body (JSON)" optional>
+          <textarea value={sampleBody} onChange={e => setSampleBody(e.target.value)} rows={3}
+            placeholder='{"email":"user@example.com","ssn":"123-45-6789","amount":100}'
+            className={`${monoInputCls} resize-y`} />
+        </Field>
+        <button type="button" onClick={runTest} disabled={testLoading || !str('modificationPrompt').trim()}
+          className="px-3 py-1.5 text-xs font-semibold bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white rounded-lg transition-all">
+          {testLoading ? 'Running…' : '▶ Run Modification Test'}
+        </button>
+        {testError && <p className="text-xs text-red-400">{testError}</p>}
+
+        {testResult && (
+          <div className="space-y-3 mt-2">
+            <div className="flex items-center gap-2">
+              <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full border', mutationBadgeClass(testResult.mutationType))}>
+                {testResult.mutationApplied ? `✓ ${testResult.mutationType}` : '⊘ PASSTHROUGH'}
+              </span>
+              <span className="text-xs text-gray-500">{testResult.latencyMs}ms{testResult.cached ? ' (cached)' : ''}</span>
+            </div>
+            <p className="text-xs text-gray-400 italic">{testResult.reason}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Original</div>
+                <pre className="text-xs text-gray-400 bg-white/[0.02] border border-white/[0.06] rounded-lg p-3 overflow-auto max-h-48 font-mono whitespace-pre-wrap">{sampleBody || '(no body)'}</pre>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-fuchsia-500 uppercase tracking-wider">Mutated</div>
+                <pre className={cn('text-xs bg-white/[0.02] border rounded-lg p-3 overflow-auto max-h-48 font-mono whitespace-pre-wrap',
+                  testResult.mutatedBody ? 'text-fuchsia-300 border-fuchsia-500/20' : 'text-gray-600 border-white/[0.06]')}>
+                  {testResult.mutatedBody ?? '(no mutation — same as original)'}
+                </pre>
+              </div>
+            </div>
+            {testResult.mutatedHeaders && Object.keys(testResult.mutatedHeaders).length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-fuchsia-500 uppercase tracking-wider">Mutated Headers</div>
+                <div className="text-xs bg-white/[0.02] border border-fuchsia-500/20 rounded-lg p-3 space-y-1 font-mono">
+                  {Object.entries(testResult.mutatedHeaders).map(([k, v]) => (
+                    <div key={k} className="flex gap-2"><span className="text-fuchsia-300">{k}:</span><span className="text-gray-300">{v}</span></div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

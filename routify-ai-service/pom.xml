@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>gr.routify</groupId>
+        <artifactId>routify-parent</artifactId>
+        <version>1.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>routify-ai-service</artifactId>
+    <name>Routify AI Service</name>
+    <description>
+        Intelligence layer for the Routify API Gateway.
+        Receives route request metadata from the gateway and uses Spring AI (backed by any
+        ChatModel — OpenAI, Ollama, Anthropic, …) to evaluate dynamic, natural-language
+        filter rules, returning an ALLOW / BLOCK / FLAG verdict.
+
+        Verdict caching (Redis) and a Resilience4j circuit breaker keep latency minimal
+        and protect the critical gateway path when the upstream LLM is degraded.
+    </description>
+
+    <dependencies>
+
+        <!-- ─── Internal ────────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>gr.routify</groupId>
+            <artifactId>routify-common</artifactId>
+        </dependency>
+
+        <!-- ─── Spring Boot Web (Virtual Threads via Tomcat, same as other services) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- ─── RabbitMQ — synchronous RPC evaluation endpoint (gateway calls this) ── -->
+        <!--
+             The gateway sends AI filter evaluation requests via RabbitMQ RPC
+             (Direct Reply-To pattern). This is the canonical Routify pattern for
+             internal synchronous service-to-service communication.
+             The HTTP REST endpoint (/api/v1/ai-filter/evaluate) is kept as a
+             fallback / direct-call option.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- ─── Spring AI — Ollama provider (local inference, zero external API deps) ──
+             Spring AI 1.0.0 starter naming convention: spring-ai-starter-model-{provider}
+             Ollama serves any GGUF/GGML model locally via a single HTTP API.
+
+             To revert to OpenAI for non-air-gapped deployments, swap this dependency for:
+               spring-ai-starter-model-openai
+             and restore the spring.ai.openai block in application.yml.
+             No Java code changes required — ChatClient is provider-agnostic.
+        -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
+            <!-- Version managed by spring-ai-bom imported in parent <dependencyManagement>.
+                 Pinned here explicitly because Maven validates child POMs before resolving
+                 BOM imports from the parent. See parent pom.xml spring-ai.version property. -->
+            <version>${spring-ai.version}</version>
+        </dependency>
+
+        <!-- ─── Redis — verdict caching (same Redis used by rate-limiter / gateway) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- ─── Kafka — publish AI_FILTER_DECISIONS telemetry events ──────────── -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- ─── Validation ──────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ─── Security — inter-service JWT pre-auth (GatewayPreAuthFilter pattern) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+        </dependency>
+
+        <!-- ─── Resilience4j — circuit breaker + time-limiter around LLM calls ── -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+
+        <!-- ─── Observability ───────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- ─── Utilities ──────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+
+        <!-- ─── Test ────────────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <!--
+        Spring AI artifacts are published to Maven Central.
+        This explicit repository declaration ensures they resolve even when a
+        corporate mirror (configured in ~/.m2/settings.xml) does not proxy them.
+        Note: we use a non-"central" repository ID to avoid being intercepted by
+        mirrors that match mirrorOf=central.
+    -->
+    <repositories>
+        <repository>
+            <id>maven-central-spring-ai</id>
+            <name>Maven Central (Spring AI)</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <!-- Spring milestones — used for pre-GA Spring AI releases if needed -->
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
+
+</project>
+

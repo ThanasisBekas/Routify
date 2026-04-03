@@ -113,6 +113,35 @@ public enum FilterType {
     /** Evaluate a SpEL expression — returning false rejects with 403 — SpelCustomGatewayFilterFactory */
     CUSTOM_SPEL,
 
+    // ─── AI ──────────────────────────────────────────────────────────────────
+
+    /**
+     * LLM-powered dynamic filter — evaluates requests against a natural-language policy
+     * defined by the operator.  Delegates to routify-ai-service (Spring AI / ChatClient).
+     * — AiGatewayFilterFactory
+     *
+     * <p>Keep in sync with the {@code 'AI_FILTER'} literal in:
+     * <ul>
+     *   <li>routify-dashboard/src/types/index.ts (FilterType union)</li>
+     *   <li>AiGatewayFilterFactory in routify-api-gateway</li>
+     * </ul>
+     */
+    AI_FILTER,
+
+    /**
+     * LLM-powered request/response mutation filter — uses a local LLM to dynamically
+     * transform the incoming request (e.g. PII scrubbing, payload translation, header
+     * rewriting) and re-injects the mutated request back into the gateway pipeline.
+     * Delegates to routify-ai-service — AiModifierGatewayFilterFactory
+     *
+     * <p>Keep in sync with the {@code 'AI_MODIFIER'} literal in:
+     * <ul>
+     *   <li>routify-dashboard/src/types/index.ts (FilterType union)</li>
+     *   <li>AiModifierGatewayFilterFactory in routify-api-gateway</li>
+     * </ul>
+     */
+    AI_MODIFIER,
+
     // ─── Legacy (no gateway factory — kept for backward compatibility with existing DB records) ──
 
     /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */

@@ -75,6 +75,12 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.CertGroupsQuery.class,   name = "CERT_GROUPS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.CertGroupGet.class,      name = "CERT_GROUP_GET"),
     @JsonSubTypes.Type(value = QueryRequest.CertGroupMembers.class,  name = "CERT_GROUP_MEMBERS"),
+    // ─── routify-ai-service ───────────────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.AiFilterEvaluate.class,      name = "AI_FILTER_EVALUATE"),
+    @JsonSubTypes.Type(value = QueryRequest.AiModifierEvaluate.class,    name = "AI_MODIFIER_EVALUATE"),
+    // ─── routify-audit-service AI filter stats ────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.AiFilterStatsQuery.class,    name = "AI_FILTER_STATS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.AiFilterDecisionsQuery.class,name = "AI_FILTER_DECISIONS_QUERY"),
 })
 public sealed interface QueryRequest
         permits
@@ -113,6 +119,10 @@ public sealed interface QueryRequest
             QueryRequest.CertGroupsQuery,
             QueryRequest.CertGroupGet,
             QueryRequest.CertGroupMembers,
+            QueryRequest.AiFilterEvaluate,
+            QueryRequest.AiModifierEvaluate,
+            QueryRequest.AiFilterStatsQuery,
+            QueryRequest.AiFilterDecisionsQuery,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -286,11 +296,157 @@ public sealed interface QueryRequest
     /** List all certificate members of a group. */
     record CertGroupMembers(UUID groupId, UUID tenantId) implements QueryRequest {}
 
+    // ─── routify-ai-service ───────────────────────────────────────────────────
+
+    /**
+     * AI filter evaluation request — sent by the gateway to routify-ai-service via RabbitMQ RPC.
+     *
+     * <p>Carries the full route request context and the operator-defined AI filter config.
+     * The ai-service responds with a {@link QueryResponse.AiFilterVerdict}.
+     *
+     * @param routeId             UUID of the route being evaluated.
+     * @param routeName           Human-readable route name (for prompt context).
+     * @param tenantId            Owning tenant UUID.
+     * @param policyDescription   Natural-language policy rule to enforce.
+     * @param evaluationMode      {@code SYNC} or {@code ASYNC} — gateway always sends SYNC over RPC.
+     * @param includeBody         Whether a body excerpt is present in this payload.
+     * @param maxBodyBytes        Max bytes of body excerpt included.
+     * @param fallbackAction      Verdict to return if the LLM/circuit is unavailable.
+     * @param confidenceThreshold Minimum LLM confidence to honour the verdict.
+     * @param cacheEnabled        Whether the ai-service should consult the Redis verdict cache.
+     * @param cacheTtlSeconds     Cache TTL in seconds.
+     * @param method              HTTP method of the intercepted request.
+     * @param path                Request path.
+     * @param queryString         Raw query string (may be null).
+     * @param clientIp            Originating client IP.
+     * @param headers             Sanitised headers (sensitive values stripped by gateway).
+     * @param bodyExcerpt         Base64-encoded request body prefix (null when includeBody=false).
+     * @param userId              Authenticated user ID (null for unauthenticated requests).
+     * @param userRole            Authenticated user role (null for unauthenticated requests).
+     * @param correlationId       X-Correlation-Id propagated from the original request.
+     */
+    record AiFilterEvaluate(
+            String              routeId,
+            String              routeName,
+            String              tenantId,
+            // ── AI filter config ──
+            String              policyDescription,
+            String              evaluationMode,
+            boolean             includeBody,
+            int                 maxBodyBytes,
+            String              fallbackAction,
+            double              confidenceThreshold,
+            boolean             cacheEnabled,
+            int                 cacheTtlSeconds,
+            // ── Request context ──
+            String              method,
+            String              path,
+            String              queryString,
+            String              clientIp,
+            java.util.Map<String, String> headers,
+            String              bodyExcerpt,
+            String              userId,
+            String              userRole,
+            String              correlationId
+    ) implements QueryRequest {}
+
+    /**
+     * AI modification request — sent by the gateway to routify-ai-service via RabbitMQ RPC.
+     *
+     * <p>Carries the full route request context and the operator-defined AI modifier config.
+     * Unlike {@link AiFilterEvaluate}, this request carries the actual body bytes (base64-encoded)
+     * so the LLM can mutate them. The ai-service responds with a
+     * {@link QueryResponse.AiModifierVerdict} that includes the mutated headers and body.
+     *
+     * @param routeId             UUID of the route being evaluated.
+     * @param routeName           Human-readable route name.
+     * @param tenantId            Owning tenant UUID.
+     * @param modificationPrompt  Natural-language instruction for the mutation
+     *                            (e.g. "Scrub all email addresses from the JSON body").
+     * @param targetFields        Comma-separated targets: BODY, HEADERS, or BODY,HEADERS.
+     * @param modelId             Optional LLM model override (null = service default).
+     * @param temperature         LLM temperature (0.0–1.0). Default 0.1 for slight creativity.
+     * @param maxTokens           Maximum tokens in the LLM response. Default 1024.
+     * @param fallbackBehavior    PASSTHROUGH (default) or BLOCK on LLM failure.
+     * @param includeBody         Whether the body is included in this payload.
+     * @param maxBodyBytes        Max bytes of body to include (default 2048).
+     * @param cacheEnabled        Whether to use Redis mutation caching.
+     * @param cacheTtlSeconds     Cache TTL in seconds.
+     * @param timeoutMs           Hard RPC timeout in milliseconds.
+     * @param method              HTTP method of the intercepted request.
+     * @param path                Request path.
+     * @param queryString         Raw query string (may be null).
+     * @param clientIp            Originating client IP.
+     * @param headers             Sanitised request headers.
+     * @param bodyBase64          Base64-encoded request body (null when includeBody=false).
+     * @param correlationId       X-Correlation-Id propagated from the original request.
+     */
+    record AiModifierEvaluate(
+            String              routeId,
+            String              routeName,
+            String              tenantId,
+            // ── AI modifier config ──
+            String              modificationPrompt,
+            String              targetFields,
+            String              modelId,
+            double              temperature,
+            int                 maxTokens,
+            String              fallbackBehavior,
+            boolean             includeBody,
+            int                 maxBodyBytes,
+            boolean             cacheEnabled,
+            int                 cacheTtlSeconds,
+            int                 timeoutMs,
+            // ── Request context ──
+            String              method,
+            String              path,
+            String              queryString,
+            String              clientIp,
+            java.util.Map<String, String> headers,
+            String              bodyBase64,
+            String              correlationId
+    ) implements QueryRequest {}
+
+    // ─── routify-audit-service AI filter stats ────────────────────────────────
+
+    /**
+     * Aggregated AI filter statistics per route over a time window.
+     *
+     * @param tenantId  Tenant to scope the query (required).
+     * @param routeId   Optional — if null returns stats aggregated across all routes for the tenant.
+     * @param from      ISO-8601 start timestamp (inclusive). Null = last 24 hours.
+     * @param to        ISO-8601 end timestamp (exclusive). Null = now.
+     */
+    record AiFilterStatsQuery(
+            UUID   tenantId,
+            UUID   routeId,
+            String from,
+            String to
+    ) implements QueryRequest {}
+
+    /**
+     * Paginated AI filter decision log with optional filters.
+     *
+     * @param tenantId  Tenant to scope the query (required).
+     * @param routeId   Optional route filter.
+     * @param action    Optional action filter: ALLOW, BLOCK, or FLAG.
+     * @param from      ISO-8601 start timestamp. Null = last 24 hours.
+     * @param to        ISO-8601 end timestamp. Null = now.
+     * @param page      Zero-based page number.
+     * @param size      Page size (max 100).
+     */
+    record AiFilterDecisionsQuery(
+            UUID   tenantId,
+            UUID   routeId,
+            String action,
+            String from,
+            String to,
+            int    page,
+            int    size
+    ) implements QueryRequest {}
+
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.
-     * Prevents {@link com.fasterxml.jackson.databind.exc.InvalidTypeIdException} from being
-     * thrown during deserialisation (e.g. legacy messages or services that haven't yet been
-     * rebuilt with the latest {@code routify-common}).
      */
     record Unknown() implements QueryRequest {}
 }

@@ -1,0 +1,122 @@
+---
+# Routify AI Filter & AI Modifier Prometheus Alerting Rules
+# Load this file by referencing it in prometheus.yml rule_files section.
+
+groups:
+  - name: routify.ai.filter
+    rules:
+
+      # ── AI Filter: LLM parse failures ─────────────────────────────────────
+      - alert: AiFilterParseFailureHigh
+        expr: >
+          rate(routify_ai_filter_parse_errors_total[5m]) /
+          (rate(routify_ai_filter_evaluations_total[5m]) + 0.001) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "AI Filter parse failure rate above 5%"
+          description: >
+            More than 5% of AI Filter LLM responses could not be parsed as valid JSON.
+            This may indicate a model regression or prompt injection attack.
+            Current rate: {{ $value | humanizePercentage }}
+
+      # ── AI Filter: LLM p99 latency ────────────────────────────────────────
+      - alert: AiFilterLatencyHigh
+        expr: >
+          histogram_quantile(0.99,
+            rate(routify_ai_filter_latency_seconds_bucket[5m])) > 3
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "AI Filter p99 LLM latency exceeds 3s"
+          description: >
+            The 99th percentile AI Filter LLM evaluation latency is above 3 seconds.
+            This will cause timeouts and fallback verdicts for most requests.
+            Current p99: {{ $value | humanizeDuration }}
+
+      # ── AI Filter: Fallback rate spike ───────────────────────────────────
+      - alert: AiFilterFallbackRateHigh
+        expr: >
+          rate(routify_ai_filter_fallbacks_total[5m]) /
+          (rate(routify_ai_filter_evaluations_total[5m]) + 0.001) > 0.20
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "AI Filter fallback rate above 20%"
+          description: >
+            More than 20% of AI Filter evaluations are using the fallback action.
+            This may indicate the LLM service (Ollama/OpenAI) is degraded.
+            Current rate: {{ $value | humanizePercentage }}
+
+  - name: routify.ai.modifier
+    rules:
+
+      # ── AI Modifier: JSON parse failures ──────────────────────────────────
+      - alert: AiModificationParseFailureHigh
+        expr: >
+          rate(routify_ai_modification_parse_failures_total[5m]) /
+          (rate(routify_ai_modification_applied_total[5m]) + 0.001) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "AI Modifier parse failure rate above 5%"
+          description: >
+            More than 5% of AI Modifier LLM responses failed JSON validation.
+            Passthrough is being applied instead. Investigate the modification prompt
+            and LLM output schema adherence.
+            Current rate: {{ $value | humanizePercentage }}
+
+      # ── AI Modifier: LLM p99 latency ─────────────────────────────────────
+      - alert: AiModificationLatencyHigh
+        expr: >
+          histogram_quantile(0.99,
+            rate(routify_ai_modification_latency_seconds_bucket[5m])) > 3
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "AI Modifier p99 LLM latency exceeds 3s"
+          description: >
+            The 99th percentile AI Modifier LLM evaluation latency is above 3 seconds.
+            Passthrough fallbacks will be applied, but upstream services are seeing high latency.
+            Current p99: {{ $value | humanizeDuration }}
+
+      # ── AI Modifier: Circuit breaker open ────────────────────────────────
+      - alert: AiModifierCircuitOpen
+        expr: >
+          resilience4j_circuitbreaker_state{name="aiModifierLlm",state="open"} == 1
+        for: 30s
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "AI Modifier circuit breaker is OPEN"
+          description: >
+            The Resilience4j circuit breaker for the AI Modifier LLM calls is in OPEN state.
+            All modification requests will immediately receive passthrough responses until the
+            circuit closes. Check the LLM service health immediately.
+
+      # ── AI Filter: Circuit breaker open ──────────────────────────────────
+      - alert: AiFilterCircuitOpen
+        expr: >
+          resilience4j_circuitbreaker_state{name="aiFilterLlm",state="open"} == 1
+        for: 30s
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "AI Filter circuit breaker is OPEN"
+          description: >
+            The Resilience4j circuit breaker for the AI Filter LLM calls is in OPEN state.
+            All filter evaluations will immediately return the configured fallback action.
+            Check the LLM service health immediately.
+

@@ -1,0 +1,231 @@
+spring:
+  application:
+    name: routify-ai-service
+
+  threads:
+    virtual:
+      enabled: true   # Java 21 Virtual Threads via Tomcat
+
+  # ─── Spring AI — Ollama (local inference, zero external API dependencies) ────
+  #
+  # Ollama exposes an OpenAI-compatible HTTP API on port 11434.
+  # Spring AI's OllamaChatModel talks to it via spring-ai-starter-model-ollama.
+  #
+  # Deployment options (see README § Infrastructure):
+  #   1. Sidecar container  — `ollama` container in docker-compose.app.yml (default dev setup)
+  #   2. Dedicated pod      — separate K8s Deployment with GPU node-selector (production)
+  #   3. DaemonSet          — one Ollama pod per GPU node for horizontal scale
+  #
+  # Model selection guidance (see README § Model Selection):
+  #   • qwen2.5:1.5b-instruct-q8_0  — fastest, ~1–4 GB VRAM, ~150–400ms p50 (recommended default)
+  #   • phi4-mini:3.8b-instruct-q4_K_M — best accuracy/speed tradeoff, ~3–4 GB VRAM
+  #   • llama3.2:3b-instruct-q4_K_M    — Meta's 3B model, ~3 GB VRAM, good reasoning
+  #
+  # temperature: 0.0 is MANDATORY for a security filter.
+  #   Identical inputs MUST produce identical outputs for Redis verdict cache correctness.
+  #   Any non-zero temperature breaks cache determinism.
+  #
+  # num-predict: 256 caps output length.
+  #   The LLM only needs to output a small JSON object {"action":…,"reason":…,"confidence":…}.
+  #   Capping prevents the model from generating verbose reasoning at the cost of latency.
+  ai:
+    ollama:
+      # Base URL of the Ollama inference server.
+      # Docker Compose: http://ollama:11434
+      # K8s sidecar:    http://localhost:11434
+      # K8s dedicated:  http://ollama-service.routify.svc.cluster.local:11434
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+
+      # Connection pool to Ollama — Ollama serialises concurrent requests internally,
+      # so a small pool is sufficient. Bump if using multi-GPU Ollama instances.
+      # These map to OllamaOptions fields Spring AI supports.
+      init:
+        # Pull the model on startup if not already present in the Ollama cache.
+        # Set to false if the model is pre-pulled in the Docker image (recommended for prod).
+        pull-model-strategy: ${OLLAMA_PULL_STRATEGY:when_missing}
+        timeout: 300s    # allow up to 5 min for first-time model download
+
+      chat:
+        options:
+          # Primary model. Override via OLLAMA_MODEL env var.
+          # Recommendation: qwen2.5:1.5b-instruct-q8_0 for <500ms p50 on CPU.
+          # On GPU (even 4 GB VRAM): phi4-mini:3.8b-instruct-q4_K_M for higher accuracy.
+          model: ${OLLAMA_MODEL:qwen2.5:1.5b-instruct-q8_0}
+
+          # CRITICAL: temperature=0.0 for deterministic, cacheable verdicts.
+          temperature: 0.0
+
+          # Cap output tokens — the model only needs to produce a small JSON object.
+          # Prevents tail latency from verbose outputs.
+          num-predict: 256
+
+          # Seed ensures reproducible outputs across identical inputs (Ollama-specific).
+          # Combined with temperature=0.0, this gives maximum determinism.
+          seed: 42
+
+          # Keep model hot in memory between requests.
+          # "0" means keep loaded indefinitely (best for gateway latency).
+          # Set to "-1" to unload immediately (memory-constrained environments).
+          keep-alive: ${OLLAMA_KEEP_ALIVE:0}
+
+          # num-ctx: context window size in tokens.
+          # 2048 is more than enough for our structured prompt (< 500 tokens typical).
+          # Larger contexts consume more VRAM with no benefit for our use case.
+          num-ctx: 2048
+
+          # Format: enforce JSON output mode (Ollama-native JSON grammar constraint).
+          # This is MORE reliable than prompt-only enforcement for local models.
+          # Ollama will guarantee the output is valid JSON — even if the model
+          # would otherwise add prose or markdown code fences.
+          format: json
+
+  # ─── Redis — verdict caching ────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+  # ─── Kafka — AI filter decision telemetry events ────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+
+  # ─── RabbitMQ — synchronous RPC evaluation endpoint (gateway calls this) ────
+  #
+  # The API Gateway sends AI filter evaluation requests via the RabbitMQ Direct
+  # Reply-To RPC pattern. This is the canonical Routify pattern for internal
+  # synchronous communication (same as admin-api → route-service calls).
+  #
+  # Topology:
+  #   Exchange: routify.ai-service  (direct, durable)
+  #   Queue:    routify.ai-service.filter.evaluate
+  #   RK:       ai.filter.evaluate
+  #   Reply:    amq.rabbitmq.reply-to  (Direct Reply-To pseudo-queue — no explicit declaration needed)
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:routify}
+    # No default — must be supplied via RABBITMQ_PASS environment variable.
+    password: ${RABBITMQ_PASS:}
+    virtual-host: /
+    listener:
+      simple:
+        # Each concurrent listener thread handles one blocking LLM call at a time.
+        #
+        # Sizing guidance for local Ollama inference:
+        #   • CPU-only:  concurrency=2–4 (Ollama serialises on CPU anyway; >4 just queues)
+        #   • Single GPU: concurrency=4–8 (GPU handles parallelism; tune to VRAM)
+        #   • Multi-GPU:  concurrency= number_of_GPUs × 4
+        #
+        # The gateway's RabbitMQ reply timeout (3.5s) bounds the worst-case wait.
+        # If all threads are busy, new requests queue in RabbitMQ and time out at the gateway,
+        # which applies the configured fallbackAction rather than blocking indefinitely.
+        concurrency: ${RABBITMQ_CONCURRENCY:4}
+        max-concurrency: ${RABBITMQ_MAX_CONCURRENCY:16}
+        prefetch: ${RABBITMQ_PREFETCH:4}
+        # Acknowledge automatically on successful return — Spring AMQP default.
+        # Nack + requeue on exception (but the listener should never throw).
+        acknowledge-mode: auto
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8086
+  shutdown: graceful
+
+# ─── Actuator / Management ──────────────────────────────────────────────────
+management:
+  server:
+    port: 9086
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ─── Resilience4j — circuit breaker around LLM calls ─────────────────────────
+#
+# Tuned for local Ollama inference (slower than commercial APIs):
+#  - Larger sliding window (15 vs 10) to avoid premature circuit opens during warmup
+#  - Shorter wait in OPEN state (8s vs 10s) — Ollama recovers quickly after a restart
+#  - TimeLimiter: 5s for CPU-only (local inference is slower), 3s for GPU
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiFilterLlm:
+        # Open circuit after 50% failures in a 15-request sliding window
+        failure-rate-threshold: 50
+        # Minimum calls before the circuit can open (avoids opening on startup spike)
+        minimum-number-of-calls: 5
+        sliding-window-size: 15
+        sliding-window-type: COUNT_BASED
+        # Wait 8s in OPEN state before attempting HALF_OPEN
+        wait-duration-in-open-state: 8s
+        # Allow 2 test calls in HALF_OPEN state
+        permitted-number-of-calls-in-half-open-state: 2
+        # Count slow calls (>4s) as failures — local inference can be slow under load
+        slow-call-duration-threshold: 4s
+        slow-call-rate-threshold: 80
+        # Record connection errors and timeouts as failures
+        record-exceptions:
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+  timelimiter:
+    instances:
+      aiFilterLlm:
+        # Hard timeout for LLM calls.
+        # CPU-only Ollama: 5s recommended (qwen2.5:1.5b on 4-core CPU ~2–5s)
+        # GPU Ollama:      3s recommended (any 1.5–3B model on GPU <2s)
+        # Override via OLLAMA_TIMEOUT_SECONDS env var.
+        timeout-duration: ${OLLAMA_TIMEOUT_SECONDS:5}s
+        cancel-running-future: true
+
+# ─── Routify AI Service Configuration ────────────────────────────────────────
+routify:
+  ai:
+    # Thread pool for async evaluation and Kafka publishing.
+    # Should match max-concurrency above.
+    async-pool-size: ${AI_ASYNC_POOL_SIZE:16}
+    async-queue-capacity: ${AI_ASYNC_QUEUE_CAPACITY:200}
+
+    # Default verdict when Ollama is unavailable (circuit open / timeout).
+    # ALLOW is the safe default — operators can set BLOCK for stricter posture.
+    default-fallback-action: ${AI_FALLBACK_ACTION:ALLOW}
+
+  jwt:
+    # RSA public key for inter-service JWT validation (issued by routify-identity-service).
+    # Not required for ClusterIP-only deployment but kept for consistency.
+    public-key: ${JWT_PUBLIC_KEY:}
+
+  # ─── Startup secret validation ──────────────────────────────────────────────
+  # No API keys needed — all inference is local.
+  required-secrets: ""
+
+logging:
+  level:
+    gr.routify: DEBUG
+    org.springframework.ai: INFO
+    org.springframework.ai.ollama: DEBUG    # verbose Ollama HTTP for local dev
+    org.springframework.kafka: WARN
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"

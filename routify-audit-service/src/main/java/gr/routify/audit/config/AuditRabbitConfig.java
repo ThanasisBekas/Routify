@@ -48,6 +48,18 @@ public class AuditRabbitConfig {
     @Bean public Queue auditReplaySingleQueue()       { return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_REPLAY_SINGLE).build(); }
     @Bean public Queue auditReplayBulkQueue()         { return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_REPLAY_BULK).build(); }
 
+    // ─── AI filter decision stats + query queues ──────────────────────────────
+
+    /** Queue: audit-service serves AI filter stats queries from admin-api */
+    @Bean public Queue aiFilterStatsQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_AI_FILTER_STATS).build();
+    }
+
+    /** Queue: audit-service serves paginated AI filter decision log queries from admin-api */
+    @Bean public Queue aiFilterQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_AI_FILTER_QUERY).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -91,6 +103,18 @@ public class AuditRabbitConfig {
     @Bean
     public Binding auditReplayBulkBinding(Queue auditReplayBulkQueue, DirectExchange auditServiceExchange) {
         return BindingBuilder.bind(auditReplayBulkQueue).to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_REPLAY_BULK);
+    }
+
+    @Bean
+    public Binding aiFilterStatsBinding(Queue aiFilterStatsQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiFilterStatsQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_AI_FILTER_STATS);
+    }
+
+    @Bean
+    public Binding aiFilterQueryBinding(Queue aiFilterQueryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiFilterQueryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_AI_FILTER_QUERY);
     }
 
     // ─── Message converter & template ─────────────────────────────────────────

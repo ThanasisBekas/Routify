@@ -55,5 +55,29 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   USER_ID_PAYLOAD_ROUTING: { enabled: true, userIdField: 'userId', allowlistUserIds: [], alternativeUri: '' },
   // Custom
   CUSTOM_SPEL:   { expression: '', description: '' },
+  // AI
+  AI_FILTER: {
+    policyDescription: '',
+    evaluationMode: 'SYNC',
+    includeBody: false,
+    maxBodyBytes: 512,
+    fallbackAction: 'ALLOW',
+    confidenceThreshold: 0.85,
+    cacheEnabled: true,
+    cacheTtlSeconds: 30,
+  },
+  AI_MODIFIER: {
+    modificationPrompt: '',
+    targetFields: 'BODY',
+    modelId: '',
+    temperature: 0.1,
+    maxTokens: 1024,
+    timeoutMs: 4000,
+    fallbackBehavior: 'PASSTHROUGH',
+    includeBody: true,
+    maxBodyBytes: 2048,
+    cacheEnabled: false,
+    cacheTtlSeconds: 60,
+  },
 }
 

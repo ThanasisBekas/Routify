@@ -26,6 +26,7 @@
         <module>routify-admin-api</module>
         <module>routify-audit-service</module>
         <module>routify-cert-vault</module>
+        <module>routify-ai-service</module>
     </modules>
 
     <properties>
@@ -39,6 +40,7 @@
         <jjwt.version>0.12.6</jjwt.version>
         <spring-cloud.version>2024.0.1</spring-cloud.version>
         <resilience4j.version>2.2.0</resilience4j.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
 
         <!-- Messaging -->
         <rabbitmq-amqp-client.version>5.21.0</rabbitmq-amqp-client.version>
@@ -64,6 +66,15 @@
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
                 <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Spring AI BOM — provider-agnostic ChatModel / ChatClient abstraction -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

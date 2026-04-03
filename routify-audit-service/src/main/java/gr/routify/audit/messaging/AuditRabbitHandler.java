@@ -1,9 +1,11 @@
 package gr.routify.audit.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.audit.domain.AiFilterDecision;
 import gr.routify.audit.domain.AuditLogEntry;
 import gr.routify.audit.domain.RequestLog;
 import gr.routify.audit.replay.FailedRequestReplayService;
+import gr.routify.audit.repository.AiFilterDecisionRepository;
 import gr.routify.audit.repository.AuditLogRepository;
 import gr.routify.audit.repository.RequestLogRepository;
 import gr.routify.common.event.KafkaTopics;
@@ -40,6 +42,7 @@ public class AuditRabbitHandler {
 
     private final AuditLogRepository         auditLogRepository;
     private final RequestLogRepository       requestLogRepository;
+    private final AiFilterDecisionRepository aiFilterDecisionRepository;
     private final FailedRequestReplayService replayService;
     private final ObjectMapper               objectMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -193,6 +196,112 @@ public class AuditRabbitHandler {
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    // ─── AI Filter Stats & Decision Log ───────────────────────────────────────
+
+    /**
+     * Returns aggregated AI filter statistics for a tenant (optionally scoped to a route)
+     * over a configurable time window.
+     *
+     * <p>Called by routify-admin-api for the Dashboard's AI Filter Stats page.
+     */
+    @RabbitListener(queues = RabbitTopology.QUEUE_AUDIT_AI_FILTER_STATS)
+    public QueryResponse.AiFilterStatsResult handleAiFilterStats(QueryRequest.AiFilterStatsQuery req) {
+        log.debug("RabbitMQ: received audit.ai-filter.stats request: tenantId={} routeId={}",
+                req.tenantId(), req.routeId());
+
+        Instant from = req.from() != null ? Instant.parse(req.from()) : Instant.now().minusSeconds(86400);
+        Instant to   = req.to()   != null ? Instant.parse(req.to())   : Instant.now();
+
+        Object[] row = req.routeId() != null
+                ? aiFilterDecisionRepository.getStatsByTenantAndRouteAndTimeRange(
+                        req.tenantId(), req.routeId(), from, to)
+                : aiFilterDecisionRepository.getStatsByTenantAndTimeRange(
+                        req.tenantId(), from, to);
+
+        long   total      = 0L;
+        long   allowCount = 0L;
+        long   blockCount = 0L;
+        long   flagCount  = 0L;
+        long   fallback   = 0L;
+        long   cacheHits  = 0L;
+        double avgLatency = 0.0;
+        long   p95Latency = 0L;
+        long   p99Latency = 0L;
+
+        if (row != null && row[0] != null) {
+            total      = ((Number) row[0]).longValue();
+            allowCount = row[1] != null ? ((Number) row[1]).longValue()  : 0L;
+            blockCount = row[2] != null ? ((Number) row[2]).longValue()  : 0L;
+            flagCount  = row[3] != null ? ((Number) row[3]).longValue()  : 0L;
+            fallback   = row[4] != null ? ((Number) row[4]).longValue()  : 0L;
+            cacheHits  = row[5] != null ? ((Number) row[5]).longValue()  : 0L;
+            avgLatency = row[6] != null ? ((Number) row[6]).doubleValue(): 0.0;
+            p95Latency = row[7] != null ? ((Number) row[7]).longValue()  : 0L;
+            p99Latency = row[8] != null ? ((Number) row[8]).longValue()  : 0L;
+        }
+
+        return new QueryResponse.AiFilterStatsResult(
+                req.tenantId(), req.routeId(),
+                total, allowCount, blockCount, flagCount, fallback, cacheHits,
+                avgLatency, p95Latency, p99Latency,
+                from.toString(), to.toString());
+    }
+
+    /**
+     * Returns a paginated AI filter decision log for the dashboard's decision audit view.
+     * Supports optional filtering by routeId, action, and time range.
+     */
+    @RabbitListener(queues = RabbitTopology.QUEUE_AUDIT_AI_FILTER_QUERY)
+    public QueryResponse.AiFilterDecisionsPage handleAiFilterDecisionsQuery(
+            QueryRequest.AiFilterDecisionsQuery req) {
+        log.debug("RabbitMQ: received audit.ai-filter.query request: tenantId={} routeId={} action={}",
+                req.tenantId(), req.routeId(), req.action());
+
+        var pageable = PageRequest.of(req.page(), Math.min(req.size(), 100),
+                Sort.by(Sort.Direction.DESC, "evaluatedAt"));
+
+        Page<AiFilterDecision> result;
+        if (req.from() != null && req.to() != null) {
+            Instant from = Instant.parse(req.from());
+            Instant to   = Instant.parse(req.to());
+            result = req.routeId() != null
+                    ? aiFilterDecisionRepository.findByTenantAndRouteAndTimeRange(
+                            req.tenantId(), req.routeId(), from, to, pageable)
+                    : aiFilterDecisionRepository.findByTenantAndTimeRange(
+                            req.tenantId(), from, to, pageable);
+        } else if (req.routeId() != null && req.action() != null) {
+            result = aiFilterDecisionRepository
+                    .findByTenantIdAndRouteIdAndActionOrderByEvaluatedAtDesc(
+                            req.tenantId(), req.routeId(), req.action().toUpperCase(), pageable);
+        } else if (req.routeId() != null) {
+            result = aiFilterDecisionRepository
+                    .findByTenantIdAndRouteIdOrderByEvaluatedAtDesc(
+                            req.tenantId(), req.routeId(), pageable);
+        } else if (req.action() != null) {
+            result = aiFilterDecisionRepository
+                    .findByTenantIdAndActionOrderByEvaluatedAtDesc(
+                            req.tenantId(), req.action().toUpperCase(), pageable);
+        } else {
+            result = aiFilterDecisionRepository
+                    .findByTenantIdOrderByEvaluatedAtDesc(req.tenantId(), pageable);
+        }
+
+        List<QueryResponse.AiFilterDecisionsPage.AiFilterDecisionEntry> content =
+                result.getContent().stream().map(this::toDecisionEntry).toList();
+
+        return new QueryResponse.AiFilterDecisionsPage(
+                content, result.getTotalElements(),
+                result.getTotalPages(), result.getNumber(), result.getSize());
+    }
+
+    private QueryResponse.AiFilterDecisionsPage.AiFilterDecisionEntry toDecisionEntry(AiFilterDecision d) {
+        return new QueryResponse.AiFilterDecisionsPage.AiFilterDecisionEntry(
+                d.getEvaluationId(), d.getRouteId(), d.getRouteName(), d.getTenantId(),
+                d.getAction(), d.getReason(), d.getConfidence(), d.isCached(),
+                d.getEvaluationMode(), d.getLatencyMs() != null ? d.getLatencyMs() : 0L,
+                d.getMethod(), d.getPath(), d.getClientIp(), d.getEvaluatedAt());
+    }
 
     private void publishReplayEvent(String eventType, UUID tenantId, Object data) {
         try {
