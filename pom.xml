@@ -48,8 +48,6 @@
         <!-- Override Spring Boot managed Lombok for JDK 25 compatibility -->
         <lombok.version>1.18.38</lombok.version>
 
-        <!-- Skip tests globally -->
-        <maven.test.skip>true</maven.test.skip>
     </properties>
 
     <dependencyManagement>

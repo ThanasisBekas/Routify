@@ -9,8 +9,10 @@
           <option name="goals">
             <list>
               <option value="clean" />
-              <option value="install" />
+              <option value="package" />
               <option value="-DskipTests" />
+              <option value="-T" />
+              <option value="4" />
             </list>
           </option>
           <option name="profilesMap">
