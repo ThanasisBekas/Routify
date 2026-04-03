@@ -1142,7 +1142,7 @@ function AiFilterFields({
     try {
       const result = await aiApi.testPolicy({
         policyDescription: str('policyDescription'),
-        sampleRequest: { method: 'POST', path: samplePath, headers: {}, bodyExcerpt: sampleBody || null },
+        sampleRequest: { method: 'POST', path: samplePath, headers: {}, body: sampleBody || undefined },
       })
       setTestResult(result)
     } catch { setTestError('Test failed — check that the AI service is reachable') }
