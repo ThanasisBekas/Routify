@@ -17,6 +17,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.converter.StringJsonMessageConverter;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.Map;
 
@@ -65,7 +66,7 @@ public class GatewayKafkaConfig {
         return new DefaultKafkaProducerFactory<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,   StringSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,   JsonSerializer.class,
                 ProducerConfig.ACKS_CONFIG,                     "1",
                 ProducerConfig.RETRIES_CONFIG,                  3,
                 ProducerConfig.LINGER_MS_CONFIG,                5,

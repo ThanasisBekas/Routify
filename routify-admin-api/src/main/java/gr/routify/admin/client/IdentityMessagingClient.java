@@ -38,7 +38,7 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
                                    ObjectMapper objectMapper,
                                    KafkaTemplate<String, Object> kafkaTemplate) {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_IDENTITY_SERVICE, "admin-api");
-        this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
+        this.kafka = new KafkaServiceClientSupport(kafkaTemplate, "admin-api") {};
     }
 
     // ─── Auth (RabbitMQ) ──────────────────────────────────────────────────────

@@ -39,7 +39,7 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
                                     ObjectMapper objectMapper,
                                     KafkaTemplate<String, Object> kafkaTemplate) {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_CERT_VAULT, "admin-api");
-        this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
+        this.kafka = new KafkaServiceClientSupport(kafkaTemplate, "admin-api") {};
     }
 
     // ─── Queries (RabbitMQ) ────────────────────────────────────────────────────

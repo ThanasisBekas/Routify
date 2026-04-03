@@ -1,6 +1,5 @@
 package gr.routify.gateway.telemetry;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.client.KafkaServiceClientSupport;
 import gr.routify.common.event.KafkaTopics;
 import lombok.extern.slf4j.Slf4j;
@@ -31,9 +30,8 @@ import java.util.UUID;
 @Component
 public class GatewayTelemetryPublisher extends KafkaServiceClientSupport {
 
-    public GatewayTelemetryPublisher(KafkaTemplate<String, Object> kafkaTemplate,
-                                     ObjectMapper objectMapper) {
-        super(kafkaTemplate, objectMapper, "api-gateway");
+    public GatewayTelemetryPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
+        super(kafkaTemplate, "api-gateway");
     }
 
     /**

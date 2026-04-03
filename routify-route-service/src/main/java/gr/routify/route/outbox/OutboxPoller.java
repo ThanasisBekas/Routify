@@ -1,6 +1,5 @@
 package gr.routify.route.outbox;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.route.domain.OutboxEvent;
@@ -47,7 +46,6 @@ public class OutboxPoller {
 
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Value("${routify.outbox.batch-size:50}")
     private int batchSize;

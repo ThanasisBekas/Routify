@@ -13,6 +13,7 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.converter.StringJsonMessageConverter;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.Map;
 
@@ -40,7 +41,7 @@ public class CertVaultKafkaConfig {
         return new DefaultKafkaProducerFactory<>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,          bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,       StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,     JsonSerializer.class,
                 ProducerConfig.ACKS_CONFIG,                       "all",
                 ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,         "true",
                 ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5",
@@ -51,6 +52,28 @@ public class CertVaultKafkaConfig {
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(certProducerFactory());
+    }
+
+    // ─── Outbox Producer (pre-serialised JSON strings from DB) ───────────────
+
+    /**
+     * Dedicated template for the {@link gr.routify.cert.outbox.CertOutboxPoller}.
+     * Outbox payloads are already serialised JSON strings stored in PostgreSQL,
+     * so they must be published as-is using {@link StringSerializer} to avoid
+     * the double-encoding that would occur if {@link JsonSerializer} were used.
+     */
+    @Bean
+    public KafkaTemplate<String, String> outboxKafkaTemplate() {
+        Map<String, Object> props = Map.of(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,          bootstrapServers,
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,       StringSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
+                ProducerConfig.ACKS_CONFIG,                       "all",
+                ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,         "true",
+                ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5",
+                ProducerConfig.RETRIES_CONFIG,                    "3"
+        );
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
     }
 
     // ─── Consumer (command topics from admin-api) ─────────────────────────────

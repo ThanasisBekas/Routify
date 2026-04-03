@@ -40,7 +40,7 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
                                       ObjectMapper objectMapper,
                                       KafkaTemplate<String, Object> kafkaTemplate) {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_ROUTE_SERVICE, "admin-api");
-        this.kafka = new KafkaServiceClientSupport(kafkaTemplate, objectMapper, "admin-api") {};
+        this.kafka = new KafkaServiceClientSupport(kafkaTemplate, "admin-api") {};
     }
 
     // ─── Route Queries (RabbitMQ) ─────────────────────────────────────────────

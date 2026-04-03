@@ -1,6 +1,5 @@
 package gr.routify.common.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.CommandEvent;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.exception.RoutifyException;
@@ -35,7 +34,8 @@ import java.util.concurrent.TimeoutException;
  *
  * <h2>What this class handles automatically</h2>
  * <ul>
- *   <li>JSON serialisation via the shared Jackson {@link ObjectMapper}</li>
+ *   <li>JSON serialisation delegated to the {@link KafkaTemplate}'s value serializer
+ *       (must be {@code JsonSerializer} or equivalent — <em>not</em> {@code StringSerializer})</li>
  *   <li>Standard command envelope: {@code {commandId, command, tenantId, requestedBy, payload}}</li>
  *   <li>Partition key resolution: {@code tenantId.toString()} or {@code "global"} when null</li>
  *   <li>Structured log on every publish (info on success, error on failure)</li>
@@ -55,21 +55,19 @@ public abstract class KafkaServiceClientSupport {
     private static final long DEFAULT_SYNC_TIMEOUT_SECONDS = 5L;
 
     protected final KafkaTemplate<String, Object> kafkaTemplate;
-    protected final ObjectMapper objectMapper;
 
     /** Logical name of the publishing service — appears in log messages. */
     private final String serviceName;
 
     /**
      * @param kafkaTemplate Spring Kafka template, shared across the application context.
-     * @param objectMapper  Jackson mapper shared across the application context.
+     *                      Must be backed by a value serializer that handles arbitrary
+     *                      objects (e.g. {@code JsonSerializer}).
      * @param serviceName   Logical name of the <em>publishing</em> service (e.g. {@code "admin-api"}).
      */
     protected KafkaServiceClientSupport(KafkaTemplate<String, Object> kafkaTemplate,
-                                        ObjectMapper objectMapper,
                                         String serviceName) {
         this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper  = objectMapper;
         this.serviceName   = serviceName;
     }
 
@@ -90,8 +88,7 @@ public abstract class KafkaServiceClientSupport {
      */
     public final void publish(String topic, String partitionKey, Object payload) {
         try {
-            String json = objectMapper.writeValueAsString(payload);
-            kafkaTemplate.send(topic, partitionKey, json)
+            kafkaTemplate.send(topic, partitionKey, payload)
                     .whenComplete((result, ex) -> {
                         if (ex != null) {
                             log.warn("[{}] Async publish failed — topic={} key={}: {}",
@@ -103,7 +100,7 @@ public abstract class KafkaServiceClientSupport {
                         }
                     });
         } catch (Exception e) {
-            log.error("[{}] publish serialisation error — topic={} key={}: {}",
+            log.error("[{}] publish error — topic={} key={}: {}",
                     serviceName, topic, partitionKey, e.getMessage(), e);
             throw new RoutifyException.GatewayError(
                     "Failed to publish to topic %s: %s".formatted(topic, e.getMessage()), e);
@@ -137,8 +134,7 @@ public abstract class KafkaServiceClientSupport {
     public final void publishSync(String topic, String partitionKey, Object payload,
                                      long timeoutSeconds) {
         try {
-            String json = objectMapper.writeValueAsString(payload);
-            kafkaTemplate.send(topic, partitionKey, json)
+            kafkaTemplate.send(topic, partitionKey, payload)
                     .get(timeoutSeconds, TimeUnit.SECONDS);
             log.info("[{}] Sync-published — topic={} key={}", serviceName, topic, partitionKey);
         } catch (TimeoutException e) {
