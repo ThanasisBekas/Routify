@@ -189,6 +189,136 @@ export function buildGraph(
   return { nodes, edges }
 }
 
+// ─── Empty-canvas graph builder ───────────────────────────────────────────────
+/**
+ * Build a graph with only the 4 structural skeleton nodes (no filter nodes).
+ * Used when a newly-created route has no filters yet.
+ */
+export function buildEmptyGraph(route: RouteDto): { nodes: Node[]; edges: Edge[] } {
+  const cy = FLOW_START_Y
+
+  const nodes: Node[] = [
+    {
+      id: 'client',
+      type: 'clientNode',
+      position: { x: FLOW_COL.client, y: cy },
+      data: { status: route.status } satisfies ClientNodeData,
+      draggable: true,
+    },
+    {
+      id: 'route',
+      type: 'routeNode',
+      position: { x: FLOW_COL.route, y: cy - 15 },
+      data: {
+        name: route.name,
+        pathPattern: route.pathPattern,
+        methods: route.methods,
+        status: route.status,
+        version: route.version,
+      } satisfies RouteNodeData,
+      draggable: true,
+    },
+    {
+      id: 'upstream',
+      type: 'upstreamNode',
+      position: { x: FLOW_COL.upstream, y: cy - 5 },
+      data: {
+        uri: route.upstreamUri,
+        stripPrefix: route.stripPrefix,
+      } satisfies UpstreamNodeData,
+      draggable: true,
+    },
+    {
+      id: 'response',
+      type: 'responseNode',
+      position: { x: FLOW_COL.response, y: cy },
+      data: { status: route.status } satisfies ResponseNodeData,
+      draggable: true,
+    },
+  ]
+
+  const edges: Edge[] = [
+    { id: 'e-client-route',    source: 'client',   target: 'route',    ...edgeStyle('pre') },
+    { id: 'e-route-upstream',  source: 'route',    target: 'upstream', ...edgeStyle('route'),
+      label: 'forward', labelStyle: { fill: '#4b5563', fontSize: 10 }, labelBgStyle: { fill: '#0c0e14', fillOpacity: 0.8 } },
+    { id: 'e-upstream-response', source: 'upstream', target: 'response', ...edgeStyle('post') },
+  ]
+
+  return { nodes, edges }
+}
+
+// ─── Execution order inference ────────────────────────────────────────────────
+/**
+ * Infer the filter execution order and phase from graph topology.
+ *
+ * Phase determination:
+ *  - A filter node placed between 'client'…'route' (or connected before 'route')
+ *    → PRE (runs before upstream)
+ *  - A filter node placed between 'upstream'…'response' (or connected after 'upstream')
+ *    → POST (runs after upstream)
+ *  - Unconnected filter nodes fall back to position: left of upstream center → PRE, right → POST
+ *
+ * Execution order (within a phase) is derived from topological position (x-coordinate
+ * as a tiebreaker when graph is acyclic with known structure).
+ *
+ * Returns an array of { nodeId, filterId, phase, order } sorted by phase then order.
+ */
+export interface InferredFilterExecution {
+  nodeId: string
+  filterId: string
+  phase: 'PRE' | 'POST'
+  order: number
+}
+
+export function inferExecutionOrder(
+  nodes: Node[],
+  edges: Edge[],
+): InferredFilterExecution[] {
+  // Build adjacency (source → targets)
+  const adj: Record<string, string[]> = {}
+  edges.forEach(e => { (adj[e.source] ??= []).push(e.target) })
+
+  // BFS from 'client' — track traversal order
+  const visitOrder: Record<string, number> = {}
+  const queue: string[] = ['client']
+  let order = 0
+  const visited = new Set<string>()
+  while (queue.length) {
+    const cur = queue.shift()!
+    if (visited.has(cur)) continue
+    visited.add(cur)
+    visitOrder[cur] = order++
+    ;(adj[cur] ?? []).forEach(t => queue.push(t))
+  }
+
+  const filterNodes = nodes.filter(n => n.type === 'filterNode')
+  const upstreamOrder = visitOrder['upstream'] ?? Infinity
+
+  const result: InferredFilterExecution[] = filterNodes.map((n, i) => {
+    const nodeVisitOrder = visitOrder[n.id] ?? i
+    const phase: 'PRE' | 'POST' = nodeVisitOrder < upstreamOrder ? 'PRE' : 'POST'
+    return {
+      nodeId: n.id,
+      filterId: (n.data as { filter: { filterId: string } }).filter.filterId,
+      phase,
+      order: nodeVisitOrder,
+    }
+  })
+
+  // Sort: PRE first, then POST; within phase by visit order
+  result.sort((a, b) => {
+    if (a.phase !== b.phase) return a.phase === 'PRE' ? -1 : 1
+    return a.order - b.order
+  })
+
+  // Re-number order sequentially within each phase (0, 10, 20, …)
+  let preIdx = 0, postIdx = 0
+  return result.map(r => ({
+    ...r,
+    order: r.phase === 'PRE' ? (preIdx++) * 10 : (postIdx++) * 10,
+  }))
+}
+
 // ─── Flow completeness validator ──────────────────────────────────────────────
 
 export function isFlowComplete(nodes: Node[], edges: Edge[]): boolean {
@@ -206,4 +336,3 @@ export function isFlowComplete(nodes: Node[], edges: Edge[]): boolean {
   }
   return visited.has('response')
 }
-

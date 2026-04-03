@@ -10,10 +10,12 @@
  *  - Uses the same glass-dark aesthetic as the rest of the builder
  *  - Each "section" is a labelled field group with clear separation
  *  - Validation errors surface inline, not as toast (allows fixing in-place)
+ *
+ * Filter nodes: phase and order are ALWAYS computed from the graph (read-only).
  */
 import { useState, useEffect } from 'react'
 import type { Node } from '@xyflow/react'
-import { X, Save, RefreshCw, Globe, Server, Shield, Filter } from 'lucide-react'
+import { X, Save, RefreshCw, Globe, Server, Shield, Filter, Trash2, Info, Lock } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cn, extractApiError } from '../../../lib/utils'
@@ -22,6 +24,7 @@ import { useWorkflowStore } from '../store/workflowStore'
 import type { RouteDto } from '../../../types'
 import { STATUS_CFG, getFilterMeta } from '../constants/nodeMetadata'
 import type { RouteNodeData, UpstreamNodeData, FilterNodeData } from '../hooks/buildGraph'
+import { inferExecutionOrder } from '../hooks/buildGraph'
 
 interface PropertiesDrawerProps {
   route: RouteDto
@@ -43,10 +46,11 @@ const METHOD_STYLE: Record<string, string> = {
 
 export default function PropertiesDrawer({ route }: PropertiesDrawerProps) {
   const qc = useQueryClient()
-  const { selectedNodeId, nodes, selectNode } = useWorkflowStore()
+  const { selectedNodeId, nodes, edges, selectNode, routeStatus } = useWorkflowStore()
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId)
   const isOpen = !!selectedNodeId && !!selectedNode
+  const isLocked = routeStatus === 'ACTIVE'
 
   // Close on Escape
   useEffect(() => {
@@ -60,11 +64,6 @@ export default function PropertiesDrawer({ route }: PropertiesDrawerProps) {
   }
 
   return (
-    /*
-     * Absolutely positioned within the canvas wrapper — overlays the right
-     * portion of the canvas without affecting the overall layout flex.
-     * The translate transition provides a smooth slide-in.
-     */
     <div
       className={cn(
         'absolute top-0 right-0 h-full w-80 flex flex-col z-20',
@@ -82,17 +81,32 @@ export default function PropertiesDrawer({ route }: PropertiesDrawerProps) {
             <div className="text-sm font-bold text-white leading-tight">{nodeTitle(selectedNode)}</div>
           </div>
         </div>
-        <button
-          onClick={() => selectNode(null)}
-          className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          {isLocked && (
+            <span className="flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-1.5 py-0.5 rounded-full">
+              <Lock className="w-2.5 h-2.5" /> Read-only
+            </span>
+          )}
+          <button
+            onClick={() => selectNode(null)}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        <NodePropertiesBody route={route} node={selectedNode as Node} onClose={() => selectNode(null)} qc={qc} />
+        <NodePropertiesBody
+          route={route}
+          node={selectedNode as Node}
+          nodes={nodes}
+          edges={edges}
+          onClose={() => selectNode(null)}
+          qc={qc}
+          isLocked={isLocked}
+        />
       </div>
     </div>
   )
@@ -103,22 +117,28 @@ export default function PropertiesDrawer({ route }: PropertiesDrawerProps) {
 function NodePropertiesBody({
   route,
   node,
+  nodes,
+  edges,
   onClose,
   qc,
+  isLocked,
 }: {
   route: RouteDto
   node: Node
+  nodes: Node[]
+  edges: import('@xyflow/react').Edge[]
   onClose: () => void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   qc: any
+  isLocked: boolean
 }) {
   switch (node.type) {
     case 'routeNode':
-      return <RouteNodeProps route={route} data={node.data as RouteNodeData} onClose={onClose} qc={qc} />
+      return <RouteNodeProps route={route} data={node.data as RouteNodeData} onClose={onClose} qc={qc} isLocked={isLocked} />
     case 'upstreamNode':
-      return <UpstreamNodeProps route={route} data={node.data as UpstreamNodeData} onClose={onClose} qc={qc} />
+      return <UpstreamNodeProps route={route} data={node.data as UpstreamNodeData} onClose={onClose} qc={qc} isLocked={isLocked} />
     case 'filterNode':
-      return <FilterNodeProps route={route} data={node.data as FilterNodeData} onClose={onClose} qc={qc} />
+      return <FilterNodeProps route={route} node={node} nodes={nodes} edges={edges} data={node.data as FilterNodeData} onClose={onClose} qc={qc} isLocked={isLocked} />
     case 'clientNode':
       return <ReadOnlyPanel title="Client" description="Represents the incoming HTTP client request. No configuration required." />
     case 'responseNode':
@@ -135,12 +155,14 @@ function RouteNodeProps({
   data,
   onClose,
   qc,
+  isLocked,
 }: {
   route: RouteDto
   data: RouteNodeData
   onClose: () => void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   qc: any
+  isLocked: boolean
 }) {
   const sc = STATUS_CFG[data.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.DRAFT
 
@@ -172,9 +194,12 @@ function RouteNodeProps({
 
   return (
     <form
-      onSubmit={(e) => { e.preventDefault(); mutation.mutate() }}
+      onSubmit={(e) => { e.preventDefault(); if (!isLocked) mutation.mutate() }}
       className="p-4 space-y-5"
     >
+      {/* Lock notice */}
+      {isLocked && <LockedNotice />}
+
       {/* Status badge */}
       <div className={cn('flex items-center gap-1.5 text-xs font-semibold', sc.color)}>
         {sc.icon} {data.status}
@@ -185,9 +210,10 @@ function RouteNodeProps({
         <input
           value={name}
           onChange={e => setName(e.target.value)}
-          className={inputClass}
+          className={cn(inputClass, isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="e.g. User Auth Route"
           required
+          disabled={isLocked}
         />
       </Field>
 
@@ -195,9 +221,10 @@ function RouteNodeProps({
         <input
           value={pathPattern}
           onChange={e => setPathPattern(e.target.value)}
-          className={cn(inputClass, 'font-mono text-indigo-300')}
+          className={cn(inputClass, 'font-mono text-indigo-300', isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="/api/v1/**"
           required
+          disabled={isLocked}
         />
       </Field>
 
@@ -207,12 +234,14 @@ function RouteNodeProps({
             <button
               key={m}
               type="button"
-              onClick={() => toggleMethod(m)}
+              onClick={() => !isLocked && toggleMethod(m)}
+              disabled={isLocked}
               className={cn(
                 'text-[10px] px-2 py-1 rounded-lg font-mono font-bold border transition-all',
                 methods.includes(m)
                   ? METHOD_STYLE[m]
                   : 'border-white/[0.08] text-gray-600 hover:text-gray-400',
+                isLocked && 'cursor-not-allowed opacity-50',
               )}
             >
               {m}
@@ -229,12 +258,13 @@ function RouteNodeProps({
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={3}
-          className={cn(inputClass, 'resize-none')}
+          className={cn(inputClass, 'resize-none', isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="Optional route description"
+          disabled={isLocked}
         />
       </Field>
 
-      <SaveButton loading={mutation.isPending} disabled={methods.length === 0} />
+      <SaveButton loading={mutation.isPending} disabled={methods.length === 0 || isLocked} />
     </form>
   )
 }
@@ -246,12 +276,14 @@ function UpstreamNodeProps({
   data,
   onClose,
   qc,
+  isLocked,
 }: {
   route: RouteDto
   data: UpstreamNodeData
   onClose: () => void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   qc: any
+  isLocked: boolean
 }) {
   const [upstreamUri, setUpstreamUri] = useState(data.uri)
   const [stripPrefix, setStripPrefix] = useState(data.stripPrefix ?? '')
@@ -271,14 +303,17 @@ function UpstreamNodeProps({
   })
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); mutation.mutate() }} className="p-4 space-y-5">
+    <form onSubmit={(e) => { e.preventDefault(); if (!isLocked) mutation.mutate() }} className="p-4 space-y-5">
+      {isLocked && <LockedNotice />}
+
       <Field label="Upstream URI">
         <input
           value={upstreamUri}
           onChange={e => setUpstreamUri(e.target.value)}
-          className={cn(inputClass, 'font-mono text-emerald-300')}
+          className={cn(inputClass, 'font-mono text-emerald-300', isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="http://service:8080 or lb://service-name"
           required
+          disabled={isLocked}
         />
         <p className="text-[10px] text-gray-600 mt-1">
           Use <code className="text-gray-400">lb://service-name</code> for service-discovery load balancing.
@@ -289,15 +324,16 @@ function UpstreamNodeProps({
         <input
           value={stripPrefix}
           onChange={e => setStripPrefix(e.target.value)}
-          className={cn(inputClass, 'font-mono')}
+          className={cn(inputClass, 'font-mono', isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="/api/v1 (optional)"
+          disabled={isLocked}
         />
         <p className="text-[10px] text-gray-600 mt-1">
           Path prefix stripped before forwarding to upstream.
         </p>
       </Field>
 
-      <SaveButton loading={mutation.isPending} />
+      <SaveButton loading={mutation.isPending} disabled={isLocked} />
     </form>
   )
 }
@@ -306,19 +342,31 @@ function UpstreamNodeProps({
 
 function FilterNodeProps({
   route,
+  node,
+  nodes,
+  edges,
   data,
   onClose,
   qc,
+  isLocked,
 }: {
   route: RouteDto
+  node: Node
+  nodes: Node[]
+  edges: import('@xyflow/react').Edge[]
   data: FilterNodeData
   onClose: () => void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   qc: any
+  isLocked: boolean
 }) {
   const meta = getFilterMeta(data.filter.filterType)
-  const [phase, setPhase] = useState<'PRE' | 'POST'>(data.phase)
-  const [order, setOrder] = useState(data.filter.order)
+
+  // ── Compute phase and order from graph topology (never from manual input) ──
+  const inferred = inferExecutionOrder(nodes, edges)
+  const entry = inferred.find(e => e.nodeId === node.id)
+  const computedPhase = entry?.phase ?? 'PRE'
+  const computedOrder = entry?.order ?? 0
 
   const detachMutation = useMutation({
     mutationFn: () => routesApi.detachFilter(route.id, data.filter.filterId),
@@ -332,6 +380,8 @@ function FilterNodeProps({
 
   return (
     <div className="p-4 space-y-5">
+      {isLocked && <LockedNotice />}
+
       {/* Filter identity */}
       <div className={cn('flex items-center gap-3 p-3 rounded-xl border', meta.border, meta.bg)}>
         <span className={meta.color}>{meta.icon}</span>
@@ -343,57 +393,71 @@ function FilterNodeProps({
         </div>
       </div>
 
-      {/* Phase picker */}
-      <Field label="Phase">
-        <div className="flex gap-2">
-          {(['PRE', 'POST'] as const).map(p => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPhase(p)}
-              className={cn(
-                'flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all',
-                phase === p
-                  ? p === 'PRE'
-                    ? 'bg-blue-600/70 border-blue-500/40 text-white'
-                    : 'bg-purple-600/70 border-purple-500/40 text-white'
-                  : 'border-white/[0.08] text-gray-500 hover:text-gray-300',
-              )}
-            >
-              {p === 'PRE' ? '↑ PRE — before upstream' : '↓ POST — after upstream'}
-            </button>
-          ))}
+      {/* Computed phase — read-only */}
+      <Field label="Phase (auto-computed)">
+        <div className={cn(
+          'flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold',
+          computedPhase === 'PRE'
+            ? 'bg-blue-500/10 border-blue-500/20 text-blue-300'
+            : 'bg-purple-500/10 border-purple-500/20 text-purple-300',
+        )}>
+          <Info className="w-3.5 h-3.5 shrink-0" />
+          {computedPhase === 'PRE' ? '↑ PRE — before upstream' : '↓ POST — after upstream'}
         </div>
+        <p className="text-[10px] text-gray-600 mt-1">
+          Determined by graph position: nodes before Route → PRE, nodes after Upstream → POST.
+        </p>
       </Field>
 
-      {/* Order */}
-      <Field label="Execution Order">
-        <input
-          type="number"
-          min={0}
-          value={order}
-          onChange={e => setOrder(Number(e.target.value))}
-          className={cn(inputClass, 'font-mono')}
-        />
-        <p className="text-[10px] text-gray-600 mt-1">Lower numbers execute first within the same phase.</p>
+      {/* Computed execution order — read-only */}
+      <Field label="Execution Order (auto-computed)">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-xs font-mono text-gray-300">
+          <Info className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+          {computedOrder}
+        </div>
+        <p className="text-[10px] text-gray-600 mt-1">
+          Derived from node connection order. Lower = runs first within the same phase.
+        </p>
       </Field>
 
-      {/* Actions */}
+      {/* Detach action — disabled when locked */}
       <div className="space-y-2 pt-1">
         <button
           type="button"
-          onClick={() => detachMutation.mutate()}
-          disabled={detachMutation.isPending}
-          className="w-full py-2 rounded-lg text-xs font-semibold text-red-400 bg-red-400/10 border border-red-400/20 hover:bg-red-400/20 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+          onClick={() => { if (!isLocked) detachMutation.mutate() }}
+          disabled={detachMutation.isPending || isLocked}
+          className={cn(
+            'w-full py-2 rounded-lg text-xs font-semibold border transition-colors flex items-center justify-center gap-1.5',
+            isLocked
+              ? 'text-gray-600 bg-transparent border-white/[0.06] cursor-not-allowed opacity-50'
+              : 'text-red-400 bg-red-400/10 border-red-400/20 hover:bg-red-400/20 disabled:opacity-50',
+          )}
+          title={isLocked ? 'Pause the route to detach filters' : 'Detach this filter from the route'}
         >
-          {detachMutation.isPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
-          Detach Filter from Route
+          {detachMutation.isPending
+            ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            : <Trash2 className="w-3.5 h-3.5" />
+          }
+          {isLocked ? 'Detach (paused routes only)' : 'Detach Filter from Route'}
         </button>
       </div>
 
-      {/* Note: Phase/Order editing requires re-attaching via the API. */}
       <p className="text-[10px] text-gray-700 leading-relaxed">
-        To change phase or order, detach and re-attach the filter via the Add Filter panel on the canvas.
+        Phase and execution order are automatically derived from canvas connections.
+        Reposition the node in the flow to change its phase or order.
+      </p>
+    </div>
+  )
+}
+
+// ─── Lock notice ───────────────────────────────────────────────────────────────
+
+function LockedNotice() {
+  return (
+    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/20">
+      <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-px" />
+      <p className="text-[10px] text-emerald-300 leading-relaxed">
+        This route is active. Pause it to edit properties or detach filters.
       </p>
     </div>
   )
