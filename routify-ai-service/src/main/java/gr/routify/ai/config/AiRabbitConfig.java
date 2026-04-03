@@ -58,7 +58,7 @@ public class AiRabbitConfig {
                 .build();
     }
 
-    // ─── Queue ────────────────────────────────────────────────────────────────
+    // ─── Queues ───────────────────────────────────────────────────────────────
 
     /**
      * Durable queue for AI filter evaluation requests from the gateway.
@@ -79,7 +79,21 @@ public class AiRabbitConfig {
                 .build();
     }
 
-    // ─── Binding ──────────────────────────────────────────────────────────────
+    /**
+     * Durable queue for AI modifier evaluation requests from the gateway.
+     *
+     * <p>Mirrors the filter queue in design — durable, single queue, competing
+     * consumers across replicas. The gateway sends mutation requests here and
+     * receives the verdict via Direct Reply-To.
+     */
+    @Bean
+    public Queue aiModifierEvaluateQueue() {
+        return QueueBuilder
+                .durable(RabbitTopology.QUEUE_AI_MODIFIER_EVALUATE)
+                .build();
+    }
+
+    // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
     public Binding aiFilterEvaluateBinding(Queue aiFilterEvaluateQueue,
@@ -88,6 +102,15 @@ public class AiRabbitConfig {
                 .bind(aiFilterEvaluateQueue)
                 .to(aiServiceExchange)
                 .with(RabbitTopology.RK_AI_FILTER_EVALUATE);
+    }
+
+    @Bean
+    public Binding aiModifierEvaluateBinding(Queue aiModifierEvaluateQueue,
+                                             DirectExchange aiServiceExchange) {
+        return BindingBuilder
+                .bind(aiModifierEvaluateQueue)
+                .to(aiServiceExchange)
+                .with(RabbitTopology.RK_AI_MODIFIER_EVALUATE);
     }
 
     // ─── Message converter & template ─────────────────────────────────────────

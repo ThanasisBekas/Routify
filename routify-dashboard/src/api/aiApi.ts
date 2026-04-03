@@ -10,7 +10,7 @@ import type {
   Page,
 } from '../types'
 
-const AI_BASE = '/api/v1/ai'
+const AI_BASE = '/api/v1/admin/ai'
 
 export const aiApi = {
   // ─── AI Filter (evaluation/test) ──────────────────────────────────────────

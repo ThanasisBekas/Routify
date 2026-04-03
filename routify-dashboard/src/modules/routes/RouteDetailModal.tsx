@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { X, Play, Pause, Zap, Terminal, Pencil, Network, List, RefreshCw } from 'lucide-react'
 import { routesApi } from '../../api/routesApi'
 import { cn } from '../../lib/utils'
@@ -11,6 +12,7 @@ import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
 export default function RouteDetailModal({ routeId, onClose }: { routeId: string; onClose: () => void }) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [view, setView]           = useState<'flow' | 'config'>('flow')
   const [curlOpen, setCurlOpen]   = useState(false)
   const [editOpen, setEditOpen]   = useState(false)
@@ -72,6 +74,14 @@ export default function RouteDetailModal({ routeId, onClose }: { routeId: string
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all"
                 >
                   <Pencil className="w-3 h-3" /> Edit
+                </button>
+
+                {/* Open full Workflow Builder */}
+                <button
+                  onClick={() => { onClose(); navigate(`/routes/${routeId}/builder`) }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-violet-300 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 transition-all"
+                >
+                  <Network className="w-3 h-3" /> Builder
                 </button>
 
                 <button
