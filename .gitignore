@@ -34,7 +34,6 @@ target/
 # ========================
 node_modules/
 dist/
-package-lock.json
 dist-ssr/
 *.local
 .vite/
