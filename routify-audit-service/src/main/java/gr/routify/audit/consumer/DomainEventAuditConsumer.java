@@ -96,6 +96,7 @@ public class DomainEventAuditConsumer {
             case DomainEvent.CertRotated ignored           -> "CERT_ROTATED";
             case DomainEvent.GatewayReloadRequested ignored -> "GATEWAY_RELOAD_REQUESTED";
             case DomainEvent.GatewayConfigChanged ignored  -> "GATEWAY_CONFIG_CHANGED";
+            default -> throw new IllegalStateException("Unexpected value: " + event);
         };
     }
 
@@ -121,6 +122,7 @@ public class DomainEventAuditConsumer {
             case DomainEvent.CertRotated ignored           -> "CERTIFICATE";
             case DomainEvent.GatewayReloadRequested ignored -> "GATEWAY";
             case DomainEvent.GatewayConfigChanged ignored  -> "GATEWAY";
+            default -> throw new IllegalStateException("Unexpected value: " + event);
         };
     }
 
@@ -146,6 +148,7 @@ public class DomainEventAuditConsumer {
             case DomainEvent.CertRotated c                -> c.routeId().toString();
             case DomainEvent.GatewayReloadRequested g     -> g.tenantId().toString();
             case DomainEvent.GatewayConfigChanged g       -> g.tenantId().toString();
+            default -> throw new IllegalStateException("Unexpected value: " + event);
         };
     }
 }
