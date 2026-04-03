@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,16 +19,25 @@ import java.util.concurrent.Executor;
 /**
  * Core AI service configuration.
  *
- * <h3>Provider: Ollama (local inference)</h3>
- * Spring AI auto-configures an {@code OllamaChatModel} bean based on
- * {@code spring.ai.ollama.*} properties. We build a {@link ChatClient} from it
+ * <h3>Provider: OpenAI (Chat Completions API)</h3>
+ * Spring AI auto-configures an {@code OpenAiChatModel} bean based on
+ * {@code spring.ai.openai.*} properties. We build a {@link ChatClient} from it
  * with shared defaults so every call inherits them without repetition.
  *
- * <h3>Switching back to a cloud provider</h3>
- * Swap {@code spring-ai-starter-model-ollama} for {@code spring-ai-starter-model-openai}
- * in {@code pom.xml} and restore the {@code spring.ai.openai} block in
- * {@code application.yml}. This class requires NO modification — {@link ChatModel}
- * is injected by Spring AI regardless of provider.
+ * <h3>JSON output enforcement (dual layer)</h3>
+ * <ol>
+ *   <li><b>System prompt</b> — instructs the model to respond with ONLY a valid JSON object.</li>
+ *   <li><b>OpenAI response_format</b> — {@code {"type": "json_object"}} set via
+ *       {@link OpenAiChatOptions#getResponseFormat()} enforces JSON output at the API level,
+ *       preventing markdown code fences and prose preambles entirely.</li>
+ * </ol>
+ * This dual enforcement is the most reliable approach for structured output with GPT models.
+ *
+ * <h3>Switching back to a local provider</h3>
+ * Swap {@code spring-ai-starter-model-openai} for {@code spring-ai-starter-model-ollama}
+ * in {@code pom.xml} and restore the {@code spring.ai.ollama} block in
+ * {@code application.yml}. Remove the {@link OpenAiChatOptions} import and replace the
+ * options builder below with {@code ChatOptions.builder()}. No other Java changes required.
  *
  * <h3>Async executor</h3>
  * A named {@code aiFilterExecutor} thread pool handles:
@@ -34,9 +45,8 @@ import java.util.concurrent.Executor;
  *   <li>ASYNC evaluation mode (fire-and-forget from gateway)</li>
  *   <li>Kafka telemetry publishing (non-blocking)</li>
  * </ul>
- * Pool size is tuned for local Ollama — I/O-bound but Ollama serialises
- * concurrent requests on CPU, so a smaller pool (default 16) avoids
- * thundering-herd pressure on the inference server.
+ * Pool size is tuned for OpenAI's network-I/O-bound workload. Threads mostly block on
+ * HTTP; a larger pool (default 16) maximises throughput within OpenAI rate limits.
  */
 @Configuration
 @EnableAsync
@@ -49,22 +59,33 @@ public class AiServiceConfig {
     private int asyncQueueCapacity;
 
     /**
-     * Builds the provider-agnostic {@link ChatClient} with shared defaults.
+     * Builds the provider-agnostic {@link ChatClient} with shared OpenAI defaults.
      *
-     * <p>For Ollama, we use {@link org.springframework.ai.ollama.api.OllamaOptions}
-     * to set {@code numPredict} (Ollama's token-limit field) and {@code seed} for
-     * maximum determinism. These are ignored by non-Ollama providers.
+     * <p>We use {@link OpenAiChatOptions} (instead of the generic {@code ChatOptions})
+     * to set {@code responseFormat} to {@code JSON_OBJECT}. This instructs the OpenAI
+     * API to guarantee that the model's output is a valid JSON object — eliminating
+     * markdown code fences and prose that can trip up our JSON parser.
+     *
+     * <p><b>OpenAI requirement:</b> when {@code response_format.type = json_object} is set,
+     * the word "json" must appear somewhere in the system or user prompt. Our system prompt
+     * already satisfies this requirement.
      *
      * <p>Per-call overrides in {@link gr.routify.ai.service.AiFilterEvaluationService}
-     * only set provider-agnostic fields (temperature); Ollama-specific options come from
-     * the application.yml via Spring AI's auto-configuration.
+     * only set provider-agnostic fields (temperature, maxTokens); the response format is
+     * enforced at the bean level here so it applies to every call automatically.
      */
     @Bean
     public ChatClient chatClient(ChatModel chatModel) {
         return ChatClient.builder(chatModel)
-                .defaultOptions(org.springframework.ai.chat.prompt.ChatOptions.builder()
-                        .temperature(0.0)   // mandatory for cache determinism
-                        .maxTokens(256)     // maps to num_predict in Ollama wire format
+                // Use OpenAiChatOptions for the JSON response format enforcement.
+                // temperature(0.0) is MANDATORY for deterministic, cacheable verdicts.
+                // maxTokens(256) caps response length — model only needs a small JSON object.
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .temperature(0.0)
+                        .maxTokens(256)
+                        // JSON_OBJECT mode: OpenAI guarantees valid JSON output.
+                        // Eliminates markdown fences and prose; simplifies parsing.
+                        .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_OBJECT, null))
                         .build())
                 .build();
     }
@@ -83,10 +104,10 @@ public class AiServiceConfig {
     /**
      * Dedicated thread pool for async AI evaluation and Kafka publishing.
      *
-     * <p>Sizing for local Ollama:
+     * <p>Sizing for OpenAI (network I/O bound):
      * <ul>
-     *   <li>CPU-only: keep pool ≤ 4–8; Ollama serialises requests anyway</li>
-     *   <li>GPU: pool = number_of_GPUs × 4 for parallel batch throughput</li>
+     *   <li>Threads mostly block on HTTP; a pool of 16 maximises concurrency within rate limits</li>
+     *   <li>Each thread can serve ~3–5 req/s (OpenAI gpt-4o-mini p50 ~300ms)</li>
      *   <li>{@link java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy} ensures
      *       the caller blocks rather than dropping requests when the queue is full</li>
      * </ul>
