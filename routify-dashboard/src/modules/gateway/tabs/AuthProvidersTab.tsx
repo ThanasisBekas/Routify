@@ -6,28 +6,12 @@
  */
 import { useState } from 'react'
 import { Lock, Plus, Edit, Trash2, X, Eye, EyeOff, Key } from 'lucide-react'
-import type { GatewayAuthProvider, FilterSummary } from '../../../types'
+import type { GatewayAuthProvider } from '../../../types'
 import {
-  SectionHeader, ToggleRow, Field, EmptyState, LinkedBadge,
+  SectionHeader, ToggleRow, Field, EmptyState,
   inputCls, monoInputCls,
 } from '../components/GatewayPrimitives'
 import { Select } from '../../../components/ui/Select'
-import { filtersApi } from '../../../api/filtersApi'
-import { useRealtimeQuery } from '../../../hooks/useRealtimeQuery'
-
-// ─── Linked filter counts ─────────────────────────────────────────────────────
-
-function useLinkedFilterCounts() {
-  const { data } = useRealtimeQuery({
-    queryKey: ['filters'],
-    queryFn: () => filtersApi.list({ page: 0, size: 200 }),
-    wsEvents: ['filter'],
-  })
-  const filters: FilterSummary[] = (data as { content: FilterSummary[] } | undefined)?.content ?? []
-  const countForRef = (id: string) => filters.filter(f => f.gatewayConfigRef?.refId === id).length
-  const namesForRef = (id: string) => filters.filter(f => f.gatewayConfigRef?.refId === id).map(f => f.name)
-  return { countForRef, namesForRef }
-}
 
 // ─── Provider type styles ─────────────────────────────────────────────────────
 
@@ -302,7 +286,6 @@ interface Props {
 
 export default function AuthProvidersTab({ initial, onUpsert, onDelete, isPending }: Props) {
   const [editing, setEditing] = useState<{ provider: GatewayAuthProvider; isNew: boolean } | null>(null)
-  const { countForRef, namesForRef } = useLinkedFilterCounts()
 
   const newProvider = (): GatewayAuthProvider => ({
     id: `ap-${Date.now()}`,
@@ -344,8 +327,6 @@ export default function AuthProvidersTab({ initial, onUpsert, onDelete, isPendin
       ) : (
         <div className="space-y-3">
           {initial.map(p => {
-            const linked = countForRef(p.id)
-            const names  = namesForRef(p.id)
             return (
               <div
                 key={p.id}
@@ -361,7 +342,6 @@ export default function AuthProvidersTab({ initial, onUpsert, onDelete, isPendin
                         <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium border ${TYPE_COLORS[p.type] ?? 'text-gray-400 bg-white/5 border-white/10'}`}>
                           {TYPE_LABELS[p.type] ?? p.type}
                         </span>
-                        <LinkedBadge count={linked} names={names} />
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5 font-mono truncate">
                         {p.jwksUri ?? p.uri ?? (p.username ? `user: ${p.username}` : '—')}
@@ -378,7 +358,7 @@ export default function AuthProvidersTab({ initial, onUpsert, onDelete, isPendin
                     </button>
                     <button
                       onClick={() => {
-                        if (linked > 0 && !confirm(`This provider is used by ${linked} filter(s). Delete anyway?`)) return
+                        if (!confirm(`Delete provider "${p.name}"?`)) return
                         onDelete(p.id)
                       }}
                       className="p-1.5 text-red-400/70 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"

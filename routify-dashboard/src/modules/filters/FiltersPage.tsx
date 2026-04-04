@@ -9,7 +9,7 @@
  */
 import { useState, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Filter, Plus, Search, Pencil, Trash2, Loader2, Link, ChevronRight, Layers } from 'lucide-react'
+import { Filter, Plus, Search, Pencil, Trash2, Loader2, ChevronRight, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 import { filtersApi } from '../../api/filtersApi'
 import FilterDefinitionForm from './FilterDefinitionForm'
@@ -30,14 +30,12 @@ function StatsBar({ filters }: { filters: FilterSummary[] }) {
   const total    = filters.length
   const active   = filters.filter(f => f.enabled).length
   const inUse    = filters.filter(f => f.usageCount > 0).length
-  const withRef  = filters.filter(f => f.gatewayConfigRef).length
   const cats     = new Set(filters.map(f => getFilterEntry(f.filterType)?.category ?? 'Other')).size
 
   const stats = [
     { label: 'Total',          value: total,   color: 'text-white' },
     { label: 'Active',         value: active,  color: 'text-emerald-400' },
     { label: 'In Use',         value: inUse,   color: 'text-indigo-400' },
-    { label: 'Gateway Linked', value: withRef, color: 'text-blue-400' },
     { label: 'Categories',     value: cats,    color: 'text-gray-400' },
   ]
 
@@ -206,17 +204,7 @@ function FilterCard({
       </div>
 
       {/* Footer */}
-      <div className="mt-auto flex items-center justify-between gap-2 px-4 py-2.5 border-t border-white/[0.05]">
-        {/* Gateway config ref */}
-        {filter.gatewayConfigRef ? (
-          <span className="flex items-center gap-1 text-[10px] text-indigo-400 truncate">
-            <Link className="w-3 h-3 shrink-0" />
-            <span className="truncate max-w-[130px]">{filter.gatewayConfigRef.refName ?? filter.gatewayConfigRef.refId}</span>
-          </span>
-        ) : (
-          <span className="text-[10px] text-gray-700">No gateway link</span>
-        )}
-
+      <div className="mt-auto flex items-center justify-end gap-2 px-4 py-2.5 border-t border-white/[0.05]">
         {/* Usage count */}
         <span className={cn(
           'flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border shrink-0',

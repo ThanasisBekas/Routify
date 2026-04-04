@@ -358,26 +358,3 @@ export function StatTile({
   )
 }
 
-// ─── Linked filter count badge ────────────────────────────────────────────────
-
-import { Link } from 'lucide-react'
-
-export function LinkedBadge({
-  count,
-  names,
-}: {
-  count: number
-  names: string[]
-}) {
-  if (count === 0) return null
-  return (
-    <span
-      title={`Used by: ${names.join(', ')}`}
-      className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 whitespace-nowrap"
-    >
-      <Link className="w-2.5 h-2.5" />
-      {count} filter{count !== 1 ? 's' : ''}
-    </span>
-  )
-}
-

@@ -1,33 +1,17 @@
 /**
  * RateLimitTab — Global rate limit policy management.
  *
- * Redesigned with richer policy cards (algorithm chip, key-resolver badge,
- * linked-filter count), an extracted modal component, and an empty state.
+ * Redesigned with richer policy cards (algorithm chip, key-resolver badge),
+ * an extracted modal component, and an empty state.
  */
 import { useState } from 'react'
 import { Gauge, Plus, Edit, Trash2, X } from 'lucide-react'
-import type { GatewayRateLimitPolicy, FilterSummary } from '../../../types'
+import type { GatewayRateLimitPolicy } from '../../../types'
 import {
   SectionHeader, ToggleRow, Field, SaveBar, EmptyState,
-  LinkedBadge, inputCls, textareaCls,
+  inputCls, textareaCls,
 } from '../components/GatewayPrimitives'
 import { Select } from '../../../components/ui/Select'
-import { filtersApi } from '../../../api/filtersApi'
-import { useRealtimeQuery } from '../../../hooks/useRealtimeQuery'
-
-// ─── Hook: linked filter counts ───────────────────────────────────────────────
-
-function useLinkedFilterCounts() {
-  const { data } = useRealtimeQuery({
-    queryKey: ['filters'],
-    queryFn: () => filtersApi.list({ page: 0, size: 200 }),
-    wsEvents: ['filter'],
-  })
-  const filters: FilterSummary[] = (data as { content: FilterSummary[] } | undefined)?.content ?? []
-  const countForRef = (refId: string) => filters.filter(f => f.gatewayConfigRef?.refId === refId).length
-  const namesForRef = (refId: string) => filters.filter(f => f.gatewayConfigRef?.refId === refId).map(f => f.name)
-  return { countForRef, namesForRef }
-}
 
 // ─── Algorithm / key-resolver badges ─────────────────────────────────────────
 
@@ -212,7 +196,6 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
   const [policies, setPolicies] = useState<GatewayRateLimitPolicy[]>(initial)
   const [editing, setEditing] = useState<{ policy: GatewayRateLimitPolicy; isNew: boolean } | null>(null)
   const dirty = JSON.stringify(policies) !== JSON.stringify(initial)
-  const { countForRef, namesForRef } = useLinkedFilterCounts()
 
   const savePolicy = (p: GatewayRateLimitPolicy) => {
     setPolicies(prev => {
@@ -269,8 +252,6 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
       ) : (
         <div className="space-y-3">
           {policies.map(p => {
-            const linked = countForRef(p.id)
-            const names  = namesForRef(p.id)
             return (
               <div
                 key={p.id}
@@ -291,7 +272,6 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
                         <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium border ${KEY_COLORS[p.keyResolver] ?? 'text-gray-400 bg-white/5 border-white/10'}`}>
                           {p.keyResolver}
                         </span>
-                        <LinkedBadge count={linked} names={names} />
                       </div>
                       <div className="text-xs text-gray-500 mt-1 font-mono">
                         {p.replenishRate} req/s · burst {p.burstCapacity}
@@ -313,7 +293,7 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
                     </button>
                     <button
                       onClick={() => {
-                        if (linked > 0 && !confirm(`This policy is used by ${linked} filter(s). Delete anyway?`)) return
+                        if (!confirm(`Delete policy "${p.name || '(unnamed)'}"?`)) return
                         setPolicies(prev => prev.filter(x => x.id !== p.id))
                       }}
                       className="p-1.5 text-red-400/70 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
