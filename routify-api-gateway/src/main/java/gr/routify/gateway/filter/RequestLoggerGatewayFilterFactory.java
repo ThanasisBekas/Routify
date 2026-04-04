@@ -120,65 +120,75 @@ public class RequestLoggerGatewayFilterFactory
                     ? config.getMaxBodyLogSize() : DEFAULT_MAX_BODY_BYTES;
 
             // ── Optionally capture request body ──────────────────────────────
+            // Body is read eagerly and cached on the exchange so it is available
+            // even when a downstream filter (e.g. auth) short-circuits before
+            // consuming the body stream. The cached bytes are re-wrapped into a
+            // new DataBuffer so the upstream still receives the full payload.
             if (config.isLogRequestBody()) {
                 AtomicReference<String> capturedReqBody = new AtomicReference<>();
 
-                ServerHttpRequestDecorator decoratedRequest = new ServerHttpRequestDecorator(req) {
-                    @Override
-                    public Flux<DataBuffer> getBody() {
-                        return DataBufferUtils.join(super.getBody())
-                                .map(buf -> {
-                                    byte[] bytes = new byte[Math.min(buf.readableByteCount(), maxBodyBytes)];
-                                    buf.read(bytes);
-                                    DataBufferUtils.release(buf);
-                                    capturedReqBody.set(new String(bytes, StandardCharsets.UTF_8));
-                                    return exchange.getResponse().bufferFactory().wrap(bytes);
-                                })
-                                .flux();
-                    }
-                };
+                return DataBufferUtils.join(req.getBody())
+                        .defaultIfEmpty(exchange.getResponse().bufferFactory().wrap(new byte[0]))
+                        .flatMap(buf -> {
+                            byte[] bytes = new byte[Math.min(buf.readableByteCount(), maxBodyBytes)];
+                            buf.read(bytes);
+                            DataBufferUtils.release(buf);
+                            if (bytes.length > 0) {
+                                capturedReqBody.set(new String(bytes, StandardCharsets.UTF_8));
+                            }
 
-                // ── Optionally capture response body ──────────────────────────
-                if (config.isLogResponseBody()) {
-                    AtomicReference<String> capturedRespBody = new AtomicReference<>();
-                    ServerHttpResponse originalResponse = exchange.getResponse();
+                            // Re-wrap the bytes so downstream filters/upstream still get the body
+                            ServerHttpRequest mutatedReq = req.mutate()
+                                    .build();
+                            // Override getBody() to replay the captured bytes
+                            ServerHttpRequestDecorator decoratedRequest = new ServerHttpRequestDecorator(mutatedReq) {
+                                @Override
+                                public Flux<DataBuffer> getBody() {
+                                    return Flux.just(exchange.getResponse().bufferFactory().wrap(bytes));
+                                }
+                            };
 
-                    ServerHttpResponseDecorator decoratedResponse = new ServerHttpResponseDecorator(originalResponse) {
-                        @Override
-                        public Mono<Void> writeWith(org.reactivestreams.Publisher<? extends DataBuffer> body) {
-                            return DataBufferUtils.join(Flux.from(body))
-                                    .flatMap(buf -> {
-                                        byte[] bytes = new byte[Math.min(buf.readableByteCount(), maxBodyBytes)];
-                                        buf.read(bytes);
-                                        DataBufferUtils.release(buf);
-                                        capturedRespBody.set(new String(bytes, StandardCharsets.UTF_8));
-                                        DataBuffer newBuf = originalResponse.bufferFactory().wrap(bytes);
-                                        return super.writeWith(Mono.just(newBuf));
-                                    });
-                        }
-                    };
+                            if (config.isLogResponseBody()) {
+                                AtomicReference<String> capturedRespBody = new AtomicReference<>();
+                                ServerHttpResponse originalResponse = exchange.getResponse();
 
-                    ServerWebExchange mutatedExchange = exchange.mutate()
-                            .request(decoratedRequest).response(decoratedResponse).build();
+                                ServerHttpResponseDecorator decoratedResponse = new ServerHttpResponseDecorator(originalResponse) {
+                                    @Override
+                                    public Mono<Void> writeWith(org.reactivestreams.Publisher<? extends DataBuffer> body) {
+                                        return DataBufferUtils.join(Flux.from(body))
+                                                .flatMap(respBuf -> {
+                                                    byte[] respBytes = new byte[Math.min(respBuf.readableByteCount(), maxBodyBytes)];
+                                                    respBuf.read(respBytes);
+                                                    DataBufferUtils.release(respBuf);
+                                                    capturedRespBody.set(new String(respBytes, StandardCharsets.UTF_8));
+                                                    DataBuffer newBuf = originalResponse.bufferFactory().wrap(respBytes);
+                                                    return super.writeWith(Mono.just(newBuf));
+                                                });
+                                    }
+                                };
 
-                    return chain.filter(mutatedExchange).doOnEach(signal -> {
-                        long elapsedMs = (System.nanoTime() - startNano) / 1_000_000;
-                        if (SignalType.ON_COMPLETE.equals(signal.getType()) || SignalType.ON_ERROR.equals(signal.getType())) {
-                            handleSignal(signal, mutatedExchange, correlationId, elapsedMs,
-                                    requestedAt, capturedReqBody.get(), capturedRespBody.get());
-                        }
-                    });
-                }
+                                ServerWebExchange mutatedExchange = exchange.mutate()
+                                        .request(decoratedRequest).response(decoratedResponse).build();
 
-                // request body only, no response body
-                ServerWebExchange mutatedExchange = exchange.mutate().request(decoratedRequest).build();
-                return chain.filter(mutatedExchange).doOnEach(signal -> {
-                    long elapsedMs = (System.nanoTime() - startNano) / 1_000_000;
-                    if (SignalType.ON_COMPLETE.equals(signal.getType()) || SignalType.ON_ERROR.equals(signal.getType())) {
-                        handleSignal(signal, mutatedExchange, correlationId, elapsedMs,
-                                requestedAt, capturedReqBody.get(), null);
-                    }
-                });
+                                return chain.filter(mutatedExchange).doOnEach(signal -> {
+                                    long elapsedMs = (System.nanoTime() - startNano) / 1_000_000;
+                                    if (SignalType.ON_COMPLETE.equals(signal.getType()) || SignalType.ON_ERROR.equals(signal.getType())) {
+                                        handleSignal(signal, mutatedExchange, correlationId, elapsedMs,
+                                                requestedAt, capturedReqBody.get(), capturedRespBody.get());
+                                    }
+                                });
+                            }
+
+                            // request body only, no response body
+                            ServerWebExchange mutatedExchange = exchange.mutate().request(decoratedRequest).build();
+                            return chain.filter(mutatedExchange).doOnEach(signal -> {
+                                long elapsedMs = (System.nanoTime() - startNano) / 1_000_000;
+                                if (SignalType.ON_COMPLETE.equals(signal.getType()) || SignalType.ON_ERROR.equals(signal.getType())) {
+                                    handleSignal(signal, mutatedExchange, correlationId, elapsedMs,
+                                            requestedAt, capturedReqBody.get(), null);
+                                }
+                            });
+                        });
             }
 
             // ── No body capture — original path ──────────────────────────────
