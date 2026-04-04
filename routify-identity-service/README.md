@@ -4,66 +4,77 @@ Authentication and identity management service for the Routify platform.
 
 ## Responsibilities
 
-- **JWT issuance** — issues, refreshes, and revokes access/refresh tokens (RS256) via `AuthController`
-- **User management** — create, update, deactivate users; operations arrive as Kafka commands from `routify-admin-api`
-- **Tenant management** — multi-tenant support; tenant CRUD via Kafka commands
-- **Token blacklist** — revoked tokens tracked in Redis for instant invalidation
-- **RabbitMQ responder** — answers user/tenant query requests (paged lists, single lookups) from `routify-admin-api`
+- **JWT issuance** — issues, refreshes, and revokes RS256 access/refresh tokens
+- **User management** — create, update, delete users; operations arrive as `CommandEvent` records over Kafka
+- **Tenant management** — multi-tenant support; tenant CRUD; tenant-scoped operations are synchronous RabbitMQ RPC
+- **Token blacklist** — revoked refresh tokens tracked in Redis for instant invalidation
+- **Auth RPC responder** — handles login, refresh, and password-change requests from `routify-admin-api` via RabbitMQ
+
+> The dashboard hits `/api/v1/auth/*` on `routify-admin-api`, which proxies everything here via RabbitMQ. The only direct HTTP access is via the admin-api JWT filter (public key for token validation).
 
 ## Module Info
 
 | Property | Value |
 |---|---|
 | Artifact | `gr.routify:routify-identity-service` |
-| Version | `2.0.0-SNAPSHOT` |
-| Default port | `8081` |
+| Version | `1.0.2-SNAPSHOT` |
+| Default port | `8083` |
+| Actuator port | `9083` |
 | Java | 21 (Virtual Threads) |
+| DB schema | `routify_identity` |
 
 ## Key Dependencies
 
 | Dependency | Purpose |
 |---|---|
-| `spring-boot-starter-web` | REST (AuthController — login/refresh/logout) |
-| `spring-boot-starter-security` | Security filter chain |
 | `spring-boot-starter-data-jpa` | User/tenant persistence |
-| `postgresql` | Database driver |
-| `flyway-core` | Database migrations |
+| `flyway-core` | Schema migrations |
 | `spring-boot-starter-data-redis` | Token blacklist store |
-| `spring-kafka` | Consume user/tenant command events |
-| `spring-boot-starter-amqp` | RabbitMQ request/reply for queries |
-| `jjwt-*` | JWT generation and validation |
-
-## Public HTTP Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/auth/login` | Authenticate and receive JWT tokens |
-| `POST` | `/api/auth/refresh` | Refresh access token |
-| `POST` | `/api/auth/logout` | Revoke tokens |
-
-> All user and tenant management endpoints are **internal-only** and reachable exclusively via RabbitMQ / Kafka — no REST controllers are exposed for those operations.
+| `spring-kafka` | Consume user/tenant command events; publish lifecycle events |
+| `spring-boot-starter-amqp` | RabbitMQ request/reply for auth + queries |
+| `jjwt-*` | JWT generation and validation (RS256) |
 
 ## Messaging
 
-### Kafka — Command Topics (consumed)
+### Kafka — consumed (commands)
 
-| Topic | Description |
+| Topic | Commands |
 |---|---|
-| `routify.user.commands` | Create / update / deactivate users |
-| `routify.tenant.commands` | Create / update / deactivate tenants |
+| `routify.user.commands` | `CreateUser`, `UpdateUser`, `DeleteUser` |
+| `routify.auth.commands` | `Logout` (blacklists refresh token JTI in Redis) |
 
-### RabbitMQ — Request/Reply (responded)
+> Tenant commands (`CreateTenant`, `UpdateTenant`, `SuspendTenant`, `ReactivateTenant`) are handled synchronously over RabbitMQ, not Kafka.
 
-| Queue | Description |
+### Kafka — published (events)
+
+| Topic | Events |
 |---|---|
-| User query queue | Paged user list, single user lookup |
-| Tenant query queue | Paged tenant list, single tenant lookup |
+| `routify.user.events` | `UserCreated`, `UserUpdated`, `UserDeleted` |
+| `routify.tenant.events` | `TenantCreated`, `TenantUpdated`, `TenantSuspended`, `TenantReactivated` |
+
+### RabbitMQ — request/reply (responded)
+
+Exchange: `routify.identity-service` (direct)
+
+| Queue | Routing Key | Purpose |
+|---|---|---|
+| `routify.identity-service.auth.login` | `auth.login` | Login (issue tokens) |
+| `routify.identity-service.auth.refresh` | `auth.refresh` | Refresh access token |
+| `routify.identity-service.auth.change-password` | `auth.change-password` | Self password change |
+| `routify.identity-service.users.change-password` | `users.change-password` | Admin password reset |
+| `routify.identity-service.users.query` | `users.query` | Paged user list |
+| `routify.identity-service.users.get` | `users.get` | Single user lookup |
+| `routify.identity-service.tenants.query` | `tenants.query` | Paged tenant list |
+| `routify.identity-service.tenants.get` | `tenants.get` | Single tenant lookup |
+| `routify.identity-service.tenants.list-active` | `tenants.list-active` | Active workspaces (login dropdown) |
+| `routify.identity-service.tenants.command` | `tenants.command` | Sync suspend / reactivate |
 
 ## Database
 
 - **Engine**: PostgreSQL 17
-- **Migrations**: Flyway (`classpath:db/migration`)
-- **Schema**: `users`, `tenants`, `roles`
+- **Migrations**: Flyway (`classpath:db/migration`), `ddl-auto: validate`
+- **Schema**: `routify_identity` — tables: `users`, `tenants`, `roles`
+- **Initial seed**: `DataSeeder` creates an admin user on first boot. Provide `ADMIN_INITIAL_PASSWORD` env var to set a known password; otherwise a random password is printed to stdout once.
 
 ## Building & Running
 
@@ -72,7 +83,7 @@ Authentication and identity management service for the Routify platform.
 mvn clean package -pl routify-identity-service -am -DskipTests
 
 # Run
-java -jar target/routify-identity-service-2.0.0-SNAPSHOT.jar
+java -jar target/routify-identity-service-1.0.2-SNAPSHOT.jar
 ```
 
 ### Required Infrastructure
@@ -82,5 +93,4 @@ java -jar target/routify-identity-service-2.0.0-SNAPSHOT.jar
 - Kafka (`localhost:9092`)
 - RabbitMQ (`localhost:5672`)
 
-> Start all infrastructure with `docker compose up -d` from the project root.
-
+> Start all infrastructure with `docker compose --env-file .env up -d` from the project root.

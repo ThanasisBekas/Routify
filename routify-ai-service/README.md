@@ -1,57 +1,95 @@
 # routify-ai-service
 
-LLM-powered request filtering intelligence layer for the Routify API Gateway.
+LLM-powered request filtering and mutation intelligence layer for the Routify API Gateway.
 
 ## Overview
 
-This microservice acts as the AI brain of the Routify filter chain. When the API Gateway
-intercepts a route request with an `AI_FILTER` filter attached, it forwards the request
-metadata to this service, which uses a Large Language Model (via **Spring AI + OpenAI**) to
-evaluate the request against a natural-language policy defined by the operator.
+This service handles two AI-powered filter types for the gateway:
+
+- **`AI_FILTER`** — evaluates a request against a natural-language policy and returns a verdict (ALLOW / BLOCK / FLAG).
+- **`AI_MODIFIER`** — mutates a request (PII scrubbing, payload translation, header rewriting) before it reaches the upstream.
+
+Both the API Gateway and the admin dashboard communicate with this service exclusively via **RabbitMQ RPC** — there are no REST controllers.
 
 **Example policies:**
 - `"Block requests that contain SQL injection patterns"`
 - `"Deny requests from non-whitelisted User-Agent strings"`
-- `"Flag requests where the path contains encoded characters that could be path traversal attempts"`
+- `"Scrub any email addresses from the request body before forwarding"`
 
 ## Architecture
 
 ```
-[API Gateway]
-  AiGatewayFilterFactory
-       │  POST /api/v1/ai-filter/evaluate
+[routify-api-gateway]
+  AiGatewayFilterFactory / AiModifierGatewayFilterFactory
+       │  RabbitMQ RPC (exchange: routify.ai-service)
+       │  RK: ai.filter.evaluate | ai.modifier.evaluate
        ▼
 [routify-ai-service]                          Port: 8086
-  AiFilterController
-  AiFilterEvaluationService
+  AiFilterRpcListener / AiModifierRpcListener
+  AiFilterEvaluationService / AiModifierEvaluationService
        │
-       ├── VerdictCacheService (Redis)  ← cache hit? return immediately
+       ├── VerdictCacheService / MutationCacheService (Redis)  ← cache hit? return immediately
        │
        └── PromptBuilderService
                │  ChatClient (Spring AI → OpenAI gpt-4o-mini)
                ▼
           [OpenAI Chat Completions API]
-               │  response_format: json_object (guaranteed valid JSON)
+               │  response_format: JSON_OBJECT (structured output)
                ▼
-          AiVerdict {action, reason, confidence}
+          AiVerdict / AiModification
                │
-               ├── Redis: cache verdict (TTL configurable)
-               └── Kafka: routify.ai.filter.decisions → audit-service
+               ├── Redis: cache result (TTL configurable)
+               └── Kafka: routify.ai.filter.decisions / routify.ai.modification.events → audit-service
+
+[routify-admin-api]
+  AiMessagingClient
+       │  RabbitMQ RPC (same exchange: routify.ai-service)
+       │  RK: ai.filter.evaluate | ai.modifier.evaluate
+       ▼  (dry-run — no cache writes, no Kafka events)
+[routify-ai-service]
 ```
 
-## Quick Start
+## Module Info
 
-### 1. Prerequisites
+| Property | Value |
+|---|---|
+| Artifact | `gr.routify:routify-ai-service` |
+| Version | `1.0.2-SNAPSHOT` |
+| Default port | `8086` |
+| Actuator port | `9086` |
+| Java | 21 (Virtual Threads) |
 
-- Java 21+
-- Running infrastructure: `docker compose -f docker-compose.yml up -d`
-- An OpenAI API key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+## Key Dependencies
 
-### 2. Configuration
+| Dependency | Purpose |
+|---|---|
+| `spring-ai-starter-model-openai` | Spring AI ChatClient (swap for `spring-ai-starter-model-ollama` for local LLM) |
+| `spring-boot-starter-amqp` | RabbitMQ RPC listener (`@RabbitListener`) |
+| `spring-boot-starter-data-redis` | Verdict / mutation cache |
+| `spring-kafka` | Publish AI decision events to audit-service |
+| `resilience4j-spring-boot3` | Circuit breaker + time limiter around LLM calls |
+| `routify-common` | Shared DTOs, `RabbitTopology` constants |
 
-Add the following to your `.env` file (project root):
+## RabbitMQ Interface
+
+This service has **no REST endpoints**. All callers use RabbitMQ Direct Reply-To RPC.
+
+| Exchange | Queue | Routing Key | Called by |
+|---|---|---|---|
+| `routify.ai-service` | `routify.ai-service.filter.evaluate` | `ai.filter.evaluate` | Gateway (`AiGatewayFilterFactory`), admin-api (`AiMessagingClient`) |
+| `routify.ai-service` | `routify.ai-service.modifier.evaluate` | `ai.modifier.evaluate` | Gateway (`AiModifierGatewayFilterFactory`), admin-api (`AiMessagingClient`) |
+
+Reply timeouts (set by callers):
+- Gateway filter: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms
+- Gateway modifier: `AI_MODIFIER_REPLY_TIMEOUT_MS` = 5 000 ms
+- Admin-api dry-run: uses admin-api's default 5 s time limiter
+
+## Configuration
+
+Add to your `.env` file (project root):
+
 ```bash
-# Required — the service will refuse to start without this (fail-fast validation)
+# Required — service refuses to start without this
 OPENAI_API_KEY=sk-...
 
 # Optional — defaults shown
@@ -60,130 +98,48 @@ OPENAI_TIMEOUT_SECONDS=10         # hard timeout per LLM call
 AI_FALLBACK_ACTION=ALLOW          # verdict when OpenAI is unreachable
 REDIS_HOST=localhost
 KAFKA_BOOTSTRAP=localhost:9092
+RABBITMQ_PASS=<required>
 ```
 
-### 3. Run locally
-
-```bash
-cd routify-ai-service
-../mvnw spring-boot:run
-```
-
-Service starts on **port 8086** (app) and **9086** (management/actuator).
-
-### 4. Run with Docker Compose
-
-```bash
-# From the project root:
-mvn clean package -DskipTests
-docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
-```
+Key model settings (in `application.yml`):
+- `temperature: 0.0` — **mandatory** for deterministic, cacheable verdicts
+- `max-tokens: 256` — caps output; model only produces a small JSON object
+- `response-format: JSON_OBJECT` — structured output enforcement
 
 ## Using Ollama (local LLM, air-gapped)
 
-To revert to a local Ollama instance:
 1. Install [Ollama](https://ollama.ai) and pull a model: `ollama pull qwen2.5:1.5b-instruct-q8_0`
 2. In `pom.xml`, replace `spring-ai-starter-model-openai` with `spring-ai-starter-model-ollama`
-3. In `application.yml`, replace the `spring.ai.openai` block with the `spring.ai.ollama` block
+3. In `application.yml`, replace the `spring.ai.openai` block with `spring.ai.ollama`
 4. In `AiServiceConfig.java`, replace `OpenAiChatOptions` with `ChatOptions.builder()`
-5. In `docker-compose.app.yml`, restore the `ollama` service and `ollama_data` volume
-6. Set `OLLAMA_BASE_URL=http://localhost:11434`
+5. Set `OLLAMA_BASE_URL=http://localhost:11434`
 
 No Java service logic, prompt, or DTO code changes required — `ChatClient` is provider-agnostic.
-
-## API Reference
-
-### `POST /api/v1/ai-filter/evaluate`
-
-Called by the API Gateway for every request on routes with `AI_FILTER` attached.
-
-**Request:**
-```json
-{
-  "routeId": "uuid",
-  "routeName": "my-payments-api",
-  "tenantId": "uuid",
-  "filterConfig": {
-    "policyDescription": "Block requests containing SQL injection patterns",
-    "evaluationMode": "SYNC",
-    "includeBody": false,
-    "maxBodyBytes": 512,
-    "fallbackAction": "ALLOW",
-    "confidenceThreshold": 0.85,
-    "cacheEnabled": true,
-    "cacheTtlSeconds": 30
-  },
-  "requestContext": {
-    "method": "POST",
-    "path": "/api/v1/orders",
-    "queryString": null,
-    "clientIp": "203.0.113.42",
-    "headers": { "Content-Type": "application/json" },
-    "bodyExcerpt": null,
-    "userContext": null
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "action": "ALLOW",
-  "actionType": "ALLOW",
-  "reason": "No SQL injection patterns detected in path or headers",
-  "confidence": 0.97,
-  "isAllowed": true,
-  "cached": false,
-  "latencyMs": 312,
-  "evaluationId": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-### `POST /api/v1/ai-filter/test-policy`
-
-Dry-run endpoint for the Routify Dashboard's "Test Policy" button.
-No caching, no Kafka events.
-
-**Request:**
-```json
-{
-  "policyDescription": "Block requests that appear to contain SQL injection",
-  "sampleRequest": {
-    "method": "GET",
-    "path": "/api/v1/users?id=1 OR 1=1",
-    "queryString": "id=1 OR 1=1",
-    "clientIp": "10.0.0.1",
-    "headers": {},
-    "bodyExcerpt": null,
-    "userContext": null
-  }
-}
-```
 
 ## Performance
 
 | Scenario | p50 latency | p99 latency |
 |---|---|---|
-| Cache HIT | < 5ms | < 10ms |
-| Cache MISS (OpenAI gpt-4o-mini) | ~300ms | ~2s |
-| Circuit breaker OPEN (fallback) | < 1ms | < 1ms |
-| Hard timeout (10s) → fallback | 10,000ms | 10,000ms |
+| Cache HIT | < 5 ms | < 10 ms |
+| Cache MISS (gpt-4o-mini) | ~300 ms | ~2 s |
+| Circuit breaker OPEN (fallback) | < 1 ms | < 1 ms |
+| Hard timeout (10 s) → fallback | 10 000 ms | 10 000 ms |
 
-**Latency mitigation strategies:**
+**Latency strategies:**
 1. **Redis verdict caching** — identical request fingerprints skip the LLM entirely
-2. **Async evaluation mode** — set `evaluationMode: ASYNC` to decouple from the request path
-3. **Circuit breaker** — Resilience4j opens after 50% failure rate; fallback in microseconds
-4. **Hard timeout** — 10s TimeLimiter (override via `OPENAI_TIMEOUT_SECONDS`) prevents tail latency from cascading
+2. **Async evaluation mode** — set `evaluationMode: ASYNC` to decouple from request path
+3. **Circuit breaker** — Resilience4j (`aiFilterLlm` / `aiModifierLlm`) opens after 50% failure rate in a 10-request window
+4. **Hard timeout** — 10 s TimeLimiter (override via `OPENAI_TIMEOUT_SECONDS`) prevents tail latency cascades
 
 ## OpenAI Error Handling
 
-| Error | HTTP Code | Handling |
-|---|---|---|
-| Rate limit (429) | `TransientAiException` | Spring AI retries automatically; circuit breaker opens after threshold |
-| Context length exceeded | `NonTransientAiException` | Fallback verdict applied; circuit does NOT open (non-retryable) |
-| Invalid API key (401) | `NonTransientAiException` | App fails fast at startup via `required-secrets` validation |
-| API timeout | `TimeoutException` | Resilience4j TimeLimiter fires; `llmFallback()` returns safe verdict |
-| OpenAI outage (503) | `ResourceAccessException` | Circuit breaker opens; fallback verdict applied for all subsequent requests |
+| Error | Handling |
+|---|---|
+| Rate limit (429) | Spring AI retries automatically; circuit breaker opens after threshold |
+| Context length exceeded | Fallback verdict applied; circuit does NOT open (non-retryable) |
+| Invalid API key (401) | Fails fast at startup via `routify.required-secrets` validation |
+| API timeout | Resilience4j TimeLimiter fires; `fallbackAction` verdict returned |
+| OpenAI outage (503) | Circuit breaker opens; fallback applied for all subsequent requests |
 
 ## Metrics (Prometheus / Grafana)
 
@@ -198,9 +154,26 @@ Scraped at `http://localhost:9086/actuator/prometheus`
 
 ## Security
 
-- **Network isolation**: Kubernetes ClusterIP — not reachable from outside the cluster
-- **API key protection**: `OPENAI_API_KEY` is injected via environment variable; never hardcoded or logged
-- **Prompt injection hardening**: User-controlled values are sanitized and base64-encoded before embedding in prompts
-- **Body cap**: `maxBodyBytes` (default 512) limits body surface area
-- **Header redaction**: `Authorization`, `Cookie`, `X-Api-Key` are always redacted from prompts
-- **JSON output enforcement**: Dual-layer — system prompt + OpenAI `response_format: json_object`
+- **No inbound HTTP** — RabbitMQ-only ingress; not reachable from outside the cluster
+- **API key protection** — `OPENAI_API_KEY` via environment variable; never logged
+- **Prompt injection hardening** — user-controlled values are sanitized before embedding in prompts
+- **Body cap** — `maxBodyBytes` (default 512) limits body surface area
+- **Header redaction** — `Authorization`, `Cookie`, `X-Api-Key` always redacted from prompts
+
+## Building & Running
+
+```bash
+# Build
+mvn clean package -pl routify-ai-service -am -DskipTests
+
+# Run
+java -jar target/routify-ai-service-1.0.2-SNAPSHOT.jar
+```
+
+### Required Infrastructure
+
+- Redis (`localhost:6379`)
+- Kafka (`localhost:9092`)
+- RabbitMQ (`localhost:5672`)
+
+> Start all infrastructure with `docker compose --env-file .env up -d` from the project root.
