@@ -101,7 +101,7 @@ public enum FilterType {
     CORRELATION_ID,
     /** Log request/response metadata and publish telemetry to Kafka — RequestLoggerGatewayFilterFactory */
     REQUEST_LOGGER,
-    /** Propagate and validate tenant context (X-Tenant-Id) to downstream services — TenantContextGatewayFilterFactory */
+    /** Resolve tenant context and control X-Tenant-Id propagation to upstream — TenantContextGatewayFilterFactory */
     TENANT_CONTEXT,
     /** Inject OWASP security response headers driven by gateway config — SecurityHeadersGatewayFilterFactory */
     SECURITY_HEADERS,

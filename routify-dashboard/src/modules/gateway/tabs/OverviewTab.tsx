@@ -187,7 +187,7 @@ export default function OverviewTab({ config }: Props) {
           <ConfigChip label="CORS" ok={config.cors.enabled} value={config.cors.enabled ? 'Enabled' : 'Disabled'} />
           <ConfigChip label="Security Headers" ok={config.securityHeaders.enabled} value={config.securityHeaders.enabled ? 'Enabled' : 'Disabled'} />
           <ConfigChip label="Auth Providers" ok={config.authProviders.some(p => p.enabled)} value={`${config.authProviders.filter(p => p.enabled).length} enabled`} />
-          <ConfigChip label="Tenant Isolation" ok={config.tenantIsolation.enabled} value={config.tenantIsolation.enabled ? 'Enforced' : 'Disabled'} />
+          <ConfigChip label="Tenant Isolation" ok={config.tenantIsolation.enabled} value={config.tenantIsolation.enabled ? 'Caller-provided' : 'Auto-injected'} />
           <ConfigChip label="Rate Limiting" ok={config.rateLimitPolicies.some(p => p.enabled)} value={`${config.rateLimitPolicies.filter(p => p.enabled).length} policies`} />
         </div>
       </div>

@@ -220,7 +220,6 @@ export const gatewayConfig: GatewayConfig = {
   },
   tenantIsolation: {
     enabled: true,
-    enforceHeaderPredicate: true,
     tenantIdHeader: 'X-Tenant-Id',
     allowCrossTenantsForSuperAdmin: true,
   },

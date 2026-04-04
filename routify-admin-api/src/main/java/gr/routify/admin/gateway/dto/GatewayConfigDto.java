@@ -255,7 +255,6 @@ public class GatewayConfigDto {
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class TenantIsolationConfig {
         private boolean enabled;
-        private boolean enforceHeaderPredicate;
         private String  tenantIdHeader;
         private boolean allowCrossTenantsForSuperAdmin;
     }

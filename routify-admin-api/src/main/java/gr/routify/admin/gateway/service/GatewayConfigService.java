@@ -357,7 +357,7 @@ public class GatewayConfigService {
                                 .tenantHeaderName(RoutifyHeaders.TENANT_ID).enforceOnAllRoutes(false).build())
                         .build())
                 .tenantIsolation(TenantIsolationConfig.builder()
-                        .enabled(true).enforceHeaderPredicate(true)
+                        .enabled(true)
                         .tenantIdHeader(RoutifyHeaders.TENANT_ID).allowCrossTenantsForSuperAdmin(true).build())
                 .build();
     }
