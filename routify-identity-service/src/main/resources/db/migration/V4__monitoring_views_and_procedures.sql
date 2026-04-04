@@ -87,7 +87,7 @@ SELECT
     -- Minutes remaining on the lockout (null if not locked)
     CASE
         WHEN u.locked_until IS NOT NULL AND u.locked_until > now()
-        THEN ROUND(EXTRACT(EPOCH FROM (u.locked_until - now())) / 60.0, 1)
+        THEN ROUND((EXTRACT(EPOCH FROM (u.locked_until - now())) / 60.0)::NUMERIC, 1)
         ELSE NULL
     END                                                     AS lockout_minutes_remaining,
     u.last_login_at,
@@ -156,7 +156,7 @@ SELECT
     rt.expires_at,
     rt.created_at                                           AS token_issued_at,
     rt.expires_at - now()                                   AS time_until_expiry,
-    ROUND(EXTRACT(EPOCH FROM (rt.expires_at - now())) / 3600.0, 1)
+    ROUND((EXTRACT(EPOCH FROM (rt.expires_at - now())) / 3600.0)::NUMERIC, 1)
                                                             AS hours_until_expiry,
     CASE
         WHEN rt.expires_at <= now()              THEN 'EXPIRED'

@@ -37,7 +37,7 @@ SELECT
     -- How many routes have at least one filter attached
     COUNT(DISTINCT rf.route_id)                                     AS routes_with_filters,
     -- Average filter chain depth across routes that have filters
-    ROUND(AVG(filter_counts.cnt) FILTER (WHERE filter_counts.cnt > 0), 2)
+    ROUND((AVG(filter_counts.cnt) FILTER (WHERE filter_counts.cnt > 0))::NUMERIC, 2)
                                                                     AS avg_filters_per_route,
     -- ACTIVE routes with zero filters are a potential misconfiguration (unprotected route)
     COUNT(*) FILTER (

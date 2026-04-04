@@ -60,7 +60,7 @@ SELECT
     COUNT(*)                                                        AS total_requests,
     COUNT(*) FILTER (WHERE failed = true)                           AS failed_requests,
     ROUND(
-        100.0 * COUNT(*) FILTER (WHERE failed = true) / NULLIF(COUNT(*), 0),
+        (100.0 * COUNT(*) FILTER (WHERE failed = true) / NULLIF(COUNT(*), 0))::NUMERIC,
         2
     )                                                               AS error_rate_pct,
     -- Response status distribution
@@ -68,7 +68,7 @@ SELECT
     COUNT(*) FILTER (WHERE response_status BETWEEN 400 AND 499)    AS status_4xx,
     COUNT(*) FILTER (WHERE response_status >= 500)                  AS status_5xx,
     -- Latency statistics (milliseconds)
-    ROUND(AVG(duration_ms), 2)                                      AS avg_latency_ms,
+    ROUND(AVG(duration_ms)::NUMERIC, 2)                             AS avg_latency_ms,
     MIN(duration_ms)                                                AS min_latency_ms,
     MAX(duration_ms)                                                AS max_latency_ms,
     PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms)       AS p50_latency_ms,
@@ -143,18 +143,18 @@ SELECT
     COUNT(*) FILTER (WHERE action = 'BLOCK')                   AS block_count,
     COUNT(*) FILTER (WHERE action = 'FLAG')                    AS flag_count,
     -- Rates
-    ROUND(100.0 * COUNT(*) FILTER (WHERE action = 'BLOCK')
-          / NULLIF(COUNT(*), 0), 2)                            AS block_rate_pct,
-    ROUND(100.0 * COUNT(*) FILTER (WHERE action = 'FLAG')
-          / NULLIF(COUNT(*), 0), 2)                            AS flag_rate_pct,
+    ROUND((100.0 * COUNT(*) FILTER (WHERE action = 'BLOCK')
+          / NULLIF(COUNT(*), 0))::NUMERIC, 2)                      AS block_rate_pct,
+    ROUND((100.0 * COUNT(*) FILTER (WHERE action = 'FLAG')
+          / NULLIF(COUNT(*), 0))::NUMERIC, 2)                      AS flag_rate_pct,
     -- Cache performance
-    ROUND(100.0 * COUNT(*) FILTER (WHERE cached = true)
-          / NULLIF(COUNT(*), 0), 2)                            AS cache_hit_rate_pct,
+    ROUND((100.0 * COUNT(*) FILTER (WHERE cached = true)
+          / NULLIF(COUNT(*), 0))::NUMERIC, 2)                      AS cache_hit_rate_pct,
     -- Latency (ms)
-    ROUND(AVG(latency_ms), 2)                                  AS avg_latency_ms,
-    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms)   AS p95_latency_ms,
+    ROUND(AVG(latency_ms)::NUMERIC, 2)                             AS avg_latency_ms,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms)       AS p95_latency_ms,
     -- Confidence
-    ROUND(AVG(confidence), 3)                                  AS avg_confidence,
+    ROUND(AVG(confidence)::NUMERIC, 3)                             AS avg_confidence,
     MAX(evaluated_at)                                          AS last_evaluated_at,
     now()                                                      AS snapshot_at
 FROM routify_audit.ai_filter_decision
