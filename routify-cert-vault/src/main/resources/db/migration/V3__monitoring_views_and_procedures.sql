@@ -47,7 +47,7 @@ SELECT
     sc.created_at,
     -- Derived expiry fields
     sc.expires_at - now()                                       AS time_until_expiry,
-    ROUND(EXTRACT(EPOCH FROM (sc.expires_at - now())) / 86400.0, 1)
+    ROUND((EXTRACT(EPOCH FROM (sc.expires_at - now())) / 86400.0)::NUMERIC, 1)
                                                                 AS days_until_expiry,
     -- Severity bucket
     CASE
@@ -101,9 +101,9 @@ SELECT
     -- Soonest expiry across active members
     MIN(sc.expires_at) FILTER (WHERE sc.status = 'ACTIVE')     AS soonest_active_expiry,
     ROUND(
-        EXTRACT(EPOCH FROM (
+        (EXTRACT(EPOCH FROM (
             MIN(sc.expires_at) FILTER (WHERE sc.status = 'ACTIVE') - now()
-        )) / 86400.0, 1
+        )) / 86400.0)::NUMERIC, 1
     )                                                           AS days_until_soonest_expiry,
     -- Health flag: group has no active gateway-mapped cert
     CASE
@@ -167,8 +167,8 @@ SELECT
           AND sc.expires_at <= now() + INTERVAL '30 days'
     )                                                           AS mapped_expiring_soon,
     ROUND(
-        100.0 * COUNT(*) FILTER (WHERE sc.effective_logical_id IS NOT NULL)
-        / NULLIF(COUNT(*), 0), 1
+        (100.0 * COUNT(*) FILTER (WHERE sc.effective_logical_id IS NOT NULL)
+        / NULLIF(COUNT(*), 0))::NUMERIC, 1
     )                                                           AS mapping_coverage_pct,
     now()                                                       AS snapshot_at
 FROM routify_cert.stored_certificate sc
@@ -367,7 +367,7 @@ BEGIN
             sc.effective_logical_id,
             sc.expires_at,
             sc.tenant_id,
-            ROUND(EXTRACT(EPOCH FROM (sc.expires_at - now())) / 86400.0, 1) AS days_left,
+            ROUND((EXTRACT(EPOCH FROM (sc.expires_at - now())) / 86400.0)::NUMERIC, 1) AS days_left,
             CASE
                 WHEN sc.expires_at <= now()                           THEN 'EXPIRED'
                 WHEN sc.expires_at <= now() + INTERVAL '7 days'       THEN 'CRITICAL'

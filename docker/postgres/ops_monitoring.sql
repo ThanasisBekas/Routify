@@ -89,7 +89,7 @@ SELECT
     qp.max_filters                                              AS quota_max_filters,
     CASE
         WHEN qp.max_routes > 0 AND qp.max_routes < 2147483647
-        THEN ROUND(100.0 * COALESCE(rh.total_routes, 0) / qp.max_routes, 1)
+        THEN ROUND((100.0 * COALESCE(rh.total_routes, 0) / qp.max_routes)::NUMERIC, 1)
         ELSE NULL
     END                                                         AS route_quota_used_pct,
 
@@ -115,7 +115,7 @@ LEFT JOIN (
         tenant_id,
         SUM(total_requests)                          AS total_requests,
         SUM(failed_requests)                         AS failed_requests,
-        ROUND(100.0 * SUM(failed_requests) / NULLIF(SUM(total_requests), 0), 2)
+        ROUND((100.0 * SUM(failed_requests) / NULLIF(SUM(total_requests), 0))::NUMERIC, 2)
                                                      AS error_rate_pct,
         MAX(p95_latency_ms)                          AS p95_latency_ms
     FROM routify_audit.v_request_error_rates
@@ -198,7 +198,7 @@ SELECT
     sc.id::TEXT                                                 AS entity_id,
     sc.alias                                                    AS entity_name,
     'Certificate expires in '
-        || ROUND(EXTRACT(EPOCH FROM (sc.expires_at - now())) / 86400.0, 0)::TEXT
+         ROUND((EXTRACT(EPOCH FROM (sc.expires_at - now())) / 86400.0)::NUMERIC, 0)::TEXT
         || ' days — effective_logical_id: '
         || COALESCE(sc.effective_logical_id, '(unmapped)')      AS description,
     sc.expires_at                                               AS alert_since
