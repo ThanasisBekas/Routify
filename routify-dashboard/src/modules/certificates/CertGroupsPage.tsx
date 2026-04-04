@@ -14,14 +14,12 @@ import {
   Users,
   Edit2,
   Upload,
-  UserMinus,
   RotateCcw,
   Server,
   ChevronRight,
   Copy,
   Check,
   Clock,
-  UserPlus,
   ShieldAlert,
   TrendingDown,
   Info,
@@ -33,7 +31,6 @@ import { useAuthStore } from '../../store/authStore'
 import CertGroupFormModal from './CertGroupFormModal'
 import CertUploadModal from './CertUploadModal'
 import CertDetailModal from './CertDetailModal'
-import CertGroupAddMemberModal from './CertGroupAddMemberModal'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -361,10 +358,10 @@ function GroupCard({
 
 // ─── Member Row ───────────────────────────────────────────────────────────────
 
-function MemberRow({ cert, onRevoke, onDelete, onView, onRemove, isRevoking, isDeleting, isRemoving }: {
+function MemberRow({ cert, onRevoke, onDelete, onView, isRevoking, isDeleting }: {
   cert: CertificateDto
-  onRevoke: () => void; onDelete: () => void; onView: () => void; onRemove: () => void
-  isRevoking: boolean; isDeleting: boolean; isRemoving: boolean
+  onRevoke: () => void; onDelete: () => void; onView: () => void
+  isRevoking: boolean; isDeleting: boolean
 }) {
   return (
     <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg bg-white/2 border border-white/4 group hover:bg-white/3 transition-colors">
@@ -417,15 +414,6 @@ function MemberRow({ cert, onRevoke, onDelete, onView, onRemove, isRevoking, isD
           />
         )}
         <ConfirmButton
-          onConfirm={onRemove}
-          disabled={isRemoving}
-          isLoading={isRemoving}
-          title="Remove from group"
-          icon={UserMinus}
-          hoverColor="hover:text-orange-400"
-          confirmLabel="Remove"
-        />
-        <ConfirmButton
           onConfirm={onDelete}
           disabled={isDeleting}
           isLoading={isDeleting}
@@ -450,7 +438,6 @@ export default function CertGroupsPage() {
   const [showCreateForm,   setShowCreateForm]   = useState(false)
   const [editGroup,        setEditGroup]        = useState<CertGroupDto | null>(null)
   const [uploadIntoGroup,  setUploadIntoGroup]  = useState<CertGroupDto | null>(null)
-  const [addMemberGroup,   setAddMemberGroup]   = useState<CertGroupDto | null>(null)
   const [detailCert,       setDetailCert]       = useState<CertificateDto | null>(null)
   const [statusFilter,     setStatusFilter]     = useState<string>('')
 
@@ -494,12 +481,6 @@ export default function CertGroupsPage() {
     onSuccess:  () => invalidate(),
   })
 
-  const removeMemberMutation = useMutation({
-    mutationFn: ({ groupId, certId }: { groupId: string; certId: string }) =>
-      certVaultApi.removeMemberFromGroup(groupId, certId, tenantId),
-    onSuccess: () => invalidate(),
-  })
-
   const groups = pageData?.content ?? []
   const detail = groupDetail as CertGroupDto | undefined
 
@@ -524,22 +505,13 @@ export default function CertGroupsPage() {
         </div>
         <div className="flex items-center gap-2">
           {selectedGroup?.status === 'ACTIVE' && (
-            <>
-              <button
-                onClick={() => setAddMemberGroup(selectedGroup)}
-                className="flex items-center gap-2 px-3.5 py-2 bg-white/5 hover:bg-white/8 border border-white/10 text-gray-300 hover:text-white text-sm font-medium rounded-lg transition-all"
-              >
-                <UserPlus className="w-4 h-4" />
-                Add Existing
-              </button>
-              <button
-                onClick={() => setUploadIntoGroup(selectedGroup)}
-                className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20"
-              >
-                <Upload className="w-4 h-4" />
-                Upload Certificate
-              </button>
-            </>
+            <button
+              onClick={() => setUploadIntoGroup(selectedGroup)}
+              className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Certificate
+            </button>
           )}
           <button
             onClick={() => setShowCreateForm(true)}
@@ -697,13 +669,6 @@ export default function CertGroupsPage() {
                   {detail.status === 'ACTIVE' && (
                     <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => setAddMemberGroup(detail)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/8 border border-white/10 text-gray-400 hover:text-white text-xs font-medium rounded-lg transition-all"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        Add Existing
-                      </button>
-                      <button
                         onClick={() => setUploadIntoGroup(detail)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 text-xs font-semibold rounded-lg transition-all"
                       >
@@ -761,28 +726,19 @@ export default function CertGroupsPage() {
                   <div>
                     <p className="text-sm text-gray-400 mb-1">No certificates in this group</p>
                     <p className="text-xs text-gray-600">
-                      Upload a certificate or add an existing one.
+                      Upload a certificate to get started.
                       It will be served by the gateway under{' '}
                       <code className="font-mono text-indigo-300">{detail.logicalId}</code>
                     </p>
                   </div>
                   {detail.status === 'ACTIVE' && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setAddMemberGroup(detail)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/8 border border-white/10 text-gray-400 hover:text-white text-xs font-medium rounded-lg transition-all"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        Add Existing
-                      </button>
-                      <button
-                        onClick={() => setUploadIntoGroup(detail)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 text-xs font-medium rounded-lg transition-all"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        Upload first certificate
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setUploadIntoGroup(detail)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-400 text-xs font-medium rounded-lg transition-all"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload first certificate
+                    </button>
                   )}
                 </div>
               ) : (
@@ -794,13 +750,8 @@ export default function CertGroupsPage() {
                       onView={() => setDetailCert(cert)}
                       onRevoke={() => revokeMutation.mutate(cert.id)}
                       onDelete={() => deleteCertMutation.mutate(cert.id)}
-                      onRemove={() => removeMemberMutation.mutate({ groupId: detail.id, certId: cert.id })}
                       isRevoking={revokeMutation.isPending && revokeMutation.variables === cert.id}
                       isDeleting={deleteCertMutation.isPending && deleteCertMutation.variables === cert.id}
-                      isRemoving={
-                        removeMemberMutation.isPending &&
-                        (removeMemberMutation.variables as { groupId: string; certId: string } | undefined)?.certId === cert.id
-                      }
                     />
                   ))}
                 </div>
@@ -844,14 +795,6 @@ export default function CertGroupsPage() {
           preselectedGroup={uploadIntoGroup}
           onClose={() => setUploadIntoGroup(null)}
           onSuccess={() => { setUploadIntoGroup(null); invalidate() }}
-        />
-      )}
-      {addMemberGroup && (
-        <CertGroupAddMemberModal
-          group={addMemberGroup}
-          tenantId={tenantId}
-          onClose={() => setAddMemberGroup(null)}
-          onSuccess={() => { setAddMemberGroup(null); invalidate() }}
         />
       )}
       {detailCert && (

@@ -607,10 +607,6 @@ export interface UpdateCertGroupRequest {
   description?: string
 }
 
-export interface AddGroupMemberRequest {
-  certId: string
-  memberAlias?: string
-}
 
 export interface UploadCertificateRequest {
   /** Mandatory: group this certificate belongs to */
