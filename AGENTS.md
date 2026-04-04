@@ -29,7 +29,7 @@ routify-common       (shared library) — events, DTOs, exceptions, headers, top
 All inter-service messaging constants live in `routify-common`:
 - **Kafka topics** → `gr.routify.common.event.KafkaTopics` — never use string literals for topic names.
 - **RabbitMQ exchanges/queues/routing-keys** → `gr.routify.common.event.RabbitTopology` — each service owns one direct exchange.
-- **HTTP headers** → `gr.routify.common.web.RoutifyHeaders` — includes `X-Tenant-Id`, `X-Auth-User-Id`, `X-Correlation-Id`, `X-Auth-Tenant-Id`, `X-Auth-Role`, `X-Routify-Replay`, etc.
+- **HTTP headers** → `gr.routify.common.web.RoutifyHeaders` — includes `X-Tenant-Id`, `X-Auth-User-Id`, `X-Correlation-Id`, `X-Auth-Tenant-Id`, `X-Auth-Role`, `X-Routify-Replay`, `X-Auth-Email`, `X-Auth-Type`, `X-Api-Key`, `X-Route-Version`, etc.
 
 ### Key `KafkaTopics` constants (beyond the obvious command/event pairs)
 - `FILTER_EVENTS` / `FILTER_COMMANDS` — filter lifecycle, separate from route topics.
@@ -47,6 +47,15 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 - `QUEUE_AI_MODIFIER_EVALUATE` / `RK_AI_MODIFIER_EVALUATE` — request mutation (PII scrubbing, payload translation).
 Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIMEOUT_MS` = 5 000 ms.
 
+> Note: `routify-ai-service` also exposes `POST /api/v1/ai-filter/evaluate` and `POST /api/v1/ai-filter/test-policy` REST endpoints (used by the dashboard's "Test Policy" dry-run feature), but **the gateway always uses RabbitMQ** via `AiServiceClient extends AmqpServiceClientSupport`. Blocking `sendAndReceive` is always offloaded to `Schedulers.boundedElastic()` to avoid blocking the Netty event loop.
+
+### Additional `RabbitTopology` queues (beyond obvious CRUD queries)
+- **Auth** (all on `EXCHANGE_IDENTITY_SERVICE`): `QUEUE_AUTH_LOGIN` / `QUEUE_AUTH_REFRESH` / `QUEUE_AUTH_CHANGE_PASSWORD` / `QUEUE_USERS_CHANGE_PASSWORD` — admin-api proxies all auth operations over RabbitMQ to identity-service. The dashboard hits `/api/v1/auth/*` on admin-api, never directly on identity-service.
+- **Route extras**: `QUEUE_ROUTES_CLONE` (`routes.clone`) — sync RPC for route cloning; `QUEUE_ROUTE_STATS` (`route.stats`); `QUEUE_GATEWAY_CONFIG_GET` / `QUEUE_GATEWAY_CONFIG_SAVE` — gateway-wide CORS/security/rate-limit config stored by route-service.
+- **Workspace**: `QUEUE_TENANTS_LIST_ACTIVE` (`tenants.list-active`) — active workspace list for login dropdown; `QUEUE_TENANTS_COMMAND` (`tenants.command`) — sync suspend/reactivate tenant.
+- **Gateway**: `QUEUE_GATEWAY_CERT_REGISTRY` (`gateway.cert.registry`) — gateway serves a snapshot of its live in-memory `CertificateRegistry` (fingerprint, expiry, source, status per logical cert ID).
+- **AI audit** (on `EXCHANGE_AUDIT_SERVICE`): `QUEUE_AUDIT_AI_FILTER_STATS` (`audit.ai-filter.stats`) and `QUEUE_AUDIT_AI_FILTER_QUERY` (`audit.ai-filter.query`) — serve AI filter decision analytics to admin-api.
+
 ## Project Conventions
 
 **Java services:**
@@ -62,11 +71,16 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 - Sensitive DTO fields (secrets, passwords, API keys) are masked via `@SensitiveField` annotation + `Sensitive.maskFields(dto)` before returning to clients. On incoming writes, check `Sensitive.isMasked(value)` before overwriting stored secrets.
 
 **`routify-common` shared utilities (beyond events/topics):**
-- `gr.routify.common.client.AmqpServiceClientSupport` — base class for all RabbitMQ request/reply clients; extend it and call `rpc(routingKey, request, TypeReference)`.
-- `gr.routify.common.security.SecurityContext` — thread-local holding `userId`, `tenantId`, `correlationId`, `role` for the current request; set by the JWT filter in each service.
+- `gr.routify.common.client.AmqpServiceClientSupport` — base class for all RabbitMQ request/reply clients; extend it and call `rpc(routingKey, request, TypeReference)`. Also exposes `send()` for fire-and-forget.
+- `gr.routify.common.client.KafkaServiceClientSupport` — base class for Kafka producers; provides `publish()` (async), `publishSync()` (broker-ACK), `publishCommand()` (standard command envelope), and `publishEvent()` (domain event) helpers.
+- `gr.routify.common.kafka.KafkaDlqErrorHandlerFactory` — shared DLQ `DefaultErrorHandler` with exponential back-off (1 s × 2.0, max 30 s ≈ 5 retries); deserialisation errors go straight to DLQ. Use: `factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate))`.
+- `gr.routify.common.security.SecurityContext` — Java 21 **record** (`userId`, `tenantId`, `username`, `role`, `correlationId`) stored in a `ThreadLocal`; set by the JWT filter in each service. Call `SecurityContext.current()` / `SecurityContext.set()` / `SecurityContext.clear()`.
 - `gr.routify.common.security.RedisKeys` — centralised Redis key prefixes (e.g. `BLOCKLIST_PREFIX = "routify:token:blocklist:"`).
 - `gr.routify.common.config.SecretValidator` — validates required secrets at startup via `routify.required-secrets` config property.
-- `gr.routify.common.domain.FilterType` — enum of all gateway filter types (keep in sync with TypeScript `FilterType` union in dashboard and every `*GatewayFilterFactory` in the gateway).
+- `gr.routify.common.domain.FilterType` — enum of all gateway filter types (keep in sync with TypeScript `FilterType` union in dashboard and every `*GatewayFilterFactory` in the gateway). Active types include `AUTH_*`, `RATE_LIMIT_*`, `AI_FILTER`, `AI_MODIFIER`, `BODY_JOLT_TRANSFORM`, `VALIDATE_JSON_SCHEMA`, `TIMEOUT`, `CONDITIONAL_ROUTE`, `USER_ID_PAYLOAD_ROUTING`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK`, `API_VERSIONING`, `CORRELATION_ID`, `REQUEST_LOGGER`, `TENANT_CONTEXT`, `SECURITY_HEADERS`, `CUSTOM_METRIC`, `CUSTOM_SPEL`, and others. Several legacy values are `@Deprecated` (no factory implementation — kept for DB compatibility only).
+- `gr.routify.common.domain.TenantPlan` — enum (`FREE`, `STARTER`, `PRO`, `ENTERPRISE`) encoding `maxRoutes`, `maxFilters`, `monthlyRequestQuota` quotas enforced at the service layer.
+- `gr.routify.common.domain.UserRole` / `RouteStatus` — additional domain enums in the same package.
+- `gr.routify.common.web.RoutifyHeaders.resolveActor(userId, principalName)` — resolves the acting principal for audit/command attribution (resolution order: `X-User-Id` header → principal name → `"system"`).
 
 **Frontend (`routify-dashboard`):**
 - Feature code lives in `src/modules/<feature>/`. Shared primitives go in `src/components/ui/`.
@@ -76,7 +90,9 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 - Forms use **React Hook Form + Zod**.
 - Route topology editor uses **`@xyflow/react`** (`src/modules/routes/`, `src/modules/workflow-builder/`).
 - Real-time gateway events are delivered via **WebSocket** through `WebSocketProvider` (`src/components/WebSocketProvider.tsx`). `wsStore` (`src/store/wsStore.ts`) holds connection status, recent events, circuit-breaker state, and live metrics.
-- `src/modules/ai/` — AI filter and AI modifier stats pages. `src/modules/workspaces/` — workspace (tenant) management.
+- `src/modules/ai/` — AI filter and AI modifier stats pages. `src/modules/workspaces/` — workspace (tenant) management. `src/modules/gateway/` — gateway status dashboard. `src/modules/settings/` — platform settings.
+- Separate API modules in `src/api/`: `authApi.ts`, `routesApi.ts`, `filtersApi.ts`, `usersApi.ts`, `tenantsApi.ts`, `auditApi.ts`, `certVaultApi.ts`, `gatewayApi.ts`, `aiApi.ts`.
+- Key env vars: `VITE_API_BASE_URL` (defaults to `http://localhost:8082`), `VITE_WS_URL` (defaults to `ws://localhost:8082/ws`), `VITE_MOCK=true` enables MSW mode. Set in `.env.local`.
 
 ## Developer Workflows
 
@@ -103,6 +119,8 @@ cd routify-dashboard
 npm install
 npm run dev           # requires backend running
 npm run dev:mock      # MSW offline mode — no backend needed
+npm run build         # production build → dist/
+npm run lint          # ESLint
 ```
 Mock handlers live in `src/mocks/handlers/`. Mock mode is enabled by `VITE_MOCK=true`.
 

@@ -166,20 +166,30 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
     case 'AUTH_JWT':
       return (
         <div className="space-y-4">
-          <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+          <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 leading-relaxed">
             Validates the JWT bearer token from <code className="font-mono text-blue-300">Authorization: Bearer</code> header
-            or <code className="font-mono text-blue-300">?token=</code> query param. On success injects
-            <code className="font-mono text-blue-300 mx-1">X-Auth-User-Id</code>,
-            <code className="font-mono text-blue-300 mx-1">X-Auth-Tenant-Id</code>,
-            <code className="font-mono text-blue-300 mx-1">X-Auth-Role</code> and
-            <code className="font-mono text-blue-300 mx-1">X-Auth-Email</code> downstream.
+            or <code className="font-mono text-blue-300">?token=</code> query param. On success injects{' '}
+            <code className="font-mono text-blue-300">X-Auth-User-Id</code>,{' '}
+            <code className="font-mono text-blue-300">X-Auth-Tenant-Id</code>,{' '}
+            <code className="font-mono text-blue-300">X-Auth-Role</code> and{' '}
+            <code className="font-mono text-blue-300">X-Auth-Email</code> downstream.
           </p>
-          <Field label="Issuer" hint="Expected iss claim value (optional — leave blank to skip issuer check)" optional>
-            <input value={str('issuer')} onChange={e => set('issuer', e.target.value)} className={inputCls} placeholder="https://auth.example.com" />
-          </Field>
-          <Field label="Audience" hint="Expected aud claim value (optional — leave blank to skip audience check)" optional>
-            <input value={str('audience')} onChange={e => set('audience', e.target.value)} className={inputCls} placeholder="api://routify" />
-          </Field>
+          {config.authProviderId ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
+              <span className="text-indigo-400">↑</span>
+              Provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
+              issuer, audience &amp; algorithm are sourced from the gateway auth provider config.
+              Inline fields below are used as fallback only.
+            </div>
+          ) : null}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Issuer" hint="Expected iss claim value — leave blank to skip" optional>
+              <input value={str('issuer')} onChange={e => set('issuer', e.target.value)} className={inputCls} placeholder="https://auth.example.com" />
+            </Field>
+            <Field label="Audience" hint="Expected aud claim value — leave blank to skip" optional>
+              <input value={str('audience')} onChange={e => set('audience', e.target.value)} className={inputCls} placeholder="api://routify" />
+            </Field>
+          </div>
           <Field label="Algorithm" hint="JWT signature algorithm used by the identity provider">
             <Select
               value={str('algorithm', 'RS256')}
@@ -226,8 +236,18 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             Validates the client's <code className="font-mono text-amber-300">Authorization: Basic</code> header
             against the credentials below. On success injects <code className="font-mono text-amber-300">X-Auth-User-Id</code> and
             <code className="font-mono text-amber-300 ml-1">X-Auth-Type: BASIC</code> downstream.
-            Credentials are stored inline in this filter definition — no gateway configuration dependency.
           </p>
+          {config.authProviderId ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
+              <span className="text-indigo-400">↑</span>
+              Provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
+              credentials from the gateway auth provider config are used. Inline fields are fallback only.
+            </div>
+          ) : (
+            <p className="text-[11px] text-gray-600 px-1">
+              Credentials stored inline in this filter definition — or link a Basic Auth provider in the left panel.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Username" optional>
               <input value={str('username')} onChange={e => set('username', e.target.value)} className={inputCls} placeholder="admin" autoComplete="off" />
@@ -245,11 +265,18 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
             Verifies the caller's Bearer token against an OAuth2 introspection endpoint.
             Claims are mapped to downstream request headers via <strong className="text-blue-300">Claims → Header Mapping</strong>.
-            All provider configuration is stored inline in this filter definition — no gateway configuration dependency.
           </p>
-          <Field label="Provider Name" hint="Name of the oauth2Verification config entry in the gateway (auth.oauth2Verification.*)">
-            <input value={str('providerName')} onChange={e => set('providerName', e.target.value)} className={inputCls} placeholder="my-oauth2-provider" />
-          </Field>
+          {config.authProviderId ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
+              <span className="text-indigo-400">↑</span>
+              OAuth2 Introspect provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
+              the gateway factory resolves the introspection endpoint and client credentials at runtime.
+            </div>
+          ) : (
+            <Field label="Provider Name" hint="Name of the oauth2Verification config entry in the gateway (auth.oauth2Verification.*). Or link a provider in the left panel.">
+              <input value={str('providerName')} onChange={e => set('providerName', e.target.value)} className={inputCls} placeholder="my-oauth2-provider" />
+            </Field>
+          )}
           <KeyValueFields
             label="Claims → Header Mapping"
             hint="Map token claim names to downstream request header names (e.g. sub → X-Auth-User-Id)"
@@ -445,52 +472,59 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       return (
         <div className="space-y-4">
           <SectionTitle>What to log</SectionTitle>
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] divide-y divide-white/[0.05] overflow-hidden">
-            <Toggle label="Request Headers"  description="Log incoming request header names and values" checked={bool('logRequestHeaders', true)} onChange={v => set('logRequestHeaders', v)} />
-            <Toggle label="Response Headers" description="Log upstream response header names and values" checked={bool('logResponseHeaders', true)} onChange={v => set('logResponseHeaders', v)} />
-            <Toggle label="Request Body"     description="Capture and log the raw request body (up to max size)" checked={bool('logRequestBody')}  onChange={v => set('logRequestBody', v)} />
-            <Toggle label="Response Body"    description="Capture and log the raw response body (up to max size)" checked={bool('logResponseBody')}  onChange={v => set('logResponseBody', v)} />
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.05] overflow-hidden">
+            <div className="divide-y divide-white/[0.05]">
+              <Toggle label="Request Headers"  description="Log incoming request header names and values" checked={bool('logRequestHeaders', true)} onChange={v => set('logRequestHeaders', v)} />
+              <Toggle label="Response Headers" description="Log upstream response header names and values" checked={bool('logResponseHeaders', true)} onChange={v => set('logResponseHeaders', v)} />
+            </div>
+            <div className="divide-y divide-white/[0.05]">
+              <Toggle label="Request Body"  description="Capture and log the raw request body (up to max size)" checked={bool('logRequestBody')}  onChange={v => set('logRequestBody', v)} />
+              <Toggle label="Response Body" description="Capture and log the raw response body (up to max size)" checked={bool('logResponseBody')}  onChange={v => set('logResponseBody', v)} />
+            </div>
           </div>
-          <SectionTitle>Failed request marking</SectionTitle>
-          <Field
-            label="Mark as failed when status ≥"
-            hint="Requests with a response status code at or above this value are flagged as failed and queued for replay."
-          >
-            <div className="flex gap-2">
-              {([400, 500] as const).map(v => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => set('failedStatusThreshold', v)}
-                  className={cn(
-                    'flex-1 py-2 rounded-lg border text-sm font-semibold transition-all',
-                    threshold === v
-                      ? v === 400
-                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                        : 'bg-red-500/15 border-red-500/40 text-red-300'
-                      : 'bg-white/[0.03] border-white/[0.08] text-gray-500 hover:text-gray-300 hover:border-white/[0.15]',
-                  )}
-                >
-                  ≥ {v}
-                  <span className="block text-[10px] font-normal mt-0.5 opacity-70">
-                    {v === 400 ? '4xx + 5xx' : '5xx only'}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[11px] text-gray-600">Custom threshold:</span>
-              <input
-                type="number"
-                min={100}
-                max={599}
-                value={threshold}
-                onChange={e => set('failedStatusThreshold', +e.target.value)}
-                className="w-24 bg-white/[0.04] border border-white/8 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all"
-              />
-              <span className="text-[11px] text-gray-600">— any integer 100–599</span>
-            </div>
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Max Body Log Size (bytes)" hint="Max bytes captured. Default: 4096.">
+              <input type="number" min={0} value={num('maxBodyLogSize', 4096)} onChange={e => set('maxBodyLogSize', +e.target.value)} className={inputCls} />
+            </Field>
+            <Field
+              label="Mark as failed when status ≥"
+              hint="At or above this value requests are flagged for replay."
+            >
+              <div className="flex gap-2">
+                {([400, 500] as const).map(v => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => set('failedStatusThreshold', v)}
+                    className={cn(
+                      'flex-1 py-2 rounded-lg border text-sm font-semibold transition-all',
+                      threshold === v
+                        ? v === 400
+                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                          : 'bg-red-500/15 border-red-500/40 text-red-300'
+                        : 'bg-white/[0.03] border-white/[0.08] text-gray-500 hover:text-gray-300 hover:border-white/[0.15]',
+                    )}
+                  >
+                    ≥ {v}
+                    <span className="block text-[10px] font-normal mt-0.5 opacity-70">
+                      {v === 400 ? '4xx + 5xx' : '5xx only'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[11px] text-gray-600">Custom:</span>
+                <input
+                  type="number"
+                  min={100}
+                  max={599}
+                  value={threshold}
+                  onChange={e => set('failedStatusThreshold', +e.target.value)}
+                  className="w-20 bg-white/[0.04] border border-white/8 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all"
+                />
+              </div>
+            </Field>
+          </div>
           <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed
             bg-amber-500/[0.06] border-amber-500/20 text-amber-400/80">
             <span className="mt-0.5 shrink-0">⚠</span>
@@ -499,10 +533,6 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               replay. Only use this if your upstream is authoritative for 4xx responses and retrying them makes sense.
             </span>
           </div>
-          <SectionTitle>Limits</SectionTitle>
-          <Field label="Max Body Log Size (bytes)" hint="Max bytes captured from request/response body. Default: 4096.">
-            <input type="number" min={0} value={num('maxBodyLogSize', 4096)} onChange={e => set('maxBodyLogSize', +e.target.value)} className={inputCls} />
-          </Field>
           <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2">
             Sensitive headers (<code className="font-mono text-indigo-300">Authorization</code>,{' '}
             <code className="font-mono text-indigo-300">X-Api-Key</code>,{' '}
@@ -733,9 +763,19 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-violet-500/10 border border-violet-500/20 rounded-lg px-3 py-2">
             Injects a <strong className="text-violet-300">Basic Authorization</strong> header into every request
-            forwarded to the upstream service. Credentials are stored inline in this filter definition —
-            no gateway configuration dependency.
+            forwarded to the upstream service.
           </p>
+          {config.authProviderId ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
+              <span className="text-indigo-400">↑</span>
+              Basic Auth provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
+              credentials are sourced from the gateway auth provider config at runtime.
+            </div>
+          ) : (
+            <p className="text-[11px] text-gray-600 px-1">
+              Credentials stored inline — or link a Basic Auth provider in the left panel to avoid inline secret storage.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Username" optional>
               <input value={str('username')} onChange={e => set('username', e.target.value)} className={inputCls} placeholder="service-account" autoComplete="off" />
@@ -754,11 +794,18 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             Acquires an OAuth2 <strong className="text-violet-300">client-credentials</strong> token from the
             named provider and injects it as{' '}
             <code className="font-mono text-violet-300">Authorization: Bearer …</code> downstream.
-            All provider configuration is stored inline in this filter definition — no gateway configuration dependency.
           </p>
-          <Field label="OAuth2 Provider Name" hint="Logical name of the OAuth2 client-credentials provider — resolved at runtime from the filter's own config">
-            <input value={str('oauth2ProviderName')} onChange={e => set('oauth2ProviderName', e.target.value)} className={inputCls} placeholder="my-cc-provider" />
-          </Field>
+          {config.authProviderId ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
+              <span className="text-indigo-400">↑</span>
+              OAuth2 CC provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
+              the gateway acquires a bearer token from the provider's token endpoint at runtime.
+            </div>
+          ) : (
+            <Field label="OAuth2 Provider Name" hint="Logical name of the OAuth2 client-credentials provider — or link a provider in the left panel">
+              <input value={str('oauth2ProviderName')} onChange={e => set('oauth2ProviderName', e.target.value)} className={inputCls} placeholder="my-cc-provider" />
+            </Field>
+          )}
           <Toggle
             label="Forward Caller Auth"
             description="Forward the caller's own Authorization header to the token endpoint (uncached) instead of using stored client credentials"
@@ -1195,7 +1242,7 @@ function AiFilterFields({
       </div>
 
       <SectionTitle>Body Analysis</SectionTitle>
-      <div className="divide-y divide-white/[0.04]">
+      <div className="grid grid-cols-2 divide-x divide-white/[0.04] rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
         <Toggle label="Include Body in Prompt" description="Send a body excerpt to the LLM"
           checked={bool('includeBody')} onChange={v => set('includeBody', v)} />
         <Toggle label="Enable Verdict Cache" description="Serve identical requests from Redis"
@@ -1211,14 +1258,16 @@ function AiFilterFields({
       <SectionTitle>Test Policy (Dry Run)</SectionTitle>
       <div className="space-y-3 rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
         <p className="text-xs text-gray-500">Test against a sample before enabling on live traffic.</p>
-        <Field label="Sample Path" optional>
-          <input value={samplePath} onChange={e => setSamplePath(e.target.value)}
-            className={inputCls} placeholder="/api/v1/users?id=1 OR 1=1" />
-        </Field>
-        <Field label="Sample Body" optional>
-          <textarea value={sampleBody} onChange={e => setSampleBody(e.target.value)}
-            rows={2} placeholder='{"query":"SELECT * FROM users"}' className={`${monoInputCls} resize-y`} />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Sample Path" optional>
+            <input value={samplePath} onChange={e => setSamplePath(e.target.value)}
+              className={inputCls} placeholder="/api/v1/users?id=1 OR 1=1" />
+          </Field>
+          <Field label="Sample Body" optional>
+            <textarea value={sampleBody} onChange={e => setSampleBody(e.target.value)}
+              rows={1} placeholder='{"query":"SELECT * FROM users"}' className={`${monoInputCls} resize-none`} />
+          </Field>
+        </div>
         <button type="button" onClick={runTest} disabled={testLoading || !str('policyDescription').trim()}
           className="px-3 py-1.5 text-xs font-semibold bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white rounded-lg transition-all">
           {testLoading ? 'Running…' : '▶ Run Test'}
@@ -1343,7 +1392,7 @@ function AiModifierFields({
       </Field>
 
       <SectionTitle>Caching</SectionTitle>
-      <div className="divide-y divide-white/[0.04]">
+      <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
         <Toggle label="Enable Mutation Cache"
           description="Cache mutations in Redis. Recommended OFF unless mutations are request-fingerprint invariant"
           checked={bool('cacheEnabled')} onChange={v => set('cacheEnabled', v)} />
@@ -1363,15 +1412,17 @@ function AiModifierFields({
       <SectionTitle>Test Modification (Dry Run)</SectionTitle>
       <div className="space-y-3 rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
         <p className="text-xs text-gray-500">Validate your prompt against a sample before enabling on live traffic.</p>
-        <Field label="Sample Path" optional>
-          <input value={samplePath} onChange={e => setSamplePath(e.target.value)}
-            className={inputCls} placeholder="/api/v1/orders" />
-        </Field>
-        <Field label="Sample Body (JSON)" optional>
-          <textarea value={sampleBody} onChange={e => setSampleBody(e.target.value)} rows={3}
-            placeholder='{"email":"user@example.com","ssn":"123-45-6789","amount":100}'
-            className={`${monoInputCls} resize-y`} />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Sample Path" optional>
+            <input value={samplePath} onChange={e => setSamplePath(e.target.value)}
+              className={inputCls} placeholder="/api/v1/orders" />
+          </Field>
+          <Field label="Sample Body (JSON)" optional>
+            <textarea value={sampleBody} onChange={e => setSampleBody(e.target.value)} rows={1}
+              placeholder='{"email":"user@example.com","ssn":"123-45-6789","amount":100}'
+              className={`${monoInputCls} resize-none`} />
+          </Field>
+        </div>
         <button type="button" onClick={runTest} disabled={testLoading || !str('modificationPrompt').trim()}
           className="px-3 py-1.5 text-xs font-semibold bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 text-white rounded-lg transition-all">
           {testLoading ? 'Running…' : '▶ Run Modification Test'}

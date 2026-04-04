@@ -219,14 +219,14 @@ function CertVaultGroupPickerInner({
       )}
 
       {/* Picker dropdown */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-stretch gap-2">
         <div className="relative flex-1">
           <button
             type="button"
             onClick={() => setOpen(o => !o)}
             disabled={isLoading || !tenantId}
             className={cn(
-              'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm transition-all',
+              'w-full h-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm transition-all',
               open
                 ? 'bg-white/[0.06] border-sky-500 text-white ring-1 ring-sky-500/30'
                 : 'bg-white/[0.03] border-white/[0.08] text-gray-400 hover:text-white hover:border-white/20',
@@ -332,7 +332,7 @@ function CertVaultGroupPickerInner({
         <button
           type="button"
           onClick={onNavigateToCertVault}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs text-sky-400 hover:text-sky-300 bg-white/[0.03] hover:bg-white/[0.06] border border-white/8 hover:border-sky-500/30 rounded-lg transition-all whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs text-sky-400 hover:text-sky-300 bg-white/[0.03] hover:bg-white/[0.06] border border-white/8 hover:border-sky-500/30 rounded-lg transition-all whitespace-nowrap shrink-0"
           title="Manage Certificate Groups in Cert Vault"
         >
           <Plus className="w-3 h-3" />
