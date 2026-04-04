@@ -16,6 +16,18 @@ import java.util.UUID;
  *   <li>PRE  — before forwarding to upstream (auth, rate limit, request modification)</li>
  *   <li>POST — after receiving upstream response (response modification, logging)</li>
  * </ul>
+ *
+ * <h3>Usage count (M2 fix)</h3>
+ * <p>The previous design called {@code filter.incrementUsage()} / {@code filter.decrementUsage()}
+ * directly from the constructor and {@code @PreRemove} — updating an in-memory field then
+ * persisting it via dirty-check. Under concurrent transactions both sides of a race would
+ * read the same count and produce an incorrect result.
+ *
+ * <p>The usage counter is now managed exclusively by the service layer via atomic SQL
+ * ({@code FilterDefinitionRepository.incrementUsageAtomic()} / {@code decrementUsageAtomic()}).
+ * The entity constructor and {@code @PreRemove} no longer touch the counter. The domain
+ * guard {@code FilterDefinition.isInUse()} is still available for read checks (it reads the
+ * persisted column value loaded at entity hydration time — safe for informational guards).
  */
 @Entity
 @Table(
@@ -64,7 +76,9 @@ public class RouteFilter {
         this.filterOrder      = order;
         this.phase            = Objects.requireNonNullElse(phase, "PRE");
         this.enabled          = true;
-        filter.incrementUsage();
+        // NOTE: Do NOT call filter.incrementUsage() here.
+        // Usage count is managed atomically by the service layer via
+        // FilterDefinitionRepository.incrementUsageAtomic() — see M2 fix.
     }
 
     // ─── Getters / Setters ────────────────────────────────────────────────────
@@ -82,7 +96,9 @@ public class RouteFilter {
 
     @PreRemove
     private void onRemove() {
-        filterDefinition.decrementUsage();
+        // NOTE: Do NOT call filterDefinition.decrementUsage() here.
+        // Usage count is managed atomically by the service layer via
+        // FilterDefinitionRepository.decrementUsageAtomic() — see M2 fix.
     }
 }
 

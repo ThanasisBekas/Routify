@@ -161,10 +161,32 @@ public class StoredCertificate {
     private String gatewayTlsLogicalId;
 
     /**
-     * Returns the effective gateway TLS logical ID used by the registry.
-     * If the certificate belongs to a group, the group's logical ID is returned.
-     * Falls back to the certificate's own {@code gatewayTlsLogicalId}.
+     * Canonical gateway TLS registry key — the single source of truth replacing the
+     * ambiguous triplet ({@code logicalId}, {@code gatewayTlsLogicalId}, {@code group.logicalId}).
+     *
+     * <p>Maintained by database trigger {@code trg_cert_effective_logical_id} (V2 migration):
+     * <ul>
+     *   <li>If {@code group_id IS NOT NULL} → equals {@code cert_group.logical_id}</li>
+     *   <li>Otherwise → equals {@code gateway_tls_logical_id}</li>
+     * </ul>
+     *
+     * <p>Java application code should use this field instead of calling
+     * {@link #effectiveGatewayLogicalId()} wherever possible, as it avoids an extra join.
+     * The domain method is retained for cases where the group entity is already loaded.
      */
+    @Column(name = "effective_logical_id", length = 100)
+    private String effectiveLogicalId;
+
+    /**
+     * Returns the effective gateway TLS logical ID used by the registry.
+     * Prefer reading {@link #effectiveLogicalId} directly when it is already populated
+     * (V2 migration backfill). This method is retained for backwards compatibility and
+     * for cases where the {@code group} association is already in the Hibernate session.
+     *
+     * @deprecated Prefer reading {@code effectiveLogicalId} column directly.
+     *             This method requires the {@code group} association to be loaded.
+     */
+    @Deprecated(forRemoval = false)
     public String effectiveGatewayLogicalId() {
         if (group != null) return group.getLogicalId();
         return gatewayTlsLogicalId;
