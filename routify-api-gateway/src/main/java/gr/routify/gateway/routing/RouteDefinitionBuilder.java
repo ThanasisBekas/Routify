@@ -98,15 +98,25 @@ public class RouteDefinitionBuilder {
         // ─── Filters ─────────────────────────────────────────────────────────
         List<FilterDefinition> filters = new ArrayList<>();
 
-        // Strip prefix from route-level flag — only when the filter chain does NOT already
-        // contain a PATH_STRIP_PREFIX filter to avoid double-stripping.
+        // Strip prefix from route-level flag — derive the number of path segments to strip
+        // from the stored prefix string (e.g. "/api/v1" → 2 parts, "/api" → 1 part).
+        // Only add when the filter chain does NOT already contain a PATH_STRIP_PREFIX filter
+        // to avoid double-stripping.
         boolean chainHasStripPrefix = snapshot.filters() != null && snapshot.filters().stream()
                 .anyMatch(f -> "PATH_STRIP_PREFIX".equals(f.filterType()));
         if (!chainHasStripPrefix && snapshot.stripPrefix() != null && !snapshot.stripPrefix().isBlank()) {
-            var stripFilter = new FilterDefinition();
-            stripFilter.setName("StripPrefix");
-            stripFilter.setArgs(Map.of("parts", "1"));
-            filters.add(stripFilter);
+            int parts = countPathSegments(snapshot.stripPrefix());
+            if (parts > 0) {
+                var stripFilter = new FilterDefinition();
+                stripFilter.setName("StripPrefix");
+                stripFilter.setArgs(Map.of("parts", String.valueOf(parts)));
+                filters.add(stripFilter);
+                log.debug("StripPrefix filter added: prefix='{}' parts={} for route {}",
+                        snapshot.stripPrefix(), parts, snapshot.routeId());
+            } else {
+                log.warn("stripPrefix='{}' for route {} resolved to 0 segments — StripPrefix filter skipped",
+                        snapshot.stripPrefix(), snapshot.routeId());
+            }
         }
 
         // Dynamic filters from the route's filter chain
@@ -366,6 +376,30 @@ public class RouteDefinitionBuilder {
         config.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
         f.setArgs(args);
         return f;
+    }
+
+    /**
+     * Counts the number of non-empty path segments in a prefix string.
+     *
+     * <p>Examples:
+     * <ul>
+     *   <li>{@code "/api/v1"} → 2</li>
+     *   <li>{@code "/api"}    → 1</li>
+     *   <li>{@code "/"}       → 0</li>
+     *   <li>{@code "api/v1"}  → 2  (no leading slash is also handled)</li>
+     * </ul>
+     *
+     * @param prefix the strip-prefix path stored on the route (e.g. {@code "/api/v1"})
+     * @return number of non-empty segments; never negative
+     */
+    private static int countPathSegments(String prefix) {
+        if (prefix == null || prefix.isBlank()) return 0;
+        String[] segments = prefix.split("/");
+        int count = 0;
+        for (String s : segments) {
+            if (!s.isBlank()) count++;
+        }
+        return count;
     }
 
     private static String resolveRateLimitKeyResolver(Map<String, Object> cfg) {
