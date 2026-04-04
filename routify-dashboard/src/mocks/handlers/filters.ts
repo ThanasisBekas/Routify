@@ -3,7 +3,7 @@ import { filters, buildPage, MOCK_TENANT_ID } from '../db'
 import type { FilterDefinitionDto, FilterSummary, CreateFilterRequest, UpdateFilterRequest } from '../../types'
 
 function toSummary(f: FilterDefinitionDto): FilterSummary {
-  return { id: f.id, name: f.name, filterType: f.filterType, enabled: f.enabled, usageCount: f.usageCount, gatewayConfigRef: f.gatewayConfigRef, createdAt: f.createdAt }
+  return { id: f.id, name: f.name, filterType: f.filterType, enabled: f.enabled, usageCount: f.usageCount, createdAt: f.createdAt }
 }
 
 function genId() {
@@ -41,7 +41,6 @@ export const filterHandlers = [
       name: body.name, description: body.description,
       filterType: body.filterType, config: body.config ?? {},
       systemManaged: false, enabled: true, usageCount: 0,
-      gatewayConfigRef: body.gatewayConfigRef,
       createdBy: 'admin', createdAt: now, updatedAt: now,
     }
     filters.set(filter.id, filter)
@@ -59,7 +58,6 @@ export const filterHandlers = [
       ...(body.name        !== undefined && { name: body.name }),
       ...(body.description !== undefined && { description: body.description }),
       ...(body.config      !== undefined && { config: body.config }),
-      ...(body.gatewayConfigRef !== undefined && { gatewayConfigRef: body.gatewayConfigRef ?? undefined }),
       updatedAt: new Date().toISOString(),
     }
     filters.set(filter.id, updated)

@@ -174,14 +174,6 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <code className="font-mono text-blue-300">X-Auth-Role</code> and{' '}
             <code className="font-mono text-blue-300">X-Auth-Email</code> downstream.
           </p>
-          {config.authProviderId ? (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
-              <span className="text-indigo-400">↑</span>
-              Provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
-              issuer, audience &amp; algorithm are sourced from the gateway auth provider config.
-              Inline fields below are used as fallback only.
-            </div>
-          ) : null}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Issuer" hint="Expected iss claim value — leave blank to skip" optional>
               <input value={str('issuer')} onChange={e => set('issuer', e.target.value)} className={inputCls} placeholder="https://auth.example.com" />
@@ -237,17 +229,6 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             against the credentials below. On success injects <code className="font-mono text-amber-300">X-Auth-User-Id</code> and
             <code className="font-mono text-amber-300 ml-1">X-Auth-Type: BASIC</code> downstream.
           </p>
-          {config.authProviderId ? (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
-              <span className="text-indigo-400">↑</span>
-              Provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
-              credentials from the gateway auth provider config are used. Inline fields are fallback only.
-            </div>
-          ) : (
-            <p className="text-[11px] text-gray-600 px-1">
-              Credentials stored inline in this filter definition — or link a Basic Auth provider in the left panel.
-            </p>
-          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Username" optional>
               <input value={str('username')} onChange={e => set('username', e.target.value)} className={inputCls} placeholder="admin" autoComplete="off" />
@@ -266,17 +247,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             Verifies the caller's Bearer token against an OAuth2 introspection endpoint.
             Claims are mapped to downstream request headers via <strong className="text-blue-300">Claims → Header Mapping</strong>.
           </p>
-          {config.authProviderId ? (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
-              <span className="text-indigo-400">↑</span>
-              OAuth2 Introspect provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
-              the gateway factory resolves the introspection endpoint and client credentials at runtime.
-            </div>
-          ) : (
-            <Field label="Provider Name" hint="Name of the oauth2Verification config entry in the gateway (auth.oauth2Verification.*). Or link a provider in the left panel.">
-              <input value={str('providerName')} onChange={e => set('providerName', e.target.value)} className={inputCls} placeholder="my-oauth2-provider" />
-            </Field>
-          )}
+          <Field label="Provider Name" hint="Name of the oauth2Verification config entry in the gateway (auth.oauth2Verification.*)">
+            <input value={str('providerName')} onChange={e => set('providerName', e.target.value)} className={inputCls} placeholder="my-oauth2-provider" />
+          </Field>
           <KeyValueFields
             label="Claims → Header Mapping"
             hint="Map token claim names to downstream request header names (e.g. sub → X-Auth-User-Id)"
@@ -765,17 +738,6 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             Injects a <strong className="text-violet-300">Basic Authorization</strong> header into every request
             forwarded to the upstream service.
           </p>
-          {config.authProviderId ? (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
-              <span className="text-indigo-400">↑</span>
-              Basic Auth provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
-              credentials are sourced from the gateway auth provider config at runtime.
-            </div>
-          ) : (
-            <p className="text-[11px] text-gray-600 px-1">
-              Credentials stored inline — or link a Basic Auth provider in the left panel to avoid inline secret storage.
-            </p>
-          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Username" optional>
               <input value={str('username')} onChange={e => set('username', e.target.value)} className={inputCls} placeholder="service-account" autoComplete="off" />
@@ -795,17 +757,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             named provider and injects it as{' '}
             <code className="font-mono text-violet-300">Authorization: Bearer …</code> downstream.
           </p>
-          {config.authProviderId ? (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300/80">
-              <span className="text-indigo-400">↑</span>
-              OAuth2 CC provider <code className="font-mono text-indigo-200">{String(config.authProviderName ?? config.authProviderId)}</code> linked —
-              the gateway acquires a bearer token from the provider's token endpoint at runtime.
-            </div>
-          ) : (
-            <Field label="OAuth2 Provider Name" hint="Logical name of the OAuth2 client-credentials provider — or link a provider in the left panel">
-              <input value={str('oauth2ProviderName')} onChange={e => set('oauth2ProviderName', e.target.value)} className={inputCls} placeholder="my-cc-provider" />
-            </Field>
-          )}
+          <Field label="OAuth2 Provider Name" hint="Logical name of the OAuth2 client-credentials provider">
+            <input value={str('oauth2ProviderName')} onChange={e => set('oauth2ProviderName', e.target.value)} className={inputCls} placeholder="my-cc-provider" />
+          </Field>
           <Toggle
             label="Forward Caller Auth"
             description="Forward the caller's own Authorization header to the token endpoint (uncached) instead of using stored client credentials"

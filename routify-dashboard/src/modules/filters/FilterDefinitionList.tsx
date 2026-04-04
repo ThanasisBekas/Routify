@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { filtersApi } from '../../api/filtersApi'
 import FilterDefinitionForm from './FilterDefinitionForm'
 import type { FilterSummary } from '../../types'
-import { Filter, Plus, Pencil, Trash2, Loader2, Link } from 'lucide-react'
+import { Filter, Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
@@ -82,7 +82,6 @@ export default function FilterDefinitionList() {
               <tr className="text-left border-b border-white/[0.06] bg-[#0c0e14]">
                 <th className="px-6 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Filter</th>
                 <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Type</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Gateway Link</th>
                 <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Usage</th>
                 <th className="px-4 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Created</th>
                 <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Actions</th>
@@ -139,21 +138,6 @@ function FilterRow({
         <span className={cn('inline-flex text-[11px] px-2 py-1 rounded-full font-semibold border', colorClass)}>
           {filter.filterType.replace(/_/g, ' ')}
         </span>
-      </td>
-      <td className="px-4 py-3.5">
-        {filter.gatewayConfigRef ? (
-          <span
-            title={`${filter.gatewayConfigRef.refType}: ${filter.gatewayConfigRef.refName ?? filter.gatewayConfigRef.refId}`}
-            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border text-indigo-400 bg-indigo-400/10 border-indigo-400/20"
-          >
-            <Link className="w-3 h-3 shrink-0" />
-            <span className="max-w-[120px] truncate">
-              {filter.gatewayConfigRef.refName ?? filter.gatewayConfigRef.refId}
-            </span>
-          </span>
-        ) : (
-          <span className="text-xs text-gray-600">—</span>
-        )}
       </td>
       <td className="px-4 py-3.5">
         <span className={cn(
