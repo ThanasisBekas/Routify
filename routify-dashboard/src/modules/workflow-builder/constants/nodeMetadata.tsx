@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * nodeMetadata.tsx — Shared visual metadata for all node/filter types in the
  * WorkflowBuilder. Centralised here so both the canvas nodes and the NodePalette
@@ -6,6 +7,11 @@
  * Filter visual metadata (color/bg/border) is derived from filterRegistry.ts
  * to keep the two in sync. Icons are added here because they are React nodes
  * (JSX) that the common registry cannot hold (no React dependency in filterRegistry).
+ *
+ * Note: react-refresh/only-export-components is disabled for this file because it
+ * intentionally exports JSX-containing constants (icon React nodes used as data),
+ * not rendered components. Fast-refresh still works — non-component exports are
+ * re-evaluated on HMR without issue.
  */
 import React from 'react'
 import {

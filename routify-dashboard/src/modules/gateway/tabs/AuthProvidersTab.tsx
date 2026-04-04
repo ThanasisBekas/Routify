@@ -11,7 +11,6 @@ import {
   SectionHeader, ToggleRow, Field, EmptyState, LinkedBadge,
   inputCls, monoInputCls,
 } from '../components/GatewayPrimitives'
-import { cn } from '../../../lib/utils'
 import { Select } from '../../../components/ui/Select'
 import { filtersApi } from '../../../api/filtersApi'
 import { useRealtimeQuery } from '../../../hooks/useRealtimeQuery'

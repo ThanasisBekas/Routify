@@ -9,8 +9,6 @@ import React from 'react'
 import { Save, Server } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 
-// Re-export cn so tab files can import it from here alongside primitives
-export { cn }
 
 // ─── Section heading with icon support ────────────────────────────────────────
 

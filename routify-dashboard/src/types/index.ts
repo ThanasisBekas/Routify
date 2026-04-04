@@ -500,7 +500,6 @@ export interface GatewayAuthProvider {
  * @deprecated Use the Cert Vault API instead. This type is retained only for
  *   backwards-compatible config snapshot serialisation.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type GatewayTlsConfig = Record<string, never>
 
 export interface GatewayProxyConfig {
