@@ -226,7 +226,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             Validates the client's <code className="font-mono text-amber-300">Authorization: Basic</code> header
             against the credentials below. On success injects <code className="font-mono text-amber-300">X-Auth-User-Id</code> and
             <code className="font-mono text-amber-300 ml-1">X-Auth-Type: BASIC</code> downstream.
-            Optionally link to a Gateway <strong className="text-amber-300">Auth Provider</strong> instead.
+            Credentials are stored inline in this filter definition — no gateway configuration dependency.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Username" optional>
@@ -245,7 +245,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
             Verifies the caller's Bearer token against an OAuth2 introspection endpoint.
             Claims are mapped to downstream request headers via <strong className="text-blue-300">Claims → Header Mapping</strong>.
-            Link to a Gateway <strong className="text-blue-300">Auth Provider</strong> to centralise provider config.
+            All provider configuration is stored inline in this filter definition — no gateway configuration dependency.
           </p>
           <Field label="Provider Name" hint="Name of the oauth2Verification config entry in the gateway (auth.oauth2Verification.*)">
             <input value={str('providerName')} onChange={e => set('providerName', e.target.value)} className={inputCls} placeholder="my-oauth2-provider" />
@@ -589,10 +589,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         <div className="py-4 text-center">
           <p className="text-sm text-gray-500">Injects OWASP-recommended security response headers.</p>
           <p className="text-xs text-gray-600 mt-1 leading-relaxed max-w-sm mx-auto">
-            Header values are driven by the <strong className="text-gray-400">Gateway → Security Headers</strong> config
-            tab and reloaded live without a restart.
-            The global <code className="font-mono text-indigo-400">GlobalSecurityHeadersFilter</code> ensures these headers
-            appear on every response regardless of route configuration.
+            Header values are pre-configured with OWASP-recommended defaults and enforced on every response
+            by the <code className="font-mono text-indigo-400">GlobalSecurityHeadersFilter</code> — no
+            per-filter or gateway configuration dependency.
           </p>
           <div className="mt-3 text-left inline-block space-y-1.5">
             {[
@@ -734,8 +733,8 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-violet-500/10 border border-violet-500/20 rounded-lg px-3 py-2">
             Injects a <strong className="text-violet-300">Basic Authorization</strong> header into every request
-            forwarded to the upstream service. Link to a Gateway{' '}
-            <strong className="text-violet-300">Downstream Credential</strong> to avoid storing credentials here.
+            forwarded to the upstream service. Credentials are stored inline in this filter definition —
+            no gateway configuration dependency.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Username" optional>
@@ -755,10 +754,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             Acquires an OAuth2 <strong className="text-violet-300">client-credentials</strong> token from the
             named provider and injects it as{' '}
             <code className="font-mono text-violet-300">Authorization: Bearer …</code> downstream.
-            Link to a Gateway <strong className="text-violet-300">Auth Provider</strong> of type
-            OAUTH2_CLIENT_CREDENTIALS.
+            All provider configuration is stored inline in this filter definition — no gateway configuration dependency.
           </p>
-          <Field label="OAuth2 Provider Name" hint="Name of the Auth Provider configured in Gateway Config">
+          <Field label="OAuth2 Provider Name" hint="Logical name of the OAuth2 client-credentials provider — resolved at runtime from the filter's own config">
             <input value={str('oauth2ProviderName')} onChange={e => set('oauth2ProviderName', e.target.value)} className={inputCls} placeholder="my-cc-provider" />
           </Field>
           <Toggle

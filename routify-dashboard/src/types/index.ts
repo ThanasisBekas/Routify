@@ -164,32 +164,49 @@ export type FilterCategory =
   | 'Routing' | 'Security' | 'Versioning' | 'Observability' | 'Custom'
 
 /**
- * A reference to a gateway configuration entry (auth provider, rate limit policy, etc.)
- * that provides the authoritative settings for a filter definition.
+ * A reference to a Cert Vault certificate group that provides the authoritative
+ * certificate configuration for a cert-based filter definition.
+ *
+ * Architectural constraint: ONLY cert filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`,
+ * `CERT_VAULT_EXPIRY_CHECK`) may import configuration from an external source.
+ * All standard filters must be configured independently — no gateway config refs.
  */
 export interface GatewayConfigRef {
-  /** e.g. "AUTH_PROVIDER" | "RATE_LIMIT_POLICY" | "CIRCUIT_BREAKER_DEFAULTS" | "RESILIENCE_DEFAULTS" | "TLS_SOURCE" | "VAULT_CERT" (cert group) | "DOWNSTREAM_CREDENTIAL" */
-  refType: string
-  /** The id of the gateway config entry */
+  /**
+   * Always "VAULT_CERT" — the only allowed external config source.
+   * Standard filters are self-contained and never reference gateway config.
+   */
+  refType: 'VAULT_CERT'
+  /** The logicalId of the Cert Vault certificate group */
   refId: string
-  /** Human-readable name (display only) */
+  /** Human-readable alias (display only) */
   refName?: string
 }
 
-/** Filter types that require or benefit from a gateway config reference */
+/**
+ * Filter types that may reference an external configuration source.
+ *
+ * ARCHITECTURAL RULE:
+ *  - Standard filters are SELF-CONTAINED. Their configuration is stored inline
+ *    in the filter definition and must NOT pull from the API gateway config.
+ *  - The ONLY exception is cert filters, which are allowed to bind to a
+ *    Certificate Group in the Cert Vault (refType: "VAULT_CERT").
+ */
+export const FILTER_TYPES_WITH_CERT_VAULT_REF: ReadonlySet<FilterType> = new Set<FilterType>([
+  'AUTH_CERT_VAULT',
+  'CERT_ROTATION',
+  'CERT_VAULT_EXPIRY_CHECK',
+])
+
+/**
+ * @deprecated Use `FILTER_TYPES_WITH_CERT_VAULT_REF` instead.
+ * Kept for backward-compatibility while existing usages are migrated.
+ * Only VAULT_CERT entries remain — all gateway config refs have been removed.
+ */
 export const FILTER_TYPES_WITH_GATEWAY_REF: Partial<Record<FilterType, GatewayConfigRef['refType']>> = {
-  AUTH_JWT:                    'AUTH_PROVIDER',
-  AUTH_API_KEY:                'AUTH_PROVIDER',
-  AUTH_BASIC:                  'AUTH_PROVIDER',
-  AUTH_OAUTH2:                 'AUTH_PROVIDER',
-  AUTH_MTLS:                   'AUTH_PROVIDER',
-  AUTH_CERT_VAULT:             'VAULT_CERT',
-  DOWNSTREAM_BEARER_CC:        'AUTH_PROVIDER',
-  RATE_LIMIT_FIXED_WINDOW:     'RATE_LIMIT_POLICY',
-  RATE_LIMIT_SLIDING_WINDOW:   'RATE_LIMIT_POLICY',
-  TIMEOUT:                     'RESILIENCE_DEFAULTS',
-  CERT_ROTATION:               'VAULT_CERT',
-  CERT_VAULT_EXPIRY_CHECK:     'VAULT_CERT',
+  AUTH_CERT_VAULT:         'VAULT_CERT',
+  CERT_ROTATION:           'VAULT_CERT',
+  CERT_VAULT_EXPIRY_CHECK: 'VAULT_CERT',
 }
 
 export interface FilterDefinitionDto {

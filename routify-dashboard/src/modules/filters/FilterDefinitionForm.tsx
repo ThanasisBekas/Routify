@@ -1,86 +1,46 @@
 /**
  * FilterDefinitionForm — create or edit a filter definition.
  * Each filter type renders its own dedicated configuration fields.
+ *
+ * Filter type catalogue and visual metadata are sourced from filterRegistry.ts
+ * so this component no longer maintains its own duplicate lists.
+ *
+ * ARCHITECTURAL CONSTRAINT — External config sources:
+ *   Standard filters are SELF-CONTAINED. They store all their configuration
+ *   inline in the filter definition and MUST NOT import configuration from the
+ *   API gateway config (no auth-provider refs, no rate-limit policy refs, etc.).
+ *
+ *   The ONLY exception is cert filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`,
+ *   `CERT_VAULT_EXPIRY_CHECK`), which may bind to a Certificate Group in the
+ *   Cert Vault via `CertVaultGroupPicker`. This binding is enforced here —
+ *   non-cert filter types never see the picker.
  */
 import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { X, AlertCircle, Filter, ChevronDown } from 'lucide-react'
 import { filtersApi } from '../../api/filtersApi'
 import type { FilterType, CreateFilterRequest, UpdateFilterRequest, GatewayConfigRef } from '../../types'
-import { FILTER_TYPES_WITH_GATEWAY_REF } from '../../types'
+import { FILTER_TYPES_WITH_CERT_VAULT_REF } from '../../types'
 import FilterConfigFields from './FilterConfigFields'
 import { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './filterConfigConstants'
-import GatewayConfigRefPicker from './GatewayConfigRefPicker'
+import CertVaultGroupPicker from './CertVaultGroupPicker'
 import { cn } from '../../lib/utils'
 import { extractApiError } from '../../lib/errorUtils'
+import {
+  FILTER_REGISTRY,
+  CATEGORY_ORDER,
+  CATEGORY_COLORS,
+  assertStandardFilterIsolation,
+} from './filterRegistry'
 
-// ─── Filter type catalogue ────────────────────────────────────────────────────
+// ─── Re-shape registry for the picker ────────────────────────────────────────
 
-const FILTER_TYPES: { value: FilterType; label: string; category: string; description: string }[] = [
-  // Authentication
-  { value: 'AUTH_JWT',        label: 'JWT',              category: 'Authentication', description: 'Validate JWT bearer tokens (RS256/HS256) with optional issuer & audience check' },
-  { value: 'AUTH_API_KEY',    label: 'API Key',          category: 'Authentication', description: 'Validate API keys from a configurable header or query parameter' },
-  { value: 'AUTH_BASIC',      label: 'Basic Auth',       category: 'Authentication', description: 'Inbound HTTP Basic Authentication against configured credentials' },
-  { value: 'AUTH_OAUTH2',     label: 'OAuth2',           category: 'Authentication', description: 'Verify bearer tokens via an OAuth2 introspection endpoint' },
-  { value: 'AUTH_MTLS',       label: 'mTLS',             category: 'Authentication', description: 'Mutual TLS — validate client certificate against the certificate registry' },
-  { value: 'AUTH_CLIENT_ID',  label: 'Client ID',        category: 'Authentication', description: 'Validate client identity via X-Client-Id and certificate mapping' },
-  { value: 'AUTH_CERT_VAULT', label: 'Cert Vault Auth',  category: 'Authentication', description: 'Authenticate caller by verifying their certificate against a Certificate Group in the Cert Vault registry — injects rich X.509 identity headers downstream' },
-  // Downstream Auth Injection
-  { value: 'DOWNSTREAM_BASIC_AUTH', label: 'Downstream Basic Auth',    category: 'Downstream Auth', description: 'Inject Basic Auth credentials into outbound downstream requests' },
-  { value: 'DOWNSTREAM_BEARER_CC',  label: 'Downstream Bearer (CC)',   category: 'Downstream Auth', description: 'Acquire an OAuth2 client-credentials token and inject it as Bearer downstream' },
-  // Rate Limiting
-  { value: 'RATE_LIMIT_FIXED_WINDOW',   label: 'Fixed Window',   category: 'Rate Limiting', description: 'Redis fixed-window counter (INCR + PEXPIRE)' },
-  { value: 'RATE_LIMIT_SLIDING_WINDOW', label: 'Sliding Window', category: 'Rate Limiting', description: 'Redis sliding-window rate limiter (sorted-set algorithm)' },
-  // Modification
-  { value: 'REQUEST_HEADER_MODIFY',  label: 'Request Headers',  category: 'Modification', description: 'Add, set or remove request headers before forwarding upstream' },
-  { value: 'RESPONSE_HEADER_MODIFY', label: 'Response Headers', category: 'Modification', description: 'Add, set or remove response headers after upstream replies' },
-  // Transformation
-  { value: 'BODY_JOLT_TRANSFORM', label: 'Jolt Transform', category: 'Transformation', description: 'Transform JSON request body with a Jolt Chainr spec' },
-  // Validation
-  { value: 'VALIDATE_JSON_SCHEMA', label: 'JSON Schema', category: 'Validation', description: 'Validate JSON request body against a JSON Schema (Draft-07 by default)' },
-  // Resilience
-  { value: 'TIMEOUT', label: 'Timeout', category: 'Resilience', description: 'Enforce a per-route maximum request duration (504 on exceed)' },
-  // Observability
-  { value: 'CORRELATION_ID',  label: 'Correlation ID',  category: 'Observability', description: 'Inject or propagate X-Correlation-Id header (generate UUID if absent)' },
-  { value: 'REQUEST_LOGGER',  label: 'Request Logger',  category: 'Observability', description: 'Log requests/responses and publish telemetry to Kafka' },
-  { value: 'TENANT_CONTEXT',  label: 'Tenant Context',  category: 'Observability', description: 'Propagate & validate tenant ID (X-Tenant-Id) for downstream services' },
-  { value: 'CUSTOM_METRIC',   label: 'Custom Metric',   category: 'Observability', description: 'Increment a custom Micrometer counter with optional dynamic tags' },
-  // Security
-  { value: 'SECURITY_HEADERS',        label: 'Security Headers',       category: 'Security', description: 'Inject OWASP security response headers (driven by gateway config)' },
-  { value: 'CERT_ROTATION',           label: 'Cert Rotation',          category: 'Security', description: 'Enforce certificate rotation — rejects revoked or unknown client certificates in a Certificate Group' },
-  { value: 'CERT_VAULT_EXPIRY_CHECK', label: 'Cert Vault Expiry Check',category: 'Security', description: 'Block or warn when all certificates in a Cert Group are expired, revoked, or approaching expiry' },
-  // Versioning
-  { value: 'API_VERSIONING', label: 'API Versioning', category: 'Versioning', description: 'Inject API version via header, query param, or path prefix rewrite' },
-  // Routing
-  { value: 'CONDITIONAL_ROUTE',       label: 'Conditional Route',      category: 'Routing', description: 'Rewrite upstream URI when a header or query param matches a pattern' },
-  { value: 'USER_ID_PAYLOAD_ROUTING', label: 'User ID Payload Routing', category: 'Routing', description: 'Route to an alternative upstream when userId in request body is in an allowlist' },
-  // Custom
-  { value: 'CUSTOM_SPEL', label: 'Custom (SpEL)', category: 'Custom', description: 'Evaluate a Spring Expression Language expression — returning false rejects with 403' },
-  // AI
-  { value: 'AI_FILTER',   label: 'AI Filter',   category: 'AI', description: 'LLM-powered, policy-driven request filtering — ALLOW / BLOCK / FLAG decisions via natural-language rules' },
-  { value: 'AI_MODIFIER', label: 'AI Modifier', category: 'AI', description: 'LLM-powered request mutation — PII scrubbing, payload translation, header rewriting before routing downstream' },
-]
-
-const CATEGORY_ORDER = [
-  'Authentication', 'Downstream Auth', 'Rate Limiting', 'Modification', 'Transformation',
-  'Validation', 'Resilience', 'Observability', 'Security', 'Versioning', 'Routing', 'Custom', 'AI',
-]
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Authentication:    'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-  'Downstream Auth': 'text-violet-400 bg-violet-400/10 border-violet-400/20',
-  'Rate Limiting':   'text-amber-400 bg-amber-400/10 border-amber-400/20',
-  Modification:      'text-blue-400 bg-blue-400/10 border-blue-400/20',
-  Transformation:    'text-purple-400 bg-purple-400/10 border-purple-400/20',
-  Validation:        'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
-  Resilience:        'text-orange-400 bg-orange-400/10 border-orange-400/20',
-  Observability:     'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
-  Security:          'text-red-400 bg-red-400/10 border-red-400/20',
-  Versioning:        'text-teal-400 bg-teal-400/10 border-teal-400/20',
-  Routing:           'text-pink-400 bg-pink-400/10 border-pink-400/20',
-  Custom:            'text-gray-400 bg-gray-400/10 border-gray-400/20',
-  AI:                'text-fuchsia-400 bg-fuchsia-400/10 border-fuchsia-400/20',
-}
+const FILTER_TYPES = FILTER_REGISTRY.map(e => ({
+  value:       e.value,
+  label:       e.label,
+  category:    e.category as string,
+  description: e.description,
+}))
 
 // ─── Type Picker ──────────────────────────────────────────────────────────────
 
@@ -125,7 +85,7 @@ function FilterTypePicker({
         <div className="flex items-center gap-2.5 min-w-0">
           {selected ? (
             <>
-              <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0', CATEGORY_COLORS[selected.category] ?? '')}>
+              <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0', CATEGORY_COLORS[selected.category as keyof typeof CATEGORY_COLORS] ?? '')}>
                 {selected.category}
               </span>
               <span className="font-medium truncate">{selected.label}</span>
@@ -169,7 +129,7 @@ function FilterTypePicker({
                       value === ft.value && 'bg-indigo-500/10',
                     )}
                   >
-                    <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 mt-0.5', CATEGORY_COLORS[ft.category] ?? '')}>
+                    <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 mt-0.5', CATEGORY_COLORS[ft.category as keyof typeof CATEGORY_COLORS] ?? '')}>
                       {ft.category.slice(0, 4)}
                     </span>
                     <div className="min-w-0">
@@ -197,10 +157,13 @@ function FilterTypePicker({
 
 export default function FilterDefinitionForm({
   editingId,
+  presetFilterType,
   onClose,
   onSaved,
 }: {
   editingId?: string
+  /** Pre-select a filter type when opening the form from the type browser */
+  presetFilterType?: string
   onClose: () => void
   onSaved: () => void
 }) {
@@ -215,8 +178,12 @@ export default function FilterDefinitionForm({
   // ── Form state ──
   const [name,             setName]             = useState('')
   const [description,      setDescription]      = useState('')
-  const [filterType,       setFilterType]       = useState<FilterType>('AUTH_JWT')
-  const [config,           setConfig]           = useState<FilterConfig>(DEFAULT_CONFIGS['AUTH_JWT'] ?? {})
+  const [filterType,       setFilterType]       = useState<FilterType>(
+    (presetFilterType as FilterType) ?? 'AUTH_JWT'
+  )
+  const [config,           setConfig]           = useState<FilterConfig>(
+    DEFAULT_CONFIGS[(presetFilterType as FilterType) ?? 'AUTH_JWT'] ?? {}
+  )
   const [gatewayConfigRef, setGatewayConfigRef] = useState<GatewayConfigRef | null>(null)
 
   // Populate from existing when editing
@@ -226,7 +193,14 @@ export default function FilterDefinitionForm({
       setDescription(existing.description ?? '')
       setFilterType(existing.filterType)
       setConfig(existing.config ?? {})
-      setGatewayConfigRef(existing.gatewayConfigRef ?? null)
+
+      // Enforce isolation rule: standard filters must not have a gateway config ref.
+      // If an existing record has one (legacy data), strip it and warn.
+      const existingRef = existing.gatewayConfigRef ?? null
+      assertStandardFilterIsolation(existing.filterType, !!existingRef)
+      setGatewayConfigRef(
+        FILTER_TYPES_WITH_CERT_VAULT_REF.has(existing.filterType) ? existingRef : null,
+      )
     }
   }, [existing])
 
@@ -237,17 +211,22 @@ export default function FilterDefinitionForm({
     setGatewayConfigRef(null)
   }
 
-  // When a VAULT_CERT ref is selected, sync the logicalId into config automatically
-  const handleGatewayConfigRefChange = (ref: GatewayConfigRef | null) => {
+  /**
+   * Cert Vault group selection handler.
+   *
+   * Only cert filter types reach this handler (the picker is not rendered for
+   * standard filters). When the user picks a group, we sync its `logicalId`
+   * into the filter's inline config so the gateway registry filter binds
+   * correctly at runtime — no gateway restart required.
+   */
+  const handleCertVaultRefChange = (ref: GatewayConfigRef | null) => {
     setGatewayConfigRef(ref)
     if (ref?.refType === 'VAULT_CERT') {
+      // Auto-fill the logicalId config field from the selected group
       setConfig(prev => ({ ...prev, logicalId: ref.refId }))
-    } else if (ref === null) {
-      // Clear logicalId when unlinking a VAULT_CERT ref
-      const currentRefType = FILTER_TYPES_WITH_GATEWAY_REF[filterType]
-      if (currentRefType === 'VAULT_CERT') {
-        setConfig(prev => ({ ...prev, logicalId: '' }))
-      }
+    } else if (ref === null && FILTER_TYPES_WITH_CERT_VAULT_REF.has(filterType)) {
+      // Clear logicalId when unlinking a cert group
+      setConfig(prev => ({ ...prev, logicalId: '' }))
     }
   }
 
@@ -266,12 +245,17 @@ export default function FilterDefinitionForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
+
+    // Cert Vault ref is only valid for cert filter types — strip it for standard filters
+    // to enforce the architectural rule that standard filters are self-contained.
+    const certRef = supportsCertVaultRef ? gatewayConfigRef : null
+
     if (isEdit) {
       updateMutation.mutate({
         name: name.trim(),
         description: description.trim() || undefined,
         config,
-        gatewayConfigRef: gatewayConfigRef ?? null,
+        gatewayConfigRef: certRef ?? null,
       })
     } else {
       createMutation.mutate({
@@ -279,13 +263,17 @@ export default function FilterDefinitionForm({
         description: description.trim() || undefined,
         filterType,
         config,
-        gatewayConfigRef: gatewayConfigRef ?? undefined,
+        gatewayConfigRef: certRef ?? undefined,
       })
     }
   }
 
   const selectedMeta = FILTER_TYPES.find(f => f.value === filterType)
-  const supportsGatewayRef = !!FILTER_TYPES_WITH_GATEWAY_REF[filterType]
+  /**
+   * Whether this filter type may reference a Cert Vault group.
+   * Standard filter types always return false — they are self-contained.
+   */
+  const supportsCertVaultRef = FILTER_TYPES_WITH_CERT_VAULT_REF.has(filterType)
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
@@ -355,15 +343,14 @@ export default function FilterDefinitionForm({
                 </div>
               )}
 
-              {/* Gateway Config Link — for filter types that can reference gateway config */}
-              {supportsGatewayRef && (
-                <GatewayConfigRefPicker
+              {/* Cert Vault Group binding — ONLY for cert filter types */}
+              {supportsCertVaultRef && (
+                <CertVaultGroupPicker
                   filterType={filterType}
                   value={gatewayConfigRef}
-                  onChange={handleGatewayConfigRefChange}
-                  onNavigateToGateway={() => {
-                    // Open gateway page in a new tab — users can also navigate via the sidebar
-                    window.open('/gateway', '_blank')
+                  onChange={handleCertVaultRefChange}
+                  onNavigateToCertVault={() => {
+                    window.open('/certificates', '_blank')
                   }}
                 />
               )}
@@ -372,26 +359,28 @@ export default function FilterDefinitionForm({
               <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4">
                 <div className="flex items-center gap-2 mb-4">
                   {selectedMeta && (
-                    <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border', CATEGORY_COLORS[selectedMeta.category] ?? '')}>
+                    <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border', CATEGORY_COLORS[selectedMeta.category as keyof typeof CATEGORY_COLORS] ?? '')}>
                       {selectedMeta.category}
                     </span>
                   )}
                   <span className="text-xs font-semibold text-gray-400">
                     {isEdit ? filterType.replace(/_/g, ' ') : (selectedMeta?.label ?? filterType)} Configuration
                   </span>
-                  {gatewayConfigRef && (
-                    <span className="ml-auto text-[10px] text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded-full border border-indigo-400/20">
-                      ↑ overridden by gateway link
+                  {gatewayConfigRef && supportsCertVaultRef && (
+                    <span className="ml-auto text-[10px] text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded-full border border-sky-400/20">
+                      ↑ logicalId synced from Cert Vault group
                     </span>
                   )}
                 </div>
 
-                {gatewayConfigRef && (
-                  <div className="mb-4 px-3 py-2.5 rounded-lg bg-indigo-500/5 border border-indigo-500/20 text-xs text-indigo-300/70 leading-relaxed">
-                    These local fields act as <strong className="text-indigo-200">fallback defaults</strong> only.
-                    At runtime the gateway will resolve the linked <span className="font-mono text-indigo-200">
-                    {gatewayConfigRef.refName ?? gatewayConfigRef.refId}</span> configuration
-                    and use it as the authoritative source.
+                {gatewayConfigRef && supportsCertVaultRef && (
+                  <div className="mb-4 px-3 py-2.5 rounded-lg bg-sky-500/5 border border-sky-500/20 text-xs text-sky-300/70 leading-relaxed">
+                    The <code className="font-mono text-sky-200">logicalId</code> field below has been
+                    auto-filled from the linked Cert Vault group{' '}
+                    <span className="font-mono text-sky-200">
+                      {gatewayConfigRef.refName ?? gatewayConfigRef.refId}
+                    </span>.
+                    At runtime the gateway certificate registry uses this ID to resolve active certificates.
                   </div>
                 )}
 

@@ -15,16 +15,19 @@
  */
 import { useState, useEffect } from 'react'
 import type { Node } from '@xyflow/react'
-import { X, Save, RefreshCw, Globe, Server, Shield, Filter, Trash2, Info, Lock } from 'lucide-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { X, Save, RefreshCw, Globe, Server, Shield, Filter, Trash2, Info, Lock, ChevronDown, AlertTriangle } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cn, extractApiError } from '../../../lib/utils'
 import { routesApi } from '../../../api/routesApi'
+import { filtersApi } from '../../../api/filtersApi'
 import { useWorkflowStore } from '../store/workflowStore'
 import type { RouteDto } from '../../../types'
 import { STATUS_CFG, getFilterMeta } from '../constants/nodeMetadata'
 import type { RouteNodeData, UpstreamNodeData, FilterNodeData } from '../hooks/buildGraph'
 import { inferExecutionOrder } from '../hooks/buildGraph'
+import FilterConfigFields from '../../filters/FilterConfigFields'
+import type { FilterConfig } from '../../filters/filterConfigConstants'
 
 interface PropertiesDrawerProps {
   route: RouteDto
@@ -368,6 +371,37 @@ function FilterNodeProps({
   const computedPhase = entry?.phase ?? 'PRE'
   const computedOrder = entry?.order ?? 0
 
+  // ── Inline config editing ────────────────────────────────────────────────────
+  const [configOpen, setConfigOpen] = useState(false)
+  const [localConfig, setLocalConfig] = useState<FilterConfig>({})
+
+  // Fetch the full filter definition to get its current config
+  const { data: filterDef, isLoading: loadingDef } = useQuery({
+    queryKey: ['filter', data.filter.filterId],
+    queryFn: () => filtersApi.get(data.filter.filterId),
+    enabled: configOpen,
+  })
+
+  // Sync localConfig when definition loads
+  useEffect(() => {
+    if (filterDef?.config) {
+      setLocalConfig(filterDef.config as FilterConfig)
+    }
+  }, [filterDef])
+
+  const configMutation = useMutation({
+    mutationFn: () => filtersApi.update(data.filter.filterId, { config: localConfig }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['filter', data.filter.filterId] })
+      qc.invalidateQueries({ queryKey: ['filters'] })
+      qc.invalidateQueries({ queryKey: ['route', route.id] })
+      toast.success('Filter config updated', {
+        description: `Changes to "${data.filter.filterName}" will take effect on next gateway reload.`,
+      })
+    },
+    onError: (err) => toast.error('Config save failed', { description: extractApiError(err) }),
+  })
+
   const detachMutation = useMutation({
     mutationFn: () => routesApi.detachFilter(route.id, data.filter.filterId),
     onSuccess: () => {
@@ -420,7 +454,64 @@ function FilterNodeProps({
         </p>
       </Field>
 
-      {/* Detach action — disabled when locked */}
+      {/* ── Inline config editor ─────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-white/[0.07] overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setConfigOpen(v => !v)}
+          disabled={isLocked}
+          className={cn(
+            'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
+            isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/[0.03]',
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-400">Edit Configuration</span>
+            {isLocked && <Lock className="w-3 h-3 text-gray-600" />}
+          </div>
+          <ChevronDown className={cn('w-3.5 h-3.5 text-gray-600 transition-transform', configOpen && 'rotate-180')} />
+        </button>
+
+        {configOpen && !isLocked && (
+          <div className="border-t border-white/[0.06] p-3 space-y-4">
+            {/* Global edit warning */}
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.07] border border-amber-500/20 text-[11px] text-amber-400/90 leading-relaxed">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+              <span>
+                Saving will update <strong className="text-amber-300">"{data.filter.filterName}"</strong> globally —
+                all routes that use this filter will be affected.
+              </span>
+            </div>
+
+            {loadingDef ? (
+              <div className="flex items-center justify-center py-6 gap-2">
+                <div className="w-4 h-4 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                <span className="text-xs text-gray-500">Loading config…</span>
+              </div>
+            ) : (
+              <FilterConfigFields
+                filterType={data.filter.filterType}
+                config={localConfig}
+                onChange={setLocalConfig}
+              />
+            )}
+
+            <button
+              type="button"
+              onClick={() => !configMutation.isPending && configMutation.mutate()}
+              disabled={configMutation.isPending || loadingDef}
+              className="w-full py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+            >
+              {configMutation.isPending
+                ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                : <><Save className="w-3.5 h-3.5" /> Save Config</>
+              }
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Detach action */}
       <div className="space-y-2 pt-1">
         <button
           type="button"

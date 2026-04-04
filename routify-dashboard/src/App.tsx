@@ -8,7 +8,7 @@ import LoginPage from './modules/auth/LoginPage'
 import ChangePasswordPage from './modules/auth/ChangePasswordPage'
 import RouteWorkflowPage from './modules/routes/RouteWorkflowPage'
 import WorkflowBuilderPage from './modules/workflow-builder/WorkflowBuilderPage'
-import FilterDefinitionList from './modules/filters/FilterDefinitionList'
+import FiltersPage from './modules/filters/FiltersPage'
 import AuditPage from './modules/audit/AuditPage'
 import SettingsPage from './modules/settings/SettingsPage'
 import UsersPage from './modules/users/UsersPage'
@@ -78,7 +78,7 @@ function AppRoutes() {
         <Route path="routes/:routeId/builder" element={<WorkflowBuilderPage />} />
 
         {/* Filters — reusable filter definitions */}
-        <Route path="filters" element={<FilterDefinitionList />} />
+        <Route path="filters" element={<FiltersPage />} />
 
         {/* Gateway — full configuration management */}
         <Route path="gateway" element={<GatewayPage />} />
