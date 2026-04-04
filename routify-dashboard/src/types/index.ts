@@ -449,15 +449,6 @@ export interface GatewayAuthProvider {
   algorithm?: string
 }
 
-/**
- * TLS configuration is now managed exclusively by the Certificate Vault.
- * All certificate lifecycle (upload, rotation, revocation, gateway mapping)
- * goes through routify-cert-vault. The gateway loads certs via Vault at startup
- * and reacts to CERT_GROUP_EVENTS Kafka events for zero-downtime rotation.
- * @deprecated Use the Cert Vault API instead. This type is retained only for
- *   backwards-compatible config snapshot serialisation.
- */
-export type GatewayTlsConfig = Record<string, never>
 
 export interface GatewayProxyConfig {
   enabled: boolean
@@ -518,7 +509,6 @@ export interface GatewayConfig {
   circuitBreakerDefaults: GatewayCircuitBreakerDefaults
   resilienceDefaults: GatewayResilienceDefaults
   authProviders: GatewayAuthProvider[]
-  tlsConfig: GatewayTlsConfig
   proxyConfig: GatewayProxyConfig
   httpClientConfig: GatewayHttpClientConfig
   tenantIsolation: GatewayTenantIsolationConfig

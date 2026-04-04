@@ -22,12 +22,12 @@ import type { WsMessage } from '../types/ws'
 const QUERY_KEY_MAP: Record<string, string[][]> = {
   routes:            [['routes'], ['route']],
   filters:           [['filters']],
-  'gateway-config':  [['gateway-config'], ['gateway-tls-config']],
+  'gateway-config':  [['gateway-config']],
   'gateway-status':  [['gateway-status']],
   audit:             [['audit-events'], ['audit-requests'], ['audit-failed'], ['replay-stats']],
   replay:            [['audit-failed'], ['replay-stats']],
-  certificates:      [['cert-groups'], ['cert-group-detail'], ['cert-stats'], ['certs-active'], ['gateway-live-certs']],
-  'cert-groups':     [['cert-groups'], ['cert-group-detail'], ['cert-stats'], ['certs-active'], ['gateway-live-certs']],
+  certificates:      [['cert-groups'], ['cert-group-detail'], ['cert-stats'], ['certs-active']],
+  'cert-groups':     [['cert-groups'], ['cert-group-detail'], ['cert-stats'], ['certs-active']],
   users:             [['users']],
   tenants:           [['tenants'], ['tenants-for-user-create']],
   misc:              [],
@@ -73,11 +73,9 @@ function RealWebSocketProvider({ children }: { children: React.ReactNode }) {
     if (GATEWAY_ROUTE_EVENTS.has(msg.type)) {
       qc.invalidateQueries({ queryKey: ['gateway-status'] })
       qc.invalidateQueries({ queryKey: ['active-routes-count'] })
-      qc.invalidateQueries({ queryKey: ['gateway-live-certs'] })
     }
     if (msg.type === 'gateway.config.changed') {
       qc.invalidateQueries({ queryKey: ['gateway-config'] })
-      qc.invalidateQueries({ queryKey: ['gateway-tls-config'] })
     }
     if (AUDIT_EVENTS.has(msg.type)) {
       qc.invalidateQueries({ queryKey: ['audit-events'] })
@@ -92,8 +90,6 @@ function RealWebSocketProvider({ children }: { children: React.ReactNode }) {
       qc.invalidateQueries({ queryKey: ['cert-group-detail'] })
       qc.invalidateQueries({ queryKey: ['cert-stats'] })
       qc.invalidateQueries({ queryKey: ['certs-active'] })
-      qc.invalidateQueries({ queryKey: ['gateway-live-certs'] })
-      qc.invalidateQueries({ queryKey: ['cert-groups-details-tls'] })
     }
     if (msg.type.startsWith('user.') || msg.queryKey === 'users') {
       qc.invalidateQueries({ queryKey: ['users'] })

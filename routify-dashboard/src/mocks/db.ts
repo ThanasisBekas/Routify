@@ -201,8 +201,6 @@ export const gatewayConfig: GatewayConfig = {
       parameterName:  'token',
     },
   ],
-  // TLS is now managed exclusively by Cert Vault — no deprecated file-source fields
-  tlsConfig: {},
   proxyConfig: {
     enabled: false,
     nonProxyHosts: ['localhost', '127.0.0.1'],
