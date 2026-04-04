@@ -69,6 +69,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // JWT parsing only — keep filterChain.doFilter() OUTSIDE this try/catch so that
+        // exceptions thrown by downstream handlers (e.g. Jackson deserialization errors)
+        // are never mistakenly caught here and do not cause a double-write on the response.
+        HttpServletRequest requestToChain;
         try {
             Claims claims = parseAndValidate(token);
 
@@ -83,17 +87,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(auth);
 
             // Wrap request to inject X-Auth-* headers (used by proxy to downstream services)
-            HttpServletRequest wrappedRequest = new AuthHeadersRequestWrapper(request, claims);
-            filterChain.doFilter(wrappedRequest, response);
+            requestToChain = new AuthHeadersRequestWrapper(request, claims);
 
         } catch (ExpiredJwtException e) {
             sendUnauthorized(response, "TOKEN_EXPIRED", "JWT token has expired");
+            return;
         } catch (SignatureException | MalformedJwtException | UnsupportedJwtException e) {
             sendUnauthorized(response, "INVALID_TOKEN", "JWT token is invalid");
+            return;
         } catch (Exception e) {
             log.error("JWT validation error: {}", e.getMessage());
             sendUnauthorized(response, "TOKEN_VALIDATION_FAILED", "Token validation failed");
+            return;
         }
+
+        // Proceed with the filter chain — any exceptions here belong to the dispatcher,
+        // not to JWT validation, and must propagate normally.
+        filterChain.doFilter(requestToChain, response);
     }
 
     private String extractToken(HttpServletRequest request) {
