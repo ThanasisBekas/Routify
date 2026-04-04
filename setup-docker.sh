@@ -144,6 +144,7 @@ fi
 cp "${ENV_FILE}" "${PROJECT_DIR}/.env"
 success "Copied ${ENV_FILE} → .env"
 
+
 # ── Verify the env file has the required keys ─────────────────────────────────
 typeset -a REQUIRED_KEYS MISSING
 REQUIRED_KEYS=(DB_PASS RABBITMQ_PASS JWT_PRIVATE_KEY JWT_PUBLIC_KEY CERT_VAULT_ENCRYPTION_KEY)

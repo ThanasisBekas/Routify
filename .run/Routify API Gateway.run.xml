@@ -4,17 +4,6 @@
     <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.gateway.RoutifyApiGatewayApplication" />
     <option name="ACTIVE_PROFILES" value="dev" />
     <option name="ALTERNATIVE_JRE_PATH" />
-    <envs>
-      <env name="SPRING_PROFILES_ACTIVE"   value="dev" />
-      <env name="KAFKA_BOOTSTRAP"          value="localhost:9092" />
-      <env name="RABBITMQ_HOST"            value="localhost" />
-      <env name="RABBITMQ_PORT"            value="5672" />
-      <env name="RABBITMQ_USER"            value="routify" />
-      <env name="SPRING_DATA_REDIS_HOST"   value="localhost" />
-      <env name="CONFIG_SERVER_HOST"       value="localhost" />
-      <env name="CONFIG_SERVER_USERNAME"   value="configserver" />
-      <env name="CONFIG_SERVER_PASSWORD"   value="configserver_dev_pass" />
-    </envs>
     <envFilePaths>
       <path value="$PROJECT_DIR$/environments/.env.develop" />
     </envFilePaths>
