@@ -24,11 +24,31 @@ Run the **"Generate .env"** GitHub Actions workflow (`Actions → Generate .env 
 
 ## Usage
 
+### Docker Compose
+
 Copy the appropriate file to the project root before starting services:
 
 ```bash
 cp environments/.env.develop .env
 docker compose --env-file .env up -d
+```
+
+### IntelliJ Run Configurations
+
+All `.run/*.run.xml` configurations use IntelliJ's `<envFilePaths>` element to load
+`$PROJECT_DIR$/environments/.env.develop` at launch — **no manual copying is required**.
+
+Non-secret, static variables (localhost addresses, ports, DB name/user) are still
+declared inline in the run configs so they are visible in version control.
+Secret variables (`DB_PASS`, `RABBITMQ_PASS`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`,
+`CERT_VAULT_ENCRYPTION_KEY`, `ADMIN_INITIAL_PASSWORD`, `OPENAI_API_KEY`) come
+exclusively from the env file.
+
+If the file is missing, generate it via the **"Generate .env"** workflow or copy your
+root `.env`:
+
+```bash
+cp .env environments/.env.develop
 ```
 
 ## Variables

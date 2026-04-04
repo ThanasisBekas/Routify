@@ -5,18 +5,19 @@
     <option name="ACTIVE_PROFILES" value="dev" />
     <option name="ALTERNATIVE_JRE_PATH" />
     <envs>
-      <env name="SPRING_PROFILES_ACTIVE" value="dev" />
-      <env name="KAFKA_BOOTSTRAP" value="localhost:9092" />
-      <env name="RABBITMQ_HOST" value="localhost" />
-      <env name="RABBITMQ_PORT" value="5672" />
-      <env name="RABBITMQ_USER" value="routify" />
-      <env name="RABBITMQ_PASS" value="lqUolXrlbdzlxjulYRVJg3ax" />
-      <env name="SPRING_DATA_REDIS_HOST" value="localhost" />
-      <env name="JWT_PUBLIC_KEY" value="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5CRRzrueWuYSjoLBcChkMi6Wjft/xXm3bVFKiT3l7eYTlFgA8gCX4wReYadwoE2sNO2g+XF2rvx82wpQrIaRi0Bqh5Gv0h0le1wfYXnvIDxxXym5Uq3BuqVCkbww7Ndgk53zc9CY+VYGnVgPKfLBlEe43Kind81B5Ga0XdhPK42zuP73SK1v8n+BHX6aA1oz9mq9sZ/oi8hT/kufSZOg68krHnb1IQKIkUZPDwGBq8avblHRD51b1GyvH8A1vlAFHE2qjcVTWB2ctmbf6D7v8RSxa9UP0he+OcAJ7D9lVxv9gzx7pNS87DkvHuMiGPVt/xgGGER+vUeFSBceabMiIwIDAQAB" />
-      <env name="CONFIG_SERVER_HOST" value="localhost" />
-      <env name="CONFIG_SERVER_USERNAME" value="configserver" />
-      <env name="CONFIG_SERVER_PASSWORD" value="configserver_dev_pass" />
+      <env name="SPRING_PROFILES_ACTIVE"   value="dev" />
+      <env name="KAFKA_BOOTSTRAP"          value="localhost:9092" />
+      <env name="RABBITMQ_HOST"            value="localhost" />
+      <env name="RABBITMQ_PORT"            value="5672" />
+      <env name="RABBITMQ_USER"            value="routify" />
+      <env name="SPRING_DATA_REDIS_HOST"   value="localhost" />
+      <env name="CONFIG_SERVER_HOST"       value="localhost" />
+      <env name="CONFIG_SERVER_USERNAME"   value="configserver" />
+      <env name="CONFIG_SERVER_PASSWORD"   value="configserver_dev_pass" />
     </envs>
+    <envFilePaths>
+      <path value="$PROJECT_DIR$/environments/.env.develop" />
+    </envFilePaths>
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
