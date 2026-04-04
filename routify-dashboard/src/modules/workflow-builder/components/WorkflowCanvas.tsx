@@ -28,6 +28,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   type Connection,
+  type Node as FlowNode,
   type NodeChange,
   type EdgeChange,
   type ReactFlowInstance,
@@ -52,6 +53,52 @@ import PropertiesDrawer from './PropertiesDrawer'
 import type { RouteDto, AttachFilterRequest, FilterSummary } from '../../../types'
 import { cn } from '../../../lib/utils'
 import { extractApiError } from '../../../lib/utils'
+
+// ─── Auto-spacing: collision avoidance for dropped nodes ──────────────────────
+
+/** Approximate bounding box dimensions for canvas nodes (generous to avoid visual overlap) */
+const NODE_WIDTH  = 240
+const NODE_HEIGHT = 120
+const SPACING     = 20
+
+/**
+ * Returns a position that does not overlap any existing node on the canvas.
+ * If the proposed position is free it is returned as-is. Otherwise the
+ * algorithm scans downward (and then rightward) in increments until an
+ * open slot is found.  Maximum 50 attempts to prevent infinite loops.
+ */
+function findNonOverlappingPosition(
+  proposed: XYPosition,
+  existingNodes: FlowNode[],
+): XYPosition {
+  const overlaps = (pos: XYPosition) =>
+    existingNodes.some(n => (
+      pos.x < n.position.x + NODE_WIDTH  + SPACING &&
+      pos.x + NODE_WIDTH  + SPACING > n.position.x &&
+      pos.y < n.position.y + NODE_HEIGHT + SPACING &&
+      pos.y + NODE_HEIGHT + SPACING > n.position.y
+    ))
+
+  if (!overlaps(proposed)) return proposed
+
+  // Scan downward first, then shift right
+  for (let attempt = 1; attempt <= 50; attempt++) {
+    const below: XYPosition = {
+      x: proposed.x,
+      y: proposed.y + attempt * (NODE_HEIGHT + SPACING),
+    }
+    if (!overlaps(below)) return below
+
+    const right: XYPosition = {
+      x: proposed.x + attempt * (NODE_WIDTH + SPACING),
+      y: proposed.y,
+    }
+    if (!overlaps(right)) return right
+  }
+
+  // Fallback — shouldn't happen in practice
+  return { x: proposed.x, y: proposed.y + 200 }
+}
 
 // ─── Node type registry ───────────────────────────────────────────────────────
 // Defined outside the component to prevent React Flow from re-registering on
@@ -393,10 +440,11 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
           })
           return
         }
+        const safePosition = findNonOverlappingPosition(position, nodes)
         const newNode = {
           id: `${nodeType}-${Date.now()}`,
           type: nodeType,
-          position,
+          position: safePosition,
           data: defaultDataForType(nodeType, onDetach, onSelect),
         }
         setNodes([...nodes, newNode], 'dropStructural')
@@ -419,16 +467,18 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
         const postCount = existingExec.filter(e => e.phase === 'POST').length
         const inferredPhase: 'PRE' | 'POST' = position.x < upstreamX ? 'PRE' : 'POST'
         const inferredOrder = inferredPhase === 'PRE' ? preCount * 10 : postCount * 10
+        const safeFilterPosition = findNonOverlappingPosition(position, nodes)
 
-        setPendingDrop({ filterType, position, inferredPhase, inferredOrder })
+        setPendingDrop({ filterType, position: safeFilterPosition, inferredPhase, inferredOrder })
         return
       }
 
       // Fallback
+      const safeFallbackPosition = findNonOverlappingPosition(position, nodes)
       const newNode = {
         id: `${nodeType}-${Date.now()}`,
         type: nodeType,
-        position,
+        position: safeFallbackPosition,
         data: defaultDataForType(nodeType, onDetach, onSelect),
       }
       setNodes([...nodes, newNode], 'dropFallback')
