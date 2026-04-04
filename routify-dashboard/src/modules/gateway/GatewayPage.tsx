@@ -58,7 +58,7 @@ const TABS: {
   { id: 'rate-limit', label: 'Rate Limiting',    icon: Gauge,     description: 'Global token-bucket policies' },
   { id: 'resilience', label: 'Resilience',       icon: RefreshCw, description: 'Circuit breaker, retry, timeout' },
   { id: 'auth',       label: 'Auth Providers',   icon: Lock,      description: 'JWT, OAuth2, Basic providers' },
-  { id: 'tls',        label: 'TLS / Certs',      icon: Server,    description: 'Cert vault & file sources' },
+  { id: 'tls',        label: 'TLS / Certs',      icon: Server,    description: 'Certificate Vault gateway mappings & live registry' },
   { id: 'networking', label: 'Networking',       icon: Network,   description: 'Proxy and HTTP client pool' },
   { id: 'tenant',     label: 'Tenant Isolation', icon: Settings,  description: 'Multi-tenancy enforcement' },
 ]
@@ -92,7 +92,6 @@ export default function GatewayPage() {
   const rdMutation           = useMutation({ mutationFn: gatewayApi.updateResilienceDefaults, onSuccess: invalidate })
   const upsertAuthMutation   = useMutation({ mutationFn: gatewayApi.upsertAuthProvider,       onSuccess: invalidate })
   const deleteAuthMutation   = useMutation({ mutationFn: gatewayApi.deleteAuthProvider,       onSuccess: invalidate })
-  const tlsMutation          = useMutation({ mutationFn: gatewayApi.updateTlsConfig,          onSuccess: invalidate })
   const proxyMutation        = useMutation({ mutationFn: gatewayApi.updateProxyConfig,        onSuccess: invalidate })
   const httpClientMutation   = useMutation({ mutationFn: gatewayApi.updateHttpClientConfig,   onSuccess: invalidate })
   const tenantMutation       = useMutation({ mutationFn: gatewayApi.updateTenantIsolation,    onSuccess: invalidate })
@@ -223,12 +222,7 @@ export default function GatewayPage() {
         )}
 
         {activeTab === 'tls' && (
-          <TlsTab
-            key={config.updatedAt ?? 'tls'}
-            initial={config.tlsConfig}
-            onSave={v => tlsMutation.mutate(v)}
-            isPending={tlsMutation.isPending}
-          />
+          <TlsTab key={config.updatedAt ?? 'tls'} />
         )}
 
         {activeTab === 'networking' && (

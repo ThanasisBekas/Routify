@@ -1,12 +1,17 @@
 /**
- * TlsTab — TLS / Certificate Store configuration.
- * (Content preserved from original; styled with new primitives)
+ * TlsTab — Certificate Vault gateway mappings & live registry.
+ *
+ * All certificate lifecycle (upload, rotation, revocation, gateway mapping)
+ * is handled exclusively by routify-cert-vault. The deprecated "Expiry Warning
+ * Threshold", "File Watch Interval", "Certificate File Sources", and
+ * "Directory Sources" have been removed. The gateway loads certificates from
+ * the Vault at startup and reacts to CERT_GROUP_EVENTS Kafka events for
+ * zero-downtime rotation.
  */
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Server, ShieldCheck, FolderOpen, Plus, Trash2, RotateCcw,
-  ExternalLink, CheckCircle, Clock, AlertTriangle, XCircle,
+  Server, ShieldCheck,
+  RotateCcw, ExternalLink, CheckCircle, Clock, AlertTriangle, XCircle,
   CheckCircle2, Key, Layers, Users, Link,
 } from 'lucide-react'
 import { certVaultApi } from '../../../api/certVaultApi'
@@ -14,30 +19,15 @@ import { gatewayApi } from '../../../api/gatewayApi'
 import { useAuthStore } from '../../../store/authStore'
 import { useRealtimeQuery } from '../../../hooks/useRealtimeQuery'
 import { cn } from '../../../lib/utils'
-import type { GatewayTlsConfig, CertGroupDto } from '../../../types'
+import type { CertGroupDto } from '../../../types'
 import {
-  SectionHeader, ToggleRow, Field, SaveBar, EmptyState,
-  monoInputCls, InfoBanner,
+  SectionHeader, EmptyState, InfoBanner,
 } from '../components/GatewayPrimitives'
 
-interface Props {
-  initial: GatewayTlsConfig
-  onSave: (v: GatewayTlsConfig) => void
-  isPending: boolean
-}
-
-export default function TlsTab({ initial, onSave, isPending }: Props) {
-  const [cfg, setCfg] = useState<GatewayTlsConfig>(initial)
-  const dirty = JSON.stringify(cfg) !== JSON.stringify(initial)
+export default function TlsTab() {
   const { user } = useAuthStore()
   const tenantId = user?.tenantId ?? ''
   const navigate = useNavigate()
-
-  const certStatusColor: Record<string, string> = {
-    VALID:         'text-emerald-400',
-    EXPIRING_SOON: 'text-amber-400',
-    EXPIRED:       'text-red-400',
-  }
 
   const { data: liveRegistry, isLoading: liveLoading, refetch: refetchLive } = useRealtimeQuery({
     queryKey: ['gateway-live-certs'],
@@ -83,18 +73,8 @@ export default function TlsTab({ initial, onSave, isPending }: Props) {
       <SectionHeader
         icon={Server}
         title="TLS / Certificate Store"
-        description="Manage certificate file sources, directory watchers, and Certificate Vault group bindings for mTLS hot-reload."
+        description="Certificate Vault gateway mappings and live in-memory registry. Upload, rotate, and revoke certificates in the Certificate Vault — the gateway reloads automatically via Kafka events."
       />
-
-      {/* Timing */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <Field label="Expiry Warning Threshold" hint="Alert when a cert expires within this window (e.g. 30d)">
-          <input value={cfg.expiryWarning} onChange={e => setCfg(p => ({ ...p, expiryWarning: e.target.value }))} className={monoInputCls} placeholder="30d" />
-        </Field>
-        <Field label="File Watch Interval" hint="How often to check for cert changes on disk (e.g. 30s)">
-          <input value={cfg.fileWatchInterval} onChange={e => setCfg(p => ({ ...p, fileWatchInterval: e.target.value }))} className={monoInputCls} placeholder="30s" />
-        </Field>
-      </div>
 
       {/* ── Certificate Vault panel ──────────────────────────────────────────── */}
       <div className="mb-8">
@@ -308,114 +288,6 @@ export default function TlsTab({ initial, onSave, isPending }: Props) {
           <EmptyState title="No certificates loaded in gateway registry" />
         )}
       </div>
-
-      {/* ── File Sources ──────────────────────────────────────────────────────── */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-white">Certificate File Sources</span>
-          <button
-            onClick={() => setCfg(p => ({ ...p, fileSources: [...p.fileSources, { logicalId: '', certificatePath: '', watchForChanges: true }] }))}
-            className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add Source
-          </button>
-        </div>
-
-        {cfg.fileSources.length === 0 ? (
-          <EmptyState title="No file sources configured" description="File-based certificates load from disk on startup" />
-        ) : (
-          <div className="space-y-3">
-            {cfg.fileSources.map((src, i) => (
-              <div key={i} className="bg-white/[0.03] rounded-xl border border-white/[0.05] p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Server className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-white font-mono">{src.logicalId || '(new)'}</span>
-                    {src.status && (
-                      <span className={cn('text-xs font-medium', certStatusColor[src.status] ?? 'text-gray-400')}>{src.status}</span>
-                    )}
-                  </div>
-                  <button onClick={() => setCfg(p => ({ ...p, fileSources: p.fileSources.filter((_, j) => j !== i) }))}
-                    className="p-1 text-red-400/70 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Logical ID">
-                    <input value={src.logicalId}
-                      onChange={e => { const s = [...cfg.fileSources]; s[i] = { ...s[i], logicalId: e.target.value }; setCfg(p => ({ ...p, fileSources: s })) }}
-                      className={monoInputCls} />
-                  </Field>
-                  <Field label="Certificate Path">
-                    <input value={src.certificatePath}
-                      onChange={e => { const s = [...cfg.fileSources]; s[i] = { ...s[i], certificatePath: e.target.value }; setCfg(p => ({ ...p, fileSources: s })) }}
-                      placeholder="/etc/certs/client.cer" className={monoInputCls} />
-                  </Field>
-                </div>
-                <ToggleRow
-                  label="Watch for Changes"
-                  description="Hot-reload when this file changes on disk"
-                  checked={src.watchForChanges}
-                  onChange={v => { const s = [...cfg.fileSources]; s[i] = { ...s[i], watchForChanges: v }; setCfg(p => ({ ...p, fileSources: s })) }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Directory Sources ──────────────────────────────────────────────────── */}
-      <div className="mb-2">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-white">Directory Sources</span>
-          <button
-            onClick={() => setCfg(p => ({ ...p, directorySources: [...(p.directorySources ?? []), { directoryPath: '', watchForChanges: true }] }))}
-            className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add Directory
-          </button>
-        </div>
-        <p className="text-xs text-gray-500 mb-3">
-          Every <code className="bg-white/5 px-1 rounded">.pem</code>,{' '}
-          <code className="bg-white/5 px-1 rounded">.cer</code>, and{' '}
-          <code className="bg-white/5 px-1 rounded">.crt</code> file in these directories is automatically loaded.
-          The filename stem is used as the logical ID.
-        </p>
-
-        {(cfg.directorySources ?? []).length === 0 ? (
-          <EmptyState title="No directory sources configured" />
-        ) : (
-          <div className="space-y-3">
-            {(cfg.directorySources ?? []).map((src, i) => (
-              <div key={i} className="bg-white/[0.03] rounded-xl border border-white/[0.05] p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FolderOpen className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-white font-mono">{src.directoryPath || '(new)'}</span>
-                  </div>
-                  <button onClick={() => setCfg(p => ({ ...p, directorySources: (p.directorySources ?? []).filter((_, j) => j !== i) }))}
-                    className="p-1 text-red-400/70 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <Field label="Directory Path">
-                  <input value={src.directoryPath}
-                    onChange={e => { const s = [...(cfg.directorySources ?? [])]; s[i] = { ...s[i], directoryPath: e.target.value }; setCfg(p => ({ ...p, directorySources: s })) }}
-                    placeholder="/etc/gateway/certs/" className={monoInputCls} />
-                </Field>
-                <ToggleRow
-                  label="Watch for Changes"
-                  description="Hot-reload when files in this directory change"
-                  checked={src.watchForChanges}
-                  onChange={v => { const s = [...(cfg.directorySources ?? [])]; s[i] = { ...s[i], watchForChanges: v }; setCfg(p => ({ ...p, directorySources: s })) }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <SaveBar onSave={() => onSave(cfg)} isPending={isPending} dirty={dirty} />
     </div>
   )
 }

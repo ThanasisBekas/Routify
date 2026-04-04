@@ -130,25 +130,6 @@ resilience4j:
         timeout-duration: 10s
         cancel-running-future: true
 
-# ─── Certificate Store ──────────────────────────────────────────────────────
-# Configure file sources and directory sources for mTLS certificate hot-reload.
-#
-# Example:
-# certificate-store:
-#   expiry-warning: 30d
-#   file-watch-interval: 30s
-#   file-sources:
-#     - logical-id: my-client
-#       certificate-path: classpath:certificates/client.cer
-#       watch-for-changes: true
-#   directory-sources:
-#     - directory-path: /etc/routify/certs
-#       watch-for-changes: true
-certificate-store:
-  expiry-warning: 30d
-  file-watch-interval: 30s
-  file-sources: []
-  directory-sources: []
 
 # ─── Client ID Mapping ───────────────────────────────────────────────────────
 # Maps organisation names to client ID values for the ClientIdAuth filter.

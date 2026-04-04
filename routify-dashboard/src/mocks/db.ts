@@ -180,12 +180,8 @@ export const gatewayConfig: GatewayConfig = {
       parameterStyle: 'HEADER',
     },
   ],
-  tlsConfig: {
-    expiryWarning: '30d',
-    fileWatchInterval: '5m',
-    fileSources: [],
-    directorySources: [],
-  },
+  // TLS is now managed exclusively by Cert Vault — no deprecated file-source fields
+  tlsConfig: {},
   proxyConfig: {
     enabled: false,
     nonProxyHosts: ['localhost', '127.0.0.1'],

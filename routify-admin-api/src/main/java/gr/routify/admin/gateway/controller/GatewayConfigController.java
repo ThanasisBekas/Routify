@@ -196,20 +196,19 @@ public class GatewayConfigController {
         return ResponseEntity.noContent().build();
     }
 
-    // ─── TLS / Certificates ──────────────────────────────────────────────────
+    // ─── TLS / Certificate Vault ─────────────────────────────────────────────
+    //
+    // All certificate management is now handled exclusively by routify-cert-vault.
+    // The gateway loads certs at startup via CertificateVaultLoader and reacts to
+    // CERT_GROUP_EVENTS Kafka events for zero-downtime rotation.
+    //
+    // The deprecated PUT /tls endpoint (and its fileSources/directorySources/
+    // expiryWarning/fileWatchInterval fields) has been removed.
+    // Use the Cert Vault API (/api/v1/admin/cert-groups, /api/v1/admin/certs) instead.
 
     @GetMapping("/tls")
     public ResponseEntity<TlsConfigDto> getTlsConfig() {
-        TlsConfigDto tls = configService.getTlsConfig();
-        Sensitive.maskFields(tls);
-        return ResponseEntity.ok(tls);
-    }
-
-    @PutMapping("/tls")
-    public ResponseEntity<GatewayConfigDto> updateTlsConfig(
-            @RequestBody TlsConfigDto tls,
-            Authentication auth) {
-        return ResponseEntity.ok(configService.updateTlsConfig(tls, actor(auth)));
+        return ResponseEntity.ok(configService.getTlsConfig());
     }
 
     @GetMapping("/tls/certificates")

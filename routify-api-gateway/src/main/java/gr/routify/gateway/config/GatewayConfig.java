@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import gr.routify.gateway.auth.properties.ClientProperties;
-import gr.routify.gateway.certificate.CertificateStoreProperties;
 import gr.routify.gateway.net.HttpClientProperties;
 import gr.routify.gateway.net.ProxyProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -17,7 +16,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  * Gateway application configuration.
  */
 @Configuration
-@EnableConfigurationProperties({CertificateStoreProperties.class, ClientProperties.class})
+@EnableConfigurationProperties({ClientProperties.class})
 public class GatewayConfig {
 
     @Bean

@@ -492,25 +492,16 @@ export interface GatewayAuthProvider {
   algorithm?: string
 }
 
-export interface GatewayCertificateSource {
-  logicalId: string
-  certificatePath: string
-  watchForChanges: boolean
-  expiresAt?: string
-  status?: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED'
-}
-
-export interface GatewayDirectorySource {
-  directoryPath: string
-  watchForChanges: boolean
-}
-
-export interface GatewayTlsConfig {
-  expiryWarning: string
-  fileWatchInterval: string
-  fileSources: GatewayCertificateSource[]
-  directorySources: GatewayDirectorySource[]
-}
+/**
+ * TLS configuration is now managed exclusively by the Certificate Vault.
+ * All certificate lifecycle (upload, rotation, revocation, gateway mapping)
+ * goes through routify-cert-vault. The gateway loads certs via Vault at startup
+ * and reacts to CERT_GROUP_EVENTS Kafka events for zero-downtime rotation.
+ * @deprecated Use the Cert Vault API instead. This type is retained only for
+ *   backwards-compatible config snapshot serialisation.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type GatewayTlsConfig = Record<string, never>
 
 export interface GatewayProxyConfig {
   enabled: boolean

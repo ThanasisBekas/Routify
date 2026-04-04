@@ -203,34 +203,15 @@ public class GatewayConfigService {
     }
 
 
+    /**
+     * Updates the TLS config section.
+     * All certificate lifecycle is now handled by routify-cert-vault — this method
+     * simply propagates any remaining config metadata (currently an empty stub).
+     * The deprecated fileSources / directorySources / expiryWarning / fileWatchInterval
+     * fields have been removed; use the Certificate Vault API instead.
+     */
     public GatewayConfigDto updateTlsConfig(TlsConfigDto tls, String updatedBy) {
         GatewayConfigDto cfg = getConfig();
-
-        // Preserve stored private key passwords when the incoming value is the mask sentinel
-        if (tls != null && tls.getFileSources() != null && cfg.getTlsConfig() != null
-                && cfg.getTlsConfig().getFileSources() != null) {
-            tls.getFileSources().forEach(incoming -> {
-                if (Sensitive.isMasked(incoming.getPrivateKeyPassword())) {
-                    cfg.getTlsConfig().getFileSources().stream()
-                            .filter(existing -> incoming.getLogicalId() != null
-                                    && incoming.getLogicalId().equals(existing.getLogicalId()))
-                            .findFirst()
-                            .ifPresent(existing -> incoming.setPrivateKeyPassword(existing.getPrivateKeyPassword()));
-                }
-            });
-        }
-        if (tls != null && tls.getDirectorySources() != null && cfg.getTlsConfig() != null
-                && cfg.getTlsConfig().getDirectorySources() != null) {
-            tls.getDirectorySources().forEach(incoming -> {
-                if (Sensitive.isMasked(incoming.getPrivateKeyPassword())) {
-                    cfg.getTlsConfig().getDirectorySources().stream()
-                            .filter(existing -> incoming.getDirectoryPath() != null
-                                    && incoming.getDirectoryPath().equals(existing.getDirectoryPath()))
-                            .findFirst()
-                            .ifPresent(existing -> incoming.setPrivateKeyPassword(existing.getPrivateKeyPassword()));
-                }
-            });
-        }
 
         cfg.setTlsConfig(tls);
         return persistAndNotify(cfg, updatedBy, "TLS");
@@ -354,8 +335,9 @@ public class GatewayConfigService {
                         .timeoutDuration("10s").timeoutCancelRunningFuture(true)
                         .bulkheadEnabled(false).bulkheadMaxConcurrentCalls(25).build())
                 .authProviders(List.of())
-                .tlsConfig(TlsConfigDto.builder().expiryWarning("30d").fileWatchInterval("30s")
-                        .fileSources(List.of()).directorySources(List.of()).build())
+                // TLS config is now an empty stub — all certificate management is
+                // handled by routify-cert-vault via Cert Vault groups and CERT_GROUP_EVENTS.
+                .tlsConfig(TlsConfigDto.builder().build())
                 .proxyConfig(ProxyConfigDto.builder().enabled(false).type("HTTP").nonProxyHosts(List.of()).build())
                 .httpClientConfig(HttpClientConfigDto.builder()
                         .connectTimeoutMs(6000).responseTimeoutMs(10000).maxConnections(500)

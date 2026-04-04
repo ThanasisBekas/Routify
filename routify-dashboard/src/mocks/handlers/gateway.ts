@@ -4,7 +4,7 @@ import type {
   GatewayCorsConfig, GatewaySecurityHeadersConfig,
   GatewayRateLimitPolicy, GatewayCircuitBreakerDefaults,
   GatewayResilienceDefaults, GatewayAuthProvider,
-  GatewayTlsConfig, GatewayProxyConfig, GatewayHttpClientConfig,
+  GatewayProxyConfig, GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
 } from '../../types'
 
@@ -163,22 +163,18 @@ export const gatewayHandlers = [
   }),
 
   // ─── TLS ──────────────────────────────────────────────────────────────────────
+  // TLS configuration is now read-only — all certificate management is handled
+  // by the Certificate Vault. The gateway loads certs via vault at startup and
+  // reacts to Kafka CERT_GROUP_EVENTS for zero-downtime rotation.
   http.get(`${BASE}/tls`, async () => {
     await delay(150)
     return HttpResponse.json(gatewayConfig.tlsConfig)
   }),
-  http.put(`${BASE}/tls`, async ({ request }) => {
-    await delay(350)
-    const body = await request.json() as GatewayTlsConfig
-    gatewayConfig.tlsConfig = body
-    gatewayConfig.updatedAt = new Date().toISOString()
-    return HttpResponse.json(gatewayConfig)
-  }),
   http.get(`${BASE}/tls/certificates`, async () => {
     await delay(150)
     return HttpResponse.json({
-      'tls-group':  { fingerprint: 'AA:BB:CC', notAfter: '2027-01-01', status: 'VALID',         version: 1 },
-      'mtls-group': { fingerprint: 'CC:DD:EE', notAfter: '2028-06-01', status: 'VALID',         version: 1 },
+      'tls-group':  { fingerprint: 'AA:BB:CC', notAfter: '2027-01-01', status: 'VALID',         version: 1, source: 'vault:group/tls-group' },
+      'mtls-group': { fingerprint: 'CC:DD:EE', notAfter: '2028-06-01', status: 'VALID',         version: 1, source: 'vault:group/mtls-group' },
     })
   }),
   http.get(`${BASE}/tls/vault-certs`, async () => {
