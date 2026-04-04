@@ -31,10 +31,10 @@ export const FLOW_COL = {
   preLabel:  220,
   pre:       220,
   route:     480,
-  upstream:  740,
-  post:      1000,
-  postLabel: 1000,
-  response:  1260,
+  upstream:  860,
+  post:      1120,
+  postLabel: 1120,
+  response:  1380,
 } as const
 
 export const FLOW_ROW_GAP = 100
