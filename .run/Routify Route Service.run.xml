@@ -1,12 +1,14 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Routify Route Service" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
-    <module name="routify-route-service" />
-    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.route.RoutifyRouteServiceApplication" />
     <option name="ACTIVE_PROFILES" value="dev" />
-    <option name="ALTERNATIVE_JRE_PATH" />
-    <envFilePaths>
-      <path value="$PROJECT_DIR$/environments/.env.develop" />
-    </envFilePaths>
+    <option name="envFilePaths">
+      <option value="$PROJECT_DIR$/.env" />
+    </option>
+    <module name="routify-route-service" />
+    <selectedOptions>
+      <option name="environmentVariables" />
+    </selectedOptions>
+    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.route.RoutifyRouteServiceApplication" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

@@ -12,17 +12,18 @@
 #   full              — alias for app
 #
 # Usage:
-#   ./setup-docker.sh                         # interactive branch picker, infra only
-#   ./setup-docker.sh --branch develop        # use develop env, infra only
-#   ./setup-docker.sh --branch release/1      # use release/1 env, infra only
-#   ./setup-docker.sh --branch develop --app  # infra + all app services
-#   ./setup-docker.sh --branch develop --infra-only
-#   ./setup-docker.sh --list                  # list available env files and exit
+#   ./scripts/setup-docker.sh                         # interactive branch picker, infra only
+#   ./scripts/setup-docker.sh --branch develop        # use develop env, infra only
+#   ./scripts/setup-docker.sh --branch release/1      # use release/1 env, infra only
+#   ./scripts/setup-docker.sh --branch develop --app  # infra + all app services
+#   ./scripts/setup-docker.sh --branch develop --infra-only
+#   ./scripts/setup-docker.sh --list                  # list available env files and exit
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENVIRONMENTS_DIR="${PROJECT_DIR}/environments"
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ if [[ "$MODE" == "infra" ]]; then
   success "Infrastructure is up. 🚀"
   echo ""
   info "To also start application services, re-run with --app:"
-  echo "  ./setup-docker.sh --branch ${BRANCH} --app"
+  echo "  ./scripts/setup-docker.sh --branch ${BRANCH} --app"
 else
   info "Starting full stack (infra + all application services)..."
   info "Building application images (this may take a few minutes on first run)..."
@@ -179,6 +180,51 @@ else
     -f docker-compose.app.yml \
     up -d --build
   success "Full stack is up. 🚀"
+fi
+
+# ── Sync credentials to running containers ────────────────────────────────────
+# When the .env is replaced (e.g. after re-running the workflow for a new branch)
+# the containers keep the old credentials. Sync them now so services can connect.
+divider
+info "Syncing credentials to running containers..."
+
+_DB_PASS="$(grep '^DB_PASS=' "${PROJECT_DIR}/.env" | cut -d= -f2)"
+_RABBITMQ_PASS="$(grep '^RABBITMQ_PASS=' "${PROJECT_DIR}/.env" | cut -d= -f2)"
+
+# PostgreSQL — wait for readiness then update password
+if docker ps --filter "name=routify-postgres" --filter "status=running" --format "{{.Names}}" | grep -q routify-postgres; then
+  for i in 1 2 3 4 5; do
+    if docker exec routify-postgres pg_isready -U routify -q 2>/dev/null; then
+      break
+    fi
+    info "Waiting for PostgreSQL to be ready (attempt ${i}/5)..."
+    sleep 3
+  done
+  if docker exec routify-postgres psql -U routify -c "ALTER USER routify WITH PASSWORD '${_DB_PASS}';" > /dev/null 2>&1; then
+    success "PostgreSQL password synced."
+  else
+    warn "Could not sync PostgreSQL password — service may fail to connect."
+  fi
+else
+  info "PostgreSQL container not running — password will be set on next start."
+fi
+
+# RabbitMQ — update password via rabbitmqctl
+if docker ps --filter "name=routify-rabbitmq" --filter "status=running" --format "{{.Names}}" | grep -q routify-rabbitmq; then
+  for i in 1 2 3 4 5; do
+    if docker exec routify-rabbitmq rabbitmq-diagnostics -q ping 2>/dev/null; then
+      break
+    fi
+    info "Waiting for RabbitMQ to be ready (attempt ${i}/5)..."
+    sleep 3
+  done
+  if docker exec routify-rabbitmq rabbitmqctl change_password routify "${_RABBITMQ_PASS}" > /dev/null 2>&1; then
+    success "RabbitMQ password synced."
+  else
+    warn "Could not sync RabbitMQ password — service may fail to connect."
+  fi
+else
+  info "RabbitMQ container not running — password will be set on next start."
 fi
 
 # ── Print service URLs ────────────────────────────────────────────────────────
@@ -198,9 +244,9 @@ if [[ "$MODE" == "app" ]]; then
 fi
 
 echo ""
-printf "  ${CYAN}%-28s${NC} %s\n" "RabbitMQ Management"  "http://localhost:15672  (routify / <RABBITMQ_PASS>)"
-printf "  ${CYAN}%-28s${NC} %s\n" "Prometheus"            "http://localhost:9091"
-printf "  ${CYAN}%-28s${NC} %s\n" "Grafana"               "http://localhost:3001  (admin / <GRAFANA_PASSWORD>)"
+printf "  ${CYAN}%-28s${NC} %s\n" "RabbitMQ Management"   "http://localhost:15672 (routify / ${_RABBITMQ_PASS})"
+printf "  ${CYAN}%-28s${NC} %s\n" "Prometheus"            "http://localhost:9091  (admin / admin)"
+printf "  ${CYAN}%-28s${NC} %s\n" "Grafana"               "http://localhost:3001  (admin / admin)"
 divider
 success "Done! Active env: environments/.env.${SAFE_BRANCH}"
 
