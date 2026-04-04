@@ -13,6 +13,7 @@
  *  auth        — OAuth2 CC, password, introspect, JWT JWKS, Basic providers
  *  networking  — upstream proxy, Reactor Netty HTTP client pool
  *  tenant      — multi-tenancy isolation enforcement
+ *  global-filters — cross-cutting filters applied to all routes
  *
  * URL deep-linking: ?tab=cors — persists active tab in the query string
  * so users can bookmark / share specific sections.
@@ -21,7 +22,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
   Activity, Globe, Shield, Gauge, RefreshCw, Lock,
-  Network, Settings, Wifi, Database,
+  Network, Settings, Wifi, Database, Layers,
 } from 'lucide-react'
 import { gatewayApi } from '../../api/gatewayApi'
 import { useWsStore } from '../../store/wsStore'
@@ -37,12 +38,13 @@ import ResilienceTab      from './tabs/ResilienceTab'
 import AuthProvidersTab   from './tabs/AuthProvidersTab'
 import NetworkingTab      from './tabs/NetworkingTab'
 import TenantIsolationTab from './tabs/TenantIsolationTab'
+import GlobalFiltersTab   from './tabs/GlobalFiltersTab'
 
 // ─── Tab catalogue ────────────────────────────────────────────────────────────
 
 type GatewayTab =
   | 'overview' | 'cors' | 'security' | 'rate-limit' | 'resilience'
-  | 'auth' | 'networking' | 'tenant'
+  | 'auth' | 'networking' | 'tenant' | 'global-filters'
 
 const TABS: {
   id: GatewayTab
@@ -58,6 +60,7 @@ const TABS: {
   { id: 'auth',       label: 'Auth Providers',   icon: Lock,      description: 'JWT, OAuth2, Basic providers' },
   { id: 'networking', label: 'Networking',       icon: Network,   description: 'Proxy and HTTP client pool' },
   { id: 'tenant',     label: 'Tenant Isolation', icon: Settings,  description: 'Multi-tenancy enforcement' },
+  { id: 'global-filters', label: 'Global Filters', icon: Layers, description: 'Cross-cutting filters applied to all routes' },
 ]
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -92,6 +95,7 @@ export default function GatewayPage() {
   const proxyMutation        = useMutation({ mutationFn: gatewayApi.updateProxyConfig,        onSuccess: invalidate })
   const httpClientMutation   = useMutation({ mutationFn: gatewayApi.updateHttpClientConfig,   onSuccess: invalidate })
   const tenantMutation       = useMutation({ mutationFn: gatewayApi.updateTenantIsolation,    onSuccess: invalidate })
+  const globalFiltersMutation = useMutation({ mutationFn: gatewayApi.updateGlobalFilterEntries, onSuccess: invalidate })
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
   if (isLoading || !config) {
@@ -236,6 +240,15 @@ export default function GatewayPage() {
             initial={config.tenantIsolation}
             onSave={v => tenantMutation.mutate(v)}
             isPending={tenantMutation.isPending}
+          />
+        )}
+
+        {activeTab === 'global-filters' && (
+          <GlobalFiltersTab
+            key={config.updatedAt ?? 'global-filters'}
+            initial={config.globalFilterEntries ?? []}
+            onSave={v => globalFiltersMutation.mutate(v)}
+            isPending={globalFiltersMutation.isPending}
           />
         )}
 

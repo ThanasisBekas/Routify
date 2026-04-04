@@ -11,6 +11,7 @@ import type {
   GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
   GatewayLiveStatus,
+  GlobalFilterEntry,
 } from '../types'
 
 const BASE = '/api/v1/admin/gateway'
@@ -109,5 +110,12 @@ export const gatewayApi = {
 
   updateTenantIsolation: (ti: GatewayTenantIsolationConfig) =>
     apiClient.put<GatewayConfig>(`${BASE}/tenant-isolation`, ti).then(r => r.data),
+
+  // ─── Global Filter Entries ─────────────────────────────────────────────
+  getGlobalFilterEntries: () =>
+    apiClient.get<GlobalFilterEntry[]>(`${BASE}/global-filter-entries`).then(r => r.data),
+
+  updateGlobalFilterEntries: (entries: GlobalFilterEntry[]) =>
+    apiClient.put<GatewayConfig>(`${BASE}/global-filter-entries`, entries).then(r => r.data),
 }
 

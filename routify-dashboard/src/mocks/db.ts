@@ -223,6 +223,11 @@ export const gatewayConfig: GatewayConfig = {
     tenantIdHeader: 'X-Tenant-Id',
     allowCrossTenantsForSuperAdmin: true,
   },
+  globalFilterEntries: [
+    { filterId: 'cccccccc-0000-0000-0000-000000000005', filterName: 'Correlation ID',    filterType: 'CORRELATION_ID',  order: 1, enabled: true },
+    { filterId: 'cccccccc-0000-0000-0000-000000000004', filterName: 'Request Logger',     filterType: 'REQUEST_LOGGER',  order: 2, enabled: true },
+    { filterId: 'cccccccc-0000-0000-0000-000000000006', filterName: 'Security Headers',   filterType: 'SECURITY_HEADERS', order: 3, enabled: true },
+  ],
 }
 
 export const gatewayLiveStatus: GatewayLiveStatus = {

@@ -498,6 +498,14 @@ export interface GatewayTenantIsolationConfig {
   allowCrossTenantsForSuperAdmin: boolean
 }
 
+/** A reference to a filter that has been marked as global (applied to all routes). */
+export interface GlobalFilterEntry {
+  filterId: string
+  filterName: string
+  filterType: FilterType
+  order: number
+  enabled: boolean
+}
 
 export interface GatewayConfig {
   updatedAt?: string
@@ -511,6 +519,7 @@ export interface GatewayConfig {
   proxyConfig: GatewayProxyConfig
   httpClientConfig: GatewayHttpClientConfig
   tenantIsolation: GatewayTenantIsolationConfig
+  globalFilterEntries: GlobalFilterEntry[]
 }
 
 export interface GatewayLiveStatus {

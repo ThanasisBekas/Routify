@@ -57,6 +57,15 @@ public class GatewayConfigDto {
     // ─── Tenant Isolation ──────────────────────────────────────────────────
     private TenantIsolationConfig tenantIsolation;
 
+    // ─── Global Filter Entries ──────────────────────────────────────────────
+    /**
+     * Operator-selected filters that are applied globally to every route.
+     * Each entry references an existing filter definition by ID and carries its
+     * execution order and enabled state. Global filter entries execute before
+     * per-route filters in the order defined by the {@code order} field.
+     */
+    private List<GlobalFilterEntryDto> globalFilterEntries;
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Nested configuration classes
     // ─────────────────────────────────────────────────────────────────────────────
@@ -257,6 +266,20 @@ public class GatewayConfigDto {
         private boolean enabled;
         private String  tenantIdHeader;
         private boolean allowCrossTenantsForSuperAdmin;
+    }
+
+    /**
+     * A reference to an existing filter that has been marked as globally applied
+     * to every route in the gateway. Carries the filter's identity, type, execution
+     * order, and enabled flag.
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class GlobalFilterEntryDto {
+        private String  filterId;
+        private String  filterName;
+        private String  filterType;
+        private int     order;
+        private boolean enabled;
     }
 }
 
