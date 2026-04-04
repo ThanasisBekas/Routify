@@ -22,6 +22,17 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Uses Java 21 sealed interface pattern matching for exhaustive event handling.
  * Uses MANUAL_IMMEDIATE acknowledgment to ensure at-least-once delivery.
+ *
+ * <h2>Poison-Pill Guard (C2 Fix)</h2>
+ * <p>The previous implementation ended every switch expression with
+ * {@code default -> throw new IllegalStateException(...)}, which caused
+ * {@link DomainEvent.Unknown} (the Jackson fallback for unrecognised type discriminators)
+ * to throw and create an infinite Kafka retry loop — a classic poison-pill scenario.
+ *
+ * <p>The fix replaces every {@code default} branch with an explicit
+ * {@code case DomainEvent.Unknown} that logs a structured warning and re-throws so
+ * the DLQ {@link gr.routify.common.kafka.KafkaDlqErrorHandlerFactory} can capture it
+ * without blocking partition progress indefinitely.
  */
 @Slf4j
 @Component
@@ -48,6 +59,19 @@ public class DomainEventAuditConsumer {
     public void onDomainEvent(DomainEvent event,
                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                                Acknowledgment ack) {
+        // C2 Fix: guard against DomainEvent.Unknown before doing any processing.
+        // Unknown events arrive when a new service version publishes an event type
+        // that this audit-service version has not yet been rebuilt with.
+        // Route them to the DLQ via re-throw rather than creating an infinite retry loop.
+        if (event instanceof DomainEvent.Unknown u) {
+            log.warn("Unrecognised domain event received on topic={} correlationId={} — " +
+                     "forwarding to DLQ. Rebuild routify-audit-service to pick up the new event type.",
+                     topic, u.correlationId());
+            // Do NOT acknowledge — the KafkaDlqErrorHandlerFactory will dead-letter after max retries
+            throw new UnrecognisedDomainEventException(
+                    "Unknown domain event type on topic [" + topic + "]");
+        }
+
         try {
             String payload = objectMapper.writeValueAsString(event);
 
@@ -109,7 +133,8 @@ public class DomainEventAuditConsumer {
             case DomainEvent.CertRemovedFromGroup ignored           -> "CERT_REMOVED_FROM_GROUP";
             case DomainEvent.GatewayReloadRequested ignored -> "GATEWAY_RELOAD_REQUESTED";
             case DomainEvent.GatewayConfigChanged ignored  -> "GATEWAY_CONFIG_CHANGED";
-            default -> throw new IllegalStateException("Unexpected value: " + event);
+            // Safety net: Unknown is already handled before entering the switch.
+            case DomainEvent.Unknown ignored -> "UNKNOWN";
         };
     }
 
@@ -146,7 +171,7 @@ public class DomainEventAuditConsumer {
             case DomainEvent.CertRemovedFromGroup ignored           -> "CERT_GROUP";
             case DomainEvent.GatewayReloadRequested ignored -> "GATEWAY";
             case DomainEvent.GatewayConfigChanged ignored  -> "GATEWAY";
-            default -> throw new IllegalStateException("Unexpected value: " + event);
+            case DomainEvent.Unknown ignored -> "UNKNOWN";
         };
     }
 
@@ -181,9 +206,22 @@ public class DomainEventAuditConsumer {
             case DomainEvent.CertGroupDeleted e                  -> e.groupId().toString();
             case DomainEvent.CertAddedToGroup e                  -> e.groupId().toString();
             case DomainEvent.CertRemovedFromGroup e              -> e.groupId().toString();
-            case DomainEvent.GatewayReloadRequested g     -> g.tenantId().toString();
-            case DomainEvent.GatewayConfigChanged g       -> g.tenantId().toString();
-            default -> throw new IllegalStateException("Unexpected value: " + event);
+            case DomainEvent.GatewayReloadRequested g     -> g.tenantId() != null ? g.tenantId().toString() : "platform";
+            case DomainEvent.GatewayConfigChanged g       -> g.section() != null ? g.section() : "global";
+            case DomainEvent.Unknown u -> u.tenantId() != null ? u.tenantId().toString() : "unknown";
         };
+    }
+
+    // ─── Sentinel exception for unrecognised event types ──────────────────────
+
+    /**
+     * Thrown when a {@link DomainEvent.Unknown} is received.
+     * The KafkaDlqErrorHandlerFactory will dead-letter the record after max retries
+     * instead of retrying it forever, preventing partition stalls.
+     */
+    static final class UnrecognisedDomainEventException extends RuntimeException {
+        UnrecognisedDomainEventException(String message) {
+            super(message);
+        }
     }
 }

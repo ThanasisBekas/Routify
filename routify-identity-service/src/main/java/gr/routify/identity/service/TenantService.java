@@ -6,21 +6,24 @@ import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.exception.RoutifyException;
 import gr.routify.identity.domain.Tenant;
 import gr.routify.identity.dto.AuthDto;
+import gr.routify.identity.outbox.IdentityOutboxEventStore;
 import gr.routify.identity.repository.TenantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Tenant management service.
+ *
+ * <p>Domain events are written to the Transactional Outbox (routify_identity.outbox_event)
+ * within the same DB transaction as the entity mutation. The {@link gr.routify.identity.outbox.IdentityOutboxPoller}
+ * publishes them to Kafka asynchronously — eliminating the dual-write anti-pattern.
  */
 @Slf4j
 @Service
@@ -28,8 +31,7 @@ import java.util.UUID;
 public class TenantService {
 
     private final TenantRepository tenantRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final IdentityOutboxEventStore outboxStore;
 
     @Transactional(readOnly = true)
     public Page<Tenant> findAll(Pageable pageable) {
@@ -60,10 +62,13 @@ public class TenantService {
 
         Tenant saved = tenantRepository.save(tenant);
 
-        publishEvent(new DomainEvent.TenantCreated(
-                UUID.randomUUID(), saved.getId(),
-                saved.getName(), saved.getSlug(), saved.getPlan().name(),
-                Instant.now(), null, null));
+        outboxStore.store(
+                new DomainEvent.TenantCreated(
+                        UUID.randomUUID(), saved.getId(),
+                        saved.getName(), saved.getSlug(), saved.getPlan().name(),
+                        Instant.now(), null, null),
+                KafkaTopics.TENANT_EVENTS,
+                saved.getId());
 
         log.info("Tenant created: id={} slug={} plan={}", saved.getId(), saved.getSlug(), saved.getPlan());
         return saved;
@@ -88,8 +93,11 @@ public class TenantService {
 
         Tenant saved = tenantRepository.save(tenant);
 
-        publishEvent(new DomainEvent.TenantUpdated(
-                UUID.randomUUID(), id, saved.getName(), Instant.now(), null, null));
+        outboxStore.store(
+                new DomainEvent.TenantUpdated(
+                        UUID.randomUUID(), id, saved.getName(), Instant.now(), null, null),
+                KafkaTopics.TENANT_EVENTS,
+                id);
 
         log.info("Tenant updated: id={} name={} plan={}", saved.getId(), saved.getName(), saved.getPlan());
         return saved;
@@ -101,8 +109,11 @@ public class TenantService {
         tenant.suspend();
         Tenant saved = tenantRepository.save(tenant);
 
-        publishEvent(new DomainEvent.TenantSuspended(
-                UUID.randomUUID(), id, reason, Instant.now(), null, null));
+        outboxStore.store(
+                new DomainEvent.TenantSuspended(
+                        UUID.randomUUID(), id, reason, Instant.now(), null, null),
+                KafkaTopics.TENANT_EVENTS,
+                id);
 
         log.info("Tenant suspended: id={}", id);
         return saved;
@@ -114,19 +125,14 @@ public class TenantService {
         tenant.reactivate();
         Tenant saved = tenantRepository.save(tenant);
 
-        publishEvent(new DomainEvent.TenantUpdated(
-                UUID.randomUUID(), id, saved.getName(), Instant.now(), null, null));
+        outboxStore.store(
+                new DomainEvent.TenantUpdated(
+                        UUID.randomUUID(), id, saved.getName(), Instant.now(), null, null),
+                KafkaTopics.TENANT_EVENTS,
+                id);
 
         return saved;
     }
 
-    private void publishEvent(DomainEvent event) {
-        try {
-            String json = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send(KafkaTopics.TENANT_EVENTS, event.tenantId().toString(), json);
-        } catch (Exception e) {
-            log.error("Failed to publish tenant event: {}", e.getMessage());
-        }
-    }
 }
 

@@ -4,6 +4,7 @@ import gr.routify.audit.domain.RequestLog;
 import gr.routify.audit.repository.RequestLogRepository;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.RequestTelemetryEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -31,6 +32,7 @@ import java.util.UUID;
 public class RequestTelemetryConsumer {
 
     private final RequestLogRepository requestLogRepository;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(
             topics = KafkaTopics.REQUEST_TELEMETRY,
@@ -56,9 +58,9 @@ public class RequestTelemetryConsumer {
                     .clientIp(event.clientIp())
                     .userId(event.userId())
                     .errorMessage(event.errorMessage())
-                    .filterTrace(event.filterTrace() != null ? event.filterTrace().toString() : null)
-                    .requestHeaders(event.requestHeaders() != null ? event.requestHeaders().toString() : null)
-                    .responseHeaders(event.responseHeaders() != null ? event.responseHeaders().toString() : null)
+                    .filterTrace(toJson(event.filterTrace()))
+                    .requestHeaders(toJson(event.requestHeaders()))
+                    .responseHeaders(toJson(event.responseHeaders()))
                     .requestBody(event.requestBody())
                     .responseBody(event.responseBody())
                     .failed(event.failed())
@@ -86,6 +88,16 @@ public class RequestTelemetryConsumer {
         try {
             return value != null && !value.isEmpty() ? UUID.fromString(value) : null;
         } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String toJson(Object value) {
+        if (value == null) return null;
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            log.warn("Failed to serialize field to JSON, storing as null: {}", e.getMessage());
             return null;
         }
     }

@@ -29,17 +29,18 @@ routify-common       (shared library) — events, DTOs, exceptions, headers, top
 All inter-service messaging constants live in `routify-common`:
 - **Kafka topics** → `gr.routify.common.event.KafkaTopics` — never use string literals for topic names.
 - **RabbitMQ exchanges/queues/routing-keys** → `gr.routify.common.event.RabbitTopology` — each service owns one direct exchange.
-- **HTTP headers** → `gr.routify.common.web.RoutifyHeaders` — includes `X-Tenant-Id`, `X-Auth-User-Id`, `X-Correlation-Id`, `X-Auth-Tenant-Id`, `X-Auth-Role`, `X-Routify-Replay`, `X-Auth-Email`, `X-Auth-Type`, `X-Api-Key`, `X-Route-Version`, etc.
+- **HTTP headers** → `gr.routify.common.web.RoutifyHeaders` — includes `X-Tenant-Id`, `X-Auth-User-Id`, `X-Correlation-Id`, `X-Auth-Tenant-Id`, `X-Auth-Role`, `X-Routify-Replay`, `X-Auth-Email`, `X-Auth-Type`, `X-Api-Key`, `X-Auth-Token`, `X-Route-Version`, etc.
 
 ### Key `KafkaTopics` constants (beyond the obvious command/event pairs)
 - `FILTER_EVENTS` / `FILTER_COMMANDS` — filter lifecycle, separate from route topics.
+- `TENANT_COMMANDS` — tenant create/suspend/reactivate, consumed by `routify-identity-service`.
 - `GATEWAY_RELOAD` — forces a full gateway reload (e.g. certificate rotation).
 - `GATEWAY_CONFIG_EVENTS` — persists gateway-wide config (CORS, security headers, rate-limit) to all gateway instances.
 - `AUDIT_EVENTS`, `REQUEST_TELEMETRY` — consumed by `routify-audit-service`.
 - `AI_FILTER_DECISIONS`, `AI_MODIFICATION_EVENTS` — published by `routify-ai-service` after every LLM evaluation.
 - `AUTH_COMMANDS` — logout blacklisting, consumed by `routify-identity-service`.
 - `CERT_GROUP_EVENTS` — certificate group lifecycle, consumed by `routify-api-gateway`.
-- All failed events are forwarded to DLQ topics named `<original-topic>.DLQ` (e.g. `routify.route.events.DLQ`), consumed exclusively by `routify-audit-service`.
+- All failed events are forwarded to DLQ topics named `<original-topic>.DLQ` (e.g. `routify.route.events.DLQ`), consumed exclusively by `routify-audit-service`. Named constants: `DLQ_ROUTE_EVENTS`, `DLQ_FILTER_EVENTS`, `DLQ_TENANT_COMMANDS`, `DLQ_AI_MODIFICATION_EVENTS`, etc.
 
 ### `routify-ai-service` communication
 The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exchange: `RabbitTopology.EXCHANGE_AI_SERVICE` (`routify.ai-service`). Two queues:
@@ -63,8 +64,9 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 
 **Java services:**
 - Java 21 with **Virtual Threads** enabled (`spring.threads.virtual.enabled: true`) on all services except the reactive gateway.
+- Spring Boot **3.4.4**, Spring Cloud **2024.0.1**, Spring AI **1.0.0**, JJWT **0.12.6**, Resilience4j **2.2.0**, MapStruct **1.6.3**.
 - `routify-api-gateway` is **reactive** (WebFlux/Reactor/Netty) — never use blocking code there.
-- Exceptions extend the **sealed** `RoutifyException` hierarchy (`NotFound`, `Conflict`, `Validation`, `BadRequest`, `Unauthorized`, `Forbidden`, `RateLimitExceeded`, `QuotaExceeded`, `GatewayError`, `HeuristicError`) — never throw raw `RuntimeException`.
+- Exceptions extend the **sealed** `RoutifyException` hierarchy (`NotFound`, `Conflict`, `Validation`, `BadRequest`, `Unauthorized`, `Forbidden`, `RateLimitExceeded`, `QuotaExceeded`, `GatewayError`, `HeuristicError`) — never throw raw `RuntimeException`. Error responses are serialised by `gr.routify.common.exception.GlobalExceptionHandler`.
 - Use **MapStruct** for DTO↔entity mappings (annotation processor configured in parent `pom.xml`). Lombok + MapStruct binding order matters: `lombok-mapstruct-binding` is declared explicitly.
 - All Kafka producers use `acks=all` + idempotent mode. Kafka writes from `route-service` go through the **Transactional Outbox** pattern (`OutboxPoller` polls every 250 ms, retries failed after 30 s, max 5 attempts).
 - Database migrations use **Flyway** (`classpath:db/migration`). `ddl-auto: validate` — never `update`. Each service uses its own schema: `routify` (route-service), `routify_identity` (identity-service), `routify_audit` (audit-service), `routify_cert` (cert-vault).
@@ -107,6 +109,7 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 ```bash
 docker compose --env-file .env up -d
 # PostgreSQL :5432, Redis :6379, Kafka :9092, RabbitMQ :5672/:15672
+# Prometheus :9091, Grafana :3001
 ```
 
 ### Build all Java modules
@@ -147,7 +150,9 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
 
 ## Environment / Secrets
 
-Copy `.env.example` → `.env`. Required variables: `DB_PASS`, `RABBITMQ_PASS`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `CERT_VAULT_ENCRYPTION_KEY`. For the AI service: `OPENAI_API_KEY` (fail-fast at startup if absent). Services validate required secrets at boot via `routify.required-secrets` config property.
+Copy `environments/.env.develop` → `.env` (or generate via the **"Generate .env"** GitHub Actions workflow). Required variables: `DB_PASS`, `RABBITMQ_PASS`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `CERT_VAULT_ENCRYPTION_KEY`. Optional: `ADMIN_INITIAL_PASSWORD` (initial admin seed — identity-service `DataSeeder`), `GRAFANA_PASSWORD` (Grafana admin). For the AI service: `OPENAI_API_KEY` (fail-fast at startup if absent). Services validate required secrets at boot via `routify.required-secrets` config property.
+
+IntelliJ `.run/*.run.xml` configs auto-load `$PROJECT_DIR$/environments/.env.develop` via `<envFilePaths>` — no manual copying needed for local dev.
 
 ## Service Ports Quick Reference
 

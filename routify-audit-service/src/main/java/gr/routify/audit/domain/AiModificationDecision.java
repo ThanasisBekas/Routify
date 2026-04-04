@@ -22,9 +22,17 @@ import java.util.UUID;
  * Only SHA-256 hashes are persisted, making the table safe for long-term retention
  * without risk of PII leakage in audit logs.
  *
+ * <h3>Partitioning (V5 migration)</h3>
+ * The table is now partitioned by RANGE(evaluated_at) monthly — consistent with
+ * every other high-volume audit table. The composite PK (id, evaluated_at) is required
+ * by PostgreSQL so the partition key is part of the primary key.
+ * The {@link AiModificationDecisionId} {@code @IdClass} tells Hibernate to issue a
+ * direct INSERT instead of a SELECT-then-INSERT (which would fail on partitioned tables).
+ *
  * <p>Records are immutable after insertion — no update operations are performed.
  */
 @Entity
+@IdClass(AiModificationDecisionId.class)
 @Table(
     name = "ai_modifier_decision",
     schema = "routify_audit",
@@ -57,6 +65,15 @@ public class AiModificationDecision {
 
     @Column(name = "route_name", length = 255, updatable = false)
     private String routeName;
+
+    /**
+     * The {@code route.version} that was active when this modifier ran.
+     * Enables point-in-time correlation against the exact route snapshot that was
+     * hot-loaded into the gateway at the time of this request.
+     * {@code null} for records inserted before V5 migration.
+     */
+    @Column(name = "route_version", updatable = false)
+    private Integer routeVersion;
 
     @Column(name = "tenant_id", updatable = false)
     private UUID tenantId;
@@ -113,6 +130,7 @@ public class AiModificationDecision {
     private String clientIp;
 
     /** When the evaluation was performed (from the AI service event). */
+    @Id
     @Column(name = "evaluated_at", nullable = false, updatable = false)
     private Instant evaluatedAt;
 
@@ -145,6 +163,7 @@ public class AiModificationDecision {
     public String       getClientIp()        { return clientIp; }
     public Instant      getEvaluatedAt()     { return evaluatedAt; }
     public Instant      getRecordedAt()      { return recordedAt; }
+    public Integer      getRouteVersion()    { return routeVersion; }
 
     // ─── Builder ──────────────────────────────────────────────────────────────
 
@@ -167,6 +186,7 @@ public class AiModificationDecision {
         public Builder path(String v)                 { d.path             = v; return this; }
         public Builder clientIp(String v)             { d.clientIp         = v; return this; }
         public Builder evaluatedAt(Instant v)         { d.evaluatedAt      = v; return this; }
+        public Builder routeVersion(Integer v)        { d.routeVersion     = v; return this; }
         public AiModificationDecision build()         { return d; }
     }
 }

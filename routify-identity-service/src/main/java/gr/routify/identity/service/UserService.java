@@ -6,23 +6,26 @@ import gr.routify.common.exception.RoutifyException;
 import gr.routify.identity.domain.AppUser;
 import gr.routify.identity.domain.Tenant;
 import gr.routify.identity.dto.AuthDto;
+import gr.routify.identity.outbox.IdentityOutboxEventStore;
 import gr.routify.identity.repository.TenantRepository;
 import gr.routify.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * User management service — CRUD operations for users within a tenant.
+ *
+ * <p>Domain events are written to the Transactional Outbox within the same DB
+ * transaction as the entity mutation. The {@link gr.routify.identity.outbox.IdentityOutboxPoller} publishes
+ * them to Kafka asynchronously — eliminating the dual-write anti-pattern.
  */
 @Slf4j
 @Service
@@ -32,8 +35,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final IdentityOutboxEventStore outboxStore;
 
     @Transactional(readOnly = true)
     public Page<AppUser> findAll(UUID tenantId, Pageable pageable) {
@@ -77,10 +79,13 @@ public class UserService {
 
         AppUser saved = userRepository.save(user);
 
-        publishEvent(new DomainEvent.UserCreated(
-                UUID.randomUUID(), tenantId, saved.getId(),
-                saved.getUsername(), saved.getEmail(), saved.getRole().name(),
-                Instant.now(), null, null));
+        outboxStore.store(
+                new DomainEvent.UserCreated(
+                        UUID.randomUUID(), tenantId, saved.getId(),
+                        saved.getUsername(), saved.getEmail(), saved.getRole().name(),
+                        Instant.now(), null, null),
+                KafkaTopics.USER_EVENTS,
+                tenantId);
 
         log.info("User created: id={} username={} tenant={}", saved.getId(), saved.getUsername(), tenantId);
         return saved;
@@ -108,9 +113,12 @@ public class UserService {
 
         AppUser saved = userRepository.save(user);
 
-        publishEvent(new DomainEvent.UserUpdated(
-                UUID.randomUUID(), tenantId, saved.getId(),
-                saved.getUsername(), Instant.now(), null, null));
+        outboxStore.store(
+                new DomainEvent.UserUpdated(
+                        UUID.randomUUID(), tenantId, saved.getId(),
+                        saved.getUsername(), Instant.now(), null, null),
+                KafkaTopics.USER_EVENTS,
+                tenantId);
 
         return saved;
     }
@@ -121,19 +129,13 @@ public class UserService {
         user.delete();
         userRepository.save(user);
 
-        publishEvent(new DomainEvent.UserDeleted(
-                UUID.randomUUID(), tenantId, id, Instant.now(), null, null));
+        outboxStore.store(
+                new DomainEvent.UserDeleted(
+                        UUID.randomUUID(), tenantId, id, Instant.now(), null, null),
+                KafkaTopics.USER_EVENTS,
+                tenantId);
 
         log.info("User deleted: id={}", id);
-    }
-
-    private void publishEvent(DomainEvent event) {
-        try {
-            String json = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send(KafkaTopics.USER_EVENTS, event.tenantId().toString(), json);
-        } catch (Exception e) {
-            log.error("Failed to publish user event: {}", e.getMessage());
-        }
     }
 }
 
