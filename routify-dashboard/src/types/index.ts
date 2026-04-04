@@ -494,7 +494,6 @@ export interface GatewayRequestLoggerConfig {
 
 export interface GatewayTenantIsolationConfig {
   enabled: boolean
-  enforceHeaderPredicate: boolean
   tenantIdHeader: string
   allowCrossTenantsForSuperAdmin: boolean
 }

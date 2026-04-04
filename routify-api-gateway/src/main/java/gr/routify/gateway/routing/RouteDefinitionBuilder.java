@@ -28,10 +28,13 @@ import java.util.regex.Pattern;
  *
  * <h3>Tenant Isolation:</h3>
  * Whether the {@code Header=X-Tenant-Id} predicate is added to each route is controlled
- * by the {@code tenantIsolation} section of the persisted gateway config
- * (loaded by {@link GatewayConfigLoader}). When {@code enabled=false} or
- * {@code enforceHeaderPredicate=false} the predicate is omitted and requests reach
- * the route regardless of whether they carry the header.
+ * by the {@code tenantIsolation.enabled} flag in the persisted gateway config
+ * (loaded by {@link GatewayConfigLoader}). When {@code enabled=true} callers must
+ * supply the tenant header and the predicate is added. When {@code enabled=false}
+ * the predicate is omitted and the
+ * {@link gr.routify.gateway.filter.TenantContextGatewayFilterFactory TENANT_CONTEXT}
+ * filter auto-injects the tenant from route metadata. The resolved header is always
+ * forwarded to the upstream destination.
  *
  * <h3>Strategy Pattern for Filter Building:</h3>
  * Each filter type maps to one or more Spring Cloud Gateway built-in filters
@@ -77,11 +80,12 @@ public class RouteDefinitionBuilder {
                     "Method=%s".formatted(snapshot.methods())));
         }
 
-        // Tenant header predicate — only added when isolation is enabled AND
-        // enforceHeaderPredicate is true (both controlled via Gateway Config UI).
+        // Tenant header predicate — added when enabled is true (caller provides
+        // X-Tenant-Id). When enabled=false the caller does not supply the header and
+        // the TenantContext filter auto-injects it from route metadata instead.
         // The UUID is wrapped in ^…$ anchors and Pattern.quote() so it is treated
         // as a literal (not a raw regex) and cannot be spoofed by a partial match.
-        if (isolation.enabled() && isolation.enforceHeaderPredicate()) {
+        if (isolation.enabled()) {
             predicates.add(new PredicateDefinition(
                     "Header=%s,^%s$".formatted(
                             isolation.tenantIdHeader(),
@@ -89,8 +93,8 @@ public class RouteDefinitionBuilder {
             log.debug("Tenant header predicate added: {}={} for route {}",
                     isolation.tenantIdHeader(), snapshot.tenantId(), snapshot.routeId());
         } else {
-            log.debug("Tenant header predicate SKIPPED for route {} (enabled={} enforce={})",
-                    snapshot.routeId(), isolation.enabled(), isolation.enforceHeaderPredicate());
+            log.debug("Tenant header predicate SKIPPED for route {} (enabled={})",
+                    snapshot.routeId(), isolation.enabled());
         }
 
         definition.setPredicates(predicates);
@@ -451,12 +455,11 @@ public class RouteDefinitionBuilder {
 
         Map<String, Object> ti = (Map<String, Object>) rawMap;
 
-        boolean enabled                = toBool(ti.get("enabled"),                true);
-        boolean enforceHeaderPredicate = toBool(ti.get("enforceHeaderPredicate"), true);
-        String  tenantIdHeader         = ti.get("tenantIdHeader") instanceof String s && !s.isBlank()
+        boolean enabled        = toBool(ti.get("enabled"), true);
+        String  tenantIdHeader = ti.get("tenantIdHeader") instanceof String s && !s.isBlank()
                 ? s : DEFAULT_TENANT_HEADER;
 
-        return new TenantIsolationSettings(enabled, enforceHeaderPredicate, tenantIdHeader);
+        return new TenantIsolationSettings(enabled, tenantIdHeader);
     }
 
     private static boolean toBool(Object value, boolean defaultValue) {
@@ -467,10 +470,9 @@ public class RouteDefinitionBuilder {
 
     /** Immutable snapshot of the tenant isolation settings for a single route-build call. */
     private record TenantIsolationSettings(boolean enabled,
-                                           boolean enforceHeaderPredicate,
                                            String tenantIdHeader) {
         static final TenantIsolationSettings DEFAULTS =
-                new TenantIsolationSettings(true, true, DEFAULT_TENANT_HEADER);
+                new TenantIsolationSettings(true, DEFAULT_TENANT_HEADER);
     }
 
     /**

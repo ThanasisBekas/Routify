@@ -5,15 +5,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.RabbitTopology;
-import lombok.RequiredArgsConstructor;
+import gr.routify.gateway.routing.DynamicRouteDefinitionLocator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -39,19 +42,56 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>This separation keeps the Kafka event lightweight (no config payload in event)</li>
  *   <li>And allows RabbitMQ load-balancing for the actual data retrieval</li>
  * </ul>
+ *
+ * <h3>Route rebuild on config change</h3>
+ * <p>Certain config sections (e.g. {@code tenantIsolation}, {@code authProviders})
+ * affect route definitions — predicates and filters are baked in at build time by
+ * {@link gr.routify.gateway.routing.RouteDefinitionBuilder}. When such a section
+ * changes, we trigger a full route rebuild via {@link DynamicRouteDefinitionLocator#forceRefresh()}
+ * so that predicates (e.g. {@code Header=X-Tenant-Id}) are added or removed to
+ * reflect the new config. The {@code @Lazy} injection of the locator breaks the
+ * circular dependency chain:
+ * {@code GatewayConfigLoader → DynamicRouteDefinitionLocator → RouteDefinitionBuilder → GatewayConfigLoader}.
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class GatewayConfigLoader {
+
+    /**
+     * Config sections whose changes affect route definitions (predicates/filters)
+     * and therefore require a full route rebuild, not just a config map update.
+     */
+    private static final Set<String> ROUTE_AFFECTING_SECTIONS = Set.of(
+            "TENANT_ISOLATION",
+            "AUTH_PROVIDERS"
+    );
 
     private final RabbitTemplate                 rabbitTemplate;
     private final ObjectMapper                   objectMapper;
     private final GatewayResilienceConfigApplier resilienceConfigApplier;
+    private final DynamicRouteDefinitionLocator  routeLocator;
 
     /** The currently applied config — atomically updated on every reload */
     private final AtomicReference<Map<String, Object>> currentConfig =
             new AtomicReference<>(Map.of());
+
+    /**
+     * Guards against triggering a route rebuild during initial startup.
+     * {@link gr.routify.gateway.routing.DynamicRouteRefreshListener} already
+     * handles the initial route load — we only rebuild on subsequent Kafka events.
+     */
+    private final AtomicBoolean initialLoadDone = new AtomicBoolean(false);
+
+    public GatewayConfigLoader(
+            RabbitTemplate rabbitTemplate,
+            ObjectMapper objectMapper,
+            GatewayResilienceConfigApplier resilienceConfigApplier,
+            @Lazy DynamicRouteDefinitionLocator routeLocator) {
+        this.rabbitTemplate         = rabbitTemplate;
+        this.objectMapper           = objectMapper;
+        this.resilienceConfigApplier = resilienceConfigApplier;
+        this.routeLocator           = routeLocator;
+    }
 
     /**
      * Load gateway config from DB on application startup via RabbitMQ request/reply.
@@ -59,7 +99,8 @@ public class GatewayConfigLoader {
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         log.info("Gateway starting — loading persisted configuration from route-service via RabbitMQ...");
-        loadAndApplyConfig("startup");
+        loadAndApplyConfig("startup", false);
+        initialLoadDone.set(true);
     }
 
     /**
@@ -77,11 +118,13 @@ public class GatewayConfigLoader {
             if (event instanceof DomainEvent.GatewayConfigChanged changed) {
                 log.info("GatewayConfigChanged received: section={} by={}",
                         changed.section(), changed.changedBy());
-                loadAndApplyConfig("kafka-event:section=" + changed.section());
+                boolean needsRouteRebuild = ROUTE_AFFECTING_SECTIONS.contains(changed.section());
+                loadAndApplyConfig("kafka-event:section=" + changed.section(), needsRouteRebuild);
             }
         } catch (Exception e) {
             log.warn("Failed to process GatewayConfigChanged event, reloading anyway: {}", e.getMessage());
-            loadAndApplyConfig("kafka-event:parse-error");
+            // On parse error we cannot determine the section — rebuild routes to be safe
+            loadAndApplyConfig("kafka-event:parse-error", true);
         }
     }
 
@@ -104,7 +147,7 @@ public class GatewayConfigLoader {
 
     // ─── Private ──────────────────────────────────────────────────────────────
 
-    private void loadAndApplyConfig(String trigger) {
+    private void loadAndApplyConfig(String trigger, boolean rebuildRoutes) {
         try {
             Object response = rabbitTemplate.convertSendAndReceive(
                     RabbitTopology.EXCHANGE_ROUTE_SERVICE,
@@ -131,6 +174,14 @@ public class GatewayConfigLoader {
                 resilienceConfigApplier.apply(config);
                 log.info("Gateway config loaded from route-service via RabbitMQ (trigger={}): {} sections",
                         trigger, config.size());
+
+                // Rebuild route definitions when a route-affecting section changed.
+                // Skip during initial startup — DynamicRouteRefreshListener handles that.
+                if (rebuildRoutes && initialLoadDone.get()) {
+                    log.info("Route-affecting config section changed (trigger={}) — " +
+                             "triggering route definition rebuild so predicates reflect new config", trigger);
+                    routeLocator.forceRefresh();
+                }
             } else {
                 log.info("route-service returned empty config (trigger={}) — using defaults", trigger);
             }

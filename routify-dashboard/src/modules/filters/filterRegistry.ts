@@ -175,7 +175,7 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
   },
   {
     value: 'TENANT_CONTEXT', label: 'Tenant Context',  category: 'Observability',
-    description: 'Propagate and validate tenant ID (X-Tenant-Id) to all downstream services',
+    description: 'Resolve tenant context and control X-Tenant-Id propagation to upstream services',
     color: 'text-sky-300', bg: 'bg-sky-300/10', border: 'border-sky-300/20',
   },
   {

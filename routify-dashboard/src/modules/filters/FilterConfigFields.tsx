@@ -519,14 +519,19 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
     case 'TENANT_CONTEXT':
       return (
         <div className="py-4 text-center">
-          <p className="text-sm text-gray-500">Propagates and validates tenant context to all downstream services.</p>
-          <p className="text-xs text-gray-600 mt-1 leading-relaxed max-w-xs mx-auto">
-            Reads <code className="font-mono text-indigo-400">X-Auth-Tenant-Id</code> (set by JWT auth) or falls
-            back to <code className="font-mono text-indigo-400">X-Tenant-Id</code> and normalises it into{' '}
-            <code className="font-mono text-indigo-400">X-Tenant-Id</code> for downstream services.
-            Cross-validates the two values when both are present — mismatches are rejected with 403.
+          <p className="text-sm text-gray-500">Resolves and propagates tenant context through the gateway filter chain.</p>
+          <p className="text-xs text-gray-600 mt-1 leading-relaxed max-w-sm mx-auto">
+            When <strong className="text-indigo-400">enabled</strong>, callers supply{' '}
+            <code className="font-mono text-indigo-400">X-Tenant-Id</code> (or it is derived from the JWT{' '}
+            <code className="font-mono text-indigo-400">X-Auth-Tenant-Id</code> claim). Cross-validates the two values — mismatches are rejected with 403.
+            When <strong className="text-indigo-400">disabled</strong>, the gateway auto-injects the tenant from route metadata.
           </p>
-          <p className="text-xs text-gray-600 mt-2">No configuration required.</p>
+          <p className="text-xs text-gray-600 mt-1.5 leading-relaxed max-w-sm mx-auto">
+            <strong className="text-indigo-400">Forward Header to Upstream</strong> controls whether{' '}
+            <code className="font-mono text-indigo-400">X-Tenant-Id</code> is included in the final upstream request.
+            When off, the header is stripped before leaving the gateway but remains available to other filters in the chain.
+          </p>
+          <p className="text-xs text-gray-600 mt-2">Configured via Gateway Settings → Tenant Isolation.</p>
         </div>
       )
 
