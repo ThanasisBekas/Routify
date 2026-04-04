@@ -46,7 +46,7 @@ public interface FilterDefinitionRepository extends JpaRepository<FilterDefiniti
      * Must be called within an active {@code @Transactional} context.
      */
     @Modifying
-    @Query(value = "SELECT routify.increment_filter_usage(:filterId)", nativeQuery = true)
+    @Query(value = "UPDATE routify.filter_definition SET usage_count = usage_count + 1, updated_at = now() WHERE id = :filterId", nativeQuery = true)
     void incrementUsageAtomic(@Param("filterId") UUID filterId);
 
     /**
@@ -54,7 +54,7 @@ public interface FilterDefinitionRepository extends JpaRepository<FilterDefiniti
      * Must be called within an active {@code @Transactional} context.
      */
     @Modifying
-    @Query(value = "SELECT routify.decrement_filter_usage(:filterId)", nativeQuery = true)
+    @Query(value = "UPDATE routify.filter_definition SET usage_count = GREATEST(0, usage_count - 1), updated_at = now() WHERE id = :filterId", nativeQuery = true)
     void decrementUsageAtomic(@Param("filterId") UUID filterId);
 }
 
