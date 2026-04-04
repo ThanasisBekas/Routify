@@ -11,7 +11,6 @@
  *  rate-limit  — token-bucket / fixed-window / sliding-window policies
  *  resilience  — circuit breaker + retry/timeout/bulkhead (sub-tabbed)
  *  auth        — OAuth2 CC, password, introspect, JWT JWKS, Basic providers
- *  tls         — cert vault mappings, live registry, file/directory sources
  *  networking  — upstream proxy, Reactor Netty HTTP client pool
  *  tenant      — multi-tenancy isolation enforcement
  *
@@ -22,7 +21,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
   Activity, Globe, Shield, Gauge, RefreshCw, Lock,
-  Server, Network, Settings, Wifi, Database,
+  Network, Settings, Wifi, Database,
 } from 'lucide-react'
 import { gatewayApi } from '../../api/gatewayApi'
 import { useWsStore } from '../../store/wsStore'
@@ -36,7 +35,6 @@ import SecurityHeadersTab from './tabs/SecurityHeadersTab'
 import RateLimitTab       from './tabs/RateLimitTab'
 import ResilienceTab      from './tabs/ResilienceTab'
 import AuthProvidersTab   from './tabs/AuthProvidersTab'
-import TlsTab             from './tabs/TlsTab'
 import NetworkingTab      from './tabs/NetworkingTab'
 import TenantIsolationTab from './tabs/TenantIsolationTab'
 
@@ -44,7 +42,7 @@ import TenantIsolationTab from './tabs/TenantIsolationTab'
 
 type GatewayTab =
   | 'overview' | 'cors' | 'security' | 'rate-limit' | 'resilience'
-  | 'auth' | 'tls' | 'networking' | 'tenant'
+  | 'auth' | 'networking' | 'tenant'
 
 const TABS: {
   id: GatewayTab
@@ -58,7 +56,6 @@ const TABS: {
   { id: 'rate-limit', label: 'Rate Limiting',    icon: Gauge,     description: 'Global token-bucket policies' },
   { id: 'resilience', label: 'Resilience',       icon: RefreshCw, description: 'Circuit breaker, retry, timeout' },
   { id: 'auth',       label: 'Auth Providers',   icon: Lock,      description: 'JWT, OAuth2, Basic providers' },
-  { id: 'tls',        label: 'TLS / Certs',      icon: Server,    description: 'Certificate Vault gateway mappings & live registry' },
   { id: 'networking', label: 'Networking',       icon: Network,   description: 'Proxy and HTTP client pool' },
   { id: 'tenant',     label: 'Tenant Isolation', icon: Settings,  description: 'Multi-tenancy enforcement' },
 ]
@@ -221,9 +218,6 @@ export default function GatewayPage() {
           />
         )}
 
-        {activeTab === 'tls' && (
-          <TlsTab key={config.updatedAt ?? 'tls'} />
-        )}
 
         {activeTab === 'networking' && (
           <NetworkingTab

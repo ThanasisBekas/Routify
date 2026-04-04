@@ -88,38 +88,6 @@ export const gatewayApi = {
     apiClient.delete(`${BASE}/auth-providers/${providerId}`).then(r => r.data),
 
 
-  // ─── TLS / Certificate Vault ─────────────────────────────────────────────
-  // TLS certificate management is handled exclusively by the Certificate Vault.
-  // The gateway reads certs at startup and reloads on CERT_GROUP_EVENTS Kafka events.
-  // There is no longer a writable TLS config endpoint — use the Cert Vault API instead.
-
-  /** Returns the current live gateway certificate registry (in-memory, read-only). */
-  getLiveCertificates: () =>
-    apiClient.get<Record<string, unknown>>(`${BASE}/tls/certificates`).then(r => r.data),
-
-  /** List active vault certificates for the gateway TLS mapping picker */
-  getVaultCertificates: (tenantId: string) =>
-    apiClient
-      .get<import('../types').CertificateDto[]>(`${BASE}/tls/vault-certs`, {
-        headers: { 'X-Tenant-Id': tenantId },
-      })
-      .then(r => r.data),
-
-  /**
-   * List active certificate groups for the filter config picker.
-   * Groups are what the gateway registry and cert-vault filters bind to via their stable logicalId.
-   */
-  getVaultCertGroups: (tenantId: string) =>
-    apiClient
-      .get<import('../types').Page<import('../types').CertGroupDto>>(
-        '/api/v1/admin/cert-groups',
-        {
-          params: { status: 'ACTIVE', page: 0, size: 200, sortBy: 'logicalId', sortDir: 'ASC' },
-          headers: { 'X-Tenant-Id': tenantId },
-        },
-      )
-      .then(r => r.data),
-
   // ─── Proxy ────────────────────────────────────────────────────────────────
   getProxyConfig: () =>
     apiClient.get<GatewayProxyConfig>(`${BASE}/proxy`).then(r => r.data),
