@@ -30,8 +30,8 @@ export default function RouteCreateModal({
   onCreated,
 }: {
   onClose: () => void
-  /** Called after successful creation — receives the new route id */
-  onCreated?: (routeId: string) => void
+  /** Called after the create command has been accepted (HTTP 202) */
+  onCreated?: () => void
 }) {
   const navigate = useNavigate()
 
@@ -48,11 +48,12 @@ export default function RouteCreateModal({
 
   const mutation = useMutation({
     mutationFn: (data: CreateRouteRequest) => routesApi.create(data),
-    onSuccess: (route) => {
-      if (onCreated) onCreated(route.id)
+    onSuccess: () => {
+      if (onCreated) onCreated()
       onClose()
-      // Always redirect to the builder on creation
-      navigate(`/routes/${route.id}/builder`)
+      // Route creation is async (Kafka command) — navigate to routes list;
+      // the real-time WS event will surface the new route once processed.
+      navigate('/routes')
     },
   })
 
@@ -163,8 +164,8 @@ export default function RouteCreateModal({
           <div className="flex items-start gap-2.5 p-3.5 bg-indigo-500/[0.06] border border-indigo-500/20 rounded-xl text-xs text-indigo-300">
             <Network className="w-4 h-4 mt-0.5 shrink-0 text-indigo-400" />
             <span>
-              After creating, you'll be taken to the <strong>Workflow Builder</strong> to add
-              filters and connect nodes. Activate the route when ready.
+              After creating, you'll be taken to the <strong>Routes</strong> list.
+              Open the route from there to add filters in the <strong>Workflow Builder</strong>.
             </span>
           </div>
 
@@ -176,7 +177,7 @@ export default function RouteCreateModal({
             </button>
             <button type="submit" disabled={mutation.isPending}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20">
-              {mutation.isPending ? 'Creating…' : 'Create & Open Builder'}
+              {mutation.isPending ? 'Creating…' : 'Create Route'}
             </button>
           </div>
         </form>
