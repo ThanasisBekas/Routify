@@ -1,5 +1,11 @@
 // ─── Common types ─────────────────────────────────────────────────────────────
 
+/** Returned by all write (Kafka command) endpoints — HTTP 202 Accepted. */
+export interface AsyncAcknowledgement {
+  status: string
+  message: string
+}
+
 export interface Page<T> {
   content: T[]
   totalElements: number

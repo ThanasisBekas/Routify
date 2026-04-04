@@ -2,6 +2,7 @@ import apiClient from './client'
 import type {
   Page, RouteSummary, RouteDto,
   CreateRouteRequest, UpdateRouteRequest, AttachFilterRequest,
+  AsyncAcknowledgement,
 } from '../types'
 
 // All dashboard requests go through routify-admin-api (the BFF).
@@ -22,7 +23,7 @@ export const routesApi = {
     apiClient.get<RouteDto>(`${BASE}/${id}`).then((r) => r.data),
 
   create: (req: CreateRouteRequest) =>
-    apiClient.post<RouteDto>(BASE, req).then((r) => r.data),
+    apiClient.post<AsyncAcknowledgement>(BASE, req).then((r) => r.data),
 
   update: (id: string, req: UpdateRouteRequest) =>
     apiClient.put<RouteDto>(`${BASE}/${id}`, req).then((r) => r.data),

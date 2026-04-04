@@ -1,5 +1,6 @@
 package gr.routify.admin.gateway.dto;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import gr.routify.common.web.SensitiveField;
 import lombok.*;
@@ -178,7 +179,8 @@ public class GatewayConfigDto {
      * Deprecated fields (expiryWarning, fileWatchInterval, fileSources, directorySources)
      * have been removed; use the Certificate Vault API and cert-group endpoints instead.
      */
-    @Data @Builder @NoArgsConstructor
+    @Data @Builder
+    @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
     public static class TlsConfigDto {
         // intentionally empty — all certificate management is handled by Cert Vault
     }
