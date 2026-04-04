@@ -63,7 +63,8 @@ public class GatewayConfigLoader {
      */
     private static final Set<String> ROUTE_AFFECTING_SECTIONS = Set.of(
             "TENANT_ISOLATION",
-            "AUTH_PROVIDERS"
+            "AUTH_PROVIDERS",
+            "GLOBAL_FILTER_ENTRIES"
     );
 
     private final RabbitTemplate                 rabbitTemplate;

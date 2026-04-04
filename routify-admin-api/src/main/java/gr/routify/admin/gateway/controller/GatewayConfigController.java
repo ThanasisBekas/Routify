@@ -285,6 +285,20 @@ public class GatewayConfigController {
         return ResponseEntity.ok(configService.updateTenantIsolation(ti, actor(auth)));
     }
 
+    // ─── Global Filter Entries ────────────────────────────────────────────────
+
+    @GetMapping("/global-filter-entries")
+    public ResponseEntity<List<GlobalFilterEntryDto>> getGlobalFilterEntries() {
+        return ResponseEntity.ok(configService.getGlobalFilterEntries());
+    }
+
+    @PutMapping("/global-filter-entries")
+    public ResponseEntity<GatewayConfigDto> updateGlobalFilterEntries(
+            @RequestBody List<GlobalFilterEntryDto> entries,
+            Authentication auth) {
+        return ResponseEntity.ok(configService.updateGlobalFilterEntries(entries, actor(auth)));
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private String actor(Authentication auth) {

@@ -102,6 +102,13 @@ public class RouteDefinitionBuilder {
         // ─── Filters ─────────────────────────────────────────────────────────
         List<FilterDefinition> filters = new ArrayList<>();
 
+        // Global filter entries — operator-selected filters applied to all routes.
+        // They execute before per-route filters, in the order defined by the operator.
+        resolveGlobalFilterEntries().stream()
+                .map(entry -> buildFilterDefinitionFromGlobalEntry(snapshot, entry))
+                .filter(Objects::nonNull)
+                .forEach(filters::add);
+
         // Strip prefix from route-level flag — derive the number of path segments to strip
         // from the stored prefix string (e.g. "/api/v1" → 2 parts, "/api" → 1 part).
         // Only add when the filter chain does NOT already contain a PATH_STRIP_PREFIX filter
@@ -473,6 +480,91 @@ public class RouteDefinitionBuilder {
                                            String tenantIdHeader) {
         static final TenantIsolationSettings DEFAULTS =
                 new TenantIsolationSettings(true, DEFAULT_TENANT_HEADER);
+    }
+
+    // ─── Global Filter Entries ───────────────────────────────────────────────
+
+    /**
+     * Immutable snapshot of a global filter entry for a single route-build call.
+     */
+    private record GlobalFilterEntrySnapshot(String filterId,
+                                             String filterName,
+                                             String filterType,
+                                             int order,
+                                             boolean enabled) {}
+
+    /**
+     * Reads the {@code globalFilterEntries} section from the live gateway config.
+     * Returns an empty list if the section is missing or empty.
+     * Only enabled entries are returned, sorted by order.
+     */
+    @SuppressWarnings("unchecked")
+    private List<GlobalFilterEntrySnapshot> resolveGlobalFilterEntries() {
+        Map<String, Object> gwConfig = configLoader.getConfig();
+        if (gwConfig == null || gwConfig.isEmpty()) return List.of();
+
+        Object raw = gwConfig.get("globalFilterEntries");
+        if (!(raw instanceof List<?> rawList) || rawList.isEmpty()) return List.of();
+
+        List<GlobalFilterEntrySnapshot> entries = new ArrayList<>();
+        for (Object item : rawList) {
+            if (!(item instanceof Map<?, ?> entryMap)) continue;
+            Map<String, Object> m = (Map<String, Object>) entryMap;
+
+            boolean enabled = toBool(m.get("enabled"), true);
+            if (!enabled) {
+                log.debug("Global filter entry '{}' is disabled — skipping", m.get("filterName"));
+                continue;
+            }
+
+            String filterId   = m.get("filterId")   instanceof String s ? s : null;
+            String filterName = m.get("filterName") instanceof String s ? s : "";
+            String filterType = m.get("filterType") instanceof String s ? s : null;
+            int order = m.get("order") instanceof Number n ? n.intValue() : 0;
+
+            if (filterType == null || filterType.isBlank()) {
+                log.warn("Global filter entry with filterId='{}' has no filterType — skipping", filterId);
+                continue;
+            }
+
+            entries.add(new GlobalFilterEntrySnapshot(filterId, filterName, filterType, order, true));
+        }
+
+        entries.sort(Comparator.comparingInt(GlobalFilterEntrySnapshot::order));
+        log.debug("Resolved {} enabled global filter entries", entries.size());
+        return entries;
+    }
+
+    /**
+     * Builds a {@link FilterDefinition} from a global filter entry.
+     *
+     * <p>Global filter entries reference existing filter definitions by type. Since they
+     * carry no per-filter config (the config lives on the filter definition in the DB and
+     * is resolved at per-route level), global entries are built as named filters with
+     * empty args. For filter types that require config (e.g. rate limiters, AI filters),
+     * they must be configured on individual routes instead.
+     *
+     * <p>Zero-config filter types (CORRELATION_ID, SECURITY_HEADERS, TENANT_CONTEXT,
+     * REQUEST_LOGGER, etc.) work seamlessly as global entries because they read their
+     * config from the persisted gateway config at runtime.
+     */
+    private FilterDefinition buildFilterDefinitionFromGlobalEntry(
+            RouteSnapshotDto snapshot, GlobalFilterEntrySnapshot entry) {
+        // Delegate to the same switch expression used for per-route filters.
+        // Create a synthetic FilterSnapshotDto with empty config.
+        var syntheticFilter = new RouteSnapshotDto.FilterSnapshotDto(
+                entry.filterId() != null ? java.util.UUID.fromString(entry.filterId()) : null,
+                entry.filterType(),
+                entry.order(),
+                "PRE",
+                Map.of(),
+                null);
+        FilterDefinition fd = buildFilterDefinition(snapshot, syntheticFilter);
+        if (fd != null) {
+            log.debug("Global filter entry applied: type={} name='{}' order={} for route {}",
+                    entry.filterType(), entry.filterName(), entry.order(), snapshot.routeId());
+        }
+        return fd;
     }
 
     /**

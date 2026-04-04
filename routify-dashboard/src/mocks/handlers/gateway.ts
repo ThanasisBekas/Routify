@@ -5,7 +5,7 @@ import type {
   GatewayRateLimitPolicy, GatewayCircuitBreakerDefaults,
   GatewayResilienceDefaults, GatewayAuthProvider,
   GatewayProxyConfig, GatewayHttpClientConfig,
-  GatewayTenantIsolationConfig,
+  GatewayTenantIsolationConfig, GlobalFilterEntry,
 } from '../../types'
 
 const BASE = '/api/v1/admin/gateway'
@@ -198,6 +198,19 @@ export const gatewayHandlers = [
     await delay(350)
     const body = await request.json() as GatewayTenantIsolationConfig
     gatewayConfig.tenantIsolation = body
+    gatewayConfig.updatedAt = new Date().toISOString()
+    return HttpResponse.json(gatewayConfig)
+  }),
+
+  // ─── Global Filter Entries ─────────────────────────────────────────────────
+  http.get(`${BASE}/global-filter-entries`, async () => {
+    await delay(150)
+    return HttpResponse.json(gatewayConfig.globalFilterEntries ?? [])
+  }),
+  http.put(`${BASE}/global-filter-entries`, async ({ request }) => {
+    await delay(350)
+    const body = await request.json() as GlobalFilterEntry[]
+    gatewayConfig.globalFilterEntries = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
   }),
