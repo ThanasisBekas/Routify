@@ -140,9 +140,9 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
 
 ### Reset all data
 ```bash
-./reset-data.sh                # wipe and restart infra
-./reset-data.sh --no-restart   # wipe only
-./reset-data.sh --skip-grafana # keep Grafana dashboards
+./scripts/reset-data.sh                # wipe and restart infra
+./scripts/reset-data.sh --no-restart   # wipe only
+./scripts/reset-data.sh --skip-grafana # keep Grafana dashboards
 ```
 
 ## Environment / Secrets

@@ -10,15 +10,16 @@
 #   • Grafana     (grafana_data)   [optional, skipped with --skip-grafana]
 #
 # Usage:
-#   ./reset-data.sh                  # wipe everything and restart infra
-#   ./reset-data.sh --no-restart     # wipe everything, leave containers down
-#   ./reset-data.sh --skip-grafana   # keep Grafana dashboards/settings
+#   ./scripts/reset-data.sh                  # wipe everything and restart infra
+#   ./scripts/reset-data.sh --no-restart     # wipe everything, leave containers down
+#   ./scripts/reset-data.sh --skip-grafana   # keep Grafana dashboards/settings
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
 COMPOSE_FILE="docker-compose.yml"
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # ── Flags ────────────────────────────────────────────────────────────────────
 RESTART=true

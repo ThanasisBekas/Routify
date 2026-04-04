@@ -1,12 +1,14 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Routify AI Service" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
-    <module name="routify-ai-service" />
-    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.ai.RoutifyAiServiceApplication" />
     <option name="ACTIVE_PROFILES" value="dev" />
-    <option name="ALTERNATIVE_JRE_PATH" />
-    <envFilePaths>
-      <path value="$PROJECT_DIR$/environments/.env.develop" />
-    </envFilePaths>
+    <option name="envFilePaths">
+      <option value="$PROJECT_DIR$/.env" />
+    </option>
+    <module name="routify-ai-service" />
+    <selectedOptions>
+      <option name="environmentVariables" />
+    </selectedOptions>
+    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.ai.RoutifyAiServiceApplication" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

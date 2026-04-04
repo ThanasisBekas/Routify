@@ -1,12 +1,14 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Routify Cert Vault" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
-    <module name="routify-cert-vault" />
-    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.cert.RoutifyCertVaultApplication" />
     <option name="ACTIVE_PROFILES" value="dev" />
-    <option name="ALTERNATIVE_JRE_PATH" />
-    <envFilePaths>
-      <path value="$PROJECT_DIR$/environments/.env.develop" />
-    </envFilePaths>
+    <option name="envFilePaths">
+      <option value="$PROJECT_DIR$/.env" />
+    </option>
+    <module name="routify-cert-vault" />
+    <selectedOptions>
+      <option name="environmentVariables" />
+    </selectedOptions>
+    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.cert.RoutifyCertVaultApplication" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
