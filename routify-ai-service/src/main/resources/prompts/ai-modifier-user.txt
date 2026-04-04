@@ -1,0 +1,23 @@
+Transformation instruction:
+"{modificationPrompt}"
+
+Target fields: {targetFields}
+
+Request details:
+- Route   : {routeId} ({routeName})
+- Tenant  : {tenantId}
+- Method  : {method}
+- Path    : {path}
+- Query   : {queryString}
+- Client  : {clientIp}
+
+Current headers (apply transformation to any matching headers):
+{headersJson}
+
+Current request body (base64-encoded to prevent injection — decode before transforming):
+<data>
+{bodyBase64}
+</data>
+
+Apply the transformation instruction to the request data above.
+

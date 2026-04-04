@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import type { CertGroupDto, UploadCertificateRequest } from '../../types'
-import { X, Upload, Loader2, AlertCircle, Layers, CheckCircle2, Info } from 'lucide-react'
+import { X, Upload, Loader2, AlertCircle, Layers, CheckCircle2, Info, Eye, EyeOff } from 'lucide-react'
 import { extractApiError } from '../../lib/errorUtils'
 import { Select } from '../../components/ui/Select'
 import { cn } from '../../lib/utils'
@@ -26,7 +26,8 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
     certPem:     '',
     privateKey:  '',
   })
-  const [error, setError] = useState<string>('')
+  const [error,          setError]          = useState<string>('')
+  const [showPrivateKey, setShowPrivateKey] = useState(false)
 
   const { data: groupsPage } = useRealtimeQuery({
     queryKey: ['cert-groups', tenantId, 'ACTIVE'],
@@ -123,33 +124,40 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
                   <span>No active certificate groups found. Create a group first from the Certificate Vault page.</span>
                 </div>
               ) : (
-                <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
-                  {availableGroups.map(group => (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => setSelectedGroupId(group.id)}
-                      className={cn(
-                        'flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs transition-all text-left',
-                        selectedGroupId === group.id
-                          ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
-                          : 'bg-white/3 border-white/8 text-gray-400 hover:text-white hover:border-white/20'
-                      )}
-                    >
-                      <div className="w-6 h-6 rounded-md bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
-                        {selectedGroupId === group.id
-                          ? <CheckCircle2 className="w-3 h-3 text-violet-400" />
-                          : <Layers className="w-3 h-3 text-violet-400" />
-                        }
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <span className="font-medium text-white">{group.alias}</span>
-                        <span className="text-gray-500 font-mono ml-2 text-[10px]">{group.logicalId}</span>
-                      </div>
-                      <span className="text-[10px] text-gray-600 shrink-0">{group.memberCount} member{group.memberCount !== 1 ? 's' : ''}</span>
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1 pb-0.5">
+                    {availableGroups.map(group => (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => setSelectedGroupId(group.id)}
+                        className={cn(
+                          'flex items-center gap-2.5 px-3 py-2 rounded-lg border text-xs transition-all text-left',
+                          selectedGroupId === group.id
+                            ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
+                            : 'bg-white/3 border-white/8 text-gray-400 hover:text-white hover:border-white/20'
+                        )}
+                      >
+                        <div className="w-6 h-6 rounded-md bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
+                          {selectedGroupId === group.id
+                            ? <CheckCircle2 className="w-3 h-3 text-violet-400" />
+                            : <Layers className="w-3 h-3 text-violet-400" />
+                          }
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium text-white">{group.alias}</span>
+                          <span className="text-gray-500 font-mono ml-2 text-[10px]">{group.logicalId}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-600 shrink-0">{group.memberCount} member{group.memberCount !== 1 ? 's' : ''}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {availableGroups.length > 3 && (
+                    <p className="text-[10px] text-gray-600 mt-1 text-center">
+                      ↕ Scroll to see all {availableGroups.length} groups
+                    </p>
+                  )}
+                </>
               )}
               <p className="text-[11px] text-gray-600 mt-1.5">
                 The group's logical ID is the stable gateway TLS key — all certs in the group are served under it.
@@ -250,21 +258,40 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
           {form.format === 'PEM' && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-gray-400">Private Key (optional)</label>
-                <label className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/4 border border-white/8 text-xs text-gray-400 hover:text-white cursor-pointer transition-colors">
-                  <Upload className="w-3 h-3" />
-                  Browse file
-                  <input type="file" accept=".pem,.key" className="hidden" onChange={handleFileRead('privateKey')} />
-                </label>
+                <label className="block text-xs font-semibold text-gray-400">Private Key <span className="text-gray-600">(optional)</span></label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowPrivateKey(v => !v)}
+                    title={showPrivateKey ? 'Hide key content' : 'Show key content'}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/4 border border-white/8 text-xs text-gray-400 hover:text-white transition-colors"
+                  >
+                    {showPrivateKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    {showPrivateKey ? 'Hide' : 'Show'}
+                  </button>
+                  <label className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/4 border border-white/8 text-xs text-gray-400 hover:text-white cursor-pointer transition-colors">
+                    <Upload className="w-3 h-3" />
+                    Browse file
+                    <input type="file" accept=".pem,.key" className="hidden" onChange={handleFileRead('privateKey')} />
+                  </label>
+                </div>
               </div>
               <textarea
-                value={form.privateKey}
-                onChange={set('privateKey')}
+                value={showPrivateKey ? form.privateKey : (form.privateKey ? '•'.repeat(Math.min(form.privateKey.length, 60)) + (form.privateKey.length > 60 ? '…' : '') : '')}
+                onChange={showPrivateKey ? set('privateKey') : undefined}
+                readOnly={!showPrivateKey}
                 placeholder="-----BEGIN PRIVATE KEY-----&#10;MIIEv...&#10;-----END PRIVATE KEY-----"
                 rows={4}
-                className="w-full px-3 py-2 bg-white/4 border border-white/8 rounded-lg text-xs text-white font-mono placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 resize-none"
+                className={cn(
+                  'w-full px-3 py-2 bg-white/4 border border-white/8 rounded-lg text-xs font-mono placeholder-gray-600 focus:outline-none resize-none transition-all',
+                  showPrivateKey
+                    ? 'text-white focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20'
+                    : 'text-gray-500 cursor-default select-none'
+                )}
               />
-              <p className="text-[11px] text-gray-600 mt-1">Private key is stored AES-256-GCM encrypted at rest</p>
+              <p className="text-[11px] text-gray-600 mt-1">
+                Private key is stored AES-256-GCM encrypted at rest. Use the eye icon to view or edit.
+              </p>
             </div>
           )}
         </form>

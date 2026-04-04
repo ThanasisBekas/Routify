@@ -1,11 +1,9 @@
 /**
- * MSW browser integration — starts the Service Worker in mock mode.
- *
- * Only imported when VITE_MOCK=true (i.e. `npm run dev:mock`).
- * Never bundled into the production build.
+ * browser.ts — MSW browser service worker setup.
+ * Imported and started in main.tsx only when VITE_MOCK=true.
  */
 import { setupWorker } from 'msw/browser'
-import { handlers } from './handlers'
-import { wsHandlers } from './wsHandlers'
+import { handlers }    from './handlers'
 
-export const worker = setupWorker(...handlers, ...wsHandlers)
+export const worker = setupWorker(...handlers)
+

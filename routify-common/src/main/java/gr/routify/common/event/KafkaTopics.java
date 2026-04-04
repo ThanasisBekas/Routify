@@ -40,6 +40,19 @@ public final class KafkaTopics {
     /** Request/response telemetry → consumed by routify-audit-service */
     public static final String REQUEST_TELEMETRY = "routify.request.telemetry";
 
+    /**
+     * AI filter verdict events — published by routify-ai-service after every evaluation.
+     * Consumed by routify-audit-service for compliance persistence and analytics.
+     */
+    public static final String AI_FILTER_DECISIONS = "routify.ai.filter.decisions";
+
+    /**
+     * AI modification decision events — published by routify-ai-service after every
+     * mutation evaluation.  Consumed by routify-audit-service for compliance persistence
+     * and analytics.  The original request body is never included — only its SHA-256 hash.
+     */
+    public static final String AI_MODIFICATION_EVENTS = "routify.ai.modification.events";
+
     /** Dead letter queue for failed event processing */
     public static final String DLQ = "routify.dlq";
 
@@ -124,5 +137,8 @@ public final class KafkaTopics {
     public static final String DLQ_TENANT_COMMANDS    = TENANT_COMMANDS    + ".DLQ";
     public static final String DLQ_AUTH_COMMANDS      = AUTH_COMMANDS      + ".DLQ";
     public static final String DLQ_CERT_COMMANDS      = CERT_COMMANDS      + ".DLQ";
+
+    /** DLQ for AI modification events */
+    public static final String DLQ_AI_MODIFICATION_EVENTS = AI_MODIFICATION_EVENTS + ".DLQ";
 }
 

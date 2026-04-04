@@ -15,14 +15,21 @@ import java.util.concurrent.TimeUnit;
 /**
  * Scheduled hourly — warns on upcoming expiry, marks expired certs in the registry,
  * and publishes Prometheus gauges.
+ *
+ * <p>All certificates are loaded exclusively from the Certificate Vault.
+ * The expiry-warning threshold is fixed at 30 days. Previously this was
+ * configurable via {@code certificate-store.expiry-warning}, but that
+ * file-based configuration mechanism has been removed.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CertificateExpiryMonitor {
 
+    /** Days before expiry to emit a warning log and set EXPIRING_SOON status. */
+    private static final long EXPIRY_WARNING_DAYS = 30;
+
     private final CertificateRegistry registry;
-    private final CertificateStoreProperties properties;
     private final MeterRegistry meterRegistry;
     private final Set<String> registeredMetrics = ConcurrentHashMap.newKeySet();
 
@@ -31,7 +38,7 @@ public class CertificateExpiryMonitor {
         for (var cert : registry.allCertificates()) {
             long days = cert.daysUntilExpiry();
             registerExpiryGauge(cert);
-            if (days <= properties.getExpiryWarning().toDays() && days > 0) {
+            if (days <= EXPIRY_WARNING_DAYS && days > 0) {
                 log.warn("Certificate expiring soon: id='{}', v{}, fp='{}', daysLeft={}",
                         cert.id(), cert.version(), cert.fingerprint(), days);
             }
@@ -70,4 +77,3 @@ public class CertificateExpiryMonitor {
         }
     }
 }
-

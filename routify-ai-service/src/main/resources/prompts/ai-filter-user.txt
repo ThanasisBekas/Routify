@@ -1,0 +1,18 @@
+Policy rule to enforce:
+"{policyDescription}"
+
+Request details:
+- Route   : {routeId} ({routeName})
+- Tenant  : {tenantId}
+- Method  : {method}
+- Path    : {path}
+- Query   : {queryString}
+- Client  : {clientIp}
+- Headers : {headersJson}
+{userContextSection}
+<data>
+{bodyExcerpt}
+</data>
+
+Does this request violate the policy rule above?
+

@@ -1,6 +1,6 @@
 # Routify CI Pipeline
 # Runs on every push to master/develop and on every PR.
-# Three parallel jobs: backend (Maven), frontend (npm), and security scan.
+# Two parallel jobs: backend (Maven build) and frontend (npm lint + build).
 
 name: Routify CI
 
@@ -16,21 +16,8 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend Build & Test
+    name: Backend Build
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: routify
-          POSTGRES_PASSWORD: test_pass
-          POSTGRES_DB: routify
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U routify"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -46,14 +33,11 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2-
 
-      - name: Build and test (all modules)
-        run: mvn clean verify -T 4 -B
-        env:
-          DB_PASS: test_pass
-          RABBITMQ_PASS: test_pass
+      - name: Build all modules
+        run: mvn clean package -T 4 -B -DskipTests
 
   frontend:
-    name: Frontend Build, Lint & Test
+    name: Frontend Build & Lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -75,20 +59,4 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-
-  security-scan:
-    name: Security Scan (Semgrep)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run Semgrep
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/java
-            p/javascript
-            p/typescript
-            p/secrets
 

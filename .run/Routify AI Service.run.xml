@@ -1,0 +1,24 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Routify AI Service" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="routify-ai-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.ai.RoutifyAiServiceApplication" />
+    <option name="ACTIVE_PROFILES" value="dev" />
+    <option name="ALTERNATIVE_JRE_PATH" />
+    <envs>
+      <env name="SPRING_PROFILES_ACTIVE" value="dev" />
+      <env name="RABBITMQ_HOST" value="localhost" />
+      <env name="RABBITMQ_PORT" value="5672" />
+      <env name="RABBITMQ_USER" value="routify" />
+      <env name="RABBITMQ_PASS" value="lqUolXrlbdzlxjulYRVJg3ax" />
+      <env name="REDIS_HOST" value="localhost" />
+      <env name="REDIS_PORT" value="6379" />
+      <env name="KAFKA_BOOTSTRAP" value="localhost:9092" />
+      <env name="OPENAI_API_KEY" value="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" />
+      <env name="JWT_PUBLIC_KEY" value="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5CRRzrueWuYSjoLBcChkMi6Wjft/xXm3bVFKiT3l7eYTlFgA8gCX4wReYadwoE2sNO2g+XF2rvx82wpQrIaRi0Bqh5Gv0h0le1wfYXnvIDxxXym5Uq3BuqVCkbww7Ndgk53zc9CY+VYGnVgPKfLBlEe43Kind81B5Ga0XdhPK42zuP73SK1v8n+BHX6aA1oz9mq9sZ/oi8hT/kufSZOg68krHnb1IQKIkUZPDwGBq8avblHRD51b1GyvH8A1vlAFHE2qjcVTWB2ctmbf6D7v8RSxa9UP0he+OcAJ7D9lVxv9gzx7pNS87DkvHuMiGPVt/xgGGER+vUeFSBceabMiIwIDAQAB" />
+    </envs>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
+

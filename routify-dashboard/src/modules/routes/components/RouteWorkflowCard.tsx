@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Play, Pause, Trash2, Edit, RefreshCw, Server, Filter, CheckCircle, Terminal, Copy } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Play, Pause, Trash2, Edit, RefreshCw, Server, Filter, CheckCircle, Terminal, Copy, Network } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary } from '../../../types'
 import { STATUS_CONFIG } from '../constants/routeStatusConfig'
@@ -27,6 +28,7 @@ export default function RouteWorkflowCard({
   const sc = STATUS_CONFIG[route.status]
   const methods = route.methods.split(',').map(m => m.trim()).filter(Boolean)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const navigate = useNavigate()
 
   return (
     <div
@@ -198,6 +200,16 @@ export default function RouteWorkflowCard({
           >
             <Edit className="w-3 h-3" />
             Edit
+          </button>
+
+          {/* Open Builder */}
+          <button
+            onClick={() => navigate(`/routes/${route.id}/builder`)}
+            title="Open Workflow Builder"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 border border-violet-500/20 transition-all"
+          >
+            <Network className="w-3 h-3" />
+            Builder
           </button>
 
           {/* Clone */}

@@ -184,10 +184,13 @@ services:
       RABBITMQ_PASS: ${RABBITMQ_PASS}
       SPRING_DATA_REDIS_HOST: redis
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      AI_SERVICE_URL: http://ai-service:8086
     depends_on:
       route-service:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      ai-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
@@ -196,6 +199,44 @@ services:
       retries: 5
       start_period: 30s
     networks: [routify]
+
+  ai-service:
+    build:
+      context: ./routify-ai-service
+      dockerfile: Dockerfile
+    container_name: routify-ai-service
+    ports:
+      - "8086:8086"
+      - "9086:9086"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      REDIS_HOST: redis
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      # OpenAI API key — REQUIRED. Add to your .env file: OPENAI_API_KEY=sk-...
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # Override model with e.g. OPENAI_MODEL=gpt-4o for higher accuracy
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      # Hard timeout for OpenAI API calls (seconds). gpt-4o-mini p99 ~2s; 10s covers tail.
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-10}
+      AI_FALLBACK_ACTION: ${AI_FALLBACK_ACTION:-ALLOW}
+      RABBITMQ_CONCURRENCY: ${RABBITMQ_CONCURRENCY:-8}
+    depends_on:
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s   # OpenAI provider starts faster than Ollama (no model pull)
+    networks: [routify]
+
 
   dashboard:
     build:

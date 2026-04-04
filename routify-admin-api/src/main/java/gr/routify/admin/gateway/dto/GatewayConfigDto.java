@@ -171,32 +171,16 @@ public class GatewayConfigDto {
     }
 
 
-    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    /**
+     * TLS configuration stub — all certificate management is handled by routify-cert-vault.
+     * The gateway loads certificates from the Vault at startup and reacts to
+     * CERT_GROUP_EVENTS Kafka events for zero-downtime rotation.
+     * Deprecated fields (expiryWarning, fileWatchInterval, fileSources, directorySources)
+     * have been removed; use the Certificate Vault API and cert-group endpoints instead.
+     */
+    @Data @Builder @NoArgsConstructor
     public static class TlsConfigDto {
-        private String  expiryWarning;          // e.g. "30d"
-        private String  fileWatchInterval;      // e.g. "30s"
-        private List<CertificateSourceDto> fileSources;
-        private List<DirectorySourceDto>   directorySources;
-    }
-
-    @Data @Builder @NoArgsConstructor @AllArgsConstructor
-    public static class CertificateSourceDto {
-        private String logicalId;
-        private String certificatePath;
-        private String privateKeyPath;
-        @SensitiveField
-        private String privateKeyPassword;  // write-only; masked in GET responses
-        private String  status;          // VALID | EXPIRING_SOON | EXPIRED
-    }
-
-    @Data @Builder @NoArgsConstructor @AllArgsConstructor
-    public static class DirectorySourceDto {
-        private String directoryPath;
-        private String logicalId;
-        private String privateKeyPath;
-        @SensitiveField
-        private String privateKeyPassword;  // write-only; masked in GET responses
-        private boolean watchForChanges;
+        // intentionally empty — all certificate management is handled by Cert Vault
     }
 
 

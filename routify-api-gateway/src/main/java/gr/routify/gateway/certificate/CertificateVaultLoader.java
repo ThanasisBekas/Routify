@@ -20,9 +20,9 @@ import java.util.UUID;
  *
  * <h3>Startup sequence</h3>
  * <ol>
- *   <li>On {@link ApplicationReadyEvent} (ordered <em>after</em> {@link CertificateFileWatcher}
- *       via {@code @Order(2)}), this component calls cert-vault via RabbitMQ to fetch the
- *       full list of ACTIVE certificates that have a {@code gatewayTlsLogicalId} mapping.</li>
+ *   <li>On {@link ApplicationReadyEvent} (ordered via {@code @Order(1)}), this component
+ *       calls cert-vault via RabbitMQ to fetch the full list of ACTIVE certificates that
+ *       have a {@code gatewayTlsLogicalId} mapping.</li>
  *   <li>For each such cert, it fetches the decrypted PEM material and registers it in the
  *       {@link CertificateRegistry} under its {@code gatewayTlsLogicalId}.</li>
  * </ol>
@@ -40,7 +40,7 @@ public class CertificateVaultLoader {
     private final CertificateRegistry  certificateRegistry;
 
     @EventListener(ApplicationReadyEvent.class)
-    @Order(2)
+    @Order(1)
     public void loadVaultCertificates() {
         log.info("CertificateVaultLoader: loading gateway-mapped certificates from cert-vault...");
         try {

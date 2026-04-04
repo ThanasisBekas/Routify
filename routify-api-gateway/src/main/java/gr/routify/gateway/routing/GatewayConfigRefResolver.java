@@ -33,10 +33,11 @@ import java.util.*;
  *   <li>{@code RATE_LIMIT_POLICY} — maps policy fields (replenishRate, burstCapacity, etc.)</li>
  *   <li>{@code CIRCUIT_BREAKER_DEFAULTS} — maps circuit breaker defaults</li>
  *   <li>{@code RESILIENCE_DEFAULTS} — maps retry/timeout defaults</li>
- *   <li>{@code TLS_SOURCE} — maps certificate path and watch settings</li>
  *   <li>{@code VAULT_CERT} — resolves the gateway TLS logicalId for vault-backed cert filters
  *       ({@code AUTH_CERT_VAULT}, {@code CERT_ROTATION}, {@code CERT_VAULT_EXPIRY_CHECK})</li>
  *   <li>{@code DOWNSTREAM_CREDENTIAL} — maps downstream credential fields</li>
+ *   <li>{@code TLS_SOURCE} — <strong>deprecated and removed</strong>: file-based certificate
+ *       sources are no longer supported. Migrate to {@code VAULT_CERT} refs.</li>
  * </ul>
  */
 @Slf4j
@@ -84,9 +85,16 @@ public class GatewayConfigRefResolver {
             case "RATE_LIMIT_POLICY"       -> resolveRateLimitPolicy(refId, gwConfig);
             case "CIRCUIT_BREAKER_DEFAULTS"-> resolveCircuitBreakerDefaults(gwConfig);
             case "RESILIENCE_DEFAULTS"     -> resolveResilienceDefaults(gwConfig);
-            case "TLS_SOURCE"              -> resolveTlsSource(refId, gwConfig);
             case "VAULT_CERT"              -> resolveVaultCert(refId);
             case "DOWNSTREAM_CREDENTIAL"   -> resolveDownstreamCredential(refId, gwConfig);
+            case "TLS_SOURCE" -> {
+                // TLS_SOURCE refs are no longer supported — file-based certificate sources
+                // have been removed. All certificate management is handled by the Vault.
+                // Return empty so the filter falls back to its own local config.
+                log.warn("gatewayConfigRef refType 'TLS_SOURCE' is deprecated and has been removed. " +
+                         "Migrate to VAULT_CERT refs backed by Certificate Vault groups.");
+                yield Map.of();
+            }
             default -> {
                 log.warn("Unknown gatewayConfigRef refType '{}' — skipping resolution", refType);
                 yield Map.of();
@@ -213,32 +221,6 @@ public class GatewayConfigRefResolver {
         return result;
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> resolveTlsSource(String refId, Map<String, Object> gwConfig) {
-        Map<String, Object> tls = asMap(gwConfig.get("tlsConfig"));
-        if (tls == null) return Map.of();
-
-        List<Object> sources = (List<Object>) tls.get("fileSources");
-        if (sources == null) return Map.of();
-
-        for (Object raw : sources) {
-            Map<String, Object> src = asMap(raw);
-            if (src == null) continue;
-            if (refId.equals(str(src.get("logicalId")))) {
-                Map<String, Object> result = new LinkedHashMap<>();
-                // logicalId is the primary key used by CertificateRegistry and filter factories
-                putIfPresent(result, "logicalId",          src.get("logicalId"));
-                putIfPresent(result, "certificatePath",    src.get("certificatePath"));
-                putIfPresent(result, "privateKeyPath",     src.get("privateKeyPath"));
-                putIfPresent(result, "privateKeyPassword", src.get("privateKeyPassword"));
-                putIfPresent(result, "watchForChanges",    src.get("watchForChanges"));
-                putIfPresent(result, "expiryWarning",      tls.get("expiryWarning"));
-                putIfPresent(result, "fileWatchInterval",  tls.get("fileWatchInterval"));
-                return result;
-            }
-        }
-        return Map.of();
-    }
 
     /**
      * Resolves a {@code VAULT_CERT} ref for the three vault-backed cert filter factories:

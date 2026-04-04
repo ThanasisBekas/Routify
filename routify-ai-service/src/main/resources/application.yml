@@ -1,0 +1,231 @@
+spring:
+  application:
+    name: routify-ai-service
+
+  threads:
+    virtual:
+      enabled: true   # Java 21 Virtual Threads via Tomcat
+
+  # ─── Spring AI — OpenAI (Chat Completions API) ──────────────────────────────
+  #
+  # Spring AI's OpenAiChatModel drives all LLM calls via spring-ai-starter-model-openai.
+  # The ChatClient abstraction is provider-agnostic — no Java code changes are required
+  # to swap back to Ollama or another provider.
+  #
+  # Model selection guidance:
+  #   • gpt-4o-mini  — best cost/latency for security filtering (~300ms p50, $0.15/1M tokens in)
+  #   • gpt-4o       — highest accuracy, higher cost (~500ms p50, $2.50/1M tokens in)
+  #   • gpt-4.1-mini — latest efficient model, strong reasoning, very low cost
+  #
+  # temperature: 0.0 is MANDATORY for a security filter.
+  #   Identical inputs MUST produce identical outputs for Redis verdict cache correctness.
+  #   Any non-zero temperature breaks cache determinism.
+  #
+  # max-tokens: 256 caps output length.
+  #   The LLM only needs to output a small JSON object {"action":…,"reason":…,"confidence":…}.
+  #   Capping prevents the model from generating verbose reasoning at the cost of latency.
+  #
+  # response-format: JSON_OBJECT enforces structured JSON output at the API level.
+  #   This is MORE reliable than prompt-only enforcement and eliminates markdown code fences.
+  ai:
+    openai:
+      # API key — MUST be supplied via OPENAI_API_KEY environment variable.
+      # Never hardcode this value. Startup fails fast if the key is missing
+      # (enforced by routify.required-secrets below).
+      api-key: ${OPENAI_API_KEY}
+
+      chat:
+        options:
+          # Primary model. Override via OPENAI_MODEL env var.
+          # Recommendation: gpt-4o-mini for the best latency/cost tradeoff for filter workloads.
+          model: ${OPENAI_MODEL:gpt-4o-mini}
+
+          # CRITICAL: temperature=0.0 for deterministic, cacheable verdicts.
+          temperature: 0.0
+
+          # Cap output tokens — the model only needs to produce a small JSON object.
+          # Prevents tail latency from verbose chain-of-thought outputs.
+          max-tokens: 256
+
+          # response-format: JSON_OBJECT enforces JSON-only output at the OpenAI API level.
+          # Combined with the system prompt ("Respond with ONLY a valid JSON object"),
+          # this dual enforcement eliminates markdown fences and prose preambles.
+          # Note: requires at least one mention of "json" in the system/user prompt (OpenAI requirement).
+          response-format:
+            type: JSON_OBJECT
+
+  # ─── Redis — verdict caching ────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+  # ─── Kafka — AI filter decision telemetry events ────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+
+  # ─── RabbitMQ — synchronous RPC evaluation endpoint (gateway calls this) ────
+  #
+  # The API Gateway sends AI filter evaluation requests via the RabbitMQ Direct
+  # Reply-To RPC pattern. This is the canonical Routify pattern for internal
+  # synchronous communication (same as admin-api → route-service calls).
+  #
+  # Topology:
+  #   Exchange: routify.ai-service  (direct, durable)
+  #   Queue:    routify.ai-service.filter.evaluate
+  #   RK:       ai.filter.evaluate
+  #   Reply:    amq.rabbitmq.reply-to  (Direct Reply-To pseudo-queue — no explicit declaration needed)
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:routify}
+    # No default — must be supplied via RABBITMQ_PASS environment variable.
+    password: ${RABBITMQ_PASS:}
+    virtual-host: /
+    listener:
+      simple:
+        # Each concurrent listener thread handles one blocking LLM call at a time.
+        #
+        # Sizing guidance for OpenAI inference (network I/O bound, not CPU/GPU):
+        #   • Standard tier:   concurrency=8–16  (OpenAI rate limits govern throughput)
+        #   • Enterprise tier: concurrency=16–32 (higher RPM/TPM limits)
+        #
+        # The gateway's RabbitMQ reply timeout (3.5s) bounds the worst-case wait.
+        # If all threads are busy, new requests queue in RabbitMQ and time out at the gateway,
+        # which applies the configured fallbackAction rather than blocking indefinitely.
+        concurrency: ${RABBITMQ_CONCURRENCY:4}
+        max-concurrency: ${RABBITMQ_MAX_CONCURRENCY:16}
+        prefetch: ${RABBITMQ_PREFETCH:4}
+        # Acknowledge automatically on successful return — Spring AMQP default.
+        # Nack + requeue on exception (but the listener should never throw).
+        acknowledge-mode: auto
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8086
+  shutdown: graceful
+
+# ─── Actuator / Management ──────────────────────────────────────────────────
+management:
+  server:
+    port: 9086
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ─── Resilience4j — circuit breaker around LLM calls ─────────────────────────
+#
+# Tuned for OpenAI Chat Completions API (network I/O bound, sub-second p99):
+#  - Sliding window: 10 requests (OpenAI is reliable; smaller window catches degradation faster)
+#  - TimeLimiter: 10s covers OpenAI p99 including retries; 429 rate-limit responses are fast
+#  - slow-call-duration-threshold: 5s (OpenAI gpt-4o-mini p99 is ~2s; 5s covers tail latency)
+#
+# OpenAI-specific failure modes handled by the circuit breaker:
+#   - HTTP 429 (rate limit)          → RateLimitExceededException from Spring AI
+#   - HTTP 503 (service unavailable) → ResourceAccessException / WebClientRequestException
+#   - Timeout (>10s)                 → TimeoutException from Resilience4j TimeLimiter
+#   - HTTP 400 context_length_exceeded → handled in AiServiceExceptionHandler (not circuit-opened)
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiFilterLlm:
+        # Open circuit after 50% failures in a 10-request sliding window
+        failure-rate-threshold: 50
+        # Minimum calls before the circuit can open (avoids opening on startup spike)
+        minimum-number-of-calls: 5
+        sliding-window-size: 10
+        sliding-window-type: COUNT_BASED
+        # Wait 10s in OPEN state before attempting HALF_OPEN (OpenAI outages are typically short)
+        wait-duration-in-open-state: 10s
+        # Allow 2 test calls in HALF_OPEN state
+        permitted-number-of-calls-in-half-open-state: 2
+        # Count slow calls (>5s) as failures — OpenAI tail latency under overload
+        slow-call-duration-threshold: 5s
+        slow-call-rate-threshold: 80
+        # Record connection errors, timeouts, and OpenAI rate limit errors as circuit failures
+        record-exceptions:
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - org.springframework.ai.retry.NonTransientAiException
+      aiModifierLlm:
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        sliding-window-size: 10
+        sliding-window-type: COUNT_BASED
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        slow-call-duration-threshold: 5s
+        slow-call-rate-threshold: 80
+        record-exceptions:
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - org.springframework.ai.retry.NonTransientAiException
+  timelimiter:
+    instances:
+      aiFilterLlm:
+        # Hard timeout for OpenAI Chat Completions API calls.
+        # gpt-4o-mini p99: ~2s under normal load; 10s covers transient overload scenarios.
+        # Override via OPENAI_TIMEOUT_SECONDS env var.
+        timeout-duration: ${OPENAI_TIMEOUT_SECONDS:10}s
+        cancel-running-future: true
+      aiModifierLlm:
+        # Modifier calls may involve longer prompts (body content); allow slightly more time.
+        timeout-duration: ${OPENAI_TIMEOUT_SECONDS:10}s
+        cancel-running-future: true
+
+# ─── Routify AI Service Configuration ────────────────────────────────────────
+routify:
+  ai:
+    # Thread pool for async evaluation and Kafka publishing.
+    # Should match max-concurrency above.
+    async-pool-size: ${AI_ASYNC_POOL_SIZE:16}
+    async-queue-capacity: ${AI_ASYNC_QUEUE_CAPACITY:200}
+
+    # Default verdict when OpenAI is unavailable (circuit open / timeout / rate-limited).
+    # ALLOW is the safe default — operators can set BLOCK for stricter posture.
+    default-fallback-action: ${AI_FALLBACK_ACTION:ALLOW}
+
+  jwt:
+    # RSA public key for inter-service JWT validation (issued by routify-identity-service).
+    # Not required for ClusterIP-only deployment but kept for consistency.
+    public-key: ${JWT_PUBLIC_KEY:}
+
+  # ─── Startup secret validation ──────────────────────────────────────────────
+  # Fail fast at startup if OPENAI_API_KEY is not set.
+  # SecretValidator (routify-common) checks that all listed env vars are non-blank.
+  required-secrets: "OPENAI_API_KEY"
+
+logging:
+  level:
+    gr.routify: DEBUG
+    org.springframework.ai: INFO
+    org.springframework.ai.openai: DEBUG   # verbose OpenAI HTTP for local dev (disable in prod)
+    org.springframework.kafka: WARN
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"

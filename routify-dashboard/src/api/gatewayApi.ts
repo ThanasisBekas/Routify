@@ -7,7 +7,6 @@ import type {
   GatewayCircuitBreakerDefaults,
   GatewayResilienceDefaults,
   GatewayAuthProvider,
-  GatewayTlsConfig,
   GatewayProxyConfig,
   GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
@@ -89,13 +88,12 @@ export const gatewayApi = {
     apiClient.delete(`${BASE}/auth-providers/${providerId}`).then(r => r.data),
 
 
-  // ─── TLS / Certificates ───────────────────────────────────────────────────
-  getTlsConfig: () =>
-    apiClient.get<GatewayTlsConfig>(`${BASE}/tls`).then(r => r.data),
+  // ─── TLS / Certificate Vault ─────────────────────────────────────────────
+  // TLS certificate management is handled exclusively by the Certificate Vault.
+  // The gateway reads certs at startup and reloads on CERT_GROUP_EVENTS Kafka events.
+  // There is no longer a writable TLS config endpoint — use the Cert Vault API instead.
 
-  updateTlsConfig: (tls: GatewayTlsConfig) =>
-    apiClient.put<GatewayConfig>(`${BASE}/tls`, tls).then(r => r.data),
-
+  /** Returns the current live gateway certificate registry (in-memory, read-only). */
   getLiveCertificates: () =>
     apiClient.get<Record<string, unknown>>(`${BASE}/tls/certificates`).then(r => r.data),
 
