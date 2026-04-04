@@ -350,6 +350,11 @@ public class RouteService {
     /**
      * Attaches a filter to a route.
      * If the route is ACTIVE, triggers an immediate gateway reload.
+     *
+     * <p>M2 fix: usage_count is incremented via atomic SQL
+     * ({@code routify.increment_filter_usage()}) rather than the in-memory
+     * {@code filter.incrementUsage()} pattern which was susceptible to a
+     * lost-update race under concurrent requests.
      */
     @Transactional
     public Route attachFilter(UUID routeId, UUID filterId, int order, String phase, UUID tenantId) {
@@ -364,6 +369,9 @@ public class RouteService {
         }
 
         Route saved = routeRepository.save(route);
+
+        // Atomic usage counter increment (M2 fix — replaces in-memory filter.incrementUsage())
+        filterRepository.incrementUsageAtomic(filterId);
 
         outboxStore.store(
                 new DomainEvent.FilterAttached(
@@ -383,6 +391,10 @@ public class RouteService {
     /**
      * Detaches a filter from a route.
      * If the route is ACTIVE, triggers an immediate gateway reload.
+     *
+     * <p>M2 fix: usage_count is decremented via atomic SQL
+     * ({@code routify.decrement_filter_usage()}) rather than the in-memory
+     * {@code filter.decrementUsage()} / {@code @PreRemove} pattern.
      */
     @Transactional
     public Route detachFilter(UUID routeId, UUID filterId, UUID tenantId) {
@@ -395,6 +407,9 @@ public class RouteService {
         }
 
         Route saved = routeRepository.save(route);
+
+        // Atomic usage counter decrement (M2 fix — replaces @PreRemove filter.decrementUsage())
+        filterRepository.decrementUsageAtomic(filterId);
 
         outboxStore.store(
                 new DomainEvent.FilterDetached(

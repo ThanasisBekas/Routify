@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   X, Route, AlertCircle, Zap, Network,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { routesApi } from '../../api/routesApi'
 import type { CreateRouteRequest, UpdateRouteRequest } from '../../types'
 import { cn } from '../../lib/utils'
@@ -101,14 +102,15 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
     setValue('methods', current.join(',') || 'GET')
   }
 
-  // ── Create mutation — redirect to builder on success ───────────────────────
+  // ── Create mutation — invalidate list and close; user opens the new route from the list ──
   const createMutation = useMutation({
     mutationFn: (data: CreateRouteRequest) => routesApi.create(data),
-    onSuccess: (route) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['routes'] })
-      onClose()
-      // Redirect to the Workflow Builder for immediate filter configuration
-      navigate(`/routes/${route.id}/builder`)
+      onSaved()
+      toast.success('Route created', {
+        description: 'The route is being provisioned. Click it in the list to open the Workflow Builder.',
+      })
     },
     onError: () => {/* errors shown inline */},
   })
@@ -276,8 +278,8 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
               <div className="flex items-start gap-2.5 p-3.5 bg-indigo-500/[0.06] border border-indigo-500/20 rounded-xl text-xs text-indigo-300">
                 <Network className="w-4 h-4 mt-0.5 shrink-0 text-indigo-400" />
                 <span>
-                  After creating, you'll be taken to the <strong>Workflow Builder</strong> to add filters,
-                  connect nodes, and activate the route when ready.
+                  After creating, the route will appear in the list. Click it to open the{' '}
+                  <strong>Workflow Builder</strong> and attach filters.
                 </span>
               </div>
             )}
@@ -318,7 +320,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
           >
             {isPending
               ? (isEdit ? 'Saving…' : 'Creating…')
-              : (isEdit ? 'Save Changes' : 'Create & Open Builder')}
+              : (isEdit ? 'Save Changes' : 'Create Route')}
           </button>
         </div>
       </div>
