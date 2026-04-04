@@ -1,14 +1,17 @@
 /**
- * RouteFlowCanvas — fully interactive React Flow canvas.
+ * RouteFlowCanvas — Read-only React Flow canvas for the route detail modal.
+ *
+ * This canvas is a PREVIEW only — it shows the current filter chain for a route
+ * but does NOT support adding/removing filters. All filter management must be
+ * performed via the full Workflow Builder (/routes/:id/builder).
  *
  * Features:
- *  - Draggable nodes
- *  - User-connectable edges (drag handle → handle)
- *  - "Add Filter" floating panel with search, phase & order picker
+ *  - Draggable nodes (layout only)
  *  - Flow-completeness validation: Client → … → Response must be reachable
  *  - onValidityChange callback so the parent can gate Save/Activate
+ *  - "Open Builder" banner guides users to the full editor
  */
-import { useCallback, useMemo, useState, useEffect } from 'react'
+import { useCallback, useMemo, useEffect } from 'react'
 import {
   ReactFlow,
   Background,
@@ -16,13 +19,11 @@ import {
   MiniMap,
   Handle,
   Position,
-  addEdge,
   useNodesState,
   useEdgesState,
   type NodeProps,
   type Node,
   type Edge,
-  type Connection,
   MarkerType,
   BackgroundVariant,
   Panel,
@@ -32,12 +33,12 @@ import '@xyflow/react/dist/style.css'
 import {
   Globe, Server, Shield, Gauge, RefreshCw, Code2, GitBranch,
   ToggleLeft, Zap, AlertCircle, CheckCircle, Clock, Pause, Archive,
-  Plus, Trash2, Search,
+  Network, Trash2,
 } from 'lucide-react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { routesApi } from '../../api/routesApi'
-import { filtersApi } from '../../api/filtersApi'
-import type { RouteDto, RouteFilterRef, FilterSummary, AttachFilterRequest } from '../../types'
+import type { RouteDto, RouteFilterRef } from '../../types'
 import { cn } from '../../lib/utils'
 import { FLOW_COL, FLOW_ROW_GAP, FLOW_START_Y } from './routeConstants'
 
@@ -337,170 +338,6 @@ function buildGraph(route: RouteDto, onDetach: (id: string) => void): { nodes: N
   return { nodes, edges }
 }
 
-// ─── Filter category helper ───────────────────────────────────────────────────
-
-function filterCategory(type: string): string {
-  if (type.startsWith('AUTH_'))          return 'Authentication'
-  if (type.startsWith('RATE_LIMIT_'))    return 'Rate Limiting'
-  if (type.startsWith('REQUEST_HEADER_') || type.startsWith('RESPONSE_HEADER_') || type.startsWith('PATH_') || type.startsWith('QUERY_')) return 'Modification'
-  if (type.startsWith('BODY_'))          return 'Transformation'
-  if (type.startsWith('VALIDATE_'))      return 'Validation'
-  if (['CIRCUIT_BREAKER', 'RETRY', 'TIMEOUT'].includes(type)) return 'Resilience'
-  if (['SECURITY_HEADERS', 'CERT_ROTATION'].includes(type))   return 'Security'
-  if (type === 'API_VERSIONING')         return 'Versioning'
-  if (type === 'CONDITIONAL_ROUTE')      return 'Routing'
-  return 'Observability'
-}
-
-// ─── Add-Filter floating panel ────────────────────────────────────────────────
-
-function AddFilterPanel({ attachedIds, onAttach }: {
-  attachedIds: Set<string>
-  onAttach: (req: AttachFilterRequest) => void
-}) {
-  const [open, setOpen]     = useState(false)
-  const [search, setSearch] = useState('')
-  const [selected, setSel]  = useState('')
-  const [phase, setPhase]   = useState<'PRE' | 'POST'>('PRE')
-  const [order, setOrder]   = useState(10)
-
-  const { data } = useQuery({
-    queryKey: ['filters-list'],
-    queryFn:  () => filtersApi.list({ size: 100 }),
-    enabled:  open,
-  })
-  const all: FilterSummary[] = data?.content ?? []
-  const filtered = search
-    ? all.filter(f => f.name.toLowerCase().includes(search.toLowerCase()) || f.filterType.toLowerCase().includes(search.toLowerCase()))
-    : all
-  const grouped = filtered.reduce<Record<string, FilterSummary[]>>((acc, f) => {
-    const cat = filterCategory(f.filterType)
-    ;(acc[cat] ??= []).push(f)
-    return acc
-  }, {})
-
-  const doAttach = () => {
-    if (!selected) return
-    onAttach({ filterId: selected, order, phase })
-    setSel(''); setOpen(false); setSearch('')
-  }
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-indigo-500/25 transition-all"
-      >
-        <Plus className="w-3.5 h-3.5" /> Add Filter
-      </button>
-
-      {open && (
-        <div className="absolute top-full mt-2 right-0 w-80 bg-[#111318] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
-          {/* Search */}
-          <div className="p-3 border-b border-white/[0.06]">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
-              <input
-                autoFocus
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search filters…"
-                className="w-full bg-white/5 border border-white/[0.08] rounded-lg pl-8 pr-3 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* List */}
-          <div className="max-h-56 overflow-y-auto">
-            {Object.keys(grouped).length === 0 ? (
-              <p className="text-xs text-gray-600 text-center py-6">
-                {search ? 'No matches' : 'No filter definitions yet'}
-              </p>
-            ) : Object.entries(grouped).map(([cat, items]) => (
-              <div key={cat}>
-                <div className="px-3 py-1 text-[9px] font-bold text-gray-600 uppercase tracking-widest bg-white/[0.02] sticky top-0">
-                  {cat}
-                </div>
-                {items.map(f => {
-                  const already = attachedIds.has(f.id)
-                  const meta    = getFilterMeta(f.filterType)
-                  return (
-                    <button
-                      key={f.id}
-                      disabled={already}
-                      onClick={() => setSel(f.id === selected ? '' : f.id)}
-                      className={cn(
-                        'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
-                        already       ? 'opacity-40 cursor-not-allowed' :
-                        selected === f.id ? 'bg-indigo-500/15' : 'hover:bg-white/[0.04]'
-                      )}
-                    >
-                      <span className={cn('p-1 rounded shrink-0', meta.bg, meta.color)}>{meta.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-white truncate">{f.name}</div>
-                        <div className="text-[10px] text-gray-500 truncate">{f.filterType.replace(/_/g, ' ')}</div>
-                      </div>
-                      {selected === f.id && <span className="text-indigo-400 text-xs shrink-0">✓</span>}
-                      {already        && <span className="text-[10px] text-gray-600 shrink-0">attached</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-
-          {/* Phase + Order (shown only when a filter is selected) */}
-          {selected && (
-            <div className="p-3 border-t border-white/[0.06] space-y-2.5">
-              <div className="flex gap-2">
-                {(['PRE', 'POST'] as const).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPhase(p)}
-                    className={cn(
-                      'flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all',
-                      phase === p
-                        ? p === 'PRE'
-                          ? 'bg-blue-600/70 border-blue-500/40 text-white'
-                          : 'bg-purple-600/70 border-purple-500/40 text-white'
-                        : 'border-white/[0.08] text-gray-500 hover:text-gray-300'
-                    )}
-                  >
-                    {p === 'PRE' ? '↑ PRE — before upstream' : '↓ POST — after upstream'}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[10px] text-gray-500 shrink-0 w-10">Order</label>
-                <input
-                  type="number" min={0}
-                  value={order}
-                  onChange={e => setOrder(Number(e.target.value))}
-                  className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-              <button
-                onClick={doAttach}
-                className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors"
-              >
-                Attach to Flow
-              </button>
-            </div>
-          )}
-
-          <div className="px-3 py-2 border-t border-white/[0.04] flex justify-end">
-            <button
-              onClick={() => { setOpen(false); setSel(''); setSearch('') }}
-              className="text-xs text-gray-600 hover:text-gray-300 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ─── Validation banner ────────────────────────────────────────────────────────
 
@@ -529,16 +366,14 @@ interface RouteFlowCanvasProps {
 
 export default function RouteFlowCanvas({ route, height = 480, onValidityChange }: RouteFlowCanvasProps) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
+  // No-op detach: read-only canvas still passes onDetach to filter nodes
+  // (node hover buttons won't fire because elementsSelectable=false)
   const detachMutation = useMutation({
     mutationFn: (filterId: string) => routesApi.detachFilter(route.id, filterId),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['route', route.id] }),
   })
-  const attachMutation = useMutation({
-    mutationFn: (req: AttachFilterRequest) => routesApi.attachFilter(route.id, req),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['route', route.id] }),
-  })
-
   const onDetach = useCallback((id: string) => detachMutation.mutate(id), [detachMutation])
 
   const initialGraph = useMemo(
@@ -547,29 +382,19 @@ export default function RouteFlowCanvas({ route, height = 480, onValidityChange 
     [route.id, JSON.stringify(route.filters), route.status]
   )
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges)
+  const [nodes, setNodes] = useNodesState(initialGraph.nodes)
+  const [edges] = useEdgesState(initialGraph.edges)
 
-  // Re-sync when route data changes (after attach/detach)
+  // Re-sync when route data changes
   useEffect(() => {
     const g = buildGraph(route, onDetach)
     setNodes(g.nodes)
-    setEdges(g.edges)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.id, JSON.stringify(route.filters), route.status])
 
   const valid = useMemo(() => isFlowComplete(nodes, edges), [nodes, edges])
   useEffect(() => { onValidityChange?.(valid) }, [valid, onValidityChange])
 
-  const onConnect = useCallback((params: Connection) => {
-    const src = nodes.find(n => n.id === params.source)
-    const type =
-      src?.id === 'route'             ? 'route' :
-      src?.id?.startsWith('post-') || params.target === 'response' ? 'post' : 'pre'
-    setEdges(eds => addEdge({ ...params, ...edgeStyle(type) }, eds))
-  }, [nodes, setEdges])
-
-  const attachedIds = useMemo(() => new Set((route.filters ?? []).map(f => f.filterId)), [route.filters])
   const onInit = useCallback((i: ReactFlowInstance) => setTimeout(() => i.fitView({ padding: 0.14, duration: 400 }), 50), [])
 
   return (
@@ -578,19 +403,19 @@ export default function RouteFlowCanvas({ route, height = 480, onValidityChange 
         nodes={nodes}
         edges={edges}
         nodeTypes={NODE_TYPES}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
         onInit={onInit}
         fitView
         fitViewOptions={{ padding: 0.14 }}
         minZoom={0.15}
         maxZoom={1.8}
-        deleteKeyCode="Delete"
+        deleteKeyCode={null}
         proOptions={{ hideAttribution: true }}
         className="bg-[#080a0f]"
         connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
         defaultEdgeOptions={{ type: 'smoothstep' }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
         <Controls className="!bg-[#111318] !border-white/10 !rounded-lg !shadow-xl" showInteractive={false} />
@@ -602,12 +427,18 @@ export default function RouteFlowCanvas({ route, height = 480, onValidityChange 
 
         <Panel position="top-right" className="flex items-center gap-2">
           <ValidationBanner valid={valid} />
-          <AddFilterPanel attachedIds={attachedIds} onAttach={req => attachMutation.mutate(req)} />
+          {/* Filters can only be managed via the full Workflow Builder */}
+          <button
+            onClick={() => navigate(`/routes/${route.id}/builder`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-violet-500/25 transition-all"
+          >
+            <Network className="w-3.5 h-3.5" /> Edit in Builder
+          </button>
         </Panel>
 
         <Panel position="bottom-center">
           <div className="text-[10px] text-gray-700 bg-[#080a0f]/80 px-3 py-1 rounded-full border border-white/[0.04]">
-            Drag nodes · Connect handles · Press Delete to remove edges
+            Preview only — use <strong className="text-gray-500">Edit in Builder</strong> to add or remove filters
           </div>
         </Panel>
       </ReactFlow>

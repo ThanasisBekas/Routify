@@ -72,6 +72,12 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.CertGroupsPage.class,       name = "CERT_GROUPS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.CertGroupDetail.class,      name = "CERT_GROUP_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.CertGroupMembersList.class, name = "CERT_GROUP_MEMBERS_LIST"),
+    // ─── routify-ai-service ───────────────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.AiFilterVerdict.class,         name = "AI_FILTER_VERDICT"),
+    @JsonSubTypes.Type(value = QueryResponse.AiModifierVerdict.class,       name = "AI_MODIFIER_VERDICT"),
+    // ─── routify-audit-service AI filter ─────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.AiFilterStatsResult.class,     name = "AI_FILTER_STATS_RESULT"),
+    @JsonSubTypes.Type(value = QueryResponse.AiFilterDecisionsPage.class,   name = "AI_FILTER_DECISIONS_PAGE"),
     // ─── routify-api-gateway ─────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.GatewayStatus.class,        name = "GATEWAY_STATUS"),
     @JsonSubTypes.Type(value = QueryResponse.CertRegistrySnapshot.class, name = "CERT_REGISTRY_SNAPSHOT"),
@@ -107,6 +113,10 @@ public sealed interface QueryResponse
             QueryResponse.CertGroupMembersList,
             QueryResponse.GatewayStatus,
             QueryResponse.CertRegistrySnapshot,
+            QueryResponse.AiFilterVerdict,
+            QueryResponse.AiModifierVerdict,
+            QueryResponse.AiFilterStatsResult,
+            QueryResponse.AiFilterDecisionsPage,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -619,11 +629,172 @@ public sealed interface QueryResponse
         ) {}
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // routify-ai-service
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * AI filter verdict returned by routify-ai-service to the gateway over RabbitMQ RPC.
+     *
+     * @param action        Enforcement decision — {@code ALLOW}, {@code BLOCK}, or {@code FLAG}.
+     * @param reason        One-sentence LLM explanation (included in 403 body for BLOCK verdicts).
+     * @param confidence    LLM confidence score in [0.0, 1.0]; 0.0 for fallback verdicts.
+     * @param isAllowed     Convenience boolean: {@code true} when action is ALLOW or FLAG.
+     * @param cached        {@code true} when this verdict was served from the Redis cache.
+     * @param latencyMs     Total evaluation latency in milliseconds.
+     * @param evaluationId  Unique trace ID for audit correlation.
+     */
+    record AiFilterVerdict(
+            String  action,
+            String  reason,
+            double  confidence,
+            boolean isAllowed,
+            boolean cached,
+            long    latencyMs,
+            String  evaluationId
+    ) implements QueryResponse {
+
+        /** Parse-safe factory: if action is unrecognised, defaults to ALLOW. */
+        public static AiFilterVerdict fallback(String fallbackAction, String reason, long latencyMs) {
+            String safeAction = (fallbackAction != null) ? fallbackAction.toUpperCase() : "ALLOW";
+            boolean allowed = !"BLOCK".equals(safeAction);
+            return new AiFilterVerdict(safeAction, reason, 0.0, allowed, false, latencyMs, "fallback");
+        }
+    }
+
+    // ─── routify-ai-service AI modifier ──────────────────────────────────────
+
+    /**
+     * AI modifier verdict returned by routify-ai-service after evaluating a mutation request.
+     *
+     * <p>When {@code mutationApplied=true} the gateway must replace the outgoing request
+     * headers and/or body with the values from this verdict before forwarding downstream.
+     * When {@code mutationApplied=false} the gateway passes the request through unchanged
+     * (passthrough behaviour controlled by {@code fallbackBehavior}).
+     *
+     * @param mutationId      Unique trace ID — matches {@code X-AI-Modifier-Id} header.
+     * @param mutationApplied Whether the LLM produced a valid mutation (false = passthrough).
+     * @param mutationType    PII_SCRUB | TRANSLATE | HEADER_REWRITE | CUSTOM | PASSTHROUGH
+     * @param mutatedHeaders  Headers to replace on the request (empty map = no header changes).
+     * @param mutatedBody     Replacement request body (null = body unchanged).
+     * @param reason          One-sentence explanation from the LLM.
+     * @param cached          Whether the mutation result was served from Redis cache.
+     * @param latencyMs       Total evaluation latency in milliseconds.
+     */
+    record AiModifierVerdict(
+            String              mutationId,
+            boolean             mutationApplied,
+            String              mutationType,
+            Map<String, String> mutatedHeaders,
+            String              mutatedBody,
+            String              reason,
+            boolean             cached,
+            long                latencyMs
+    ) implements QueryResponse {
+
+        /**
+         * Passthrough fallback — used when the LLM is unavailable or the circuit breaker is open.
+         * The gateway will forward the original request unchanged.
+         */
+        public static AiModifierVerdict passthrough(String reason, long latencyMs) {
+            return new AiModifierVerdict(
+                    "fallback", false, "PASSTHROUGH", Map.of(), null,
+                    reason, false, latencyMs);
+        }
+    }
+
+    // ─── routify-audit-service AI filter analytics ────────────────────────────
+
+    /**
+     * Aggregated AI filter statistics for a tenant/route over a time window.
+     *
+     * @param tenantId       Scoping tenant UUID.
+     * @param routeId        Route UUID (null = aggregated across all routes).
+     * @param totalDecisions Total evaluations in the window.
+     * @param allowCount     Number of ALLOW verdicts.
+     * @param blockCount     Number of BLOCK verdicts.
+     * @param flagCount      Number of FLAG verdicts.
+     * @param fallbackCount  Number of fallback (circuit-open / timeout) verdicts.
+     * @param cacheHitCount  Number of Redis cache hits (LLM not called).
+     * @param avgLatencyMs   Mean evaluation latency across all decisions.
+     * @param p95LatencyMs   95th-percentile latency.
+     * @param p99LatencyMs   99th-percentile latency.
+     * @param from           Window start (ISO-8601).
+     * @param to             Window end (ISO-8601).
+     */
+    record AiFilterStatsResult(
+            UUID   tenantId,
+            UUID   routeId,
+            long   totalDecisions,
+            long   allowCount,
+            long   blockCount,
+            long   flagCount,
+            long   fallbackCount,
+            long   cacheHitCount,
+            double avgLatencyMs,
+            long   p95LatencyMs,
+            long   p99LatencyMs,
+            String from,
+            String to
+    ) implements QueryResponse {}
+
+    /**
+     * Paginated AI filter decision log entries.
+     *
+     * @param content       Page of decision entries.
+     * @param totalElements Total matching decisions in the window.
+     * @param totalPages    Total number of pages.
+     * @param page          Current zero-based page number.
+     * @param size          Page size.
+     */
+    record AiFilterDecisionsPage(
+            List<AiFilterDecisionEntry> content,
+            long  totalElements,
+            int   totalPages,
+            int   page,
+            int   size
+    ) implements QueryResponse {
+
+        /**
+         * A single AI filter decision audit record.
+         *
+         * @param evaluationId  Unique trace ID.
+         * @param routeId       Route that triggered the evaluation.
+         * @param routeName     Human-readable route name.
+         * @param tenantId      Owning tenant.
+         * @param action        ALLOW | BLOCK | FLAG
+         * @param reason        LLM explanation.
+         * @param confidence    LLM confidence score.
+         * @param cached        Whether served from cache.
+         * @param evaluationMode SYNC | ASYNC
+         * @param latencyMs     Evaluation latency.
+         * @param method        HTTP method.
+         * @param path          Request path.
+         * @param clientIp      Client IP address.
+         * @param evaluatedAt   Timestamp of evaluation.
+         */
+        public record AiFilterDecisionEntry(
+                String  evaluationId,
+                UUID    routeId,
+                String  routeName,
+                UUID    tenantId,
+                String  action,
+                String  reason,
+                double  confidence,
+                boolean cached,
+                String  evaluationMode,
+                long    latencyMs,
+                String  method,
+                String  path,
+                String  clientIp,
+                Instant evaluatedAt
+        ) {}
+    }
+
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.
      * Prevents {@link com.fasterxml.jackson.databind.exc.InvalidTypeIdException} from being
-     * thrown during deserialisation (e.g. legacy messages or services that haven't yet been
-     * rebuilt with the latest {@code routify-common}).
+     * thrown during deserialisation.
      */
     record Unknown() implements QueryResponse {}
 }

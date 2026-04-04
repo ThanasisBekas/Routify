@@ -154,6 +154,9 @@ export type FilterType =
   | 'API_VERSIONING'
   | 'CORRELATION_ID' | 'REQUEST_LOGGER' | 'TENANT_CONTEXT' | 'SECURITY_HEADERS' | 'CUSTOM_METRIC'
   | 'CUSTOM_SPEL'
+  // ─── AI ──────────────────────────────────────────────────────────────────
+  | 'AI_FILTER'
+  | 'AI_MODIFIER'
 
 export type FilterCategory =
   | 'Authentication' | 'Downstream Auth' | 'Rate Limiting' | 'Request Modification'
@@ -161,32 +164,49 @@ export type FilterCategory =
   | 'Routing' | 'Security' | 'Versioning' | 'Observability' | 'Custom'
 
 /**
- * A reference to a gateway configuration entry (auth provider, rate limit policy, etc.)
- * that provides the authoritative settings for a filter definition.
+ * A reference to a Cert Vault certificate group that provides the authoritative
+ * certificate configuration for a cert-based filter definition.
+ *
+ * Architectural constraint: ONLY cert filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`,
+ * `CERT_VAULT_EXPIRY_CHECK`) may import configuration from an external source.
+ * All standard filters must be configured independently — no gateway config refs.
  */
 export interface GatewayConfigRef {
-  /** e.g. "AUTH_PROVIDER" | "RATE_LIMIT_POLICY" | "CIRCUIT_BREAKER_DEFAULTS" | "RESILIENCE_DEFAULTS" | "TLS_SOURCE" | "VAULT_CERT" (cert group) | "DOWNSTREAM_CREDENTIAL" */
-  refType: string
-  /** The id of the gateway config entry */
+  /**
+   * Always "VAULT_CERT" — the only allowed external config source.
+   * Standard filters are self-contained and never reference gateway config.
+   */
+  refType: 'VAULT_CERT'
+  /** The logicalId of the Cert Vault certificate group */
   refId: string
-  /** Human-readable name (display only) */
+  /** Human-readable alias (display only) */
   refName?: string
 }
 
-/** Filter types that require or benefit from a gateway config reference */
+/**
+ * Filter types that may reference an external configuration source.
+ *
+ * ARCHITECTURAL RULE:
+ *  - Standard filters are SELF-CONTAINED. Their configuration is stored inline
+ *    in the filter definition and must NOT pull from the API gateway config.
+ *  - The ONLY exception is cert filters, which are allowed to bind to a
+ *    Certificate Group in the Cert Vault (refType: "VAULT_CERT").
+ */
+export const FILTER_TYPES_WITH_CERT_VAULT_REF: ReadonlySet<FilterType> = new Set<FilterType>([
+  'AUTH_CERT_VAULT',
+  'CERT_ROTATION',
+  'CERT_VAULT_EXPIRY_CHECK',
+])
+
+/**
+ * @deprecated Use `FILTER_TYPES_WITH_CERT_VAULT_REF` instead.
+ * Kept for backward-compatibility while existing usages are migrated.
+ * Only VAULT_CERT entries remain — all gateway config refs have been removed.
+ */
 export const FILTER_TYPES_WITH_GATEWAY_REF: Partial<Record<FilterType, GatewayConfigRef['refType']>> = {
-  AUTH_JWT:                    'AUTH_PROVIDER',
-  AUTH_API_KEY:                'AUTH_PROVIDER',
-  AUTH_BASIC:                  'AUTH_PROVIDER',
-  AUTH_OAUTH2:                 'AUTH_PROVIDER',
-  AUTH_MTLS:                   'AUTH_PROVIDER',
-  AUTH_CERT_VAULT:             'VAULT_CERT',
-  DOWNSTREAM_BEARER_CC:        'AUTH_PROVIDER',
-  RATE_LIMIT_FIXED_WINDOW:     'RATE_LIMIT_POLICY',
-  RATE_LIMIT_SLIDING_WINDOW:   'RATE_LIMIT_POLICY',
-  TIMEOUT:                     'RESILIENCE_DEFAULTS',
-  CERT_ROTATION:               'VAULT_CERT',
-  CERT_VAULT_EXPIRY_CHECK:     'VAULT_CERT',
+  AUTH_CERT_VAULT:         'VAULT_CERT',
+  CERT_ROTATION:           'VAULT_CERT',
+  CERT_VAULT_EXPIRY_CHECK: 'VAULT_CERT',
 }
 
 export interface FilterDefinitionDto {
@@ -472,25 +492,15 @@ export interface GatewayAuthProvider {
   algorithm?: string
 }
 
-export interface GatewayCertificateSource {
-  logicalId: string
-  certificatePath: string
-  watchForChanges: boolean
-  expiresAt?: string
-  status?: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED'
-}
-
-export interface GatewayDirectorySource {
-  directoryPath: string
-  watchForChanges: boolean
-}
-
-export interface GatewayTlsConfig {
-  expiryWarning: string
-  fileWatchInterval: string
-  fileSources: GatewayCertificateSource[]
-  directorySources: GatewayDirectorySource[]
-}
+/**
+ * TLS configuration is now managed exclusively by the Certificate Vault.
+ * All certificate lifecycle (upload, rotation, revocation, gateway mapping)
+ * goes through routify-cert-vault. The gateway loads certs via Vault at startup
+ * and reacts to CERT_GROUP_EVENTS Kafka events for zero-downtime rotation.
+ * @deprecated Use the Cert Vault API instead. This type is retained only for
+ *   backwards-compatible config snapshot serialisation.
+ */
+export type GatewayTlsConfig = Record<string, never>
 
 export interface GatewayProxyConfig {
   enabled: boolean
@@ -663,4 +673,98 @@ export interface CertVaultStats {
   expiringSoon: number
   counts: Record<string, number>
 }
+
+// ─── AI Filter / Modifier types ───────────────────────────────────────────────
+
+export type AiMutationType = 'PII_SCRUB' | 'TRANSLATE' | 'HEADER_REWRITE' | 'CUSTOM' | 'PASSTHROUGH'
+
+/** Request payload for the AI Modification dry-run test endpoint. */
+export interface AiModificationTestRequest {
+  modificationPrompt: string
+  targetFields?: string
+  sampleRequest: {
+    method: string
+    path: string
+    headers?: Record<string, string>
+    body?: string
+  }
+}
+
+/** Response from the AI Modification dry-run test endpoint. */
+export interface AiModificationTestResult {
+  mutationId: string
+  mutationApplied: boolean
+  mutationType: AiMutationType
+  mutatedHeaders: Record<string, string>
+  mutatedBody: string | null
+  reason: string
+  cached: boolean
+  latencyMs: number
+}
+
+/** Aggregated AI Modification Filter stats per route from the audit service. */
+export interface AiModifierStats {
+  routeId: string
+  totalDecisions: number
+  appliedCount: number
+  passthroughCount: number
+  piiScrubCount: number
+  translateCount: number
+  headerRewriteCount: number
+  customCount: number
+  cacheHitCount: number
+  avgLatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  from: string
+  to: string
+}
+
+/** Aggregated AI Filter stats per route from the audit service. */
+export interface AiFilterStats {
+  routeId: string
+  totalDecisions: number
+  allowCount: number
+  blockCount: number
+  flagCount: number
+  fallbackCount: number
+  cacheHitCount: number
+  avgLatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  from: string
+  to: string
+}
+
+/** A single AI filter decision audit entry. */
+export interface AiFilterDecisionEntry {
+  evaluationId: string
+  routeId: string
+  routeName: string
+  action: 'ALLOW' | 'BLOCK' | 'FLAG'
+  reason: string
+  confidence: number
+  cached: boolean
+  latencyMs: number
+  method: string
+  path: string
+  evaluatedAt: string
+}
+
+/** A single AI modification decision audit entry. */
+export interface AiModifierDecisionEntry {
+  mutationId: string
+  routeId: string
+  routeName: string
+  mutationApplied: boolean
+  mutationType: AiMutationType
+  reason: string
+  headersModified: string[]
+  cached: boolean
+  latencyMs: number
+  method: string
+  path: string
+  evaluatedAt: string
+}
+
 

@@ -1,7 +1,5 @@
 package gr.routify.gateway.config;
 
-import gr.routify.gateway.certificate.CertificateFileWatcher;
-import gr.routify.gateway.certificate.CertificateStoreProperties;
 import gr.routify.gateway.certificate.CertificateVaultLoader;
 import gr.routify.gateway.net.HttpClientProperties;
 import gr.routify.gateway.net.ProxyProperties;
@@ -15,17 +13,16 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Applies live gateway configuration (loaded from the DB via {@link GatewayConfigLoader})
- * to the Resilience4J {@link CircuitBreakerRegistry} and {@link TimeLimiterRegistry}.
+ * to the Resilience4J {@link CircuitBreakerRegistry} and {@link TimeLimiterRegistry},
+ * triggers a vault certificate reload, and propagates networking (proxy / HTTP client) settings.
  *
- * <p>This closes the feedback loop between the Routify dashboard (where admins save circuit
- * breaker / retry / timeout defaults) and the actual Resilience4J registry that SCG's
- * {@code CircuitBreaker} filter uses at runtime.
+ * <p>Certificate management is handled exclusively by routify-cert-vault.
+ * File-based certificate sources ({@code certificate-store.*}) have been removed.
  *
  * <h3>Update strategy</h3>
  * <p>Resilience4J registries support {@code addConfiguration(name, config)} which replaces
@@ -73,8 +70,6 @@ public class GatewayResilienceConfigApplier {
 
     private final CircuitBreakerRegistry    circuitBreakerRegistry;
     private final TimeLimiterRegistry       timeLimiterRegistry;
-    private final CertificateStoreProperties certificateStoreProperties;
-    private final CertificateFileWatcher    certificateFileWatcher;
     private final CertificateVaultLoader    certificateVaultLoader;
     private final ProxyProperties           globalProxyProperties;
     private final HttpClientProperties      globalHttpClientProperties;
@@ -83,16 +78,12 @@ public class GatewayResilienceConfigApplier {
     public GatewayResilienceConfigApplier(
             CircuitBreakerRegistry circuitBreakerRegistry,
             TimeLimiterRegistry timeLimiterRegistry,
-            CertificateStoreProperties certificateStoreProperties,
-            CertificateFileWatcher certificateFileWatcher,
             CertificateVaultLoader certificateVaultLoader,
             @Qualifier("globalProxyProperties")      ProxyProperties globalProxyProperties,
             @Qualifier("globalHttpClientProperties") HttpClientProperties globalHttpClientProperties,
             WebClientRegistry webClientRegistry) {
         this.circuitBreakerRegistry    = circuitBreakerRegistry;
         this.timeLimiterRegistry       = timeLimiterRegistry;
-        this.certificateStoreProperties = certificateStoreProperties;
-        this.certificateFileWatcher    = certificateFileWatcher;
         this.certificateVaultLoader    = certificateVaultLoader;
         this.globalProxyProperties     = globalProxyProperties;
         this.globalHttpClientProperties = globalHttpClientProperties;
@@ -117,7 +108,7 @@ public class GatewayResilienceConfigApplier {
 
         applyCircuitBreakerDefaults(asMap(config.get("circuitBreakerDefaults")));
         applyTimeLimiterDefaults(asMap(config.get("resilienceDefaults")));
-        applyTlsConfig(asMap(config.get("tlsConfig")));
+        reloadVaultCertificates();
         applyNetworkingConfig(asMap(config.get("proxyConfig")), asMap(config.get("httpClientConfig")));
     }
 
@@ -219,100 +210,26 @@ public class GatewayResilienceConfigApplier {
         }
     }
 
-    // ─── TLS / Certificate Sources ────────────────────────────────────────────
+    // ─── Certificate Vault reload ─────────────────────────────────────────────
 
     /**
-     * Applies the {@code tlsConfig} section from the live gateway config to
-     * {@link CertificateStoreProperties} and triggers an immediate certificate reload
-     * for <em>both</em> file-based sources (via {@link CertificateFileWatcher#reloadSources()})
-     * and vault-backed sources (via {@link CertificateVaultLoader#loadVaultCertificates()}).
+     * Re-fetches all gateway-mapped certificates from routify-cert-vault whenever
+     * the gateway config changes. File-based certificate sources have been removed;
+     * all certificate management is now handled exclusively by the Certificate Vault.
      *
-     * <p>This ensures that when an admin saves a new TLS config (e.g. adds/removes a
-     * file source or changes the expiry warning window) through the dashboard, the
-     * gateway picks up the change without a restart — including certificates used by the
-     * {@code AUTH_CERT_VAULT} and {@code CERT_VAULT_EXPIRY_CHECK} filters that rely on
-     * vault-backed entries in the {@link gr.routify.gateway.certificate.CertificateRegistry}.
+     * <p>This is a best-effort reload — if the vault is temporarily unavailable,
+     * the existing in-memory registry entries remain valid, and the next
+     * {@code CERT_GROUP_EVENTS} or {@code CERT_EVENTS} Kafka event will trigger
+     * a targeted re-load via {@link gr.routify.gateway.certificate.CertEventKafkaConsumer}.
      */
-    @SuppressWarnings("unchecked")
-    private void applyTlsConfig(Map<String, Object> tls) {
-        if (tls == null || tls.isEmpty()) {
-            log.debug("GatewayResilienceConfigApplier: no tlsConfig section — skipping");
-            return;
-        }
+    private void reloadVaultCertificates() {
         try {
-            // expiryWarning
-            String expiryWarning = str(tls.get("expiryWarning"), null);
-            if (expiryWarning != null) {
-                certificateStoreProperties.setExpiryWarning(parseDuration(expiryWarning));
-            }
-
-            // fileWatchInterval
-            String fileWatchInterval = str(tls.get("fileWatchInterval"), null);
-            if (fileWatchInterval != null) {
-                certificateStoreProperties.setFileWatchInterval(parseDuration(fileWatchInterval));
-            }
-
-            // fileSources
-            Object rawFileSources = tls.get("fileSources");
-            if (rawFileSources instanceof List<?> rawList) {
-                var fileSources = new ArrayList<CertificateStoreProperties.FileSource>();
-                for (Object rawSrc : rawList) {
-                    Map<String, Object> src = asMap(rawSrc);
-                    if (src == null) continue;
-                    var fs = new CertificateStoreProperties.FileSource();
-                    fs.setLogicalId(str(src.get("logicalId"), null));
-                    fs.setCertificatePath(str(src.get("certificatePath"), null));
-                    fs.setPrivateKeyPath(str(src.get("privateKeyPath"), null));
-                    fs.setPrivateKeyPassword(str(src.get("privateKeyPassword"), null));
-                    Object watch = src.get("watchForChanges");
-                    fs.setWatchForChanges(watch instanceof Boolean b ? b
-                            : Boolean.parseBoolean(String.valueOf(watch)));
-                    fileSources.add(fs);
-                }
-                certificateStoreProperties.setFileSources(fileSources);
-            }
-
-            // directorySources
-            Object rawDirSources = tls.get("directorySources");
-            if (rawDirSources instanceof List<?> rawList) {
-                var dirSources = new ArrayList<CertificateStoreProperties.DirectorySource>();
-                for (Object rawSrc : rawList) {
-                    Map<String, Object> src = asMap(rawSrc);
-                    if (src == null) continue;
-                    var ds = new CertificateStoreProperties.DirectorySource();
-                    ds.setDirectoryPath(str(src.get("directoryPath"), null));
-                    ds.setLogicalId(str(src.get("logicalId"), null));
-                    ds.setPrivateKeyPath(str(src.get("privateKeyPath"), null));
-                    ds.setPrivateKeyPassword(str(src.get("privateKeyPassword"), null));
-                    Object watch = src.get("watchForChanges");
-                    ds.setWatchForChanges(watch instanceof Boolean b ? b
-                            : Boolean.parseBoolean(String.valueOf(watch)));
-                    dirSources.add(ds);
-                }
-                certificateStoreProperties.setDirectorySources(dirSources);
-            }
-
-            // Reload file/directory sources immediately so the new config takes effect
-            certificateFileWatcher.reloadSources();
-
-            // Reload vault-backed certificates so AUTH_CERT_VAULT and
-            // CERT_VAULT_EXPIRY_CHECK filters pick up the latest material
-            // from cert-vault. This is safe: CertificateRegistry.register()
-            // deduplicates identical active certs, so already-loaded entries
-            // are a no-op.
-            try {
-                certificateVaultLoader.loadVaultCertificates();
-            } catch (Exception vaultEx) {
-                log.warn("GatewayResilienceConfigApplier: vault certificate reload failed " +
-                        "(cert-vault may be unavailable) — vault-backed certs will refresh " +
-                        "on next Kafka event: {}", vaultEx.getMessage());
-            }
-
-            log.info("GatewayResilienceConfigApplier: TLS config applied — " +
-                    "file sources and vault certificates reloaded");
-
+            certificateVaultLoader.loadVaultCertificates();
+            log.info("GatewayResilienceConfigApplier: vault certificates reloaded");
         } catch (Exception e) {
-            log.error("GatewayResilienceConfigApplier: failed to apply tlsConfig: {}", e.getMessage(), e);
+            log.warn("GatewayResilienceConfigApplier: vault certificate reload failed " +
+                    "(cert-vault may be unavailable) — registry retains existing entries, " +
+                    "will refresh on next Kafka event: {}", e.getMessage());
         }
     }
 

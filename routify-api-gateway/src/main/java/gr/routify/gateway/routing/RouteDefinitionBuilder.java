@@ -113,7 +113,7 @@ public class RouteDefinitionBuilder {
         if (snapshot.filters() != null) {
             snapshot.filters().stream()
                     .sorted(Comparator.comparingInt(RouteSnapshotDto.FilterSnapshotDto::order))
-                    .map(this::buildFilterDefinition)
+                    .map(f -> buildFilterDefinition(snapshot, f))
                     .filter(Objects::nonNull)
                     .forEach(filters::add);
         }
@@ -147,7 +147,8 @@ public class RouteDefinitionBuilder {
      *
      * Uses Java 21 switch expression for exhaustive pattern matching on filter types.
      */
-    private FilterDefinition buildFilterDefinition(RouteSnapshotDto.FilterSnapshotDto filter) {
+    private FilterDefinition buildFilterDefinition(RouteSnapshotDto snapshot,
+                                                    RouteSnapshotDto.FilterSnapshotDto filter) {
         // Resolve gatewayConfigRef and merge into the effective config
         Map<String, Object> cfg = configRefResolver.resolve(
                 filter.config(), filter.gatewayConfigRef());
@@ -287,8 +288,12 @@ public class RouteDefinitionBuilder {
             case "SECURITY_HEADERS" -> namedFilter("SecurityHeaders");
             case "CUSTOM_METRIC"    -> customFilter("CustomMetric", cfg);
 
-            // ─── Custom ───────────────────────────────────────────────────────
+            // ─── Custom ───────────────────────────────────────────────────────────
             case "CUSTOM_SPEL" -> customFilter("SpelCustom", cfg);
+
+            // ─── AI ───────────────────────────────────────────────────────────────
+            case "AI_FILTER"    -> buildAiFilter(snapshot, cfg);
+            case "AI_MODIFIER"  -> buildAiModifierFilter(snapshot, cfg);
 
             default -> {
                 log.warn("Unknown filter type '{}' — skipping", filter.filterType());
@@ -432,5 +437,48 @@ public class RouteDefinitionBuilder {
                                            String tenantIdHeader) {
         static final TenantIsolationSettings DEFAULTS =
                 new TenantIsolationSettings(true, true, DEFAULT_TENANT_HEADER);
+    }
+
+    /**
+     * Builds a {@link FilterDefinition} for the {@code AI_FILTER} type.
+     *
+     * <p>The AI filter config is a flat key-value map (same as all other custom filters),
+     * but additionally injects three route-scoped fields ({@code routeId}, {@code routeName},
+     * {@code tenantId}) from the route snapshot. These are NOT stored in the JSONB config —
+     * they are available from the route metadata and injected here so the gateway filter
+     * can include them in the RabbitMQ RPC request without needing to look them up at
+     * request time.
+     */
+    private FilterDefinition buildAiFilter(RouteSnapshotDto snapshot, Map<String, Object> cfg) {
+        var f = new FilterDefinition();
+        f.setName("AiFilter");
+        var args = new LinkedHashMap<String, String>();
+        // Copy all config fields from the JSONB blob
+        cfg.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
+        // Inject route metadata — these override any stale values that might be in the config
+        args.put("routeId",   snapshot.routeId().toString());
+        args.put("routeName", snapshot.name() != null ? snapshot.name() : "");
+        args.put("tenantId",  snapshot.tenantId().toString());
+        f.setArgs(args);
+        return f;
+    }
+
+    /**
+     * Builds a {@link FilterDefinition} for the AI Modification Filter.
+     *
+     * <p>Mirrors {@link #buildAiFilter} — copies all JSONB config fields and
+     * injects route metadata (routeId, routeName, tenantId) from the snapshot,
+     * ensuring they cannot be overridden by stale config values.
+     */
+    private FilterDefinition buildAiModifierFilter(RouteSnapshotDto snapshot, Map<String, Object> cfg) {
+        var f = new FilterDefinition();
+        f.setName("AiModifier");
+        var args = new LinkedHashMap<String, String>();
+        cfg.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
+        args.put("routeId",   snapshot.routeId().toString());
+        args.put("routeName", snapshot.name() != null ? snapshot.name() : "");
+        args.put("tenantId",  snapshot.tenantId().toString());
+        f.setArgs(args);
+        return f;
     }
 }

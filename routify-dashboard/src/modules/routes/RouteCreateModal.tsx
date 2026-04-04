@@ -2,7 +2,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
-import { X, AlertCircle, Route } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { X, AlertCircle, Route, Network } from 'lucide-react'
 import { routesApi } from '../../api/routesApi'
 import type { CreateRouteRequest } from '../../types'
 import { cn } from '../../lib/utils'
@@ -29,8 +30,11 @@ export default function RouteCreateModal({
   onCreated,
 }: {
   onClose: () => void
-  onCreated: () => void
+  /** Called after successful creation — receives the new route id */
+  onCreated?: (routeId: string) => void
 }) {
+  const navigate = useNavigate()
+
   const {
     register,
     handleSubmit,
@@ -44,7 +48,12 @@ export default function RouteCreateModal({
 
   const mutation = useMutation({
     mutationFn: (data: CreateRouteRequest) => routesApi.create(data),
-    onSuccess: onCreated,
+    onSuccess: (route) => {
+      if (onCreated) onCreated(route.id)
+      onClose()
+      // Always redirect to the builder on creation
+      navigate(`/routes/${route.id}/builder`)
+    },
   })
 
   const selectedMethods = watch('methods').split(',').map(m => m.trim()).filter(Boolean)
@@ -150,10 +159,13 @@ export default function RouteCreateModal({
             </div>
           )}
 
-          {/* Info */}
+          {/* Builder redirect info */}
           <div className="flex items-start gap-2.5 p-3.5 bg-indigo-500/[0.06] border border-indigo-500/20 rounded-xl text-xs text-indigo-300">
-            <span className="mt-0.5 shrink-0">💡</span>
-            <span>The route starts in <strong>DRAFT</strong> status. Activate it when ready — routes go live instantly with zero downtime.</span>
+            <Network className="w-4 h-4 mt-0.5 shrink-0 text-indigo-400" />
+            <span>
+              After creating, you'll be taken to the <strong>Workflow Builder</strong> to add
+              filters and connect nodes. Activate the route when ready.
+            </span>
           </div>
 
           {/* Actions */}
@@ -164,7 +176,7 @@ export default function RouteCreateModal({
             </button>
             <button type="submit" disabled={mutation.isPending}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20">
-              {mutation.isPending ? 'Creating…' : 'Create Route'}
+              {mutation.isPending ? 'Creating…' : 'Create & Open Builder'}
             </button>
           </div>
         </form>

@@ -24,6 +24,7 @@ import org.springframework.context.annotation.Primary;
  *   <li>{@code routify.audit-service} exchange + queues → declared by routify-audit-service</li>
  *   <li>{@code routify.gateway} exchange + queue → declared by routify-api-gateway</li>
  *   <li>{@code routify.cert-vault} exchange + queues → declared by routify-cert-vault</li>
+ *   <li>{@code routify.ai-service} exchange + queues → declared by routify-ai-service</li>
  * </ul>
  */
 @Configuration
@@ -90,6 +91,20 @@ public class RabbitExchangeConfig {
     public DirectExchange certVaultExchangeRef() {
         return ExchangeBuilder
                 .directExchange(RabbitTopology.EXCHANGE_CERT_VAULT)
+                .durable(true)
+                .build();
+    }
+
+    /**
+     * Reference declaration for the {@code routify.ai-service} direct exchange.
+     * The exchange itself is owned (declared + durable) by routify-ai-service.
+     * Declaring it here ensures the admin-api channel setup succeeds even if the
+     * ai-service hasn't started yet — AMQP will just confirm the exchange already exists.
+     */
+    @Bean
+    public DirectExchange aiServiceExchangeRef() {
+        return ExchangeBuilder
+                .directExchange(RabbitTopology.EXCHANGE_AI_SERVICE)
                 .durable(true)
                 .build();
     }

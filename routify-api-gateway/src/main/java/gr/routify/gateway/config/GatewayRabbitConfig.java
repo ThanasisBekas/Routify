@@ -6,8 +6,10 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 /**
  * RabbitMQ topology for routify-api-gateway.
@@ -20,6 +22,8 @@ import org.springframework.context.annotation.Configuration;
  *       actual queue declarations are owned by route-service)</li>
  *   <li><b>Sends to</b>: {@code routify.cert-vault} exchange (declared here as a ref;
  *       actual queue declarations are owned by cert-vault)</li>
+ *   <li><b>Sends to</b>: {@code routify.ai-service} exchange (declared here as a ref;
+ *       actual queue declarations are owned by ai-service) — AI filter RPC</li>
  * </ul>
  */
 @Configuration
@@ -40,6 +44,16 @@ public class GatewayRabbitConfig {
     @Bean
     public DirectExchange certVaultExchangeRef() {
         return ExchangeBuilder.directExchange(RabbitTopology.EXCHANGE_CERT_VAULT).durable(true).build();
+    }
+
+    /**
+     * Reference — actual queues declared by ai-service.
+     * Idempotent: declaring an exchange that already exists is a no-op in RabbitMQ
+     * as long as the properties (durable, type) match.
+     */
+    @Bean
+    public DirectExchange aiServiceExchangeRef() {
+        return ExchangeBuilder.directExchange(RabbitTopology.EXCHANGE_AI_SERVICE).durable(true).build();
     }
 
     @Bean
@@ -72,11 +86,36 @@ public class GatewayRabbitConfig {
         return new Jackson2JsonMessageConverter();
     }
 
+    /**
+     * Primary RabbitTemplate — used for route snapshot + gateway status calls.
+     * Timeout: {@link RabbitTopology#REPLY_TIMEOUT_MS} (10s).
+     */
+    @Primary
     @Bean
     public RabbitTemplate gatewayRabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(gatewayJsonMessageConverter());
         template.setReplyTimeout(RabbitTopology.REPLY_TIMEOUT_MS);
+        return template;
+    }
+
+    /**
+     * Dedicated RabbitTemplate for AI filter RPC calls.
+     *
+     * <p>Uses a <strong>tighter timeout</strong> ({@link RabbitTopology#AI_FILTER_REPLY_TIMEOUT_MS}
+     * = 3.5s) compared to the default 10s. This ensures the gateway filter falls back
+     * to the configured {@code fallbackAction} promptly when the AI service is degraded,
+     * preventing tail-latency cascades on the critical request path.
+     *
+     * <p>A separate template instance is required because {@link RabbitTemplate} is not
+     * thread-safe for concurrent {@code sendAndReceive} calls with different timeouts.
+     * Each template manages its own Direct Reply-To correlation map.
+     */
+    @Bean(name = "aiServiceRabbitTemplate")
+    public RabbitTemplate aiServiceRabbitTemplate(ConnectionFactory connectionFactory) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(gatewayJsonMessageConverter());
+        template.setReplyTimeout(RabbitTopology.AI_FILTER_REPLY_TIMEOUT_MS);
         return template;
     }
 }

@@ -1,5 +1,6 @@
 package gr.routify.audit.scheduler;
 
+import gr.routify.audit.repository.AiFilterDecisionRepository;
 import gr.routify.audit.repository.AuditLogRepository;
 import gr.routify.audit.repository.DlqEventRepository;
 import gr.routify.audit.repository.RequestLogRepository;
@@ -33,9 +34,10 @@ import java.time.temporal.ChronoUnit;
 @RequiredArgsConstructor
 public class AuditRetentionScheduler {
 
-    private final AuditLogRepository   auditLogRepository;
-    private final RequestLogRepository requestLogRepository;
-    private final DlqEventRepository   dlqEventRepository;
+    private final AuditLogRepository         auditLogRepository;
+    private final RequestLogRepository       requestLogRepository;
+    private final DlqEventRepository         dlqEventRepository;
+    private final AiFilterDecisionRepository aiFilterDecisionRepository;
 
     @Value("${routify.audit.retention.request-log-days:30}")
     private int requestLogRetentionDays;
@@ -46,6 +48,9 @@ public class AuditRetentionScheduler {
     @Value("${routify.audit.retention.dlq-log-days:90}")
     private int dlqLogRetentionDays;
 
+    @Value("${routify.audit.retention.ai-filter-decision-days:30}")
+    private int aiFilterDecisionRetentionDays;
+
     @Value("${routify.audit.retention.batch-size:1000}")
     private int batchSize;
 
@@ -55,36 +60,38 @@ public class AuditRetentionScheduler {
         Instant requestLogCutoff = Instant.now().minus(requestLogRetentionDays, ChronoUnit.DAYS);
         Instant auditLogCutoff   = Instant.now().minus(auditLogRetentionDays,   ChronoUnit.DAYS);
         Instant dlqLogCutoff     = Instant.now().minus(dlqLogRetentionDays,     ChronoUnit.DAYS);
+        Instant aiDecisionCutoff = Instant.now().minus(aiFilterDecisionRetentionDays, ChronoUnit.DAYS);
 
         int requestLogsDeleted = 0;
         int auditLogsDeleted   = 0;
         int dlqLogsDeleted     = 0;
+        int aiDecisionsDeleted = 0;
 
         try {
             requestLogsDeleted = deleteInBatches(requestLogCutoff, "request log",
                     (cutoff, bs) -> requestLogRepository.deleteByRequestedAtBefore(cutoff));
-        } catch (Exception e) {
-            log.error("Failed to purge old request logs: {}", e.getMessage(), e);
-        }
+        } catch (Exception e) { log.error("Failed to purge old request logs: {}", e.getMessage(), e); }
 
         try {
             auditLogsDeleted = deleteInBatches(auditLogCutoff, "audit log",
                     auditLogRepository::deleteBatchByOccurredAtBefore);
-        } catch (Exception e) {
-            log.error("Failed to purge old audit logs: {}", e.getMessage(), e);
-        }
+        } catch (Exception e) { log.error("Failed to purge old audit logs: {}", e.getMessage(), e); }
 
         try {
             dlqLogsDeleted = deleteInBatches(dlqLogCutoff, "DLQ event",
                     (cutoff, bs) -> dlqEventRepository.deleteByFailedAtBefore(cutoff));
-        } catch (Exception e) {
-            log.error("Failed to purge old DLQ events: {}", e.getMessage(), e);
-        }
+        } catch (Exception e) { log.error("Failed to purge old DLQ events: {}", e.getMessage(), e); }
 
-        log.info("Retention enforcement complete: {} request logs purged ({}d), {} audit logs purged ({}d), {} DLQ events purged ({}d)",
+        try {
+            aiDecisionsDeleted = deleteInBatches(aiDecisionCutoff, "AI filter decision",
+                    (cutoff, bs) -> aiFilterDecisionRepository.deleteByEvaluatedAtBefore(cutoff));
+        } catch (Exception e) { log.error("Failed to purge old AI filter decisions: {}", e.getMessage(), e); }
+
+        log.info("Retention complete: {} req-logs({}d) {} audit-logs({}d) {} dlq({}d) {} ai-decisions({}d)",
                 requestLogsDeleted, requestLogRetentionDays,
                 auditLogsDeleted,   auditLogRetentionDays,
-                dlqLogsDeleted,     dlqLogRetentionDays);
+                dlqLogsDeleted,     dlqLogRetentionDays,
+                aiDecisionsDeleted, aiFilterDecisionRetentionDays);
     }
 
     /**
@@ -98,13 +105,9 @@ public class AuditRetentionScheduler {
         do {
             deleted = deleteFn.apply(cutoff, batchSize);
             totalDeleted += deleted;
-            if (deleted > 0) {
-                log.debug("Deleted {} {} entries (total so far: {})", deleted, type, totalDeleted);
-            }
+            if (deleted > 0) log.debug("Deleted {} {} entries (total: {})", deleted, type, totalDeleted);
         } while (deleted >= batchSize);
         return totalDeleted;
     }
 }
-
-
 

@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
-import { gatewayApi } from '../../api/gatewayApi'
 import type { CertificateDto } from '../../types'
-import { X, Link, Loader2, AlertCircle, Info, ChevronDown, Server, FileText } from 'lucide-react'
+import { X, Link, Loader2, AlertCircle, Info, ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { extractApiError } from '../../lib/errorUtils'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
@@ -28,19 +27,6 @@ export default function CertGatewayMapModal({ cert, tenantId, onClose, onSuccess
     wsEvents: ['certificate'],
   })
 
-  // Fetch gateway TLS config to show configured file-source logical IDs as slot suggestions
-  const { data: tlsConfig } = useRealtimeQuery({
-    queryKey: ['gateway-tls-config'],
-    queryFn:  gatewayApi.getTlsConfig,
-    wsEvents: ['gateway'],
-  })
-
-  // Logical IDs declared in gateway file-source config
-  const fileSourceSlots: { logicalId: string; path: string }[] =
-    (tlsConfig?.fileSources ?? [])
-      .filter(s => s.logicalId)
-      .map(s => ({ logicalId: s.logicalId, path: s.certificatePath }))
-
   // Collect unique gateway TLS logical IDs already in use from vault certs (excluding current cert)
   const vaultMappedSlots = Array.from(
     new Set(
@@ -49,12 +35,6 @@ export default function CertGatewayMapModal({ cert, tenantId, onClose, onSuccess
         .map(c => c.gatewayTlsLogicalId as string)
     )
   )
-
-  // Merge: gateway config slots first, then vault-only mapped slots (avoid duplicates)
-  const fileSourceIds = new Set(fileSourceSlots.map(s => s.logicalId))
-  const vaultOnlySlots = vaultMappedSlots.filter(id => !fileSourceIds.has(id))
-
-  const existingSlots = [...fileSourceSlots.map(s => s.logicalId), ...vaultOnlySlots]
 
   const mapMutation = useMutation({
     mutationFn: () => certVaultApi.mapToGateway(cert.id, tenantId, gatewayLogicalId),
@@ -112,53 +92,18 @@ export default function CertGatewayMapModal({ cert, tenantId, onClose, onSuccess
             </p>
           </div>
 
-          {/* Slot picker — reuse existing or enter a new one */}
+          {/* Slot picker — reuse existing vault-mapped IDs or enter a new one */}
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-2">
               Gateway TLS Logical ID <span className="text-red-400">*</span>
             </label>
 
-            {/* Gateway config file-source slots */}
-            {fileSourceSlots.length > 0 && (
+            {/* Vault-mapped slots (logical IDs already in use by other certs) */}
+            {vaultMappedSlots.length > 0 && (
               <div className="mb-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Server className="w-3 h-3 text-indigo-400" />
-                  <p className="text-[11px] text-indigo-300/80 font-medium">Gateway config slots:</p>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {fileSourceSlots.map(slot => (
-                    <button
-                      key={slot.logicalId}
-                      type="button"
-                      onClick={() => { setGatewayLogicalId(slot.logicalId); setUseCustom(false) }}
-                      className={cn(
-                        'flex items-center justify-between px-3 py-2 rounded-lg text-xs border transition-all text-left',
-                        gatewayLogicalId === slot.logicalId && !useCustom
-                          ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
-                          : 'bg-white/[0.03] text-gray-400 border-white/[0.08] hover:text-white hover:border-white/20'
-                      )}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="w-3 h-3 text-gray-500 shrink-0" />
-                        <span className="font-mono font-medium">{slot.logicalId}</span>
-                      </div>
-                      {slot.path && (
-                        <span className="text-[10px] text-gray-600 font-mono truncate max-w-[140px] ml-2" title={slot.path}>
-                          {slot.path}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Vault-only mapped slots (not in gateway config) */}
-            {vaultOnlySlots.length > 0 && (
-              <div className="mb-3">
-                <p className="text-[11px] text-gray-500 mb-1.5">Other mapped slots:</p>
+                <p className="text-[11px] text-gray-500 mb-1.5">Existing vault slots:</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {vaultOnlySlots.map(slot => (
+                  {vaultMappedSlots.map(slot => (
                     <button
                       key={slot}
                       type="button"
@@ -178,7 +123,7 @@ export default function CertGatewayMapModal({ cert, tenantId, onClose, onSuccess
             )}
 
             {/* New slot button (only when there are existing suggestions) */}
-            {existingSlots.length > 0 && (
+            {vaultMappedSlots.length > 0 && (
               <div className="mb-3">
                 <button
                   type="button"
@@ -197,7 +142,7 @@ export default function CertGatewayMapModal({ cert, tenantId, onClose, onSuccess
             )}
 
             {/* Custom / new ID input */}
-            {(existingSlots.length === 0 || useCustom) && (
+            {(vaultMappedSlots.length === 0 || useCustom) && (
               <input
                 type="text"
                 value={gatewayLogicalId}
@@ -237,4 +182,3 @@ export default function CertGatewayMapModal({ cert, tenantId, onClose, onSuccess
     </div>
   )
 }
-

@@ -310,5 +310,56 @@ public final class RabbitTopology {
 
     /** Timeout (ms) for synchronous RabbitMQ request-reply calls */
     public static final long REPLY_TIMEOUT_MS = 10_000L;
+
+    // ─── routify-ai-service queues & routing keys ─────────────────────────────
+
+    /**
+     * Direct exchange owned by routify-ai-service.
+     * The gateway sends AI filter evaluation requests to this exchange.
+     */
+    public static final String EXCHANGE_AI_SERVICE          = "routify.ai-service";
+
+    /**
+     * Queue: ai-service serves real-time route request evaluation requests from the gateway.
+     * Routing key: {@value #RK_AI_FILTER_EVALUATE}
+     */
+    public static final String QUEUE_AI_FILTER_EVALUATE     = "routify.ai-service.filter.evaluate";
+    public static final String RK_AI_FILTER_EVALUATE        = "ai.filter.evaluate";
+
+    /**
+     * Queue: ai-service serves real-time request mutation requests from the gateway.
+     * Routing key: {@value #RK_AI_MODIFIER_EVALUATE}
+     */
+    public static final String QUEUE_AI_MODIFIER_EVALUATE   = "routify.ai-service.modifier.evaluate";
+    public static final String RK_AI_MODIFIER_EVALUATE      = "ai.modifier.evaluate";
+
+    /**
+     * Timeout (ms) specific to AI filter RPC calls.
+     * Tighter than the default 10s — a 3s LLM timeout + 500ms network budget.
+     * The gateway falls back to the configured {@code fallbackAction} on exceed.
+     */
+    public static final long AI_FILTER_REPLY_TIMEOUT_MS = 3_500L;
+
+    /**
+     * Timeout (ms) for AI modifier RPC calls.
+     * Slightly larger than the filter timeout because mutation responses are larger
+     * (up to 1024 tokens vs 256 for the filter verdict).
+     */
+    public static final long AI_MODIFIER_REPLY_TIMEOUT_MS = 5_000L;
+
+    // ─── routify-audit-service AI filter stats ────────────────────────────────
+
+    /**
+     * Queue: audit-service serves AI filter decision stats queries from admin-api.
+     * Provides per-route ALLOW/BLOCK/FLAG breakdown, latency percentiles, and cache-hit rates.
+     */
+    public static final String QUEUE_AUDIT_AI_FILTER_STATS  = "routify.audit-service.ai-filter.stats";
+    public static final String RK_AUDIT_AI_FILTER_STATS     = "audit.ai-filter.stats";
+
+    /**
+     * Queue: audit-service serves paginated AI filter decision log queries from admin-api.
+     */
+    public static final String QUEUE_AUDIT_AI_FILTER_QUERY  = "routify.audit-service.ai-filter.query";
+    public static final String RK_AUDIT_AI_FILTER_QUERY     = "audit.ai-filter.query";
 }
 
