@@ -44,6 +44,8 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2000ms
+      # No default — must be supplied via REDIS_PASS environment variable.
+      password: ${REDIS_PASS:}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
@@ -95,6 +97,14 @@ management:
     export:
       prometheus:
         enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 # ─── Routify Configuration ───────────────────────────────────────────────────
 routify:
@@ -112,7 +122,8 @@ routify:
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-
     spring.datasource.password,
-    spring.rabbitmq.password
+    spring.rabbitmq.password,
+    spring.data.redis.password
 
 
 
@@ -121,5 +132,5 @@ logging:
     gr.routify: DEBUG
     org.springframework.kafka: WARN
   pattern:
-    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] [tenant=%X{tenantId}] [user=%X{userId}] %logger{36} - %msg%n"
 

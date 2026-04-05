@@ -1,5 +1,6 @@
 package gr.routify.common.kafka;
 
+import gr.routify.common.security.SecurityContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
@@ -64,12 +65,12 @@ public final class KafkaDlqErrorHandlerFactory {
                     // Ensure a correlationId is present in MDC so the log pattern
                     // renders correctly. Use the record key if available, otherwise
                     // generate a new UUID for traceability.
-                    boolean mdcOwned = MDC.get("correlationId") == null;
+                    boolean mdcOwned = MDC.get(SecurityContext.MDC_CORRELATION_ID) == null;
                     if (mdcOwned) {
                         String fallbackId = record.key() != null
                                 ? record.key().toString()
                                 : UUID.randomUUID().toString();
-                        MDC.put("correlationId", fallbackId);
+                        MDC.put(SecurityContext.MDC_CORRELATION_ID, fallbackId);
                     }
                     try {
                         log.error("[DLQ] Forwarding unprocessable record to {} " +
@@ -78,7 +79,7 @@ public final class KafkaDlqErrorHandlerFactory {
                                 record.key(), ex.getMessage());
                     } finally {
                         if (mdcOwned) {
-                            MDC.remove("correlationId");
+                            MDC.remove(SecurityContext.MDC_CORRELATION_ID);
                         }
                     }
                     return new TopicPartition(dlqTopic, record.partition());

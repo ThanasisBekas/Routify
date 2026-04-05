@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -57,6 +58,7 @@ public class AdminAiFilterController {
      * @return the LLM's verdict (action, reason, confidence) for the sample request
      */
     @PostMapping("/test-policy")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<QueryResponse.AiFilterVerdict> testPolicy(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody TestPolicyRequest request) {
@@ -94,4 +96,3 @@ public class AdminAiFilterController {
         return ResponseEntity.ok(verdict);
     }
 }
-

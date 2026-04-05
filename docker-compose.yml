@@ -41,11 +41,12 @@ services:
     container_name: routify-redis
     ports:
       - "6379:6379"
-    command: redis-server --save 60 1 --loglevel warning
+    # Resolved from REDIS_PASS env var (set in .env file).
+    command: redis-server --save 60 1 --loglevel warning --requirepass ${REDIS_PASS}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASS}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -95,7 +96,24 @@ services:
       timeout: 10s
       retries: 5
 
-  # ─── Observability (Phase 4.6) ──────────────────────────────────────────────
+  # ─── Observability ──────────────────────────────────────────────────────────
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: routify-tempo
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    ports:
+      - "3200:3200"    # Query frontend (Grafana datasource)
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    volumes:
+      - ./docker/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3200/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   prometheus:
     image: prom/prometheus:latest
@@ -127,10 +145,13 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+      tempo:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   redis_data:
   kafka_data:
   rabbitmq_data:
+  tempo_data:
   grafana_data:

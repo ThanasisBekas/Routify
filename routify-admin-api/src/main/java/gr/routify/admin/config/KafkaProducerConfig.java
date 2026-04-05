@@ -28,7 +28,7 @@ public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, Object> adminProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(Map.of(
+        var factory = new DefaultKafkaProducerFactory<String, Object>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,   JsonSerializer.class,
@@ -40,11 +40,14 @@ public class KafkaProducerConfig {
                 // on DomainEvent to resolve the concrete type from the "type" field in the JSON body.
                 JsonSerializer.ADD_TYPE_INFO_HEADERS,           false
         ));
+        return factory;
     }
 
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
-        return new KafkaTemplate<>(adminProducerFactory());
+        var template = new KafkaTemplate<>(adminProducerFactory());
+        template.setObservationEnabled(true);
+        return template;
     }
 }
 

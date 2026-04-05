@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import gr.routify.common.web.RoutifyHeaders;
+import gr.routify.common.security.SecurityContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -89,6 +90,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // Wrap request to inject X-Auth-* headers (used by proxy to downstream services)
             requestToChain = new AuthHeadersRequestWrapper(request, claims);
 
+            // Enrich MDC for structured logging (tenantId, userId, correlationId)
+            SecurityContext.putMdc(
+                    claims.getSubject(),
+                    getClaimOrEmpty(claims, "tenantId"),
+                    request.getHeader(RoutifyHeaders.CORRELATION_ID));
+
         } catch (ExpiredJwtException e) {
             sendUnauthorized(response, "TOKEN_EXPIRED", "JWT token has expired");
             return;
@@ -103,7 +110,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // Proceed with the filter chain — any exceptions here belong to the dispatcher,
         // not to JWT validation, and must propagate normally.
-        filterChain.doFilter(requestToChain, response);
+        try {
+            filterChain.doFilter(requestToChain, response);
+        } finally {
+            SecurityContext.clearMdc();
+        }
     }
 
     private String extractToken(HttpServletRequest request) {

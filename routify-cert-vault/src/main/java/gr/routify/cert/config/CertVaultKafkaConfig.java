@@ -52,7 +52,7 @@ public class CertVaultKafkaConfig {
 
     @Bean
     public ProducerFactory<String, Object> certProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(Map.of(
+        var factory = new DefaultKafkaProducerFactory<String, Object>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,          bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,       StringSerializer.class,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,     JsonSerializer.class,
@@ -67,11 +67,14 @@ public class CertVaultKafkaConfig {
                 // bypasses @JsonSubTypes and fails with a ListenerExecutionFailedException.
                 JsonSerializer.ADD_TYPE_INFO_HEADERS,             false
         ));
+        return factory;
     }
 
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
-        return new KafkaTemplate<>(certProducerFactory());
+        var template = new KafkaTemplate<>(certProducerFactory());
+        template.setObservationEnabled(true);
+        return template;
     }
 
     // ─── Consumer (command topics from admin-api) ─────────────────────────────
@@ -97,6 +100,7 @@ public class CertVaultKafkaConfig {
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
+        factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
 }

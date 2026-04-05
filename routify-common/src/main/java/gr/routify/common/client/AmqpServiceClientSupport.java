@@ -7,7 +7,9 @@ import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
 import gr.routify.common.exception.RoutifyException;
+import gr.routify.common.observability.RoutifyMetrics;
 import gr.routify.common.web.RoutifyHeaders;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
@@ -60,6 +62,9 @@ public abstract class AmqpServiceClientSupport {
     /** Logical service name used in {@code X-From-Service} header and log messages. */
     private final String serviceName;
 
+    /** Optional metrics — when present, RPC latency is tracked per exchange. */
+    private final RoutifyMetrics metrics;
+
     /**
      * @param rabbitTemplate Spring AMQP template (must be pre-configured with reply timeout).
      * @param objectMapper   Jackson mapper shared across the application context.
@@ -70,10 +75,25 @@ public abstract class AmqpServiceClientSupport {
                                        ObjectMapper objectMapper,
                                        String exchange,
                                        String serviceName) {
+        this(rabbitTemplate, objectMapper, exchange, serviceName, null);
+    }
+
+    /**
+     * Constructor with metrics support — records RPC round-trip latency per exchange.
+     *
+     * @param metrics nullable — when present, each RPC call is timed and recorded
+     *                under {@code routify.rpc.latency{exchange=...}}.
+     */
+    protected AmqpServiceClientSupport(RabbitTemplate rabbitTemplate,
+                                       ObjectMapper objectMapper,
+                                       String exchange,
+                                       String serviceName,
+                                       RoutifyMetrics metrics) {
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper   = objectMapper;
         this.exchange       = exchange;
         this.serviceName    = serviceName;
+        this.metrics        = metrics;
     }
 
     // ─── RPC (request / reply) ────────────────────────────────────────────────
@@ -90,6 +110,7 @@ public abstract class AmqpServiceClientSupport {
      * @throws RoutifyException.GatewayError if the downstream service does not reply within the timeout.
      */
     protected final <T> T rpc(String routingKey, Object requestBody, TypeReference<T> responseType) {
+        Timer.Sample sample = metrics != null ? Timer.start() : null;
         try {
             Message request  = buildRequest(requestBody);
             Message response = rabbitTemplate.sendAndReceive(exchange, routingKey, request);
@@ -106,6 +127,10 @@ public abstract class AmqpServiceClientSupport {
             log.error("[{}] RPC failed — exchange={} rk={}: {}", serviceName, exchange, routingKey, e.getMessage(), e);
             throw new RoutifyException.GatewayError(
                     "RPC call to %s failed: %s".formatted(serviceName, e.getMessage()), e);
+        } finally {
+            if (sample != null) {
+                sample.stop(metrics.rpcTimer(exchange));
+            }
         }
     }
 
@@ -161,6 +186,7 @@ public abstract class AmqpServiceClientSupport {
     protected final <R extends QueryResponse> R rpc(String routingKey,
                                                      QueryRequest request,
                                                      Class<R> responseType) {
+        Timer.Sample sample = metrics != null ? Timer.start() : null;
         try {
             Message reply = rabbitTemplate.sendAndReceive(exchange, routingKey, buildRequest(request));
             if (reply == null) {
@@ -176,6 +202,10 @@ public abstract class AmqpServiceClientSupport {
             log.error("[{}] RPC failed — exchange={} rk={}: {}", serviceName, exchange, routingKey, e.getMessage(), e);
             throw new gr.routify.common.exception.RoutifyException.GatewayError(
                     "RPC call to %s failed: %s".formatted(serviceName, e.getMessage()), e);
+        } finally {
+            if (sample != null) {
+                sample.stop(metrics.rpcTimer(exchange));
+            }
         }
     }
 
@@ -186,6 +216,7 @@ public abstract class AmqpServiceClientSupport {
     protected final <R extends QueryResponse> R rpc(String routingKey,
                                                      CommandEvent command,
                                                      Class<R> responseType) {
+        Timer.Sample sample = metrics != null ? Timer.start() : null;
         try {
             Message reply = rabbitTemplate.sendAndReceive(exchange, routingKey, buildRequest(command));
             if (reply == null) {
@@ -201,6 +232,10 @@ public abstract class AmqpServiceClientSupport {
             log.error("[{}] RPC failed — exchange={} rk={}: {}", serviceName, exchange, routingKey, e.getMessage(), e);
             throw new gr.routify.common.exception.RoutifyException.GatewayError(
                     "RPC call to %s failed: %s".formatted(serviceName, e.getMessage()), e);
+        } finally {
+            if (sample != null) {
+                sample.stop(metrics.rpcTimer(exchange));
+            }
         }
     }
 

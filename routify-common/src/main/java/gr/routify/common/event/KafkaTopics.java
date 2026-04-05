@@ -136,7 +136,10 @@ public final class KafkaTopics {
     public static final String DLQ_AUTH_COMMANDS      = AUTH_COMMANDS      + ".DLQ";
     public static final String DLQ_CERT_COMMANDS      = CERT_COMMANDS      + ".DLQ";
 
+    /** DLQ for AI filter decision events */
+    public static final String DLQ_AI_FILTER_DECISIONS     = AI_FILTER_DECISIONS     + ".DLQ";
+
     /** DLQ for AI modification events */
-    public static final String DLQ_AI_MODIFICATION_EVENTS = AI_MODIFICATION_EVENTS + ".DLQ";
+    public static final String DLQ_AI_MODIFICATION_EVENTS  = AI_MODIFICATION_EVENTS  + ".DLQ";
 }
 

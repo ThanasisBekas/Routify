@@ -5,6 +5,7 @@ import gr.routify.common.client.AmqpServiceClientSupport;
 import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
+import gr.routify.common.observability.RoutifyMetrics;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -42,8 +43,8 @@ import java.util.Map;
 @Component
 public class AiMessagingClient extends AmqpServiceClientSupport {
 
-    public AiMessagingClient(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
-        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_AI_SERVICE, "admin-api");
+    public AiMessagingClient(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper, RoutifyMetrics metrics) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_AI_SERVICE, "admin-api", metrics);
     }
 
     // ─── AI Filter ────────────────────────────────────────────────────────────

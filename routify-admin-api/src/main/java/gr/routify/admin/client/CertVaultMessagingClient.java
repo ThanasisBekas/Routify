@@ -12,6 +12,7 @@ import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
+import gr.routify.common.observability.RoutifyMetrics;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -41,8 +42,9 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
 
     public CertVaultMessagingClient(RabbitTemplate rabbitTemplate,
                                     ObjectMapper objectMapper,
-                                    KafkaTemplate<String, Object> kafkaTemplate) {
-        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_CERT_VAULT, "admin-api");
+                                    KafkaTemplate<String, Object> kafkaTemplate,
+                                    RoutifyMetrics metrics) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_CERT_VAULT, "admin-api", metrics);
         this.kafka = new KafkaServiceClientSupport(kafkaTemplate, "admin-api") {};
     }
 

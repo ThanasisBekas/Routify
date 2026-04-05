@@ -5,6 +5,7 @@ import gr.routify.common.client.AmqpServiceClientSupport;
 import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.QueryResponse;
 import gr.routify.common.event.RabbitTopology;
+import gr.routify.common.observability.RoutifyMetrics;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -20,8 +21,8 @@ import java.util.UUID;
 @Component
 public class RouteServiceClient extends AmqpServiceClientSupport {
 
-    public RouteServiceClient(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
-        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_ROUTE_SERVICE, "admin-api");
+    public RouteServiceClient(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper, RoutifyMetrics metrics) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_ROUTE_SERVICE, "admin-api", metrics);
     }
 
     @CircuitBreaker(name = "route-service", fallbackMethod = "getRouteStatsFallback")
