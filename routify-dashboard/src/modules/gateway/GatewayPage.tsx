@@ -28,6 +28,7 @@ import { gatewayApi } from '../../api/gatewayApi'
 import { useWsStore } from '../../store/wsStore'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { cn } from '../../lib/utils'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 // ─── Tab components ───────────────────────────────────────────────────────────
 import OverviewTab        from './tabs/OverviewTab'
@@ -66,6 +67,7 @@ const TABS: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function GatewayPage() {
+  useDocumentTitle('Gateway')
   const qc = useQueryClient()
   const wsStatus = useWsStore(s => s.status)
 

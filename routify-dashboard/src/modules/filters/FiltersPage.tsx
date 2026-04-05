@@ -16,6 +16,7 @@ import FilterDefinitionForm from './FilterDefinitionForm'
 import type { FilterSummary } from '../../types'
 import { cn } from '../../lib/utils'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import {
   FILTER_REGISTRY,
   CATEGORY_ORDER,
@@ -333,6 +334,7 @@ function FilterTypeBrowser({ onCreateWithType }: { onCreateWithType: (type: stri
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function FiltersPage() {
+  useDocumentTitle('Filters')
   const qc = useQueryClient()
   const [showForm,      setShowForm]      = useState(false)
   const [editingId,     setEditingId]     = useState<string | undefined>()

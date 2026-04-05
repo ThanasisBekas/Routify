@@ -9,7 +9,9 @@
  * All UI logic lives in CertGroupsPage.
  */
 import CertGroupsPage from './CertGroupsPage'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 export default function CertVaultPage() {
+  useDocumentTitle('Certificate Vault')
   return <CertGroupsPage />
 }

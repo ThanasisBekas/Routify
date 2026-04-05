@@ -3,6 +3,7 @@ import { useAuth } from './useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { tenantsApi } from '../../api/tenantsApi'
 import { Zap, AlertCircle, Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Gauge, GitBranch, ChevronDown, Search, Building2 } from 'lucide-react'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 const FEATURES = [
   { icon: Zap,          label: 'Zero Downtime',  desc: 'Routes activate instantly via Kafka — no restarts' },
@@ -112,6 +113,7 @@ function WorkspaceDropdown({ value, onChange, inputCls }: WorkspaceDropdownProps
 // ─── Login Page ───────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
+  useDocumentTitle('Login')
   const { login }   = useAuth()
   const [username,   setUsername]   = useState('')
   const [password,   setPassword]   = useState('')

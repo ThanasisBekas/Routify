@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { auditApi } from '../../api/auditApi'
 import { useWsStore } from '../../store/wsStore'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import {
   ClipboardList, RefreshCw, Activity, Clock, Wifi, Radio,
   AlertTriangle, RotateCcw, CheckCircle2, XCircle, SkipForward,
@@ -110,6 +111,7 @@ function EmptyState({ icon: Icon, title, desc, accent = 'indigo' }: {
 }
 
 export default function AuditPage() {
+  useDocumentTitle('Audit Log')
   const [tab, setTab]                   = useState<Tab>('events')
   const [page, setPage]                 = useState(0)
   const [liveFeed, setLiveFeed]         = useState(true)

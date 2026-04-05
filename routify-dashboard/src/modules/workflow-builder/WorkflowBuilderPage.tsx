@@ -27,6 +27,7 @@ import { buildGraph, buildEmptyGraph } from './hooks/buildGraph'
 import NodePalette from './components/NodePalette'
 import WorkflowCanvas from './components/WorkflowCanvas'
 import { STATUS_CFG } from './constants/nodeMetadata'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 // ─── Clear Canvas confirmation dialog ────────────────────────────────────────
 
@@ -94,6 +95,7 @@ function ClearCanvasDialog({
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function WorkflowBuilderPage() {
+  useDocumentTitle('Route Builder')
   const { routeId } = useParams<{ routeId: string }>()
   const navigate    = useNavigate()
   const qc          = useQueryClient()

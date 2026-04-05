@@ -10,6 +10,7 @@ import {
   Building2, Plus, Loader2, AlertCircle, CheckCircle2, X,
   ShieldOff, RefreshCcw, Lock, Edit, Save, CircleDot,
 } from 'lucide-react'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 // ─── Plan badge ───────────────────────────────────────────────────────────────
 
@@ -337,6 +338,7 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
 // ─── Workspaces Page ──────────────────────────────────────────────────────────
 
 export default function WorkspacesPage() {
+  useDocumentTitle('Workspaces')
   const user           = useAuthStore(s => s.user)
   const isSuperAdmin   = user?.role === 'SUPER_ADMIN'
   const queryClient    = useQueryClient()
