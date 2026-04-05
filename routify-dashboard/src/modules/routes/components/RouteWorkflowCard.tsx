@@ -1,6 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Play, Pause, Trash2, Edit, RefreshCw, Server, Filter, CheckCircle, Terminal, Copy, Network } from 'lucide-react'
+import {
+  Play,
+  Pause,
+  Trash2,
+  Edit,
+  RefreshCw,
+  Server,
+  Filter,
+  CheckCircle,
+  Terminal,
+  Copy,
+  Network,
+} from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary } from '../../../types'
 import { STATUS_CONFIG } from '../constants/routeStatusConfig'
@@ -23,24 +35,43 @@ interface Props {
 }
 
 export default function RouteWorkflowCard({
-  route, index, onSelect, onEdit, onCurl, onClone, onActivate, onDeactivate, onDelete, isActivating, isCloning,
+  route,
+  index,
+  onSelect,
+  onEdit,
+  onCurl,
+  onClone,
+  onActivate,
+  onDeactivate,
+  onDelete,
+  isActivating,
+  isCloning,
 }: Props) {
   const sc = STATUS_CONFIG[route.status]
-  const methods = route.methods.split(',').map(m => m.trim()).filter(Boolean)
+  const methods = route.methods
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const navigate = useNavigate()
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
         'group bg-[#0d0f14] border rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer',
         'hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/[0.07]',
-        route.status === 'ACTIVE'
-          ? 'border-white/[0.08] shadow-lg shadow-emerald-500/[0.04]'
-          : 'border-white/[0.06]',
+        route.status === 'ACTIVE' ? 'border-white/[0.08] shadow-lg shadow-emerald-500/[0.04]' : 'border-white/[0.06]',
       )}
       style={{ animationDelay: `${index * 40}ms` }}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect()
+        }
+      }}
     >
       {/* ── Card Header ─────────────────────────────────────────────────────── */}
       <div className="px-4 py-3.5 border-b border-white/[0.05] flex items-start justify-between gap-3">
@@ -57,14 +88,18 @@ export default function RouteWorkflowCard({
               <h3 className="text-sm font-bold text-white truncate">{route.name}</h3>
               <span className="text-[9px] text-gray-600 font-mono shrink-0">v{route.version}</span>
             </div>
-            {route.description && (
-              <p className="text-[11px] text-gray-500 truncate">{route.description}</p>
-            )}
+            {route.description && <p className="text-[11px] text-gray-500 truncate">{route.description}</p>}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-          <span className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border', sc.color)}>
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+              sc.color,
+            )}
+          >
             {sc.icon}
             {sc.label}
           </span>
@@ -74,10 +109,15 @@ export default function RouteWorkflowCard({
       {/* ── Pipeline visualization ───────────────────────────────────────────── */}
       <div className="px-4 py-4">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-
           {/* Client */}
           <PipelineNode
-            icon={<svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>}
+            icon={
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+                <path d="M2 12h20" />
+              </svg>
+            }
             label="Client"
             color="text-indigo-400"
             bg="bg-indigo-500/10 border-indigo-500/20"
@@ -87,7 +127,9 @@ export default function RouteWorkflowCard({
 
           {/* PRE filters */}
           <div className="flex flex-col gap-1 shrink-0">
-            <div className="text-[8px] text-blue-400/70 font-bold uppercase tracking-widest text-center mb-0.5">PRE</div>
+            <div className="text-[8px] text-blue-400/70 font-bold uppercase tracking-widest text-center mb-0.5">
+              PRE
+            </div>
             {route.preFilterCount === 0 ? (
               <div className="px-2 py-1 rounded-lg bg-white/[0.03] border border-dashed border-white/10 text-[9px] text-gray-600 text-center min-w-[60px]">
                 No filters
@@ -102,10 +144,18 @@ export default function RouteWorkflowCard({
           {/* Route config */}
           <div className="shrink-0 px-2.5 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/25 min-w-[130px]">
             <div className="text-[8px] text-indigo-400/70 font-bold uppercase tracking-widest mb-1">Route Config</div>
-            <code className="text-[10px] text-indigo-300 font-mono block truncate max-w-[120px]">{route.pathPattern}</code>
+            <code className="text-[10px] text-indigo-300 font-mono block truncate max-w-[120px]">
+              {route.pathPattern}
+            </code>
             <div className="flex gap-0.5 mt-1 flex-wrap">
-              {methods.map(m => (
-                <span key={m} className={cn('text-[8px] px-1 py-0.5 rounded font-mono font-bold border', METHOD_COLORS[m] ?? METHOD_COLORS['*'])}>
+              {methods.map((m) => (
+                <span
+                  key={m}
+                  className={cn(
+                    'text-[8px] px-1 py-0.5 rounded font-mono font-bold border',
+                    METHOD_COLORS[m] ?? METHOD_COLORS['*'],
+                  )}
+                >
                   {m}
                 </span>
               ))}
@@ -129,7 +179,9 @@ export default function RouteWorkflowCard({
 
           {/* POST filters */}
           <div className="flex flex-col gap-1 shrink-0">
-            <div className="text-[8px] text-purple-400/70 font-bold uppercase tracking-widest text-center mb-0.5">POST</div>
+            <div className="text-[8px] text-purple-400/70 font-bold uppercase tracking-widest text-center mb-0.5">
+              POST
+            </div>
             {route.postFilterCount === 0 ? (
               <div className="px-2 py-1 rounded-lg bg-white/[0.03] border border-dashed border-white/10 text-[9px] text-gray-600 text-center min-w-[60px]">
                 No filters
@@ -146,24 +198,25 @@ export default function RouteWorkflowCard({
             icon={route.status === 'ACTIVE' ? <CheckCircle className="w-3.5 h-3.5" /> : null}
             label="Response"
             color={route.status === 'ACTIVE' ? 'text-emerald-400' : 'text-gray-500'}
-            bg={route.status === 'ACTIVE' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.04] border-white/10'}
+            bg={
+              route.status === 'ACTIVE' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.04] border-white/10'
+            }
           />
         </div>
       </div>
 
       {/* ── Card Footer ──────────────────────────────────────────────────────── */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className="px-4 py-2.5 border-t border-white/[0.04] flex items-center justify-between gap-2 bg-white/[0.01]"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 text-[10px] text-gray-600">
           <span className="flex items-center gap-1">
             <Filter className="w-3 h-3" />
             {route.filterCount} filter{route.filterCount !== 1 ? 's' : ''}
           </span>
-          {route.activatedAt && (
-            <span>Active since {new Date(route.activatedAt).toLocaleDateString()}</span>
-          )}
+          {route.activatedAt && <span>Active since {new Date(route.activatedAt).toLocaleDateString()}</span>}
         </div>
 
         <div className="flex items-center gap-1 relative">
@@ -174,9 +227,7 @@ export default function RouteWorkflowCard({
               title="Activate"
               className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20 border border-emerald-400/20 transition-all disabled:opacity-50"
             >
-              {isActivating
-                ? <RefreshCw className="w-3 h-3 animate-spin" />
-                : <Play className="w-3 h-3" />}
+              {isActivating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
               Activate
             </button>
           )}
@@ -219,9 +270,7 @@ export default function RouteWorkflowCard({
             title="Clone Route"
             className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-cyan-500/20 transition-all disabled:opacity-50"
           >
-            {isCloning
-              ? <RefreshCw className="w-3 h-3 animate-spin" />
-              : <Copy className="w-3 h-3" />}
+            {isCloning ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Copy className="w-3 h-3" />}
             Clone
           </button>
 
@@ -248,7 +297,10 @@ export default function RouteWorkflowCard({
               {confirmDelete && (
                 <ConfirmDeletePopover
                   routeName={route.name}
-                  onConfirm={() => { setConfirmDelete(false); onDelete() }}
+                  onConfirm={() => {
+                    setConfirmDelete(false)
+                    onDelete()
+                  }}
                   onCancel={() => setConfirmDelete(false)}
                 />
               )}

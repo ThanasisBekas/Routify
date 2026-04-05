@@ -17,7 +17,7 @@ import { useAiFilterStats, useAiFilterDecisions } from './useAiFilterStats'
 const VERDICT_COLORS: Record<string, string> = {
   ALLOW: '#34d399',
   BLOCK: '#f87171',
-  FLAG:  '#fbbf24',
+  FLAG: '#fbbf24',
 }
 
 interface Props {
@@ -31,27 +31,28 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useAiFilterStats(routeId)
   const { data: decisions, isLoading: decisionsLoading } = useAiFilterDecisions(routeId, {
-    page, size: 20, action: actionFilter || undefined,
+    page,
+    size: 20,
+    action: actionFilter || undefined,
   })
 
   if (statsLoading) return <LoadingState />
   if (statsError || !stats) return <ErrorState message="Failed to load AI filter stats" />
 
   const pieData = [
-    { name: 'ALLOW', value: stats.allowCount,    color: VERDICT_COLORS.ALLOW },
-    { name: 'BLOCK', value: stats.blockCount,    color: VERDICT_COLORS.BLOCK },
-    { name: 'FLAG',  value: stats.flagCount,     color: VERDICT_COLORS.FLAG  },
-  ].filter(d => d.value > 0)
+    { name: 'ALLOW', value: stats.allowCount, color: VERDICT_COLORS.ALLOW },
+    { name: 'BLOCK', value: stats.blockCount, color: VERDICT_COLORS.BLOCK },
+    { name: 'FLAG', value: stats.flagCount, color: VERDICT_COLORS.FLAG },
+  ].filter((d) => d.value > 0)
 
   const latencyData = [
-    { name: 'p50',  ms: Math.round(stats.avgLatencyMs) },
-    { name: 'p95',  ms: Math.round(stats.p95LatencyMs) },
-    { name: 'p99',  ms: Math.round(stats.p99LatencyMs) },
+    { name: 'p50', ms: Math.round(stats.avgLatencyMs) },
+    { name: 'p95', ms: Math.round(stats.p95LatencyMs) },
+    { name: 'p99', ms: Math.round(stats.p99LatencyMs) },
   ]
 
-  const cacheHitRate = stats.totalDecisions > 0
-    ? ((stats.cacheHitCount / stats.totalDecisions) * 100).toFixed(1)
-    : '0.0'
+  const cacheHitRate =
+    stats.totalDecisions > 0 ? ((stats.cacheHitCount / stats.totalDecisions) * 100).toFixed(1) : '0.0'
 
   return (
     <div className="space-y-6">
@@ -60,17 +61,18 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
         <h2 className="text-lg font-bold text-white">AI Filter Analytics</h2>
         {routeName && <p className="text-sm text-gray-500">{routeName}</p>}
         <p className="text-xs text-gray-600 mt-0.5">
-          {stats.totalDecisions.toLocaleString()} decisions · {stats.fallbackCount} fallbacks · {stats.from} → {stats.to}
+          {stats.totalDecisions.toLocaleString()} decisions · {stats.fallbackCount} fallbacks · {stats.from} →{' '}
+          {stats.to}
         </p>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total',     value: stats.totalDecisions, color: 'text-white' },
-          { label: 'ALLOW',     value: stats.allowCount,     color: 'text-emerald-400' },
-          { label: 'BLOCK',     value: stats.blockCount,     color: 'text-red-400' },
-          { label: 'FLAG',      value: stats.flagCount,      color: 'text-amber-400' },
+          { label: 'Total', value: stats.totalDecisions, color: 'text-white' },
+          { label: 'ALLOW', value: stats.allowCount, color: 'text-emerald-400' },
+          { label: 'BLOCK', value: stats.blockCount, color: 'text-red-400' },
+          { label: 'FLAG', value: stats.flagCount, color: 'text-amber-400' },
         ].map(({ label, value, color }) => (
           <div key={label} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
             <p className="text-[11px] text-gray-500 uppercase tracking-wider">{label}</p>
@@ -87,13 +89,15 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
               <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70}>
-                {pieData.map(d => <Cell key={d.name} fill={d.color} />)}
+                {pieData.map((d) => (
+                  <Cell key={d.name} fill={d.color} />
+                ))}
               </Pie>
-              <Tooltip formatter={(v: unknown) => typeof v === 'number' ? v.toLocaleString() : String(v ?? '')} />
+              <Tooltip formatter={(v: unknown) => (typeof v === 'number' ? v.toLocaleString() : String(v ?? ''))} />
             </PieChart>
           </ResponsiveContainer>
           <div className="flex justify-center gap-4 mt-2">
-            {pieData.map(d => (
+            {pieData.map((d) => (
               <span key={d.name} className="flex items-center gap-1 text-xs text-gray-500">
                 <span className="w-2 h-2 rounded-full" style={{ background: d.color }} />
                 {d.name}
@@ -110,7 +114,7 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} />
               <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
-              <Tooltip formatter={(v: unknown) => typeof v === 'number' ? `${v}ms` : String(v ?? '')} />
+              <Tooltip formatter={(v: unknown) => (typeof v === 'number' ? `${v}ms` : String(v ?? ''))} />
               <Bar dataKey="ms" fill="#a78bfa" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -121,7 +125,11 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Cache &amp; Reliability</p>
           <Stat label="Cache Hit Rate" value={`${cacheHitRate}%`} color="text-indigo-400" />
           <Stat label="Cache Hits" value={stats.cacheHitCount.toLocaleString()} />
-          <Stat label="Fallbacks" value={stats.fallbackCount.toLocaleString()} color={stats.fallbackCount > 0 ? 'text-amber-400' : undefined} />
+          <Stat
+            label="Fallbacks"
+            value={stats.fallbackCount.toLocaleString()}
+            color={stats.fallbackCount > 0 ? 'text-amber-400' : undefined}
+          />
           <Stat label="Avg Latency" value={`${Math.round(stats.avgLatencyMs)}ms`} />
         </div>
       </div>
@@ -131,13 +139,21 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
           <p className="text-sm font-semibold text-white">Recent Decisions</p>
           <div className="flex gap-2">
-            {(['', 'ALLOW', 'BLOCK', 'FLAG'] as const).map(a => (
-              <button key={a} type="button"
-                onClick={() => { setActionFilter(a); setPage(0) }}
-                className={cn('px-2.5 py-1 text-xs rounded-full border transition-all',
+            {(['', 'ALLOW', 'BLOCK', 'FLAG'] as const).map((a) => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => {
+                  setActionFilter(a)
+                  setPage(0)
+                }}
+                className={cn(
+                  'px-2.5 py-1 text-xs rounded-full border transition-all',
                   actionFilter === a
                     ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
-                    : 'border-white/[0.08] text-gray-500 hover:text-gray-300')}>
+                    : 'border-white/[0.08] text-gray-500 hover:text-gray-300',
+                )}
+              >
                 {a || 'All'}
               </button>
             ))}
@@ -152,17 +168,28 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
           <div className="py-12 text-center text-gray-500 text-sm">No decisions found</div>
         ) : (
           <div className="divide-y divide-white/[0.04]">
-            {decisions?.content.map(d => (
-              <div key={d.evaluationId} className="flex items-start gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors">
-                <span className={cn('mt-0.5 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border',
-                  d.action === 'BLOCK' ? 'text-red-300 bg-red-500/10 border-red-500/20'
-                  : d.action === 'FLAG' ? 'text-amber-300 bg-amber-500/10 border-amber-500/20'
-                  : 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20')}>
+            {decisions?.content.map((d) => (
+              <div
+                key={d.evaluationId}
+                className="flex items-start gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors"
+              >
+                <span
+                  className={cn(
+                    'mt-0.5 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border',
+                    d.action === 'BLOCK'
+                      ? 'text-red-300 bg-red-500/10 border-red-500/20'
+                      : d.action === 'FLAG'
+                        ? 'text-amber-300 bg-amber-500/10 border-amber-500/20'
+                        : 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20',
+                  )}
+                >
                   {d.action}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-gray-300">{d.method} {d.path}</span>
+                    <span className="font-mono text-xs text-gray-300">
+                      {d.method} {d.path}
+                    </span>
                     <span className="text-[10px] text-gray-600">{d.latencyMs}ms</span>
                     {d.cached && <span className="text-[10px] text-indigo-400">cached</span>}
                   </div>
@@ -178,11 +205,23 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
         {/* Pagination */}
         {(decisions?.totalPages ?? 0) > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
-            <button disabled={page === 0} onClick={() => setPage(p => p - 1)}
-              className="text-xs text-indigo-400 disabled:opacity-40 hover:text-indigo-300">← Prev</button>
-            <span className="text-xs text-gray-500">Page {page + 1} / {decisions?.totalPages}</span>
-            <button disabled={page + 1 >= (decisions?.totalPages ?? 0)} onClick={() => setPage(p => p + 1)}
-              className="text-xs text-indigo-400 disabled:opacity-40 hover:text-indigo-300">Next →</button>
+            <button
+              disabled={page === 0}
+              onClick={() => setPage((p) => p - 1)}
+              className="text-xs text-indigo-400 disabled:opacity-40 hover:text-indigo-300"
+            >
+              ← Prev
+            </button>
+            <span className="text-xs text-gray-500">
+              Page {page + 1} / {decisions?.totalPages}
+            </span>
+            <button
+              disabled={page + 1 >= (decisions?.totalPages ?? 0)}
+              onClick={() => setPage((p) => p + 1)}
+              className="text-xs text-indigo-400 disabled:opacity-40 hover:text-indigo-300"
+            >
+              Next →
+            </button>
           </div>
         )}
       </div>
@@ -215,4 +254,3 @@ function ErrorState({ message }: { message: string }) {
     </div>
   )
 }
-

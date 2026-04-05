@@ -38,7 +38,7 @@ export function useRealtimeQuery<T>(options: RealtimeQueryOptions<T>) {
   const result = useQuery(queryOptions)
 
   // Subscribe to the ws event stream
-  const recentEvents = useWsStore(s => s.recentEvents)
+  const recentEvents = useWsStore((s) => s.recentEvents)
   // Track last processed event id to avoid re-processing
   const lastProcessedRef = useRef<string | null>(null)
 
@@ -51,19 +51,19 @@ export function useRealtimeQuery<T>(options: RealtimeQueryOptions<T>) {
     lastProcessedRef.current = latest.id
 
     // Check if the latest event matches any of the subscribed event prefixes
-    const shouldInvalidate = wsEvents.some(key =>
-      latest.type.startsWith(key + '.') ||
-      latest.type === key ||
-      // Match the domain prefix: 'route' matches 'route.created', 'route.updated', etc.
-      key === latest.type.split('.')[0]
+    const shouldInvalidate = wsEvents.some(
+      (key) =>
+        latest.type.startsWith(key + '.') ||
+        latest.type === key ||
+        // Match the domain prefix: 'route' matches 'route.created', 'route.updated', etc.
+        key === latest.type.split('.')[0],
     )
 
     if (shouldInvalidate) {
       qc.invalidateQueries({ queryKey: Array.isArray(options.queryKey) ? options.queryKey : [options.queryKey] })
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentEvents])
 
   return result
 }
-

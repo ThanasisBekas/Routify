@@ -4,14 +4,22 @@ import type { RouteDto, RouteSummary, CreateRouteRequest, UpdateRouteRequest, At
 import { filters } from '../db'
 
 function toSummary(r: RouteDto): RouteSummary {
-  const pre  = r.filters.filter(f => f.phase === 'PRE').length
-  const post = r.filters.filter(f => f.phase === 'POST').length
+  const pre = r.filters.filter((f) => f.phase === 'PRE').length
+  const post = r.filters.filter((f) => f.phase === 'POST').length
   return {
-    id: r.id, name: r.name, description: r.description,
-    pathPattern: r.pathPattern, methods: r.methods,
-    upstreamUri: r.upstreamUri, status: r.status, version: r.version,
-    filterCount: r.filters.length, preFilterCount: pre, postFilterCount: post,
-    createdAt: r.createdAt, activatedAt: r.activatedAt,
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    pathPattern: r.pathPattern,
+    methods: r.methods,
+    upstreamUri: r.upstreamUri,
+    status: r.status,
+    version: r.version,
+    filterCount: r.filters.length,
+    preFilterCount: pre,
+    postFilterCount: post,
+    createdAt: r.createdAt,
+    activatedAt: r.activatedAt,
   }
 }
 
@@ -25,13 +33,13 @@ export const routeHandlers = [
   // ─── List (paginated) ────────────────────────────────────────────────────────
   http.get(BASE, async ({ request }) => {
     await delay(200)
-    const url    = new URL(request.url)
-    const page   = parseInt(url.searchParams.get('page') ?? '0', 10)
-    const size   = parseInt(url.searchParams.get('size') ?? '20', 10)
+    const url = new URL(request.url)
+    const page = parseInt(url.searchParams.get('page') ?? '0', 10)
+    const size = parseInt(url.searchParams.get('size') ?? '20', 10)
     const status = url.searchParams.get('status')
 
     let items = Array.from(routes.values())
-    if (status) items = items.filter(r => r.status === status)
+    if (status) items = items.filter((r) => r.status === status)
     items = items.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     return HttpResponse.json(buildPage(items.map(toSummary), page, size))
   }),
@@ -47,16 +55,24 @@ export const routeHandlers = [
   // ─── Create ──────────────────────────────────────────────────────────────────
   http.post(BASE, async ({ request }) => {
     await delay(400)
-    const body = await request.json() as CreateRouteRequest
-    const now  = new Date().toISOString()
+    const body = (await request.json()) as CreateRouteRequest
+    const now = new Date().toISOString()
     const route: RouteDto = {
-      id: genId(), tenantId: MOCK_TENANT_ID,
-      name: body.name, description: body.description,
-      pathPattern: body.pathPattern, methods: body.methods,
-      upstreamUri: body.upstreamUri, stripPrefix: body.stripPrefix,
-      status: 'DRAFT', version: 1, filters: [],
+      id: genId(),
+      tenantId: MOCK_TENANT_ID,
+      name: body.name,
+      description: body.description,
+      pathPattern: body.pathPattern,
+      methods: body.methods,
+      upstreamUri: body.upstreamUri,
+      stripPrefix: body.stripPrefix,
+      status: 'DRAFT',
+      version: 1,
+      filters: [],
       extraConfig: body.extraConfig,
-      createdBy: 'admin', createdAt: now, updatedAt: now,
+      createdBy: 'admin',
+      createdAt: now,
+      updatedAt: now,
     }
     routes.set(route.id, route)
     return HttpResponse.json(route, { status: 201 })
@@ -67,7 +83,7 @@ export const routeHandlers = [
     await delay(350)
     const route = routes.get(params.id as string)
     if (!route) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
-    const body = await request.json() as UpdateRouteRequest
+    const body = (await request.json()) as UpdateRouteRequest
     const updated: RouteDto = { ...route, ...body, updatedAt: new Date().toISOString() }
     routes.set(route.id, updated)
     return HttpResponse.json(updated)
@@ -76,7 +92,8 @@ export const routeHandlers = [
   // ─── Delete ──────────────────────────────────────────────────────────────────
   http.delete(`${BASE}/:id`, async ({ params }) => {
     await delay(300)
-    if (!routes.has(params.id as string)) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
+    if (!routes.has(params.id as string))
+      return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
     routes.delete(params.id as string)
     return new HttpResponse(null, { status: 204 })
   }),
@@ -86,8 +103,15 @@ export const routeHandlers = [
     await delay(500)
     const route = routes.get(params.id as string)
     if (!route) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
-    if (route.status === 'ACTIVE') return HttpResponse.json({ status: 409, detail: 'Route is already active' }, { status: 409 })
-    const updated: RouteDto = { ...route, status: 'ACTIVE', version: route.version + 1, activatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    if (route.status === 'ACTIVE')
+      return HttpResponse.json({ status: 409, detail: 'Route is already active' }, { status: 409 })
+    const updated: RouteDto = {
+      ...route,
+      status: 'ACTIVE',
+      version: route.version + 1,
+      activatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
     routes.set(route.id, updated)
     return HttpResponse.json(updated)
   }),
@@ -107,11 +131,17 @@ export const routeHandlers = [
     await delay(400)
     const route = routes.get(params.id as string)
     if (!route) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
-    const now   = new Date().toISOString()
+    const now = new Date().toISOString()
     const clone: RouteDto = {
-      ...route, id: genId(),
-      name: `${route.name} (Copy)`, status: 'DRAFT', version: 1,
-      filters: [...route.filters], createdAt: now, updatedAt: now, activatedAt: undefined,
+      ...route,
+      id: genId(),
+      name: `${route.name} (Copy)`,
+      status: 'DRAFT',
+      version: 1,
+      filters: [...route.filters],
+      createdAt: now,
+      updatedAt: now,
+      activatedAt: undefined,
     }
     routes.set(clone.id, clone)
     return HttpResponse.json(clone, { status: 201 })
@@ -122,14 +152,24 @@ export const routeHandlers = [
     await delay(350)
     const route = routes.get(params.routeId as string)
     if (!route) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
-    const body   = await request.json() as AttachFilterRequest
+    const body = (await request.json()) as AttachFilterRequest
     const filter = filters.get(body.filterId)
     if (!filter) return HttpResponse.json({ status: 404, detail: 'Filter not found' }, { status: 404 })
     // Remove existing attachment for same filterId if any
-    const existing = route.filters.filter(f => f.filterId !== body.filterId)
+    const existing = route.filters.filter((f) => f.filterId !== body.filterId)
     const updated: RouteDto = {
       ...route,
-      filters: [...existing, { filterId: filter.id, filterName: filter.name, filterType: filter.filterType, order: body.order, phase: body.phase, enabled: true }],
+      filters: [
+        ...existing,
+        {
+          filterId: filter.id,
+          filterName: filter.name,
+          filterType: filter.filterType,
+          order: body.order,
+          phase: body.phase,
+          enabled: true,
+        },
+      ],
       updatedAt: new Date().toISOString(),
     }
     routes.set(route.id, updated)
@@ -143,11 +183,10 @@ export const routeHandlers = [
     if (!route) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
     const updated: RouteDto = {
       ...route,
-      filters: route.filters.filter(f => f.filterId !== params.filterId),
+      filters: route.filters.filter((f) => f.filterId !== params.filterId),
       updatedAt: new Date().toISOString(),
     }
     routes.set(route.id, updated)
     return HttpResponse.json(updated)
   }),
 ]
-

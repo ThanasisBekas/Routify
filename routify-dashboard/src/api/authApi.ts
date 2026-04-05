@@ -3,9 +3,7 @@ import type { LoginResponse } from '../types'
 
 export const authApi = {
   login: (username: string, password: string, tenantSlug: string) =>
-    apiClient
-      .post<LoginResponse>('/api/v1/auth/login', { username, password, tenantSlug })
-      .then((r) => r.data),
+    apiClient.post<LoginResponse>('/api/v1/auth/login', { username, password, tenantSlug }).then((r) => r.data),
 
   /**
    * Silent refresh — no body required.
@@ -14,13 +12,9 @@ export const authApi = {
    * The browser sends the HttpOnly `refresh_token` cookie automatically.
    * A new cookie with a rotated refresh token is written by the server response.
    */
-  refresh: () =>
-    apiClient
-      .post<LoginResponse>('/api/v1/auth/refresh', {})
-      .then((r) => r.data),
+  refresh: () => apiClient.post<LoginResponse>('/api/v1/auth/refresh', {}).then((r) => r.data),
 
-  logout: () =>
-    apiClient.post('/api/v1/auth/logout').catch(() => {}),
+  logout: () => apiClient.post('/api/v1/auth/logout').catch(() => {}),
 
   /**
    * Self-service password change.

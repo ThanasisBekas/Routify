@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>gr.routify</groupId>
+        <groupId>io.routify</groupId>
         <artifactId>routify-parent</artifactId>
         <version>1.0.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -24,7 +24,7 @@
     <dependencies>
         <!-- Internal -->
         <dependency>
-            <groupId>gr.routify</groupId>
+            <groupId>io.routify</groupId>
             <artifactId>routify-common</artifactId>
         </dependency>
 
@@ -42,7 +42,8 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
+            <!-- compile scope (not runtime) — OutboxNotifyListener uses PG-specific
+                 LISTEN/NOTIFY APIs: PGConnection, PGNotification -->
         </dependency>
 
         <!-- Flyway -->
@@ -97,7 +98,29 @@
             <artifactId>jjwt-jackson</artifactId>
         </dependency>
 
+        <!-- Actuator — health, metrics, Prometheus, tracing export -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
+        <!-- Distributed Tracing — Micrometer + OTLP export to Grafana Tempo -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
+
+
+        <!-- Caching — Caffeine in-process cache for gateway snapshot -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
 
         <!-- Utilities -->
         <dependency>
@@ -110,7 +133,57 @@
             <artifactId>mapstruct</artifactId>
         </dependency>
 
+        <!-- DevTools — automatic restart on class change during local development.
+             optional=true prevents transitive propagation to dependent modules.
+             spring-boot-maven-plugin excludes this from the fat jar by default. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ─── Testing ────────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>rabbitmq</artifactId>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Integration tests (*IT.java) via maven-failsafe-plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>
 

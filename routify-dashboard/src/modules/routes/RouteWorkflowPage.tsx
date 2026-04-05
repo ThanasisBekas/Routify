@@ -14,40 +14,46 @@ import RouteListHeader from './components/RouteListHeader'
 import RouteWorkflowCard from './components/RouteWorkflowCard'
 import RoutePagination from './components/RoutePagination'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 export default function RouteWorkflowPage() {
+  useDocumentTitle('Routes')
   const qc = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<StatusFilterTab>('')
-  const [page, setPage]                 = useState(0)
-  const [formModal, setFormModal]       = useState<{ open: boolean; editingId?: string }>({ open: false })
+  const [page, setPage] = useState(0)
+  const [formModal, setFormModal] = useState<{ open: boolean; editingId?: string }>({ open: false })
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
-  const [curlRouteId, setCurlRouteId]         = useState<string | null>(null)
+  const [curlRouteId, setCurlRouteId] = useState<string | null>(null)
 
   const openCreate = () => setFormModal({ open: true, editingId: undefined })
-  const openEdit   = (id: string) => setFormModal({ open: true, editingId: id })
-  const closeForm  = () => setFormModal({ open: false })
+  const openEdit = (id: string) => setFormModal({ open: true, editingId: id })
+  const closeForm = () => setFormModal({ open: false })
 
-  const wsStatus = useWsStore(s => s.status)
+  const wsStatus = useWsStore((s) => s.status)
 
   const { data, isLoading, isFetching, refetch } = useRealtimeQuery({
     queryKey: ['routes', statusFilter, page],
-    queryFn: () => routesApi.list({
-      ...(statusFilter ? { status: statusFilter } : {}),
-      page, size: 20, sortBy: 'createdAt', sortDir: 'DESC',
-    }),
+    queryFn: () =>
+      routesApi.list({
+        ...(statusFilter ? { status: statusFilter } : {}),
+        page,
+        size: 20,
+        sortBy: 'createdAt',
+        sortDir: 'DESC',
+      }),
     wsEvents: ['route'],
   })
 
   const { data: curlRoute } = useQuery({
     queryKey: ['route', curlRouteId],
-    queryFn:  () => routesApi.get(curlRouteId!),
-    enabled:  !!curlRouteId,
+    queryFn: () => routesApi.get(curlRouteId!),
+    enabled: !!curlRouteId,
   })
 
   const { activateMutation, deactivateMutation, deleteMutation, cloneMutation } = useRouteActions()
 
-  const routes     = data?.content ?? []
-  const total      = data?.totalElements ?? 0
+  const routes = data?.content ?? []
+  const total = data?.totalElements ?? 0
   const totalPages = data?.totalPages ?? 0
 
   return (
@@ -58,7 +64,10 @@ export default function RouteWorkflowPage() {
         statusFilter={statusFilter}
         isFetching={isFetching}
         isLive={wsStatus === 'CONNECTED'}
-        onStatusFilter={s => { setStatusFilter(s); setPage(0) }}
+        onStatusFilter={(s) => {
+          setStatusFilter(s)
+          setPage(0)
+        }}
         onRefresh={() => refetch()}
         onNew={openCreate}
       />
@@ -119,16 +128,14 @@ export default function RouteWorkflowPage() {
         <RouteFormModal
           editingId={formModal.editingId}
           onClose={closeForm}
-          onSaved={() => { closeForm(); qc.invalidateQueries({ queryKey: ['routes'] }) }}
+          onSaved={() => {
+            closeForm()
+            qc.invalidateQueries({ queryKey: ['routes'] })
+          }}
         />
       )}
-      {selectedRouteId && (
-        <RouteDetailModal routeId={selectedRouteId} onClose={() => setSelectedRouteId(null)} />
-      )}
-      {curlRouteId && curlRoute && (
-        <RouteCurlModal route={curlRoute} onClose={() => setCurlRouteId(null)} />
-      )}
+      {selectedRouteId && <RouteDetailModal routeId={selectedRouteId} onClose={() => setSelectedRouteId(null)} />}
+      {curlRouteId && curlRoute && <RouteCurlModal route={curlRoute} onClose={() => setCurlRouteId(null)} />}
     </div>
   )
 }
-

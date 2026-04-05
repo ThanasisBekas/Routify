@@ -33,4 +33,3 @@ export const seedTenants: TenantDto[] = [
     createdAt: '2025-03-20T14:00:00Z',
   },
 ]
-

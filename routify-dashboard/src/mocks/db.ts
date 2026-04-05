@@ -6,16 +6,21 @@
  * the same session. Data resets on every page reload (browser refresh).
  */
 import type {
-  RouteDto, FilterDefinitionDto, UserDto, TenantDto,
-  CertificateDto, CertGroupDto,
-  GatewayConfig, GatewayLiveStatus,
+  RouteDto,
+  FilterDefinitionDto,
+  UserDto,
+  TenantDto,
+  CertificateDto,
+  CertGroupDto,
+  GatewayConfig,
+  GatewayLiveStatus,
 } from '../types'
 
-import { seedRoutes }      from './data/routes'
-import { seedFilters }     from './data/filters'
-import { seedUsers }       from './data/users'
-import { seedTenants, MOCK_TENANT_ID }     from './data/tenants'
-import { seedCerts, seedCertGroups }       from './data/certs'
+import { seedRoutes } from './data/routes'
+import { seedFilters } from './data/filters'
+import { seedUsers } from './data/users'
+import { seedTenants, MOCK_TENANT_ID } from './data/tenants'
+import { seedCerts, seedCertGroups } from './data/certs'
 import { seedAuditEvents, seedRequestLogs, seedFailedRequests, seedReplayStats } from './data/audit'
 import type { AuditEntry, RequestLogDto, FailedRequestDto, ReplayStats } from '../types'
 
@@ -34,48 +39,36 @@ export function buildPage<T>(items: T[], page = 0, size = 20) {
     size,
     page: clampedPage,
     first: clampedPage === 0,
-    last:  clampedPage >= totalPages - 1,
+    last: clampedPage >= totalPages - 1,
   }
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-export const routes = new Map<string, RouteDto>(
-  seedRoutes.map(r => [r.id, { ...r }])
-)
+export const routes = new Map<string, RouteDto>(seedRoutes.map((r) => [r.id, { ...r }]))
 
 // ─── Filters ─────────────────────────────────────────────────────────────────
 
-export const filters = new Map<string, FilterDefinitionDto>(
-  seedFilters.map(f => [f.id, { ...f }])
-)
+export const filters = new Map<string, FilterDefinitionDto>(seedFilters.map((f) => [f.id, { ...f }]))
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
-export const users = new Map<string, UserDto>(
-  seedUsers.map(u => [u.id, { ...u }])
-)
+export const users = new Map<string, UserDto>(seedUsers.map((u) => [u.id, { ...u }]))
 
 // ─── Tenants ─────────────────────────────────────────────────────────────────
 
-export const tenants = new Map<string, TenantDto>(
-  seedTenants.map(t => [t.id, { ...t }])
-)
+export const tenants = new Map<string, TenantDto>(seedTenants.map((t) => [t.id, { ...t }]))
 
 // ─── Certificates ─────────────────────────────────────────────────────────────
 
-export const certs = new Map<string, CertificateDto>(
-  seedCerts.map(c => [c.id, { ...c }])
-)
+export const certs = new Map<string, CertificateDto>(seedCerts.map((c) => [c.id, { ...c }]))
 
-export const certGroups = new Map<string, CertGroupDto>(
-  seedCertGroups.map(g => [g.id, { ...g }])
-)
+export const certGroups = new Map<string, CertGroupDto>(seedCertGroups.map((g) => [g.id, { ...g }]))
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
 
-export const auditEvents: AuditEntry[]       = [...seedAuditEvents]
-export const requestLogs: RequestLogDto[]    = [...seedRequestLogs]
+export const auditEvents: AuditEntry[] = [...seedAuditEvents]
+export const requestLogs: RequestLogDto[] = [...seedRequestLogs]
 export const failedRequests: FailedRequestDto[] = [...seedFailedRequests]
 export const replayStats: ReplayStats = { ...seedReplayStats }
 
@@ -162,43 +155,43 @@ export const gatewayConfig: GatewayConfig = {
   },
   authProviders: [
     {
-      id:        'ap-jwt-01',
-      name:      'JWT RS256 Provider',
-      type:      'JWT_VERIFY',
-      enabled:   true,
-      issuer:    'https://routify.demo',
-      audience:  'routify-dashboard',
+      id: 'ap-jwt-01',
+      name: 'JWT RS256 Provider',
+      type: 'JWT_VERIFY',
+      enabled: true,
+      issuer: 'https://routify.demo',
+      audience: 'routify-dashboard',
       algorithm: 'RS256',
-      jwksUri:   'http://identity-service:8083/.well-known/jwks.json',
+      jwksUri: 'http://identity-service:8083/.well-known/jwks.json',
     },
     {
-      id:           'ap-basic-01',
-      name:         'Basic Auth — Service Account',
-      type:         'BASIC',
-      enabled:      true,
-      username:     'svc-account',
-      password:     '••••••••',
+      id: 'ap-basic-01',
+      name: 'Basic Auth — Service Account',
+      type: 'BASIC',
+      enabled: true,
+      username: 'svc-account',
+      password: '••••••••',
     },
     {
-      id:             'ap-oauth2-cc-01',
-      name:           'OAuth2 CC — M2M Token Provider',
-      type:           'OAUTH2_CLIENT_CREDENTIALS',
-      enabled:        true,
-      uri:            'https://auth.routify.demo/oauth/token',
-      clientId:       'routify-gateway',
-      clientSecret:   '••••••••',
-      scope:          'openid profile',
+      id: 'ap-oauth2-cc-01',
+      name: 'OAuth2 CC — M2M Token Provider',
+      type: 'OAUTH2_CLIENT_CREDENTIALS',
+      enabled: true,
+      uri: 'https://auth.routify.demo/oauth/token',
+      clientId: 'routify-gateway',
+      clientSecret: '••••••••',
+      scope: 'openid profile',
     },
     {
-      id:             'ap-oauth2-introspect-01',
-      name:           'OAuth2 Introspect — Auth0',
-      type:           'OAUTH2_INTROSPECT',
-      enabled:        true,
-      uri:            'https://routify.us.auth0.com/oauth/introspect',
-      clientId:       'auth0-client-id',
-      clientSecret:   '••••••••',
+      id: 'ap-oauth2-introspect-01',
+      name: 'OAuth2 Introspect — Auth0',
+      type: 'OAUTH2_INTROSPECT',
+      enabled: true,
+      uri: 'https://routify.us.auth0.com/oauth/introspect',
+      clientId: 'auth0-client-id',
+      clientSecret: '••••••••',
       parameterStyle: 'BODY',
-      parameterName:  'token',
+      parameterName: 'token',
     },
   ],
   proxyConfig: {
@@ -224,9 +217,27 @@ export const gatewayConfig: GatewayConfig = {
     allowCrossTenantsForSuperAdmin: true,
   },
   globalFilterEntries: [
-    { filterId: 'cccccccc-0000-0000-0000-000000000005', filterName: 'Correlation ID',    filterType: 'CORRELATION_ID',  order: 1, enabled: true },
-    { filterId: 'cccccccc-0000-0000-0000-000000000004', filterName: 'Request Logger',     filterType: 'REQUEST_LOGGER',  order: 2, enabled: true },
-    { filterId: 'cccccccc-0000-0000-0000-000000000006', filterName: 'Security Headers',   filterType: 'SECURITY_HEADERS', order: 3, enabled: true },
+    {
+      filterId: 'cccccccc-0000-0000-0000-000000000005',
+      filterName: 'Correlation ID',
+      filterType: 'CORRELATION_ID',
+      order: 1,
+      enabled: true,
+    },
+    {
+      filterId: 'cccccccc-0000-0000-0000-000000000004',
+      filterName: 'Request Logger',
+      filterType: 'REQUEST_LOGGER',
+      order: 2,
+      enabled: true,
+    },
+    {
+      filterId: 'cccccccc-0000-0000-0000-000000000006',
+      filterName: 'Security Headers',
+      filterType: 'SECURITY_HEADERS',
+      order: 3,
+      enabled: true,
+    },
   ],
 }
 
@@ -234,22 +245,23 @@ export const gatewayLiveStatus: GatewayLiveStatus = {
   health: {
     status: 'UP',
     components: {
-      redis:    { status: 'UP' },
-      kafka:    { status: 'UP' },
+      redis: { status: 'UP' },
+      kafka: { status: 'UP' },
       rabbitmq: { status: 'UP' },
-      db:       { status: 'UP' },
+      db: { status: 'UP' },
     },
   },
   routes: {
-    count: seedRoutes.filter(r => r.status === 'ACTIVE').length,
-    routes: seedRoutes.filter(r => r.status === 'ACTIVE').map(r => ({ id: r.id, name: r.name, path: r.pathPattern })),
+    count: seedRoutes.filter((r) => r.status === 'ACTIVE').length,
+    routes: seedRoutes
+      .filter((r) => r.status === 'ACTIVE')
+      .map((r) => ({ id: r.id, name: r.name, path: r.pathPattern })),
   },
   circuitBreakers: {
     'payments-cb': { state: 'CLOSED', failureRate: 2.1, slowCallRate: 0, bufferedCalls: 10 },
-    'users-cb':    { state: 'CLOSED', failureRate: 0,   slowCallRate: 5, bufferedCalls: 8  },
-    'orders-cb':   { state: 'HALF_OPEN', failureRate: 55, slowCallRate: 20, bufferedCalls: 3  },
+    'users-cb': { state: 'CLOSED', failureRate: 0, slowCallRate: 5, bufferedCalls: 8 },
+    'orders-cb': { state: 'HALF_OPEN', failureRate: 55, slowCallRate: 20, bufferedCalls: 3 },
   },
 }
 
 export { MOCK_TENANT_ID }
-

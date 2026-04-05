@@ -10,7 +10,7 @@ import type {
   Page,
 } from '../types'
 
-const BASE       = '/api/v1/admin/certificates'
+const BASE = '/api/v1/admin/certificates'
 const GROUP_BASE = '/api/v1/admin/cert-groups'
 
 export const certVaultApi = {
@@ -26,15 +26,15 @@ export const certVaultApi = {
     apiClient
       .get<Page<CertificateDto>>(BASE, {
         params: {
-          status:  params.status,
-          page:    params.page   ?? 0,
-          size:    params.size   ?? 20,
-          sortBy:  params.sortBy ?? 'createdAt',
+          status: params.status,
+          page: params.page ?? 0,
+          size: params.size ?? 20,
+          sortBy: params.sortBy ?? 'createdAt',
           sortDir: params.sortDir ?? 'DESC',
         },
         headers: { 'X-Tenant-Id': params.tenantId },
       })
-      .then(r => r.data),
+      .then((r) => r.data),
 
   // ─── Get single certificate ──────────────────────────────────────────────────
   getCertificate: (id: string, tenantId: string) =>
@@ -42,8 +42,7 @@ export const certVaultApi = {
       .get<CertificateDto>(`${BASE}/${id}`, {
         headers: { 'X-Tenant-Id': tenantId },
       })
-      .then(r => r.data),
-
+      .then((r) => r.data),
 
   // ─── Vault statistics ────────────────────────────────────────────────────────
   getStats: (tenantId?: string) =>
@@ -51,7 +50,7 @@ export const certVaultApi = {
       .get<CertVaultStats>(`${BASE}/stats`, {
         headers: tenantId ? { 'X-Tenant-Id': tenantId } : {},
       })
-      .then(r => r.data),
+      .then((r) => r.data),
 
   // ─── Upload certificate ──────────────────────────────────────────────────────
   uploadCertificate: (tenantId: string, request: UploadCertificateRequest) =>
@@ -59,15 +58,19 @@ export const certVaultApi = {
       .post<{ status: string; message: string }>(BASE, request, {
         headers: { 'X-Tenant-Id': tenantId },
       })
-      .then(r => r.data),
+      .then((r) => r.data),
 
   // ─── Revoke certificate ──────────────────────────────────────────────────────
   revokeCertificate: (id: string, tenantId: string) =>
     apiClient
-      .post<{ status: string; message: string }>(`${BASE}/${id}/revoke`, {}, {
-        headers: { 'X-Tenant-Id': tenantId },
-      })
-      .then(r => r.data),
+      .post<{ status: string; message: string }>(
+        `${BASE}/${id}/revoke`,
+        {},
+        {
+          headers: { 'X-Tenant-Id': tenantId },
+        },
+      )
+      .then((r) => r.data),
 
   // ─── Delete certificate ──────────────────────────────────────────────────────
   deleteCertificate: (id: string, tenantId: string) =>
@@ -75,8 +78,7 @@ export const certVaultApi = {
       .delete<{ status: string; message: string }>(`${BASE}/${id}`, {
         headers: { 'X-Tenant-Id': tenantId },
       })
-      .then(r => r.data),
-
+      .then((r) => r.data),
 
   // ─── Certificate Groups ──────────────────────────────────────────────────────
 
@@ -92,15 +94,15 @@ export const certVaultApi = {
     apiClient
       .get<Page<CertGroupDto>>(GROUP_BASE, {
         params: {
-          status:  params.status,
-          page:    params.page   ?? 0,
-          size:    params.size   ?? 20,
-          sortBy:  params.sortBy ?? 'createdAt',
+          status: params.status,
+          page: params.page ?? 0,
+          size: params.size ?? 20,
+          sortBy: params.sortBy ?? 'createdAt',
           sortDir: params.sortDir ?? 'DESC',
         },
         headers: { 'X-Tenant-Id': params.tenantId },
       })
-      .then(r => r.data),
+      .then((r) => r.data),
 
   /** Get a single group with its member list */
   getGroup: (id: string, tenantId: string) =>
@@ -108,7 +110,7 @@ export const certVaultApi = {
       .get<CertGroupDto>(`${GROUP_BASE}/${id}`, {
         headers: { 'X-Tenant-Id': tenantId },
       })
-      .then(r => r.data),
+      .then((r) => r.data),
 
   /** Create a new certificate group */
   createGroup: (tenantId: string, request: CreateCertGroupRequest) =>
@@ -116,7 +118,7 @@ export const certVaultApi = {
       .post<{ status: string; message: string }>(GROUP_BASE, request, {
         headers: { 'X-Tenant-Id': tenantId },
       })
-      .then(r => r.data),
+      .then((r) => r.data),
 
   /** Update an existing group's alias / description */
   updateGroup: (id: string, tenantId: string, request: UpdateCertGroupRequest) =>
@@ -124,15 +126,19 @@ export const certVaultApi = {
       .put<{ status: string; message: string }>(`${GROUP_BASE}/${id}`, request, {
         headers: { 'X-Tenant-Id': tenantId },
       })
-      .then(r => r.data),
+      .then((r) => r.data),
 
   /** Archive a group (ACTIVE → ARCHIVED) */
   archiveGroup: (id: string, tenantId: string) =>
     apiClient
-      .post<{ status: string; message: string }>(`${GROUP_BASE}/${id}/archive`, {}, {
-        headers: { 'X-Tenant-Id': tenantId },
-      })
-      .then(r => r.data),
+      .post<{ status: string; message: string }>(
+        `${GROUP_BASE}/${id}/archive`,
+        {},
+        {
+          headers: { 'X-Tenant-Id': tenantId },
+        },
+      )
+      .then((r) => r.data),
 
   /** Delete a group (detaches all member certs) */
   deleteGroup: (id: string, tenantId: string) =>
@@ -140,7 +146,7 @@ export const certVaultApi = {
       .delete<{ status: string; message: string }>(`${GROUP_BASE}/${id}`, {
         headers: { 'X-Tenant-Id': tenantId },
       })
-      .then(r => r.data),
+      .then((r) => r.data),
 
   /** List all member certificates of a group */
   listGroupMembers: (groupId: string, tenantId: string) =>
@@ -148,7 +154,5 @@ export const certVaultApi = {
       .get<CertificateDto[]>(`${GROUP_BASE}/${groupId}/members`, {
         headers: { 'X-Tenant-Id': tenantId },
       })
-      .then(r => r.data),
-
+      .then((r) => r.data),
 }
-

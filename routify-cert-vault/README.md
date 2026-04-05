@@ -15,7 +15,7 @@ Encrypted certificate storage vault for the Routify platform. Stores TLS certifi
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-cert-vault` |
+| Artifact | `io.routify:routify-cert-vault` |
 | Version | `1.0.2-SNAPSHOT` |
 | Default port | `8085` |
 | Actuator port | `9085` |

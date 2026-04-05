@@ -1,6 +1,12 @@
 ---
-# Routify AI Filter & AI Modifier Prometheus Alerting Rules
+# Routify Prometheus Alerting Rules
 # Load this file by referencing it in prometheus.yml rule_files section.
+#
+# Groups:
+#   routify.ai.filter     — AI Filter LLM health (existing)
+#   routify.ai.modifier   — AI Modifier LLM health (existing)
+#   routify.platform      — circuit breakers, HikariCP, Kafka consumer lag, DLQ, service health
+#   routify.gateway       — gateway request errors, rate limiting
 
 groups:
   - name: routify.ai.filter
@@ -119,4 +125,235 @@ groups:
             The Resilience4j circuit breaker for the AI Filter LLM calls is in OPEN state.
             All filter evaluations will immediately return the configured fallback action.
             Check the LLM service health immediately.
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Platform-wide alerts — circuit breakers, database pools, Kafka, services
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  - name: routify.platform.circuitbreakers
+    rules:
+
+      # ── Admin-API: any downstream circuit breaker OPEN ───────────────────
+      - alert: AdminApiCircuitBreakerOpen
+        expr: >
+          resilience4j_circuitbreaker_state{
+            job="routify-admin-api",
+            state="open"
+          } == 1
+        for: 30s
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Admin-API circuit breaker {{ $labels.name }} is OPEN"
+          description: >
+            The Resilience4j circuit breaker '{{ $labels.name }}' on routify-admin-api
+            has tripped to OPEN state. All RPC calls to this downstream service will
+            fail-fast until the circuit transitions to half-open.
+            Downstream services: route-service, identity-service, audit-service, cert-vault, ai-service.
+
+      # ── Admin-API: circuit breaker failure rate rising ───────────────────
+      - alert: AdminApiCircuitBreakerFailureRateHigh
+        expr: >
+          resilience4j_circuitbreaker_failure_rate{job="routify-admin-api"} > 40
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Admin-API CB '{{ $labels.name }}' failure rate {{ $value }}%"
+          description: >
+            The circuit breaker '{{ $labels.name }}' on routify-admin-api has a failure
+            rate of {{ $value }}%, approaching the threshold. If this continues, the
+            circuit will open and the downstream service will become unreachable.
+
+  - name: routify.platform.database
+    rules:
+
+      # ── HikariCP: active connections > 80% of pool ──────────────────────
+      - alert: HikariCPPoolNearlyExhausted
+        expr: >
+          hikaricp_connections_active /
+          hikaricp_connections_max > 0.80
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "HikariCP pool {{ $labels.pool }} at {{ $value | humanizePercentage }} capacity"
+          description: >
+            The HikariCP connection pool '{{ $labels.pool }}' on {{ $labels.job }}
+            has {{ $value | humanizePercentage }} of its connections in use.
+            If this continues, new requests will queue waiting for connections.
+            Consider increasing `maximum-pool-size` or investigating slow queries.
+
+      # ── HikariCP: connection acquisition timeout ────────────────────────
+      - alert: HikariCPConnectionTimeouts
+        expr: >
+          rate(hikaricp_connections_timeout_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "HikariCP connection timeouts on {{ $labels.job }}"
+          description: >
+            Pool '{{ $labels.pool }}' on {{ $labels.job }} is experiencing connection
+            acquisition timeouts. Requests are being rejected due to pool exhaustion.
+            Rate: {{ $value }} timeouts/sec over 5m.
+
+  - name: routify.platform.kafka
+    rules:
+
+      # ── Kafka: consumer lag high ────────────────────────────────────────
+      # Spring Kafka exports: kafka_consumer_fetch_manager_records_lag_max
+      - alert: KafkaConsumerLagHigh
+        expr: >
+          kafka_consumer_fetch_manager_records_lag_max > 1000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Kafka consumer lag > 1000 on {{ $labels.job }} / {{ $labels.topic }}"
+          description: >
+            Consumer group on {{ $labels.job }} has a max lag of {{ $value }} records
+            for topic {{ $labels.topic }}. The service may be processing events too slowly
+            or is stuck. Check for exceptions in the consumer logs.
+
+      # ── Kafka: consumer lag critical ────────────────────────────────────
+      - alert: KafkaConsumerLagCritical
+        expr: >
+          kafka_consumer_fetch_manager_records_lag_max > 10000
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Kafka consumer lag > 10,000 on {{ $labels.job }}"
+          description: >
+            Consumer group on {{ $labels.job }} has a max lag of {{ $value }} records.
+            The service is significantly behind and may need manual intervention
+            (restart, scale-out, or partition rebalance).
+
+      # ── DLQ: records appearing on any .DLQ topic ────────────────────────
+      - alert: DlqRecordsGrowing
+        expr: >
+          sum by (job, topic) (
+            rate(kafka_consumer_fetch_manager_records_consumed_total{topic=~".*\\.DLQ"}[10m])
+          ) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "DLQ records appearing on {{ $labels.topic }}"
+          description: >
+            Records are being consumed from DLQ topic {{ $labels.topic }} on {{ $labels.job }},
+            indicating upstream consumer failures. Check the audit-service DLQ log for details
+            and replay or investigate the root cause.
+
+  - name: routify.platform.rabbitmq
+    rules:
+
+      # ── RabbitMQ: RPC reply timeouts ────────────────────────────────────
+      # Spring AMQP observation metrics: spring_rabbitmq_template_* or rabbitmq_*
+      - alert: RabbitMQReplyTimeoutsHigh
+        expr: >
+          rate(spring_rabbitmq_listener_failed_total[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "RabbitMQ listener failures on {{ $labels.job }}"
+          description: >
+            RabbitMQ listener failures are occurring at {{ $value }}/sec on {{ $labels.job }}.
+            This may indicate reply timeouts, message conversion errors, or listener exceptions.
+
+  - name: routify.platform.services
+    rules:
+
+      # ── Service: instance down (no scrape for 60s) ──────────────────────
+      - alert: RoutifyServiceDown
+        expr: >
+          up{job=~"routify-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "{{ $labels.job }} is DOWN"
+          description: >
+            Prometheus cannot scrape {{ $labels.job }} at {{ $labels.instance }}.
+            The service may have crashed or is unresponsive. Check container logs
+            and health endpoint.
+
+      # ── Service: high error rate (5xx from Spring Boot) ─────────────────
+      - alert: RoutifyHighErrorRate
+        expr: >
+          sum by (job) (
+            rate(http_server_requests_seconds_count{status=~"5.."}[5m])
+          ) /
+          sum by (job) (
+            rate(http_server_requests_seconds_count[5m])
+          ) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "{{ $labels.job }} 5xx error rate > 5%"
+          description: >
+            {{ $labels.job }} is returning HTTP 5xx errors at a rate of
+            {{ $value | humanizePercentage }}. Investigate application logs for stack traces.
+
+      # ── JVM: heap usage > 85% ──────────────────────────────────────────
+      - alert: JvmHeapUsageHigh
+        expr: >
+          jvm_memory_used_bytes{area="heap"} /
+          jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "JVM heap usage > 85% on {{ $labels.job }}"
+          description: >
+            {{ $labels.job }} heap usage is at {{ $value | humanizePercentage }}.
+            If sustained, this may cause GC pressure and eventual OOM.
+            Consider increasing -Xmx or investigating memory leaks.
+
+  - name: routify.gateway
+    rules:
+
+      # ── Gateway: auth failure spike ─────────────────────────────────────
+      - alert: GatewayAuthFailureSpike
+        expr: >
+          rate(routify_auth_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Gateway auth failures > 10/sec"
+          description: >
+            The API gateway is recording more than 10 authentication failures per second.
+            This may indicate a brute-force attack, misconfigured API keys, or expired tokens.
+            Current rate: {{ $value }}/sec.
+
+      # ── Gateway: rate-limited requests spike ────────────────────────────
+      - alert: GatewayRateLimitSpike
+        expr: >
+          rate(routify_gateway_requests_rate_limited_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Gateway rate-limited requests > 50/sec"
+          description: >
+            More than 50 requests/sec are being rate-limited by the API gateway.
+            This may be legitimate traffic or a DDoS attack.
+            Current rate: {{ $value }}/sec.
 

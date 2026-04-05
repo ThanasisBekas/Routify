@@ -20,14 +20,10 @@ export const useAiModifierStats = (routeId: string, from?: string, to?: string) 
 /**
  * TanStack Query hook for paginated AI Modifier decision log per route.
  */
-export const useAiModifierDecisions = (
-  routeId: string,
-  params?: { page?: number; size?: number },
-) =>
+export const useAiModifierDecisions = (routeId: string, params?: { page?: number; size?: number }) =>
   useQuery({
     queryKey: ['ai-modifier-decisions', routeId, params],
     queryFn: () => aiApi.listAiModifierDecisions(routeId, params),
     refetchInterval: 30_000,
     enabled: !!routeId,
   })
-

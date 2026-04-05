@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>gr.routify</groupId>
+        <groupId>io.routify</groupId>
         <artifactId>routify-parent</artifactId>
         <version>1.0.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -22,7 +22,7 @@
     <dependencies>
         <!-- Internal -->
         <dependency>
-            <groupId>gr.routify</groupId>
+            <groupId>io.routify</groupId>
             <artifactId>routify-common</artifactId>
             <exclusions>
                 <!-- Gateway is reactive (WebFlux); exclude servlet stack
@@ -127,6 +127,15 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Distributed Tracing — Micrometer + OTLP export to Grafana Tempo -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
 
 
         <!-- Jolt — JSON-to-JSON body transformation for BODY_JOLT_TRANSFORM filter -->
@@ -162,7 +171,28 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- ─── Testing ────────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Integration tests (*IT.java) via maven-failsafe-plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>
 

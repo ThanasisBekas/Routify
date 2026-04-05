@@ -10,6 +10,8 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # No default — must be supplied via REDIS_PASS environment variable.
+      password: ${REDIS_PASS:}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
@@ -54,6 +56,14 @@ management:
     export:
       prometheus:
         enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 routify:
   # HTTP URLs below are kept for future reference and external tooling only.
@@ -71,15 +81,16 @@ routify:
 
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-
-    spring.rabbitmq.password
+    spring.rabbitmq.password,
+    spring.data.redis.password
 
 
 
 logging:
   level:
-    gr.routify: DEBUG
+    io.routify: DEBUG
   pattern:
-    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] [tenant=%X{tenantId}] [user=%X{userId}] %logger{36} - %msg%n"
 
 # ─── Resilience4j — Circuit Breakers + Time Limiters (H2) ──────────────────
 # One circuit breaker instance per downstream service.
@@ -104,7 +115,13 @@ resilience4j:
         register-health-indicator: true
       audit-service:
         sliding-window-size: 20
+        # Intentionally higher than the 50% used by route/identity/cert services.
+        # Audit queries are non-critical (read-only analytics, log browsing) — a
+        # temporarily degraded audit-service should not trip the breaker as eagerly
+        # as a route-service or identity-service failure would.
         failure-rate-threshold: 60
+        # Shorter open-state wait (10s vs 15s for others) — recover faster since
+        # audit failures are transient and the service has no write-side coupling.
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
@@ -116,6 +133,18 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
         register-health-indicator: true
+      # AI service — LLM-backed calls have higher latency than DB-backed services.
+      # Separate instance so a stuck OpenAI call doesn't block the admin-api thread pool.
+      ai-service:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        # Slow-call tracking: OpenAI gpt-4o-mini p99 ~2s; flag >5s as slow (same as ai-service's own CB)
+        slow-call-duration-threshold: 5s
+        slow-call-rate-threshold: 80
+        register-health-indicator: true
   timelimiter:
     instances:
       route-service:
@@ -126,3 +155,6 @@ resilience4j:
         timeout-duration: 5s
       cert-vault:
         timeout-duration: 5s
+      # AI service — 10s hard cap matches the ai-service's own OpenAI timeout.
+      ai-service:
+        timeout-duration: 10s

@@ -39,10 +39,10 @@ ENV JAVA_OPTS="\
   -Dspring.threads.virtual.enabled=true \
 "
 
-EXPOSE 8086
+EXPOSE 8086 9086
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=3 \
-  CMD wget -qO- http://localhost:8086/actuator/health || exit 1
+  CMD wget -qO- http://localhost:9086/actuator/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 

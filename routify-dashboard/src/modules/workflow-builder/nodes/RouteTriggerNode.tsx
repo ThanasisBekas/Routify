@@ -13,8 +13,8 @@ import { cn } from '../../../lib/utils'
 import type { RouteNodeData } from '../hooks/buildGraph'
 
 const STATUS_ICON = {
-  ACTIVE:   <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />,
-  DRAFT:    <Clock className="w-3.5 h-3.5 text-amber-400" />,
+  ACTIVE: <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />,
+  DRAFT: <Clock className="w-3.5 h-3.5 text-amber-400" />,
   DISABLED: <Pause className="w-3.5 h-3.5 text-gray-400" />,
   ARCHIVED: <Archive className="w-3.5 h-3.5 text-red-400" />,
 } as const
@@ -27,11 +27,11 @@ const STATUS_COLOR = {
 } as const
 
 const METHOD_BADGE: Record<string, string> = {
-  GET:    'bg-blue-500/15 text-blue-300 border-blue-500/25',
-  POST:   'bg-green-500/15 text-green-300 border-green-500/25',
-  PUT:    'bg-amber-500/15 text-amber-300 border-amber-500/25',
+  GET: 'bg-blue-500/15 text-blue-300 border-blue-500/25',
+  POST: 'bg-green-500/15 text-green-300 border-green-500/25',
+  PUT: 'bg-amber-500/15 text-amber-300 border-amber-500/25',
   DELETE: 'bg-red-500/15 text-red-300 border-red-500/25',
-  PATCH:  'bg-purple-500/15 text-purple-300 border-purple-500/25',
+  PATCH: 'bg-purple-500/15 text-purple-300 border-purple-500/25',
 }
 
 export function RouteTriggerNode({ data, selected }: NodeProps) {
@@ -46,6 +46,8 @@ export function RouteTriggerNode({ data, selected }: NodeProps) {
      * stays clipped to the card boundary.
      */
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
         'group relative px-4 py-3.5 bg-[#111318] rounded-xl shadow-2xl min-w-[230px] transition-all duration-150',
         'border-2',
@@ -54,6 +56,12 @@ export function RouteTriggerNode({ data, selected }: NodeProps) {
           : 'border-indigo-500/40 hover:border-indigo-400/70 shadow-indigo-500/10',
       )}
       onClick={() => d.onSelect?.()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          d.onSelect?.()
+        }
+      }}
     >
       {/* Subtle radial glow wash — gives the card depth without being garish */}
       <div className="absolute inset-0 bg-indigo-500/[0.04] rounded-xl pointer-events-none" />
@@ -126,4 +134,3 @@ export function RouteTriggerNode({ data, selected }: NodeProps) {
     </div>
   )
 }
-

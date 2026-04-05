@@ -2,13 +2,27 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useAuth } from './useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { tenantsApi } from '../../api/tenantsApi'
-import { Zap, AlertCircle, Eye, EyeOff, ArrowRight, Loader2, ShieldCheck, Gauge, GitBranch, ChevronDown, Search, Building2 } from 'lucide-react'
+import {
+  Zap,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Loader2,
+  ShieldCheck,
+  Gauge,
+  GitBranch,
+  ChevronDown,
+  Search,
+  Building2,
+} from 'lucide-react'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 const FEATURES = [
-  { icon: Zap,          label: 'Zero Downtime',  desc: 'Routes activate instantly via Kafka — no restarts' },
-  { icon: ShieldCheck,  label: 'Filter Chain',   desc: 'JWT, API Key, Rate Limit, Transform and more' },
-  { icon: Gauge,        label: 'Live Dashboard', desc: 'Real-time events via Server-Sent Events' },
-  { icon: GitBranch,    label: 'Hot Reload',     desc: 'Dynamic routing without gateway restart' },
+  { icon: Zap, label: 'Zero Downtime', desc: 'Routes activate instantly via Kafka — no restarts' },
+  { icon: ShieldCheck, label: 'Filter Chain', desc: 'JWT, API Key, Rate Limit, Transform and more' },
+  { icon: Gauge, label: 'Live Dashboard', desc: 'Real-time events via Server-Sent Events' },
+  { icon: GitBranch, label: 'Hot Reload', desc: 'Dynamic routing without gateway restart' },
 ]
 
 // ─── Workspace Dropdown ───────────────────────────────────────────────────────
@@ -20,9 +34,9 @@ interface WorkspaceDropdownProps {
 }
 
 function WorkspaceDropdown({ value, onChange, inputCls }: WorkspaceDropdownProps) {
-  const [open, setOpen]     = useState(false)
+  const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const containerRef        = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const { data: workspaces = [], isLoading } = useQuery({
     queryKey: ['workspaces'],
@@ -31,11 +45,10 @@ function WorkspaceDropdown({ value, onChange, inputCls }: WorkspaceDropdownProps
   })
 
   const filtered = workspaces.filter(
-    w => w.name.toLowerCase().includes(search.toLowerCase()) ||
-         w.slug.toLowerCase().includes(search.toLowerCase()),
+    (w) => w.name.toLowerCase().includes(search.toLowerCase()) || w.slug.toLowerCase().includes(search.toLowerCase()),
   )
 
-  const selected = workspaces.find(w => w.slug === value)
+  const selected = workspaces.find((w) => w.slug === value)
 
   // Close on outside click
   useEffect(() => {
@@ -52,19 +65,24 @@ function WorkspaceDropdown({ value, onChange, inputCls }: WorkspaceDropdownProps
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className={`${inputCls} flex items-center justify-between gap-2 text-left`}
       >
         <span className="flex items-center gap-2 min-w-0">
           <Building2 className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-          {isLoading
-            ? <span className="text-gray-600">Loading workspaces…</span>
-            : selected
-              ? <span className="truncate">{selected.name} <span className="text-gray-500">({selected.slug})</span></span>
-              : <span className="text-gray-600">{value || 'Select workspace…'}</span>
-          }
+          {isLoading ? (
+            <span className="text-gray-600">Loading workspaces…</span>
+          ) : selected ? (
+            <span className="truncate">
+              {selected.name} <span className="text-gray-500">({selected.slug})</span>
+            </span>
+          ) : (
+            <span className="text-gray-600">{value || 'Select workspace…'}</span>
+          )}
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {open && (
@@ -76,32 +94,35 @@ function WorkspaceDropdown({ value, onChange, inputCls }: WorkspaceDropdownProps
               type="text"
               autoFocus
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search workspaces…"
               className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 outline-none"
             />
           </div>
           {/* Options */}
           <div className="max-h-48 overflow-y-auto py-1">
-            {filtered.length === 0
-              ? <p className="px-4 py-3 text-sm text-gray-600">No workspaces found.</p>
-              : filtered.map(w => (
-                  <button
-                    key={w.slug}
-                    type="button"
-                    onClick={() => { onChange(w.slug); setOpen(false); setSearch('') }}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors ${
-                      w.slug === value
-                        ? 'bg-indigo-500/10 text-indigo-300'
-                        : 'text-gray-300 hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <Building2 className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                    <span className="flex-1 truncate">{w.name}</span>
-                    <code className="text-[11px] text-gray-500 font-mono">{w.slug}</code>
-                  </button>
-                ))
-            }
+            {filtered.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-gray-600">No workspaces found.</p>
+            ) : (
+              filtered.map((w) => (
+                <button
+                  key={w.slug}
+                  type="button"
+                  onClick={() => {
+                    onChange(w.slug)
+                    setOpen(false)
+                    setSearch('')
+                  }}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors ${
+                    w.slug === value ? 'bg-indigo-500/10 text-indigo-300' : 'text-gray-300 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                  <span className="flex-1 truncate">{w.name}</span>
+                  <code className="text-[11px] text-gray-500 font-mono">{w.slug}</code>
+                </button>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -112,13 +133,14 @@ function WorkspaceDropdown({ value, onChange, inputCls }: WorkspaceDropdownProps
 // ─── Login Page ───────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
-  const { login }   = useAuth()
-  const [username,   setUsername]   = useState('')
-  const [password,   setPassword]   = useState('')
+  useDocumentTitle('Login')
+  const { login } = useAuth()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [tenantSlug, setTenantSlug] = useState('')
-  const [showPass,   setShowPass]   = useState(false)
-  const [error,      setError]      = useState<string | null>(null)
-  const [loading,    setLoading]    = useState(false)
+  const [showPass, setShowPass] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -134,7 +156,8 @@ export default function LoginPage() {
     }
   }
 
-  const inputCls = "w-full bg-white/[0.05] border border-white/[0.09] rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+  const inputCls =
+    'w-full bg-white/[0.05] border border-white/[0.09] rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all'
 
   return (
     <div className="min-h-screen flex bg-[#080a0f]">
@@ -165,15 +188,20 @@ export default function LoginPage() {
             Spring Cloud Gateway
           </div>
           <h2 className="text-3xl font-bold text-white leading-tight mb-4 tracking-tight">
-            Zero-downtime API<br />routing, your way.
+            Zero-downtime API
+            <br />
+            routing, your way.
           </h2>
           <p className="text-gray-500 text-sm leading-relaxed mb-8">
-            Create routes, attach auth/rate-limit/transform filters, and activate them
-            instantly with zero downtime — powered by Kafka hot-reload.
+            Create routes, attach auth/rate-limit/transform filters, and activate them instantly with zero downtime —
+            powered by Kafka hot-reload.
           </p>
           <div className="space-y-3">
-            {FEATURES.map(f => (
-              <div key={f.label} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+            {FEATURES.map((f) => (
+              <div
+                key={f.label}
+                className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.05]"
+              >
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center shrink-0">
                   <f.icon className="w-3.5 h-3.5 text-indigo-400" />
                 </div>
@@ -190,7 +218,6 @@ export default function LoginPage() {
       {/* Right — login form */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-[400px]">
-
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-8 justify-center">
             <div className="relative w-9 h-9">
@@ -219,22 +246,37 @@ export default function LoginPage() {
             {/* Username */}
             <div className={`space-y-1.5 transition-opacity ${!tenantSlug ? 'opacity-40 pointer-events-none' : ''}`}>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Username</label>
-              <input type="text" required autoFocus value={username} onChange={e => setUsername(e.target.value)}
+              <input
+                type="text"
+                required
+                autoFocus
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={!tenantSlug}
-                className={inputCls} placeholder="admin" />
+                className={inputCls}
+                placeholder="admin"
+              />
             </div>
 
             {/* Password */}
             <div className={`space-y-1.5 transition-opacity ${!tenantSlug ? 'opacity-40 pointer-events-none' : ''}`}>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
               <div className="relative">
-                <input type={showPass ? 'text' : 'password'} required value={password}
-                  onChange={e => setPassword(e.target.value)}
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   disabled={!tenantSlug}
-                  className={`${inputCls} pr-12`} placeholder="••••••••" />
-                <button type="button" onClick={() => setShowPass(v => !v)}
+                  className={`${inputCls} pr-12`}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass((v) => !v)}
                   disabled={!tenantSlug}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-gray-500 hover:text-gray-300 transition-colors">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-gray-500 hover:text-gray-300 transition-colors"
+                >
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -249,12 +291,20 @@ export default function LoginPage() {
             )}
 
             {/* Submit */}
-            <button type="submit" disabled={loading || !tenantSlug}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35 mt-2">
-              {loading
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</>
-                : <>Sign in <ArrowRight className="w-4 h-4" /></>
-              }
+            <button
+              type="submit"
+              disabled={loading || !tenantSlug}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35 mt-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Signing in…
+                </>
+              ) : (
+                <>
+                  Sign in <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 

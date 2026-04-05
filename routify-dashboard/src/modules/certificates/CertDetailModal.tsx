@@ -3,7 +3,7 @@ import { X, ShieldCheck, CheckCircle2, AlertTriangle, XCircle, Link, Link2Off, K
 import { cn } from '../../lib/utils'
 
 interface Props {
-  cert:    CertificateDto
+  cert: CertificateDto
   onClose: () => void
 }
 
@@ -20,22 +20,28 @@ function Row({ label, value }: { label: string; value?: React.ReactNode }) {
 function formatDate(iso?: string) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
 export default function CertDetailModal({ cert, onClose }: Props) {
-  const expiryColor = {
-    VALID:         'text-emerald-400',
-    EXPIRING_SOON: 'text-amber-400',
-    EXPIRED:       'text-red-400',
-  }[cert.expiryStatus] ?? 'text-gray-400'
+  const expiryColor =
+    {
+      VALID: 'text-emerald-400',
+      EXPIRING_SOON: 'text-amber-400',
+      EXPIRED: 'text-red-400',
+    }[cert.expiryStatus] ?? 'text-gray-400'
 
-  const ExpiryIcon = {
-    VALID:         CheckCircle2,
-    EXPIRING_SOON: AlertTriangle,
-    EXPIRED:       XCircle,
-  }[cert.expiryStatus] ?? CheckCircle2
+  const ExpiryIcon =
+    {
+      VALID: CheckCircle2,
+      EXPIRING_SOON: AlertTriangle,
+      EXPIRED: XCircle,
+    }[cert.expiryStatus] ?? CheckCircle2
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -51,7 +57,10 @@ export default function CertDetailModal({ cert, onClose }: Props) {
               <p className="text-xs text-gray-500 font-mono mt-0.5">{cert.logicalId}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-white/[0.06] text-gray-500 hover:text-white transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -60,16 +69,27 @@ export default function CertDetailModal({ cert, onClose }: Props) {
         <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6">
           {/* Status badges */}
           <div className="flex items-center gap-3">
-            <span className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border',
-              cert.status === 'ACTIVE'  ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' :
-              cert.status === 'REVOKED' ? 'text-red-400 bg-red-400/10 border-red-400/20' :
-              cert.status === 'EXPIRED' ? 'text-orange-400 bg-orange-400/10 border-orange-400/20' :
-              'text-gray-500 bg-gray-500/10 border-gray-500/20'
-            )}>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border',
+                cert.status === 'ACTIVE'
+                  ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20'
+                  : cert.status === 'REVOKED'
+                    ? 'text-red-400 bg-red-400/10 border-red-400/20'
+                    : cert.status === 'EXPIRED'
+                      ? 'text-orange-400 bg-orange-400/10 border-orange-400/20'
+                      : 'text-gray-500 bg-gray-500/10 border-gray-500/20',
+              )}
+            >
               {cert.status}
             </span>
-            <span className={cn('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border', expiryColor, 'bg-white/[0.03] border-white/[0.08]')}>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border',
+                expiryColor,
+                'bg-white/[0.03] border-white/[0.08]',
+              )}
+            >
               <ExpiryIcon className="w-3.5 h-3.5" />
               {cert.expiryStatus.replace('_', ' ')}
             </span>
@@ -88,20 +108,21 @@ export default function CertDetailModal({ cert, onClose }: Props) {
           <div>
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Certificate Details</h3>
             <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] px-4">
-              <Row label="Subject DN"       value={cert.subjectDn} />
-              <Row label="Issuer DN"        value={cert.issuerDn} />
-              <Row label="Serial Number"    value={cert.serialNumber} />
-              <Row label="Valid From"       value={formatDate(cert.notBefore)} />
-              <Row label="Valid Until"      value={formatDate(cert.notAfter)} />
-              <Row label="Signature Alg"    value={cert.signatureAlg} />
-              <Row label="Key Algorithm"    value={cert.keyAlgorithm ? `${cert.keyAlgorithm}${cert.keySize ? ` ${cert.keySize}-bit` : ''}` : undefined} />
-              <Row label="Is CA"            value={cert.isCa ? 'Yes' : 'No'} />
-              {cert.sanDns && cert.sanDns.length > 0 && (
-                <Row label="SAN (DNS)"      value={cert.sanDns.join(', ')} />
-              )}
-              {cert.sanIp && cert.sanIp.length > 0 && (
-                <Row label="SAN (IP)"       value={cert.sanIp.join(', ')} />
-              )}
+              <Row label="Subject DN" value={cert.subjectDn} />
+              <Row label="Issuer DN" value={cert.issuerDn} />
+              <Row label="Serial Number" value={cert.serialNumber} />
+              <Row label="Valid From" value={formatDate(cert.notBefore)} />
+              <Row label="Valid Until" value={formatDate(cert.notAfter)} />
+              <Row label="Signature Alg" value={cert.signatureAlg} />
+              <Row
+                label="Key Algorithm"
+                value={
+                  cert.keyAlgorithm ? `${cert.keyAlgorithm}${cert.keySize ? ` ${cert.keySize}-bit` : ''}` : undefined
+                }
+              />
+              <Row label="Is CA" value={cert.isCa ? 'Yes' : 'No'} />
+              {cert.sanDns && cert.sanDns.length > 0 && <Row label="SAN (DNS)" value={cert.sanDns.join(', ')} />}
+              {cert.sanIp && cert.sanIp.length > 0 && <Row label="SAN (IP)" value={cert.sanIp.join(', ')} />}
             </div>
           </div>
 
@@ -110,7 +131,7 @@ export default function CertDetailModal({ cert, onClose }: Props) {
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Fingerprints</h3>
               <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] px-4">
-                <Row label="SHA-1"   value={cert.fingerprintSha1} />
+                <Row label="SHA-1" value={cert.fingerprintSha1} />
                 <Row label="SHA-256" value={cert.fingerprintSha256} />
               </div>
             </div>
@@ -131,8 +152,8 @@ export default function CertDetailModal({ cert, onClose }: Props) {
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-600">
-                    This certificate is loaded into the gateway's in-memory TLS registry under this logical ID.
-                    Use the <code className="text-gray-500">CertRotation</code> filter on routes to enforce it.
+                    This certificate is loaded into the gateway's in-memory TLS registry under this logical ID. Use the{' '}
+                    <code className="text-gray-500">CertRotation</code> filter on routes to enforce it.
                   </p>
                 </div>
               ) : (
@@ -148,9 +169,12 @@ export default function CertDetailModal({ cert, onClose }: Props) {
           <div>
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Metadata</h3>
             <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] px-4">
-              <Row label="Uploaded by"  value={cert.uploadedBy} />
-              <Row label="Uploaded at"  value={formatDate(cert.createdAt)} />
-              <Row label="Updated at"   value={cert.updatedAt !== cert.createdAt ? formatDate(cert.updatedAt) : undefined} />
+              <Row label="Uploaded by" value={cert.uploadedBy} />
+              <Row label="Uploaded at" value={formatDate(cert.createdAt)} />
+              <Row
+                label="Updated at"
+                value={cert.updatedAt !== cert.createdAt ? formatDate(cert.updatedAt) : undefined}
+              />
             </div>
           </div>
         </div>
@@ -168,4 +192,3 @@ export default function CertDetailModal({ cert, onClose }: Props) {
     </div>
   )
 }
-

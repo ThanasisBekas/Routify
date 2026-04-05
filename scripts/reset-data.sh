@@ -78,6 +78,7 @@ VOLUMES=(
   "routify_redis_data"
   "routify_kafka_data"
   "routify_rabbitmq_data"
+  "routify_tempo_data"
 )
 
 if [[ "$SKIP_GRAFANA" == false ]]; then

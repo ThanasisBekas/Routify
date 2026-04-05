@@ -34,13 +34,11 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
 
-      setTokens: (accessToken) =>
-        set({ accessToken, isAuthenticated: true }),
+      setTokens: (accessToken) => set({ accessToken, isAuthenticated: true }),
 
       setUser: (user) => set({ user }),
 
-      logout: () =>
-        set({ accessToken: null, user: null, isAuthenticated: false }),
+      logout: () => set({ accessToken: null, user: null, isAuthenticated: false }),
     }),
     {
       name: 'routify-auth',

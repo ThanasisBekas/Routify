@@ -17,9 +17,7 @@ import type { Node, Edge } from '@xyflow/react'
 import { inferExecutionOrder } from '../hooks/buildGraph'
 
 /** Node types that may only appear once on the canvas (non-filter structural nodes) */
-export const SINGLE_USE_NODE_TYPES = new Set([
-  'clientNode', 'routeNode', 'upstreamNode', 'responseNode',
-])
+export const SINGLE_USE_NODE_TYPES = new Set(['clientNode', 'routeNode', 'upstreamNode', 'responseNode'])
 
 /** Route status values that lock the canvas against edits */
 const LOCKED_STATUSES = new Set(['ACTIVE'])
@@ -86,7 +84,10 @@ export interface WorkflowState {
 }
 
 /** Derive which single-use node types are present, filter types in use, and filter count */
-function deriveTracking(nodes: Node[], edges: Edge[]): {
+function deriveTracking(
+  nodes: Node[],
+  edges: Edge[],
+): {
   usedNodeTypes: Set<string>
   filterCount: number
   executionOrder: string[]
@@ -94,7 +95,7 @@ function deriveTracking(nodes: Node[], edges: Edge[]): {
   const usedNodeTypes = new Set<string>()
   let filterCount = 0
 
-  nodes.forEach(n => {
+  nodes.forEach((n) => {
     if (SINGLE_USE_NODE_TYPES.has(n.type ?? '')) {
       usedNodeTypes.add(n.type!)
     }
@@ -108,7 +109,7 @@ function deriveTracking(nodes: Node[], edges: Edge[]): {
 
   // Derive execution order from graph topology
   const inferred = inferExecutionOrder(nodes, edges)
-  const executionOrder = inferred.map(e => e.nodeId)
+  const executionOrder = inferred.map((e) => e.nodeId)
 
   return { usedNodeTypes, filterCount, executionOrder }
 }
@@ -152,7 +153,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       edges,
       isDirty: true,
       // Recompute execution order when edges change (phase/order may shift)
-      executionOrder: inferExecutionOrder(state.nodes, edges).map(e => e.nodeId),
+      executionOrder: inferExecutionOrder(state.nodes, edges).map((e) => e.nodeId),
     }))
   },
 
@@ -160,10 +161,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     // Log node info on selection for debugging
     if (id !== null) {
       const { nodes, edges } = get()
-      const node = nodes.find(n => n.id === id)
+      const node = nodes.find((n) => n.id === id)
       if (node?.type === 'filterNode') {
         const inferred = inferExecutionOrder(nodes, edges)
-        const entry = inferred.find(e => e.nodeId === id)
+        const entry = inferred.find((e) => e.nodeId === id)
         console.log('[WorkflowBuilder] Node selected:', {
           nodeId: id,
           nodeType: node.type,
@@ -178,17 +179,18 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   markDirty: () => set({ isDirty: true }),
   markClean: () => set({ isDirty: false }),
 
-  resetCanvas: () => set({
-    nodes: [],
-    edges: [],
-    selectedNodeId: null,
-    isDirty: false,
-    routeId: null,
-    routeStatus: null,
-    usedNodeTypes: new Set(),
-    filterCount: 0,
-    executionOrder: [],
-  }),
+  resetCanvas: () =>
+    set({
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+      isDirty: false,
+      routeId: null,
+      routeStatus: null,
+      usedNodeTypes: new Set(),
+      filterCount: 0,
+      executionOrder: [],
+    }),
 
   clearCanvas: () => {
     const { routeId, routeStatus } = get()
@@ -211,7 +213,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   initFromGraph: (routeId, routeStatus, nodes, edges) =>
     set({
-      nodes, edges, routeId, routeStatus, isDirty: false, selectedNodeId: null,
+      nodes,
+      edges,
+      routeId,
+      routeStatus,
+      isDirty: false,
+      selectedNodeId: null,
       ...deriveTracking(nodes, edges),
     }),
 
