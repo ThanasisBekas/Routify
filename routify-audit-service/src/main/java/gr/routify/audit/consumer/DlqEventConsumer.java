@@ -54,7 +54,8 @@ public class DlqEventConsumer {
                     KafkaTopics.DLQ_USER_COMMANDS,
                     KafkaTopics.DLQ_TENANT_COMMANDS,
                     KafkaTopics.DLQ_AUTH_COMMANDS,
-                    KafkaTopics.DLQ_CERT_COMMANDS
+                    KafkaTopics.DLQ_CERT_COMMANDS,
+                    KafkaTopics.DLQ_AI_MODIFICATION_EVENTS
             },
             groupId = "routify-audit-dlq",
             containerFactory = "dlqListenerContainerFactory"

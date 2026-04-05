@@ -3,9 +3,8 @@ import { useMutation } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import type { CertGroupDto, UploadCertificateRequest } from '../../types'
 import { X, Upload, Loader2, AlertCircle, Layers, CheckCircle2, Info, Eye, EyeOff } from 'lucide-react'
-import { extractApiError } from '../../lib/errorUtils'
+import { cn, extractApiError } from '../../lib/utils'
 import { Select } from '../../components/ui/Select'
-import { cn } from '../../lib/utils'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
 interface Props {

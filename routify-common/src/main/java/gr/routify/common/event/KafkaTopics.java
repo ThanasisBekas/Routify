@@ -53,8 +53,6 @@ public final class KafkaTopics {
      */
     public static final String AI_MODIFICATION_EVENTS = "routify.ai.modification.events";
 
-    /** Dead letter queue for failed event processing */
-    public static final String DLQ = "routify.dlq";
 
     // ─── Admin-API Command Topics ─────────────────────────────────────────────
     // Commands are published by routify-admin-api and consumed by the owning service.
