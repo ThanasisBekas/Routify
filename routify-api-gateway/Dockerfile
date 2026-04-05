@@ -18,7 +18,7 @@ WORKDIR /app
 COPY --from=build /build/routify-api-gateway/target/*.jar app.jar
 # Gateway uses WebFlux (Netty) — no virtual threads needed
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseZGC -XX:+ZGenerational --enable-preview"
-EXPOSE 8080
+EXPOSE 8080 9080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:8080/actuator/health || exit 1
+  CMD wget -qO- http://localhost:9080/actuator/health || exit 1
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

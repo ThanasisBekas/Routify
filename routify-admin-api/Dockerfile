@@ -17,8 +17,8 @@ USER routify
 WORKDIR /app
 COPY --from=build /build/routify-admin-api/target/*.jar app.jar
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseZGC -XX:+ZGenerational --enable-preview -Dspring.threads.virtual.enabled=true"
-EXPOSE 8082
+EXPOSE 8082 9082
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:8082/actuator/health || exit 1
+  CMD wget -qO- http://localhost:9082/actuator/health || exit 1
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 
