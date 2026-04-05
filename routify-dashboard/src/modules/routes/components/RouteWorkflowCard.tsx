@@ -32,6 +32,8 @@ export default function RouteWorkflowCard({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
         'group bg-[#0d0f14] border rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer',
         'hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/[0.07]',
@@ -41,6 +43,7 @@ export default function RouteWorkflowCard({
       )}
       style={{ animationDelay: `${index * 40}ms` }}
       onClick={onSelect}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect() } }}
     >
       {/* ── Card Header ─────────────────────────────────────────────────────── */}
       <div className="px-4 py-3.5 border-b border-white/[0.05] flex items-start justify-between gap-3">
@@ -63,6 +66,7 @@ export default function RouteWorkflowCard({
           </div>
         </div>
 
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
         <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
           <span className={cn('inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border', sc.color)}>
             {sc.icon}
@@ -152,6 +156,7 @@ export default function RouteWorkflowCard({
       </div>
 
       {/* ── Card Footer ──────────────────────────────────────────────────────── */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className="px-4 py-2.5 border-t border-white/[0.04] flex items-center justify-between gap-2 bg-white/[0.01]"
         onClick={e => e.stopPropagation()}

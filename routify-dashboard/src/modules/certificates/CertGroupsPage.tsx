@@ -253,7 +253,10 @@ function GroupCard({
 }) {
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect() } }}
       className={cn(
         'relative rounded-xl border p-4 cursor-pointer transition-all group',
         isSelected

@@ -46,6 +46,8 @@ export function RouteTriggerNode({ data, selected }: NodeProps) {
      * stays clipped to the card boundary.
      */
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
         'group relative px-4 py-3.5 bg-[#111318] rounded-xl shadow-2xl min-w-[230px] transition-all duration-150',
         'border-2',
@@ -54,6 +56,7 @@ export function RouteTriggerNode({ data, selected }: NodeProps) {
           : 'border-indigo-500/40 hover:border-indigo-400/70 shadow-indigo-500/10',
       )}
       onClick={() => d.onSelect?.()}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); d.onSelect?.() } }}
     >
       {/* Subtle radial glow wash — gives the card depth without being garish */}
       <div className="absolute inset-0 bg-indigo-500/[0.04] rounded-xl pointer-events-none" />
