@@ -1,0 +1,14 @@
+# Dockerfile.ci — Lean CI image for routify-admin-api
+# Expects the JAR to already be built: mvn package -pl routify-admin-api -am -DskipTests
+# Usage: docker build -f routify-admin-api/Dockerfile.ci routify-admin-api/
+FROM eclipse-temurin:21-jre-alpine
+RUN addgroup -S routify && adduser -S routify -G routify
+USER routify
+WORKDIR /app
+COPY target/*.jar app.jar
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseZGC -XX:+ZGenerational --enable-preview -Dspring.threads.virtual.enabled=true"
+EXPOSE 8082 9082
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:9082/actuator/health || exit 1
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+

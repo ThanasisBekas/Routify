@@ -1,16 +1,11 @@
-FROM eclipse-temurin:21-jdk-alpine AS build
-WORKDIR /app
-RUN apk add --no-cache maven
-COPY pom.xml .
-COPY routify-common routify-common
-COPY routify-audit-service routify-audit-service
-RUN mvn package -DskipTests -pl routify-audit-service -am --no-transfer-progress
-
+# Dockerfile.ci — Lean CI image for routify-audit-service
+# Expects the JAR to already be built: mvn package -pl routify-audit-service -am -DskipTests
+# Usage: docker build -f routify-audit-service/Dockerfile.ci routify-audit-service/
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S routify && adduser -S routify -G routify
 USER routify
 WORKDIR /app
-COPY --from=build /app/routify-audit-service/target/*.jar app.jar
+COPY target/*.jar app.jar
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseZGC -XX:+ZGenerational --enable-preview -Dspring.threads.virtual.enabled=true"
 EXPOSE 8084 9084
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \

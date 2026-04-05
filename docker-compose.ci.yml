@@ -1,0 +1,32 @@
+# docker-compose.ci.yml — CI override: use pre-built JARs instead of in-Docker Maven builds
+#
+# Usage (after `mvn clean package -DskipTests`):
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml build
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml up -d
+#
+# This overrides the `dockerfile` in each service's build config to use Dockerfile.ci,
+# which simply copies the pre-built JAR from target/ — no Maven build inside Docker.
+
+services:
+  identity-service:
+    build:
+      dockerfile: Dockerfile.ci
+  route-service:
+    build:
+      dockerfile: Dockerfile.ci
+  audit-service:
+    build:
+      dockerfile: Dockerfile.ci
+  cert-vault:
+    build:
+      dockerfile: Dockerfile.ci
+  admin-api:
+    build:
+      dockerfile: Dockerfile.ci
+  api-gateway:
+    build:
+      dockerfile: Dockerfile.ci
+  ai-service:
+    build:
+      dockerfile: Dockerfile.ci
+
