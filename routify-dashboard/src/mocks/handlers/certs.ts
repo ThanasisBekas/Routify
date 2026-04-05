@@ -1,6 +1,6 @@
 import { http, HttpResponse, delay } from 'msw'
 import { certs, certGroups, buildPage, MOCK_TENANT_ID } from '../db'
-import type { CertificateDto, CertGroupDto, UploadCertificateRequest, CreateCertGroupRequest, UpdateCertGroupRequest, AddGroupMemberRequest } from '../../types'
+import type { CertificateDto, CertGroupDto, UploadCertificateRequest, CreateCertGroupRequest, UpdateCertGroupRequest } from '../../types'
 
 const CERT_BASE  = '/api/v1/admin/certificates'
 const GROUP_BASE = '/api/v1/admin/cert-groups'
@@ -30,11 +30,6 @@ export const certHandlers = [
     return HttpResponse.json(cert)
   }),
 
-  // ─── Active certificates list ─────────────────────────────────────────────────
-  http.get(`${CERT_BASE}/active`, async () => {
-    await delay(150)
-    return HttpResponse.json(Array.from(certs.values()).filter(c => c.status === 'ACTIVE'))
-  }),
 
   // ─── Vault stats ──────────────────────────────────────────────────────────────
   http.get(`${CERT_BASE}/stats`, async () => {
@@ -98,26 +93,6 @@ export const certHandlers = [
     return HttpResponse.json({ status: 'ACCEPTED', message: 'Certificate deleted.' })
   }),
 
-  // ─── Map to gateway ──────────────────────────────────────────────────────────
-  http.put(`${CERT_BASE}/:id/gateway-mapping`, async ({ params, request }) => {
-    await delay(400)
-    const cert = certs.get(params.id as string)
-    if (!cert) return HttpResponse.json({ status: 404, detail: 'Certificate not found' }, { status: 404 })
-    const body = await request.json() as { gatewayTlsLogicalId: string }
-    certs.set(cert.id, { ...cert, gatewayTlsLogicalId: body.gatewayTlsLogicalId, updatedAt: new Date().toISOString() })
-    return HttpResponse.json({ status: 'ACCEPTED', message: 'Certificate mapped to gateway.' })
-  }),
-
-  // ─── Unmap from gateway ───────────────────────────────────────────────────────
-  http.delete(`${CERT_BASE}/:id/gateway-mapping`, async ({ params }) => {
-    await delay(400)
-    const cert = certs.get(params.id as string)
-    if (!cert) return HttpResponse.json({ status: 404, detail: 'Certificate not found' }, { status: 404 })
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { gatewayTlsLogicalId: _gw, ...rest } = cert
-    certs.set(cert.id, { ...rest, updatedAt: new Date().toISOString() })
-    return HttpResponse.json({ status: 'ACCEPTED', message: 'Certificate unmapped from gateway.' })
-  }),
 
   // ─── List cert groups ─────────────────────────────────────────────────────────
   http.get(GROUP_BASE, async ({ request }) => {
@@ -192,31 +167,5 @@ export const certHandlers = [
     return HttpResponse.json(members)
   }),
 
-  // ─── Add member ───────────────────────────────────────────────────────────────
-  http.post(`${GROUP_BASE}/:groupId/members`, async ({ params, request }) => {
-    await delay(350)
-    const grp  = certGroups.get(params.groupId as string)
-    const body = await request.json() as AddGroupMemberRequest
-    const cert = certs.get(body.certId)
-    if (!grp)  return HttpResponse.json({ status: 404, detail: 'Cert group not found' },  { status: 404 })
-    if (!cert) return HttpResponse.json({ status: 404, detail: 'Certificate not found' }, { status: 404 })
-    certs.set(cert.id, { ...cert, groupId: grp.id, memberAlias: body.memberAlias, updatedAt: new Date().toISOString() })
-    certGroups.set(grp.id, { ...grp, memberCount: grp.memberCount + 1 })
-    return HttpResponse.json({ status: 'ACCEPTED', message: 'Member added to group.' })
-  }),
-
-  // ─── Remove member ────────────────────────────────────────────────────────────
-  http.delete(`${GROUP_BASE}/:groupId/members/:certId`, async ({ params }) => {
-    await delay(350)
-    const grp  = certGroups.get(params.groupId as string)
-    const cert = certs.get(params.certId as string)
-    if (!grp)  return HttpResponse.json({ status: 404, detail: 'Cert group not found' },  { status: 404 })
-    if (!cert) return HttpResponse.json({ status: 404, detail: 'Certificate not found' }, { status: 404 })
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { groupId: _g, memberAlias: _m, ...rest } = cert
-    certs.set(cert.id, { ...rest, updatedAt: new Date().toISOString() })
-    certGroups.set(grp.id, { ...grp, memberCount: Math.max(0, grp.memberCount - 1) })
-    return HttpResponse.json({ status: 'ACCEPTED', message: 'Member removed from group.' })
-  }),
 ]
 

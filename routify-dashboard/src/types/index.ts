@@ -55,11 +55,6 @@ export interface LoginResponse {
 export type TenantPlan = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
 
-/** Lightweight workspace descriptor used in the login-page dropdown. */
-export interface WorkspaceOption {
-  name: string
-  slug: string
-}
 
 export interface TenantDto {
   id: string
@@ -164,56 +159,6 @@ export type FilterType =
   | 'AI_FILTER'
   | 'AI_MODIFIER'
 
-export type FilterCategory =
-  | 'Authentication' | 'Downstream Auth' | 'Rate Limiting' | 'Request Modification'
-  | 'Body Transformation' | 'Validation' | 'Resilience'
-  | 'Routing' | 'Security' | 'Versioning' | 'Observability' | 'Custom'
-
-/**
- * A reference to a Cert Vault certificate group that provides the authoritative
- * certificate configuration for a cert-based filter definition.
- *
- * Architectural constraint: ONLY cert filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`,
- * `CERT_VAULT_EXPIRY_CHECK`) may import configuration from an external source.
- * All standard filters must be configured independently — no gateway config refs.
- */
-export interface GatewayConfigRef {
-  /**
-   * Always "VAULT_CERT" — the only allowed external config source.
-   * Standard filters are self-contained and never reference gateway config.
-   */
-  refType: 'VAULT_CERT'
-  /** The logicalId of the Cert Vault certificate group */
-  refId: string
-  /** Human-readable alias (display only) */
-  refName?: string
-}
-
-/**
- * Filter types that may reference an external configuration source.
- *
- * ARCHITECTURAL RULE:
- *  - Standard filters are SELF-CONTAINED. Their configuration is stored inline
- *    in the filter definition and must NOT pull from the API gateway config.
- *  - The ONLY exception is cert filters, which are allowed to bind to a
- *    Certificate Group in the Cert Vault (refType: "VAULT_CERT").
- */
-export const FILTER_TYPES_WITH_CERT_VAULT_REF: ReadonlySet<FilterType> = new Set<FilterType>([
-  'AUTH_CERT_VAULT',
-  'CERT_ROTATION',
-  'CERT_VAULT_EXPIRY_CHECK',
-])
-
-/**
- * @deprecated Use `FILTER_TYPES_WITH_CERT_VAULT_REF` instead.
- * Kept for backward-compatibility while existing usages are migrated.
- * Only VAULT_CERT entries remain — all gateway config refs have been removed.
- */
-export const FILTER_TYPES_WITH_GATEWAY_REF: Partial<Record<FilterType, GatewayConfigRef['refType']>> = {
-  AUTH_CERT_VAULT:         'VAULT_CERT',
-  CERT_ROTATION:           'VAULT_CERT',
-  CERT_VAULT_EXPIRY_CHECK: 'VAULT_CERT',
-}
 
 export interface FilterDefinitionDto {
   id: string
@@ -225,7 +170,6 @@ export interface FilterDefinitionDto {
   systemManaged: boolean
   enabled: boolean
   usageCount: number
-  gatewayConfigRef?: GatewayConfigRef
   createdBy?: string
   createdAt: string
   updatedAt: string
@@ -237,7 +181,6 @@ export interface FilterSummary {
   filterType: FilterType
   enabled: boolean
   usageCount: number
-  gatewayConfigRef?: GatewayConfigRef
   createdAt: string
 }
 
@@ -246,14 +189,12 @@ export interface CreateFilterRequest {
   description?: string
   filterType: FilterType
   config: Record<string, unknown>
-  gatewayConfigRef?: GatewayConfigRef
 }
 
 export interface UpdateFilterRequest {
   name?: string
   description?: string
   config?: Record<string, unknown>
-  gatewayConfigRef?: GatewayConfigRef | null
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
@@ -385,23 +326,6 @@ export interface CreateUserRequest {
   role: UserRole
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-
-export interface DashboardStats {
-  routes?: { total: number; active: number; draft: number; disabled: number }
-  filters?: { total: number; inUse: number }
-  requests?: { last24h: number; errorRate: number; avgLatencyMs: number }
-  gateway?: { status: 'UP' | 'DOWN' | 'DEGRADED'; loadedRoutes: number }
-}
-
-// ─── SSE Events ───────────────────────────────────────────────────────────────
-
-export type DashboardEventType =
-  | 'connected' | 'route.created' | 'route.updated'
-  | 'route.activated' | 'route.deactivated' | 'route.deleted'
-  | 'filter.created' | 'filter.updated' | 'filter.deleted'
-  | 'filter.attached' | 'filter.detached'
-  | 'gateway.reloaded' | 'gateway.config.changed'
 
 // ─── Gateway Configuration ────────────────────────────────────────────────────
 
@@ -498,15 +422,6 @@ export interface GatewayAuthProvider {
   algorithm?: string
 }
 
-/**
- * TLS configuration is now managed exclusively by the Certificate Vault.
- * All certificate lifecycle (upload, rotation, revocation, gateway mapping)
- * goes through routify-cert-vault. The gateway loads certs via Vault at startup
- * and reacts to CERT_GROUP_EVENTS Kafka events for zero-downtime rotation.
- * @deprecated Use the Cert Vault API instead. This type is retained only for
- *   backwards-compatible config snapshot serialisation.
- */
-export type GatewayTlsConfig = Record<string, never>
 
 export interface GatewayProxyConfig {
   enabled: boolean
@@ -531,32 +446,21 @@ export interface GatewayHttpClientConfig {
   wiretapEnabled: boolean
 }
 
-export interface GatewayCorrelationIdConfig {
-  enabled: boolean
-  headerName: string
-  generateIfMissing: boolean
-  propagateToResponse: boolean
-}
-
-export interface GatewayRequestLoggerConfig {
-  enabled: boolean
-  logRequestHeaders: boolean
-  logResponseHeaders: boolean
-  logRequestBody: boolean
-  logResponseBody: boolean
-  maxBodyLogSize: number
-  excludePaths: string[]
-  maskHeaders: string[]
-}
-
 
 export interface GatewayTenantIsolationConfig {
   enabled: boolean
-  enforceHeaderPredicate: boolean
   tenantIdHeader: string
   allowCrossTenantsForSuperAdmin: boolean
 }
 
+/** A reference to a filter that has been marked as global (applied to all routes). */
+export interface GlobalFilterEntry {
+  filterId: string
+  filterName: string
+  filterType: FilterType
+  order: number
+  enabled: boolean
+}
 
 export interface GatewayConfig {
   updatedAt?: string
@@ -567,10 +471,10 @@ export interface GatewayConfig {
   circuitBreakerDefaults: GatewayCircuitBreakerDefaults
   resilienceDefaults: GatewayResilienceDefaults
   authProviders: GatewayAuthProvider[]
-  tlsConfig: GatewayTlsConfig
   proxyConfig: GatewayProxyConfig
   httpClientConfig: GatewayHttpClientConfig
   tenantIsolation: GatewayTenantIsolationConfig
+  globalFilterEntries: GlobalFilterEntry[]
 }
 
 export interface GatewayLiveStatus {
@@ -656,10 +560,6 @@ export interface UpdateCertGroupRequest {
   description?: string
 }
 
-export interface AddGroupMemberRequest {
-  certId: string
-  memberAlias?: string
-}
 
 export interface UploadCertificateRequest {
   /** Mandatory: group this certificate belongs to */
@@ -772,5 +672,4 @@ export interface AiModifierDecisionEntry {
   path: string
   evaluatedAt: string
 }
-
 

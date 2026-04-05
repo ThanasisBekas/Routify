@@ -28,10 +28,13 @@ import java.util.regex.Pattern;
  *
  * <h3>Tenant Isolation:</h3>
  * Whether the {@code Header=X-Tenant-Id} predicate is added to each route is controlled
- * by the {@code tenantIsolation} section of the persisted gateway config
- * (loaded by {@link GatewayConfigLoader}). When {@code enabled=false} or
- * {@code enforceHeaderPredicate=false} the predicate is omitted and requests reach
- * the route regardless of whether they carry the header.
+ * by the {@code tenantIsolation.enabled} flag in the persisted gateway config
+ * (loaded by {@link GatewayConfigLoader}). When {@code enabled=true} callers must
+ * supply the tenant header and the predicate is added. When {@code enabled=false}
+ * the predicate is omitted and the
+ * {@link gr.routify.gateway.filter.TenantContextGatewayFilterFactory TENANT_CONTEXT}
+ * filter auto-injects the tenant from route metadata. The resolved header is always
+ * forwarded to the upstream destination.
  *
  * <h3>Strategy Pattern for Filter Building:</h3>
  * Each filter type maps to one or more Spring Cloud Gateway built-in filters
@@ -77,11 +80,12 @@ public class RouteDefinitionBuilder {
                     "Method=%s".formatted(snapshot.methods())));
         }
 
-        // Tenant header predicate — only added when isolation is enabled AND
-        // enforceHeaderPredicate is true (both controlled via Gateway Config UI).
+        // Tenant header predicate — added when enabled is true (caller provides
+        // X-Tenant-Id). When enabled=false the caller does not supply the header and
+        // the TenantContext filter auto-injects it from route metadata instead.
         // The UUID is wrapped in ^…$ anchors and Pattern.quote() so it is treated
         // as a literal (not a raw regex) and cannot be spoofed by a partial match.
-        if (isolation.enabled() && isolation.enforceHeaderPredicate()) {
+        if (isolation.enabled()) {
             predicates.add(new PredicateDefinition(
                     "Header=%s,^%s$".formatted(
                             isolation.tenantIdHeader(),
@@ -89,14 +93,21 @@ public class RouteDefinitionBuilder {
             log.debug("Tenant header predicate added: {}={} for route {}",
                     isolation.tenantIdHeader(), snapshot.tenantId(), snapshot.routeId());
         } else {
-            log.debug("Tenant header predicate SKIPPED for route {} (enabled={} enforce={})",
-                    snapshot.routeId(), isolation.enabled(), isolation.enforceHeaderPredicate());
+            log.debug("Tenant header predicate SKIPPED for route {} (enabled={})",
+                    snapshot.routeId(), isolation.enabled());
         }
 
         definition.setPredicates(predicates);
 
         // ─── Filters ─────────────────────────────────────────────────────────
         List<FilterDefinition> filters = new ArrayList<>();
+
+        // Global filter entries — operator-selected filters applied to all routes.
+        // They execute before per-route filters, in the order defined by the operator.
+        resolveGlobalFilterEntries().stream()
+                .map(entry -> buildFilterDefinitionFromGlobalEntry(snapshot, entry))
+                .filter(Objects::nonNull)
+                .forEach(filters::add);
 
         // Strip prefix from route-level flag — derive the number of path segments to strip
         // from the stored prefix string (e.g. "/api/v1" → 2 parts, "/api" → 1 part).
@@ -232,16 +243,28 @@ public class RouteDefinitionBuilder {
                 f.setArgs(Map.of("prefix", String.valueOf(cfg.getOrDefault("prefix", ""))));
                 yield f;
             }
-            case "QUERY_PARAM_MODIFY" -> customFilter("QueryParamModify", cfg);
+            case "QUERY_PARAM_MODIFY" -> {
+                log.warn("Deprecated filter type QUERY_PARAM_MODIFY — ignored (no factory implementation)");
+                yield null;
+            }
 
             // ─── Body Transformation ──────────────────────────────────────────
             case "BODY_JOLT_TRANSFORM" -> customFilter("JoltTransform", cfg);
-            case "BODY_JSONATA_TRANSFORM" -> customFilter("JsonataTransform", cfg);
-            case "BODY_SPEL_TRANSFORM" -> customFilter("SpelTransform", cfg);
+            case "BODY_JSONATA_TRANSFORM" -> {
+                log.warn("Deprecated filter type BODY_JSONATA_TRANSFORM — ignored (no factory implementation)");
+                yield null;
+            }
+            case "BODY_SPEL_TRANSFORM" -> {
+                log.warn("Deprecated filter type BODY_SPEL_TRANSFORM — ignored (no factory implementation)");
+                yield null;
+            }
 
             // ─── Validation ───────────────────────────────────────────────────
             case "VALIDATE_JSON_SCHEMA" -> customFilter("JsonSchemaValidate", cfg);
-            case "VALIDATE_REGEX" -> customFilter("RegexValidate", cfg);
+            case "VALIDATE_REGEX" -> {
+                log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation)");
+                yield null;
+            }
             case "VALIDATE_SIZE" -> {
                 var f = new FilterDefinition();
                 f.setName("RequestSize");
@@ -451,12 +474,11 @@ public class RouteDefinitionBuilder {
 
         Map<String, Object> ti = (Map<String, Object>) rawMap;
 
-        boolean enabled                = toBool(ti.get("enabled"),                true);
-        boolean enforceHeaderPredicate = toBool(ti.get("enforceHeaderPredicate"), true);
-        String  tenantIdHeader         = ti.get("tenantIdHeader") instanceof String s && !s.isBlank()
+        boolean enabled        = toBool(ti.get("enabled"), true);
+        String  tenantIdHeader = ti.get("tenantIdHeader") instanceof String s && !s.isBlank()
                 ? s : DEFAULT_TENANT_HEADER;
 
-        return new TenantIsolationSettings(enabled, enforceHeaderPredicate, tenantIdHeader);
+        return new TenantIsolationSettings(enabled, tenantIdHeader);
     }
 
     private static boolean toBool(Object value, boolean defaultValue) {
@@ -467,10 +489,94 @@ public class RouteDefinitionBuilder {
 
     /** Immutable snapshot of the tenant isolation settings for a single route-build call. */
     private record TenantIsolationSettings(boolean enabled,
-                                           boolean enforceHeaderPredicate,
                                            String tenantIdHeader) {
         static final TenantIsolationSettings DEFAULTS =
-                new TenantIsolationSettings(true, true, DEFAULT_TENANT_HEADER);
+                new TenantIsolationSettings(true, DEFAULT_TENANT_HEADER);
+    }
+
+    // ─── Global Filter Entries ───────────────────────────────────────────────
+
+    /**
+     * Immutable snapshot of a global filter entry for a single route-build call.
+     */
+    private record GlobalFilterEntrySnapshot(String filterId,
+                                             String filterName,
+                                             String filterType,
+                                             int order,
+                                             boolean enabled) {}
+
+    /**
+     * Reads the {@code globalFilterEntries} section from the live gateway config.
+     * Returns an empty list if the section is missing or empty.
+     * Only enabled entries are returned, sorted by order.
+     */
+    @SuppressWarnings("unchecked")
+    private List<GlobalFilterEntrySnapshot> resolveGlobalFilterEntries() {
+        Map<String, Object> gwConfig = configLoader.getConfig();
+        if (gwConfig == null || gwConfig.isEmpty()) return List.of();
+
+        Object raw = gwConfig.get("globalFilterEntries");
+        if (!(raw instanceof List<?> rawList) || rawList.isEmpty()) return List.of();
+
+        List<GlobalFilterEntrySnapshot> entries = new ArrayList<>();
+        for (Object item : rawList) {
+            if (!(item instanceof Map<?, ?> entryMap)) continue;
+            Map<String, Object> m = (Map<String, Object>) entryMap;
+
+            boolean enabled = toBool(m.get("enabled"), true);
+            if (!enabled) {
+                log.debug("Global filter entry '{}' is disabled — skipping", m.get("filterName"));
+                continue;
+            }
+
+            String filterId   = m.get("filterId")   instanceof String s ? s : null;
+            String filterName = m.get("filterName") instanceof String s ? s : "";
+            String filterType = m.get("filterType") instanceof String s ? s : null;
+            int order = m.get("order") instanceof Number n ? n.intValue() : 0;
+
+            if (filterType == null || filterType.isBlank()) {
+                log.warn("Global filter entry with filterId='{}' has no filterType — skipping", filterId);
+                continue;
+            }
+
+            entries.add(new GlobalFilterEntrySnapshot(filterId, filterName, filterType, order, true));
+        }
+
+        entries.sort(Comparator.comparingInt(GlobalFilterEntrySnapshot::order));
+        log.debug("Resolved {} enabled global filter entries", entries.size());
+        return entries;
+    }
+
+    /**
+     * Builds a {@link FilterDefinition} from a global filter entry.
+     *
+     * <p>Global filter entries reference existing filter definitions by type. Since they
+     * carry no per-filter config (the config lives on the filter definition in the DB and
+     * is resolved at per-route level), global entries are built as named filters with
+     * empty args. For filter types that require config (e.g. rate limiters, AI filters),
+     * they must be configured on individual routes instead.
+     *
+     * <p>Zero-config filter types (CORRELATION_ID, SECURITY_HEADERS, TENANT_CONTEXT,
+     * REQUEST_LOGGER, etc.) work seamlessly as global entries because they read their
+     * config from the persisted gateway config at runtime.
+     */
+    private FilterDefinition buildFilterDefinitionFromGlobalEntry(
+            RouteSnapshotDto snapshot, GlobalFilterEntrySnapshot entry) {
+        // Delegate to the same switch expression used for per-route filters.
+        // Create a synthetic FilterSnapshotDto with empty config.
+        var syntheticFilter = new RouteSnapshotDto.FilterSnapshotDto(
+                entry.filterId() != null ? java.util.UUID.fromString(entry.filterId()) : null,
+                entry.filterType(),
+                entry.order(),
+                "PRE",
+                Map.of(),
+                null);
+        FilterDefinition fd = buildFilterDefinition(snapshot, syntheticFilter);
+        if (fd != null) {
+            log.debug("Global filter entry applied: type={} name='{}' order={} for route {}",
+                    entry.filterType(), entry.filterName(), entry.order(), snapshot.routeId());
+        }
+        return fd;
     }
 
     /**

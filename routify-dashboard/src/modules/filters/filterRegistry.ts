@@ -175,7 +175,7 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
   },
   {
     value: 'TENANT_CONTEXT', label: 'Tenant Context',  category: 'Observability',
-    description: 'Propagate and validate tenant ID (X-Tenant-Id) to all downstream services',
+    description: 'Resolve tenant context and control X-Tenant-Id propagation to upstream services',
     color: 'text-sky-300', bg: 'bg-sky-300/10', border: 'border-sky-300/20',
   },
   {
@@ -264,56 +264,4 @@ export function groupByCategory(
     .map(cat => ({ category: cat, items: map.get(cat)! }))
 }
 
-// ─── Architectural isolation helpers ─────────────────────────────────────────
-
-/**
- * Cert filter types — the ONLY filter types that are permitted to import
- * configuration from an external source (the Cert Vault).
- *
- * All other filter types are SELF-CONTAINED. Their configuration is stored
- * inline in the filter definition and must never reference the API gateway
- * config (no auth-provider refs, no rate-limit policy refs, etc.).
- */
-export const CERT_FILTER_TYPES: ReadonlySet<FilterType> = new Set<FilterType>([
-  'AUTH_CERT_VAULT',
-  'CERT_ROTATION',
-  'CERT_VAULT_EXPIRY_CHECK',
-])
-
-/**
- * Returns true if the given filter type is a cert filter and is therefore
- * permitted to bind to a Cert Vault Certificate Group.
- *
- * Usage:
- *   if (isCertFilter(filterType)) { // show CertVaultGroupPicker }
- *   else { // filter is self-contained, no external config source }
- */
-export function isCertFilter(type: FilterType | string): boolean {
-  return CERT_FILTER_TYPES.has(type as FilterType)
-}
-
-/**
- * Asserts at runtime that a standard (non-cert) filter type is not being
- * configured with an external gateway config reference.
- *
- * Throws a descriptive error in development mode so violations are caught
- * immediately in tests and local development.
- */
-export function assertStandardFilterIsolation(
-  filterType: FilterType | string,
-  hasExternalRef: boolean,
-): void {
-  if (hasExternalRef && !isCertFilter(filterType)) {
-    const msg =
-      `[Routify] Architectural violation: filter type "${filterType}" is a standard filter ` +
-      `and must be self-contained. It must NOT import configuration from the API gateway ` +
-      `config or any external source. Only cert filters (AUTH_CERT_VAULT, CERT_ROTATION, ` +
-      `CERT_VAULT_EXPIRY_CHECK) may reference an external configuration source (Cert Vault).`
-    if (import.meta.env.DEV) {
-      throw new Error(msg)
-    } else {
-      console.error(msg)
-    }
-  }
-}
 

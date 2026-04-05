@@ -6,7 +6,6 @@ import type {
   CertStatus,
   CreateCertGroupRequest,
   UpdateCertGroupRequest,
-  AddGroupMemberRequest,
   UploadCertificateRequest,
   Page,
 } from '../types'
@@ -45,13 +44,6 @@ export const certVaultApi = {
       })
       .then(r => r.data),
 
-  // ─── List active certificates (for gateway TLS picker) ──────────────────────
-  listActiveCertificates: (tenantId: string) =>
-    apiClient
-      .get<CertificateDto[]>(`${BASE}/active`, {
-        headers: { 'X-Tenant-Id': tenantId },
-      })
-      .then(r => r.data),
 
   // ─── Vault statistics ────────────────────────────────────────────────────────
   getStats: (tenantId?: string) =>
@@ -85,23 +77,6 @@ export const certVaultApi = {
       })
       .then(r => r.data),
 
-  // ─── Map certificate to gateway TLS ─────────────────────────────────────────
-  mapToGateway: (id: string, tenantId: string, gatewayTlsLogicalId: string) =>
-    apiClient
-      .put<{ status: string; message: string }>(
-        `${BASE}/${id}/gateway-mapping`,
-        { gatewayTlsLogicalId },
-        { headers: { 'X-Tenant-Id': tenantId } }
-      )
-      .then(r => r.data),
-
-  // ─── Unmap certificate from gateway TLS ─────────────────────────────────────
-  unmapFromGateway: (id: string, tenantId: string) =>
-    apiClient
-      .delete<{ status: string; message: string }>(`${BASE}/${id}/gateway-mapping`, {
-        headers: { 'X-Tenant-Id': tenantId },
-      })
-      .then(r => r.data),
 
   // ─── Certificate Groups ──────────────────────────────────────────────────────
 
@@ -175,20 +150,5 @@ export const certVaultApi = {
       })
       .then(r => r.data),
 
-  /** Add a certificate to a group */
-  addMemberToGroup: (groupId: string, tenantId: string, request: AddGroupMemberRequest) =>
-    apiClient
-      .post<{ status: string; message: string }>(`${GROUP_BASE}/${groupId}/members`, request, {
-        headers: { 'X-Tenant-Id': tenantId },
-      })
-      .then(r => r.data),
-
-  /** Remove a certificate from a group */
-  removeMemberFromGroup: (groupId: string, certId: string, tenantId: string) =>
-    apiClient
-      .delete<{ status: string; message: string }>(`${GROUP_BASE}/${groupId}/members/${certId}`, {
-        headers: { 'X-Tenant-Id': tenantId },
-      })
-      .then(r => r.data),
 }
 

@@ -5,7 +5,7 @@ import type {
   GatewayRateLimitPolicy, GatewayCircuitBreakerDefaults,
   GatewayResilienceDefaults, GatewayAuthProvider,
   GatewayProxyConfig, GatewayHttpClientConfig,
-  GatewayTenantIsolationConfig,
+  GatewayTenantIsolationConfig, GlobalFilterEntry,
 } from '../../types'
 
 const BASE = '/api/v1/admin/gateway'
@@ -162,26 +162,6 @@ export const gatewayHandlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
-  // ─── TLS ──────────────────────────────────────────────────────────────────────
-  // TLS configuration is now read-only — all certificate management is handled
-  // by the Certificate Vault. The gateway loads certs via vault at startup and
-  // reacts to Kafka CERT_GROUP_EVENTS for zero-downtime rotation.
-  http.get(`${BASE}/tls`, async () => {
-    await delay(150)
-    return HttpResponse.json(gatewayConfig.tlsConfig)
-  }),
-  http.get(`${BASE}/tls/certificates`, async () => {
-    await delay(150)
-    return HttpResponse.json({
-      'tls-group':  { fingerprint: 'AA:BB:CC', notAfter: '2027-01-01', status: 'VALID',         version: 1, source: 'vault:group/tls-group' },
-      'mtls-group': { fingerprint: 'CC:DD:EE', notAfter: '2028-06-01', status: 'VALID',         version: 1, source: 'vault:group/mtls-group' },
-    })
-  }),
-  http.get(`${BASE}/tls/vault-certs`, async () => {
-    await delay(150)
-    const { certs } = await import('../db')
-    return HttpResponse.json(Array.from(certs.values()).filter(c => c.status === 'ACTIVE'))
-  }),
 
   // ─── Proxy ────────────────────────────────────────────────────────────────────
   http.get(`${BASE}/proxy`, async () => {
@@ -218,6 +198,19 @@ export const gatewayHandlers = [
     await delay(350)
     const body = await request.json() as GatewayTenantIsolationConfig
     gatewayConfig.tenantIsolation = body
+    gatewayConfig.updatedAt = new Date().toISOString()
+    return HttpResponse.json(gatewayConfig)
+  }),
+
+  // ─── Global Filter Entries ─────────────────────────────────────────────────
+  http.get(`${BASE}/global-filter-entries`, async () => {
+    await delay(150)
+    return HttpResponse.json(gatewayConfig.globalFilterEntries ?? [])
+  }),
+  http.put(`${BASE}/global-filter-entries`, async ({ request }) => {
+    await delay(350)
+    const body = await request.json() as GlobalFilterEntry[]
+    gatewayConfig.globalFilterEntries = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
   }),
