@@ -14,18 +14,14 @@ import type { FilterType, CreateFilterRequest, UpdateFilterRequest } from '../..
 import FilterConfigFields from './FilterConfigFields'
 import { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './filterConfigConstants'
 import { cn, extractApiError } from '../../lib/utils'
-import {
-  FILTER_REGISTRY,
-  CATEGORY_ORDER,
-  CATEGORY_COLORS,
-} from './filterRegistry'
+import { FILTER_REGISTRY, CATEGORY_ORDER, CATEGORY_COLORS } from './filterRegistry'
 
 // ─── Re-shape registry for the picker ────────────────────────────────────────
 
-const FILTER_TYPES = FILTER_REGISTRY.map(e => ({
-  value:       e.value,
-  label:       e.label,
-  category:    e.category as string,
+const FILTER_TYPES = FILTER_REGISTRY.map((e) => ({
+  value: e.value,
+  label: e.label,
+  category: e.category as string,
   description: e.description,
 }))
 
@@ -62,7 +58,7 @@ function FilterTypeDropdownPortal({
           <input
             autoFocus
             value={search}
-            onChange={e => onSearch(e.target.value)}
+            onChange={(e) => onSearch(e.target.value)}
             placeholder="Search filter types…"
             className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all"
           />
@@ -73,7 +69,7 @@ function FilterTypeDropdownPortal({
             <div className="px-3 py-1.5 text-[10px] font-bold text-gray-600 uppercase tracking-widest bg-white/2">
               {cat}
             </div>
-            {types.map(ft => (
+            {types.map((ft) => (
               <button
                 key={ft.value}
                 type="button"
@@ -83,7 +79,12 @@ function FilterTypeDropdownPortal({
                   value === ft.value && 'bg-indigo-500/10',
                 )}
               >
-                <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 mt-0.5', CATEGORY_COLORS[ft.category as keyof typeof CATEGORY_COLORS] ?? '')}>
+                <span
+                  className={cn(
+                    'text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 mt-0.5',
+                    CATEGORY_COLORS[ft.category as keyof typeof CATEGORY_COLORS] ?? '',
+                  )}
+                >
                   {ft.category.slice(0, 4)}
                 </span>
                 <div className="min-w-0">
@@ -108,29 +109,24 @@ function FilterTypeDropdownPortal({
 
 // ─── Type Picker ──────────────────────────────────────────────────────────────
 
-function FilterTypePicker({
-  value,
-  onChange,
-}: {
-  value: FilterType
-  onChange: (t: FilterType) => void
-}) {
+function FilterTypePicker({ value, onChange }: { value: FilterType; onChange: (t: FilterType) => void }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
 
-  const selected = FILTER_TYPES.find(f => f.value === value)
+  const selected = FILTER_TYPES.find((f) => f.value === value)
   const filtered = search
-    ? FILTER_TYPES.filter(f =>
-        f.label.toLowerCase().includes(search.toLowerCase()) ||
-        f.category.toLowerCase().includes(search.toLowerCase()) ||
-        f.description.toLowerCase().includes(search.toLowerCase()),
+    ? FILTER_TYPES.filter(
+        (f) =>
+          f.label.toLowerCase().includes(search.toLowerCase()) ||
+          f.category.toLowerCase().includes(search.toLowerCase()) ||
+          f.description.toLowerCase().includes(search.toLowerCase()),
       )
     : FILTER_TYPES
 
   const grouped = CATEGORY_ORDER.reduce<Record<string, typeof FILTER_TYPES>>((acc, cat) => {
-    const items = filtered.filter(f => f.category === cat)
+    const items = filtered.filter((f) => f.category === cat)
     if (items.length) acc[cat] = items
     return acc
   }, {})
@@ -159,7 +155,7 @@ function FilterTypePicker({
         })
       }
     }
-    setOpen(o => !o)
+    setOpen((o) => !o)
   }
 
   return (
@@ -179,7 +175,12 @@ function FilterTypePicker({
         <div className="flex items-center gap-2.5 min-w-0">
           {selected ? (
             <>
-              <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0', CATEGORY_COLORS[selected.category as keyof typeof CATEGORY_COLORS] ?? '')}>
+              <span
+                className={cn(
+                  'text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0',
+                  CATEGORY_COLORS[selected.category as keyof typeof CATEGORY_COLORS] ?? '',
+                )}
+              >
                 {selected.category}
               </span>
               <span className="font-medium truncate">{selected.label}</span>
@@ -200,7 +201,11 @@ function FilterTypePicker({
           search={search}
           value={value}
           onSearch={setSearch}
-          onSelect={(ft) => { onChange(ft); setOpen(false); setSearch('') }}
+          onSelect={(ft) => {
+            onChange(ft)
+            setOpen(false)
+            setSearch('')
+          }}
           onClose={() => setOpen(false)}
         />
       )}
@@ -231,13 +236,11 @@ export default function FilterDefinitionForm({
   })
 
   // ── Form state ──
-  const [name,             setName]             = useState('')
-  const [description,      setDescription]      = useState('')
-  const [filterType,       setFilterType]       = useState<FilterType>(
-    (presetFilterType as FilterType) ?? 'AUTH_JWT'
-  )
-  const [config,           setConfig]           = useState<FilterConfig>(
-    DEFAULT_CONFIGS[(presetFilterType as FilterType) ?? 'AUTH_JWT'] ?? {}
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [filterType, setFilterType] = useState<FilterType>((presetFilterType as FilterType) ?? 'AUTH_JWT')
+  const [config, setConfig] = useState<FilterConfig>(
+    DEFAULT_CONFIGS[(presetFilterType as FilterType) ?? 'AUTH_JWT'] ?? {},
   )
 
   // Populate from existing when editing
@@ -267,7 +270,7 @@ export default function FilterDefinitionForm({
   })
 
   const isPending = createMutation.isPending || updateMutation.isPending
-  const error     = createMutation.error ?? updateMutation.error
+  const error = createMutation.error ?? updateMutation.error
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -289,12 +292,11 @@ export default function FilterDefinitionForm({
     }
   }
 
-  const selectedMeta = FILTER_TYPES.find(f => f.value === filterType)
+  const selectedMeta = FILTER_TYPES.find((f) => f.value === filterType)
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6 animate-fade-in">
       <div className="bg-[#111318] border border-white/8 rounded-2xl w-full max-w-4xl shadow-2xl shadow-black/60 flex flex-col max-h-[94vh] animate-fade-in-up">
-
         {/* ── Header ───────────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/6 shrink-0">
           <div className="flex items-center gap-3">
@@ -329,7 +331,6 @@ export default function FilterDefinitionForm({
             <form id="filter-form" onSubmit={handleSubmit}>
               {/* Two-column layout on md+ screens */}
               <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] divide-y md:divide-y-0 md:divide-x divide-white/6">
-
                 {/* ── Left panel — identity & type ─────────────────────────── */}
                 <div className="p-6 space-y-5">
                   {/* Name */}
@@ -338,7 +339,7 @@ export default function FilterDefinitionForm({
                     <input
                       required
                       value={name}
-                      onChange={e => setName(e.target.value)}
+                      onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. jwt-auth-prod"
                       className={inputCls}
                     />
@@ -347,12 +348,14 @@ export default function FilterDefinitionForm({
                   {/* Description */}
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Description</label>
+                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Description
+                      </label>
                       <span className="text-[10px] text-gray-600">optional</span>
                     </div>
                     <textarea
                       value={description}
-                      onChange={e => setDescription(e.target.value)}
+                      onChange={(e) => setDescription(e.target.value)}
                       placeholder="What does this filter do?"
                       rows={3}
                       className={`${inputCls} resize-none`}
@@ -362,7 +365,9 @@ export default function FilterDefinitionForm({
                   {/* Filter Type Picker — create mode only */}
                   {!isEdit && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Filter Type *</label>
+                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Filter Type *
+                      </label>
                       <FilterTypePicker value={filterType} onChange={handleTypeChange} />
                     </div>
                   )}
@@ -370,9 +375,16 @@ export default function FilterDefinitionForm({
                   {/* Edit mode — type badge */}
                   {isEdit && selectedMeta && (
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Filter Type</label>
+                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Filter Type
+                      </label>
                       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/3 border border-white/7">
-                        <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0', CATEGORY_COLORS[selectedMeta.category as keyof typeof CATEGORY_COLORS] ?? '')}>
+                        <span
+                          className={cn(
+                            'text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0',
+                            CATEGORY_COLORS[selectedMeta.category as keyof typeof CATEGORY_COLORS] ?? '',
+                          )}
+                        >
                           {selectedMeta.category}
                         </span>
                         <span className="text-sm text-gray-300 font-medium truncate">{selectedMeta.label}</span>
@@ -386,7 +398,12 @@ export default function FilterDefinitionForm({
                   {/* Config section header */}
                   <div className="flex items-center gap-2">
                     {selectedMeta && (
-                      <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0', CATEGORY_COLORS[selectedMeta.category as keyof typeof CATEGORY_COLORS] ?? '')}>
+                      <span
+                        className={cn(
+                          'text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0',
+                          CATEGORY_COLORS[selectedMeta.category as keyof typeof CATEGORY_COLORS] ?? '',
+                        )}
+                      >
                         {selectedMeta.category}
                       </span>
                     )}
@@ -396,19 +413,13 @@ export default function FilterDefinitionForm({
                   </div>
 
                   {/* Type-specific fields */}
-                  <FilterConfigFields
-                    filterType={filterType}
-                    config={config}
-                    onChange={setConfig}
-                  />
+                  <FilterConfigFields filterType={filterType} config={config} onChange={setConfig} />
 
                   {/* Error banner */}
                   {error && (
                     <div className="flex items-start gap-2.5 p-3.5 bg-red-500/8 border border-red-500/20 rounded-xl">
                       <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                      <span className="text-sm text-red-300">
-                        {extractApiError(error, 'Failed to save filter')}
-                      </span>
+                      <span className="text-sm text-red-300">{extractApiError(error, 'Failed to save filter')}</span>
                     </div>
                   )}
                 </div>

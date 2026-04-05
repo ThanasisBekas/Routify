@@ -5,7 +5,18 @@
  * All follow the same glass-dark design language as RouteTriggerNode.
  */
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { Globe, Server, Shield, Gauge, RefreshCw, Code2, GitBranch, CheckCircle, AlertCircle, Trash2 } from 'lucide-react'
+import {
+  Globe,
+  Server,
+  Shield,
+  Gauge,
+  RefreshCw,
+  Code2,
+  GitBranch,
+  CheckCircle,
+  AlertCircle,
+  Trash2,
+} from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import { getFilterMeta } from '../constants/nodeMetadata'
 import type { FilterNodeData, UpstreamNodeData, ResponseNodeData, LabelNodeData } from '../hooks/buildGraph'
@@ -50,10 +61,23 @@ export function UpstreamNode({ data, selected }: NodeProps) {
           : 'border-emerald-500/30 hover:border-emerald-400/60 shadow-emerald-500/5',
       )}
       onClick={() => d.onSelect?.()}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); d.onSelect?.() } }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          d.onSelect?.()
+        }
+      }}
     >
-      <Handle type="target" position={Position.Left}  className="!w-2.5 !h-2.5 !bg-emerald-400 !border-0 !rounded-full" />
-      <Handle type="source" position={Position.Right} className="!w-2.5 !h-2.5 !bg-emerald-400 !border-0 !rounded-full" />
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!w-2.5 !h-2.5 !bg-emerald-400 !border-0 !rounded-full"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!w-2.5 !h-2.5 !bg-emerald-400 !border-0 !rounded-full"
+      />
 
       <div className="flex items-start gap-3">
         <div className="mt-0.5 p-2 rounded-lg bg-emerald-400/10 border border-emerald-400/20 shrink-0">
@@ -94,9 +118,14 @@ export function FilterNode({ data, selected }: NodeProps) {
         'hover:brightness-110',
       )}
       onClick={() => d.onSelect?.()}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); d.onSelect?.() } }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          d.onSelect?.()
+        }
+      }}
     >
-      <Handle type="target" position={Position.Left}  className="!w-2.5 !h-2.5 !bg-gray-500 !border-0 !rounded-full" />
+      <Handle type="target" position={Position.Left} className="!w-2.5 !h-2.5 !bg-gray-500 !border-0 !rounded-full" />
       <Handle type="source" position={Position.Right} className="!w-2.5 !h-2.5 !bg-gray-500 !border-0 !rounded-full" />
 
       <div className="flex items-start gap-2">
@@ -111,10 +140,12 @@ export function FilterNode({ data, selected }: NodeProps) {
           </div>
           <div className="text-[11px] font-semibold text-white truncate">{d.filter.filterName}</div>
           <div className="flex items-center gap-1.5 mt-1">
-            <span className={cn(
-              'text-[9px] px-1.5 py-0.5 rounded-full font-bold',
-              d.phase === 'PRE' ? 'bg-blue-500/20 text-blue-300' : 'bg-purple-500/20 text-purple-300',
-            )}>
+            <span
+              className={cn(
+                'text-[9px] px-1.5 py-0.5 rounded-full font-bold',
+                d.phase === 'PRE' ? 'bg-blue-500/20 text-blue-300' : 'bg-purple-500/20 text-purple-300',
+              )}
+            >
               {d.phase}
             </span>
             <span className="text-[9px] text-gray-600 font-mono">#{d.filter.order}</span>
@@ -123,7 +154,10 @@ export function FilterNode({ data, selected }: NodeProps) {
 
         {/* Detach button — shown on hover */}
         <button
-          onClick={(e) => { e.stopPropagation(); d.onDetach(d.filter.filterId) }}
+          onClick={(e) => {
+            e.stopPropagation()
+            d.onDetach(d.filter.filterId)
+          }}
           className="opacity-0 group-hover:opacity-100 p-1 rounded text-red-400 hover:bg-red-400/10 transition-all shrink-0 mt-0.5"
           title="Detach filter"
         >
@@ -141,20 +175,25 @@ export function ResponseNode({ data }: NodeProps) {
   const isActive = d.status === 'ACTIVE'
 
   return (
-    <div className={cn(
-      'flex flex-col items-center gap-2 px-4 py-3 bg-[#111318] border rounded-xl shadow-xl min-w-[100px]',
-      isActive ? 'border-emerald-500/25' : 'border-white/10',
-    )}>
+    <div
+      className={cn(
+        'flex flex-col items-center gap-2 px-4 py-3 bg-[#111318] border rounded-xl shadow-xl min-w-[100px]',
+        isActive ? 'border-emerald-500/25' : 'border-white/10',
+      )}
+    >
       <Handle type="target" position={Position.Left} className="!w-2.5 !h-2.5 !bg-gray-400 !border-0 !rounded-full" />
 
-      <div className={cn(
-        'w-10 h-10 rounded-full flex items-center justify-center',
-        isActive ? 'bg-emerald-500/15 border border-emerald-400/25' : 'bg-gray-500/15 border border-gray-500/25',
-      )}>
-        {isActive
-          ? <CheckCircle className="w-5 h-5 text-emerald-400" />
-          : <AlertCircle className="w-5 h-5 text-gray-500" />
-        }
+      <div
+        className={cn(
+          'w-10 h-10 rounded-full flex items-center justify-center',
+          isActive ? 'bg-emerald-500/15 border border-emerald-400/25' : 'bg-gray-500/15 border border-gray-500/25',
+        )}
+      >
+        {isActive ? (
+          <CheckCircle className="w-5 h-5 text-emerald-400" />
+        ) : (
+          <AlertCircle className="w-5 h-5 text-gray-500" />
+        )}
       </div>
 
       <div className="text-center">
@@ -200,7 +239,7 @@ function PlaceholderNode({
 }) {
   return (
     <div className={cn('px-3 py-2.5 border border-dashed rounded-xl bg-[#111318] min-w-[160px]', accentBorder)}>
-      <Handle type="target" position={Position.Left}  className="!w-2.5 !h-2.5 !bg-gray-500 !border-0 !rounded-full" />
+      <Handle type="target" position={Position.Left} className="!w-2.5 !h-2.5 !bg-gray-500 !border-0 !rounded-full" />
       <Handle type="source" position={Position.Right} className="!w-2.5 !h-2.5 !bg-gray-500 !border-0 !rounded-full" />
       <div className="flex items-center gap-2">
         <div className={cn('p-1.5 rounded-lg', accentBg)}>
@@ -216,22 +255,71 @@ function PlaceholderNode({
 }
 
 export function AuthNode(props: NodeProps) {
-  return <PlaceholderNode label="Auth Filter" icon={<Shield className="w-4 h-4" />} accentColor="text-blue-400" accentBg="bg-blue-400/10" accentBorder="border-blue-400/25" hint="Click to configure" {...props as unknown as Record<string, never>} />
+  return (
+    <PlaceholderNode
+      label="Auth Filter"
+      icon={<Shield className="w-4 h-4" />}
+      accentColor="text-blue-400"
+      accentBg="bg-blue-400/10"
+      accentBorder="border-blue-400/25"
+      hint="Click to configure"
+      {...(props as unknown as Record<string, never>)}
+    />
+  )
 }
 
 export function RateLimitNode(props: NodeProps) {
-  return <PlaceholderNode label="Rate Limit" icon={<Gauge className="w-4 h-4" />} accentColor="text-orange-400" accentBg="bg-orange-400/10" accentBorder="border-orange-400/25" hint="Click to configure" {...props as unknown as Record<string, never>} />
+  return (
+    <PlaceholderNode
+      label="Rate Limit"
+      icon={<Gauge className="w-4 h-4" />}
+      accentColor="text-orange-400"
+      accentBg="bg-orange-400/10"
+      accentBorder="border-orange-400/25"
+      hint="Click to configure"
+      {...(props as unknown as Record<string, never>)}
+    />
+  )
 }
 
 export function ResilienceNode(props: NodeProps) {
-  return <PlaceholderNode label="Resilience" icon={<RefreshCw className="w-4 h-4" />} accentColor="text-amber-400" accentBg="bg-amber-400/10" accentBorder="border-amber-400/25" hint="Click to configure" {...props as unknown as Record<string, never>} />
+  return (
+    <PlaceholderNode
+      label="Resilience"
+      icon={<RefreshCw className="w-4 h-4" />}
+      accentColor="text-amber-400"
+      accentBg="bg-amber-400/10"
+      accentBorder="border-amber-400/25"
+      hint="Click to configure"
+      {...(props as unknown as Record<string, never>)}
+    />
+  )
 }
 
 export function TransformNode(props: NodeProps) {
-  return <PlaceholderNode label="Transform" icon={<Code2 className="w-4 h-4" />} accentColor="text-purple-400" accentBg="bg-purple-400/10" accentBorder="border-purple-400/25" hint="Click to configure" {...props as unknown as Record<string, never>} />
+  return (
+    <PlaceholderNode
+      label="Transform"
+      icon={<Code2 className="w-4 h-4" />}
+      accentColor="text-purple-400"
+      accentBg="bg-purple-400/10"
+      accentBorder="border-purple-400/25"
+      hint="Click to configure"
+      {...(props as unknown as Record<string, never>)}
+    />
+  )
 }
 
 export function ConditionalNode(props: NodeProps) {
-  return <PlaceholderNode label="Conditional" icon={<GitBranch className="w-4 h-4" />} accentColor="text-indigo-400" accentBg="bg-indigo-400/10" accentBorder="border-indigo-400/25" hint="Click to configure" {...props as unknown as Record<string, never>} />
+  return (
+    <PlaceholderNode
+      label="Conditional"
+      icon={<GitBranch className="w-4 h-4" />}
+      accentColor="text-indigo-400"
+      accentBg="bg-indigo-400/10"
+      accentBorder="border-indigo-400/25"
+      hint="Click to configure"
+      {...(props as unknown as Record<string, never>)}
+    />
+  )
 }
-

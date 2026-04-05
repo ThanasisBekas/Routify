@@ -7,15 +7,15 @@
 import { cn } from '../../lib/utils'
 
 const colorPresets = {
-  indigo:  'text-indigo-400  bg-indigo-400/10  border-indigo-400/20',
+  indigo: 'text-indigo-400  bg-indigo-400/10  border-indigo-400/20',
   emerald: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-  amber:   'text-amber-400   bg-amber-400/10   border-amber-400/20',
-  red:     'text-red-400     bg-red-400/10     border-red-400/20',
-  sky:     'text-sky-400     bg-sky-400/10     border-sky-400/20',
-  purple:  'text-purple-400  bg-purple-400/10  border-purple-400/20',
-  gray:    'text-gray-400    bg-gray-400/10    border-gray-400/20',
-  rose:    'text-rose-400    bg-rose-400/10    border-rose-400/20',
-  yellow:  'text-yellow-400  bg-yellow-400/10  border-yellow-400/20',
+  amber: 'text-amber-400   bg-amber-400/10   border-amber-400/20',
+  red: 'text-red-400     bg-red-400/10     border-red-400/20',
+  sky: 'text-sky-400     bg-sky-400/10     border-sky-400/20',
+  purple: 'text-purple-400  bg-purple-400/10  border-purple-400/20',
+  gray: 'text-gray-400    bg-gray-400/10    border-gray-400/20',
+  rose: 'text-rose-400    bg-rose-400/10    border-rose-400/20',
+  yellow: 'text-yellow-400  bg-yellow-400/10  border-yellow-400/20',
 } as const
 
 export interface BadgeProps {
@@ -28,13 +28,7 @@ export interface BadgeProps {
   icon?: React.ReactNode
 }
 
-export function Badge({
-  children,
-  color = 'gray',
-  size = 'sm',
-  className,
-  icon,
-}: BadgeProps) {
+export function Badge({ children, color = 'gray', size = 'sm', className, icon }: BadgeProps) {
   return (
     <span
       className={cn(
@@ -49,4 +43,3 @@ export function Badge({
     </span>
   )
 }
-

@@ -230,9 +230,7 @@ describe('apiClient interceptors', () => {
         return { status: 200, data: {} }
       })
 
-      await expect(
-        apiClient.post('/api/v1/auth/refresh', {}),
-      ).rejects.toMatchObject({
+      await expect(apiClient.post('/api/v1/auth/refresh', {})).rejects.toMatchObject({
         response: { status: 401 },
       })
 
@@ -242,7 +240,11 @@ describe('apiClient interceptors', () => {
     it('logs out the user when refresh fails', async () => {
       useAuthStore.getState().setTokens('expired-token')
       useAuthStore.getState().setUser({
-        id: 'u1', tenantId: 't1', username: 'x', email: 'x@x.com', role: 'VIEWER',
+        id: 'u1',
+        tenantId: 't1',
+        username: 'x',
+        email: 'x@x.com',
+        role: 'VIEWER',
       })
 
       mockAdapter(async (config) => {
@@ -256,9 +258,7 @@ describe('apiClient interceptors', () => {
         throw createAxiosError(401, config)
       })
 
-      await expect(
-        apiClient.get('/api/v1/admin/routes'),
-      ).rejects.toBeDefined()
+      await expect(apiClient.get('/api/v1/admin/routes')).rejects.toBeDefined()
 
       // User should be logged out
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
@@ -272,9 +272,7 @@ describe('apiClient interceptors', () => {
         throw createAxiosError(500, config)
       })
 
-      await expect(
-        apiClient.get('/api/v1/admin/routes'),
-      ).rejects.toMatchObject({
+      await expect(apiClient.get('/api/v1/admin/routes')).rejects.toMatchObject({
         response: { status: 500 },
       })
 
@@ -299,9 +297,7 @@ describe('apiClient interceptors', () => {
         throw createAxiosError(401, config)
       })
 
-      await expect(
-        apiClient.get('/api/v1/admin/routes'),
-      ).rejects.toMatchObject({
+      await expect(apiClient.get('/api/v1/admin/routes')).rejects.toMatchObject({
         response: { status: 401 },
       })
 

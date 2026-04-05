@@ -8,23 +8,28 @@ import { useState } from 'react'
 import { Gauge, Plus, Edit, Trash2, X } from 'lucide-react'
 import type { GatewayRateLimitPolicy } from '../../../types'
 import {
-  SectionHeader, ToggleRow, Field, SaveBar, EmptyState,
-  inputCls, textareaCls,
+  SectionHeader,
+  ToggleRow,
+  Field,
+  SaveBar,
+  EmptyState,
+  inputCls,
+  textareaCls,
 } from '../components/GatewayPrimitives'
 import { Select } from '../../../components/ui/Select'
 
 // ─── Algorithm / key-resolver badges ─────────────────────────────────────────
 
 const ALGO_COLORS: Record<string, string> = {
-  TOKEN_BUCKET:   'text-indigo-300 bg-indigo-500/10 border-indigo-500/20',
-  FIXED_WINDOW:   'text-amber-300 bg-amber-500/10 border-amber-500/20',
+  TOKEN_BUCKET: 'text-indigo-300 bg-indigo-500/10 border-indigo-500/20',
+  FIXED_WINDOW: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
   SLIDING_WINDOW: 'text-purple-300 bg-purple-500/10 border-purple-500/20',
 }
 
 const KEY_COLORS: Record<string, string> = {
-  IP:      'text-sky-300 bg-sky-500/10 border-sky-500/20',
-  USER:    'text-violet-300 bg-violet-500/10 border-violet-500/20',
-  TENANT:  'text-teal-300 bg-teal-500/10 border-teal-500/20',
+  IP: 'text-sky-300 bg-sky-500/10 border-sky-500/20',
+  USER: 'text-violet-300 bg-violet-500/10 border-violet-500/20',
+  TENANT: 'text-teal-300 bg-teal-500/10 border-teal-500/20',
   API_KEY: 'text-orange-300 bg-orange-500/10 border-orange-500/20',
 }
 
@@ -55,11 +60,12 @@ function PolicyModal({
             <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
               <Gauge className="w-3.5 h-3.5 text-amber-400" />
             </div>
-            <h3 className="text-sm font-semibold text-white">
-              {isNew ? 'New Rate Limit Policy' : 'Edit Policy'}
-            </h3>
+            <h3 className="text-sm font-semibold text-white">{isNew ? 'New Rate Limit Policy' : 'Edit Policy'}</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -71,7 +77,7 @@ function PolicyModal({
               <Field label="Policy Name">
                 <input
                   value={p.name}
-                  onChange={e => setP(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => setP((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. public-api-limit"
                   className={inputCls}
                 />
@@ -80,7 +86,7 @@ function PolicyModal({
             <Field label="Description" optional>
               <input
                 value={p.description ?? ''}
-                onChange={e => setP(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => setP((prev) => ({ ...prev, description: e.target.value }))}
                 className={inputCls}
               />
             </Field>
@@ -88,26 +94,34 @@ function PolicyModal({
             <Field label="Algorithm">
               <Select
                 value={p.algorithm}
-                onChange={v => setP(prev => ({ ...prev, algorithm: v as GatewayRateLimitPolicy['algorithm'] }))}
-                options={ALGORITHMS.map(a => ({
+                onChange={(v) => setP((prev) => ({ ...prev, algorithm: v as GatewayRateLimitPolicy['algorithm'] }))}
+                options={ALGORITHMS.map((a) => ({
                   value: a,
                   label: a.replace(/_/g, ' '),
-                  description: a === 'TOKEN_BUCKET'
-                    ? 'Allows short bursts above rate'
-                    : a === 'FIXED_WINDOW'
-                    ? 'Simple counter, resets at interval'
-                    : 'Accurate rolling window (more memory)',
+                  description:
+                    a === 'TOKEN_BUCKET'
+                      ? 'Allows short bursts above rate'
+                      : a === 'FIXED_WINDOW'
+                        ? 'Simple counter, resets at interval'
+                        : 'Accurate rolling window (more memory)',
                 }))}
               />
             </Field>
             <Field label="Key Resolver" hint="How to identify the rate-limited subject">
               <Select
                 value={p.keyResolver}
-                onChange={v => setP(prev => ({ ...prev, keyResolver: v as GatewayRateLimitPolicy['keyResolver'] }))}
-                options={KEY_RESOLVERS.map(k => ({
+                onChange={(v) => setP((prev) => ({ ...prev, keyResolver: v as GatewayRateLimitPolicy['keyResolver'] }))}
+                options={KEY_RESOLVERS.map((k) => ({
                   value: k,
                   label: k,
-                  description: k === 'IP' ? 'Remote IP address' : k === 'USER' ? 'X-Auth-User-Id header' : k === 'TENANT' ? 'X-Tenant-Id header' : 'X-API-Key header',
+                  description:
+                    k === 'IP'
+                      ? 'Remote IP address'
+                      : k === 'USER'
+                        ? 'X-Auth-User-Id header'
+                        : k === 'TENANT'
+                          ? 'X-Tenant-Id header'
+                          : 'X-API-Key header',
                 }))}
               />
             </Field>
@@ -116,7 +130,7 @@ function PolicyModal({
                 type="number"
                 min={1}
                 value={p.replenishRate}
-                onChange={e => setP(prev => ({ ...prev, replenishRate: Number(e.target.value) }))}
+                onChange={(e) => setP((prev) => ({ ...prev, replenishRate: Number(e.target.value) }))}
                 className={inputCls}
               />
             </Field>
@@ -125,7 +139,7 @@ function PolicyModal({
                 type="number"
                 min={1}
                 value={p.burstCapacity}
-                onChange={e => setP(prev => ({ ...prev, burstCapacity: Number(e.target.value) }))}
+                onChange={(e) => setP((prev) => ({ ...prev, burstCapacity: Number(e.target.value) }))}
                 className={inputCls}
               />
             </Field>
@@ -134,7 +148,7 @@ function PolicyModal({
                 type="number"
                 min={1}
                 value={p.requestedTokens}
-                onChange={e => setP(prev => ({ ...prev, requestedTokens: Number(e.target.value) }))}
+                onChange={(e) => setP((prev) => ({ ...prev, requestedTokens: Number(e.target.value) }))}
                 className={inputCls}
               />
             </Field>
@@ -143,7 +157,7 @@ function PolicyModal({
                 type="number"
                 min={100}
                 value={p.windowMs}
-                onChange={e => setP(prev => ({ ...prev, windowMs: Number(e.target.value) }))}
+                onChange={(e) => setP((prev) => ({ ...prev, windowMs: Number(e.target.value) }))}
                 className={inputCls}
               />
             </Field>
@@ -157,13 +171,25 @@ function PolicyModal({
             <textarea
               rows={2}
               value={(p.globalPaths ?? []).join('\n')}
-              onChange={e => setP(prev => ({ ...prev, globalPaths: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }))}
+              onChange={(e) =>
+                setP((prev) => ({
+                  ...prev,
+                  globalPaths: e.target.value
+                    .split('\n')
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                }))
+              }
               placeholder="/api/**"
               className={`${textareaCls} font-mono text-xs`}
             />
           </Field>
 
-          <ToggleRow label="Policy Enabled" checked={p.enabled} onChange={v => setP(prev => ({ ...prev, enabled: v }))} />
+          <ToggleRow
+            label="Policy Enabled"
+            checked={p.enabled}
+            onChange={(v) => setP((prev) => ({ ...prev, enabled: v }))}
+          />
         </div>
 
         {/* Footer */}
@@ -172,7 +198,10 @@ function PolicyModal({
             Cancel
           </button>
           <button
-            onClick={() => { onSave(p); onClose() }}
+            onClick={() => {
+              onSave(p)
+              onClose()
+            }}
             disabled={!p.name.trim()}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
           >
@@ -198,8 +227,8 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
   const dirty = JSON.stringify(policies) !== JSON.stringify(initial)
 
   const savePolicy = (p: GatewayRateLimitPolicy) => {
-    setPolicies(prev => {
-      const list = prev.filter(x => x.id !== p.id)
+    setPolicies((prev) => {
+      const list = prev.filter((x) => x.id !== p.id)
       return [...list, p]
     })
     setEditing(null)
@@ -251,7 +280,7 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
         />
       ) : (
         <div className="space-y-3">
-          {policies.map(p => {
+          {policies.map((p) => {
             return (
               <div
                 key={p.id}
@@ -260,16 +289,22 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
                 <div className="flex items-start justify-between gap-3">
                   {/* Left: identity */}
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${p.enabled ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                    <div
+                      className={`mt-1 w-2 h-2 rounded-full shrink-0 ${p.enabled ? 'bg-emerald-400' : 'bg-gray-600'}`}
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-white">{p.name || '(unnamed)'}</span>
                         {/* Algorithm chip */}
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium border ${ALGO_COLORS[p.algorithm] ?? 'text-gray-400 bg-white/5 border-white/10'}`}>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium border ${ALGO_COLORS[p.algorithm] ?? 'text-gray-400 bg-white/5 border-white/10'}`}
+                        >
                           {p.algorithm.replace(/_/g, ' ')}
                         </span>
                         {/* Key resolver chip */}
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium border ${KEY_COLORS[p.keyResolver] ?? 'text-gray-400 bg-white/5 border-white/10'}`}>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium border ${KEY_COLORS[p.keyResolver] ?? 'text-gray-400 bg-white/5 border-white/10'}`}
+                        >
                           {p.keyResolver}
                         </span>
                       </div>
@@ -294,7 +329,7 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
                     <button
                       onClick={() => {
                         if (!confirm(`Delete policy "${p.name || '(unnamed)'}"?`)) return
-                        setPolicies(prev => prev.filter(x => x.id !== p.id))
+                        setPolicies((prev) => prev.filter((x) => x.id !== p.id))
                       }}
                       className="p-1.5 text-red-400/70 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                       title="Delete policy"
@@ -322,4 +357,3 @@ export default function RateLimitTab({ initial, onSave, isPending }: Props) {
     </div>
   )
 }
-

@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 const BASE_TITLE = 'Routify'
@@ -63,4 +63,3 @@ describe('useDocumentTitle', () => {
     }
   })
 })
-

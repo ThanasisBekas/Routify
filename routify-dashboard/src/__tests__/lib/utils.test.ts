@@ -131,4 +131,3 @@ describe('extractApiError()', () => {
     expect(extractApiError(error)).toBe('Request failed with status code 500')
   })
 })
-

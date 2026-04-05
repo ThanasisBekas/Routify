@@ -41,8 +41,8 @@ export function useBootstrapAuth() {
       })
       .finally(() => setBootstrapped(true))
 
-  // Run only once on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Run only once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return bootstrapped

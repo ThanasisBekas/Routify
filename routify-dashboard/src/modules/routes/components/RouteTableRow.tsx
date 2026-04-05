@@ -19,7 +19,15 @@ interface Props {
 }
 
 export default function RouteTableRow({
-  route, index, onSelect, onEdit, onCurl, onActivate, onDeactivate, onDelete, isActivating,
+  route,
+  index,
+  onSelect,
+  onEdit,
+  onCurl,
+  onActivate,
+  onDeactivate,
+  onDelete,
+  isActivating,
 }: Props) {
   const sc = STATUS_CONFIG[route.status]
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -58,8 +66,14 @@ export default function RouteTableRow({
       {/* Methods */}
       <td className="px-4 py-3.5">
         <div className="flex gap-1 flex-wrap">
-          {route.methods.split(',').map(m => (
-            <span key={m} className={cn('text-[10px] px-1.5 py-0.5 rounded font-mono font-bold border', METHOD_COLORS[m.trim()] ?? METHOD_COLORS['*'])}>
+          {route.methods.split(',').map((m) => (
+            <span
+              key={m}
+              className={cn(
+                'text-[10px] px-1.5 py-0.5 rounded font-mono font-bold border',
+                METHOD_COLORS[m.trim()] ?? METHOD_COLORS['*'],
+              )}
+            >
               {m.trim()}
             </span>
           ))}
@@ -83,7 +97,12 @@ export default function RouteTableRow({
 
       {/* Status */}
       <td className="px-4 py-3.5">
-        <span className={cn('inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full font-semibold border', sc.color)}>
+        <span
+          className={cn(
+            'inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full font-semibold border',
+            sc.color,
+          )}
+        >
           {sc.icon}
           {sc.label}
         </span>
@@ -99,7 +118,7 @@ export default function RouteTableRow({
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
         <div
           className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity relative"
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           {(route.status === 'DRAFT' || route.status === 'DISABLED') && (
             <button
@@ -108,9 +127,7 @@ export default function RouteTableRow({
               title="Activate"
               className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-400/10 transition-colors disabled:opacity-50"
             >
-              {isActivating
-                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                : <Play className="w-3.5 h-3.5" />}
+              {isActivating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
             </button>
           )}
 
@@ -144,7 +161,10 @@ export default function RouteTableRow({
               {confirmDelete && (
                 <ConfirmDeletePopover
                   routeName={route.name}
-                  onConfirm={() => { setConfirmDelete(false); onDelete() }}
+                  onConfirm={() => {
+                    setConfirmDelete(false)
+                    onDelete()
+                  }}
                   onCancel={() => setConfirmDelete(false)}
                 />
               )}
@@ -165,4 +185,3 @@ export default function RouteTableRow({
     </tr>
   )
 }
-

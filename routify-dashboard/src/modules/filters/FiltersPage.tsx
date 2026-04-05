@@ -17,32 +17,26 @@ import type { FilterSummary } from '../../types'
 import { cn } from '../../lib/utils'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import {
-  FILTER_REGISTRY,
-  CATEGORY_ORDER,
-  CATEGORY_COLORS,
-  getFilterEntry,
-  type FilterCategory,
-} from './filterRegistry'
+import { FILTER_REGISTRY, CATEGORY_ORDER, CATEGORY_COLORS, getFilterEntry, type FilterCategory } from './filterRegistry'
 
 // ─── Stats bar ────────────────────────────────────────────────────────────────
 
 function StatsBar({ filters }: { filters: FilterSummary[] }) {
-  const total    = filters.length
-  const active   = filters.filter(f => f.enabled).length
-  const inUse    = filters.filter(f => f.usageCount > 0).length
-  const cats     = new Set(filters.map(f => getFilterEntry(f.filterType)?.category ?? 'Other')).size
+  const total = filters.length
+  const active = filters.filter((f) => f.enabled).length
+  const inUse = filters.filter((f) => f.usageCount > 0).length
+  const cats = new Set(filters.map((f) => getFilterEntry(f.filterType)?.category ?? 'Other')).size
 
   const stats = [
-    { label: 'Total',          value: total,   color: 'text-white' },
-    { label: 'Active',         value: active,  color: 'text-emerald-400' },
-    { label: 'In Use',         value: inUse,   color: 'text-indigo-400' },
-    { label: 'Categories',     value: cats,    color: 'text-gray-400' },
+    { label: 'Total', value: total, color: 'text-white' },
+    { label: 'Active', value: active, color: 'text-emerald-400' },
+    { label: 'In Use', value: inUse, color: 'text-indigo-400' },
+    { label: 'Categories', value: cats, color: 'text-gray-400' },
   ]
 
   return (
     <div className="flex items-center gap-0 divide-x divide-white/[0.06] border-b border-white/[0.06] bg-white/[0.01] shrink-0">
-      {stats.map(s => (
+      {stats.map((s) => (
         <div key={s.label} className="flex flex-col items-center px-6 py-3 gap-0.5">
           <span className={cn('text-xl font-bold tabular-nums', s.color)}>{s.value}</span>
           <span className="text-[10px] text-gray-600 uppercase tracking-widest font-semibold">{s.label}</span>
@@ -66,18 +60,18 @@ function CategoryTabs({
   // Derive which categories actually have filters
   const usedCats = useMemo(() => {
     const s = new Set<FilterCategory>()
-    filters.forEach(f => {
+    filters.forEach((f) => {
       const cat = getFilterEntry(f.filterType)?.category
       if (cat) s.add(cat)
     })
-    return CATEGORY_ORDER.filter(c => s.has(c))
+    return CATEGORY_ORDER.filter((c) => s.has(c))
   }, [filters])
 
   const tabs: (FilterCategory | 'All')[] = ['All', ...usedCats]
 
   return (
     <div className="flex items-center gap-1 px-6 py-2.5 border-b border-white/[0.06] overflow-x-auto scrollbar-none shrink-0">
-      {tabs.map(tab => (
+      {tabs.map((tab) => (
         <button
           key={tab}
           onClick={() => onChange(tab)}
@@ -92,20 +86,25 @@ function CategoryTabs({
           )}
         >
           {tab === 'All' ? (
-            <><Layers className="w-3 h-3 shrink-0" /> All</>
+            <>
+              <Layers className="w-3 h-3 shrink-0" /> All
+            </>
           ) : (
             tab
           )}
-          <span className={cn(
-            'text-[10px] px-1.5 py-0.5 rounded-full font-bold',
-            active === tab
-              ? tab === 'All' ? 'bg-indigo-500/30 text-indigo-300' : 'bg-white/10 text-current'
-              : 'bg-white/[0.04] text-gray-600',
-          )}>
+          <span
+            className={cn(
+              'text-[10px] px-1.5 py-0.5 rounded-full font-bold',
+              active === tab
+                ? tab === 'All'
+                  ? 'bg-indigo-500/30 text-indigo-300'
+                  : 'bg-white/10 text-current'
+                : 'bg-white/[0.04] text-gray-600',
+            )}
+          >
             {tab === 'All'
               ? filters.length
-              : filters.filter(f => getFilterEntry(f.filterType)?.category === tab).length
-            }
+              : filters.filter((f) => getFilterEntry(f.filterType)?.category === tab).length}
           </span>
         </button>
       ))}
@@ -134,38 +133,43 @@ function FilterCard({
   const canDelete = filter.usageCount === 0 && !isDeleting
 
   return (
-    <div className={cn(
-      'group relative flex flex-col rounded-xl border bg-white/[0.02] transition-all duration-150',
-      'hover:bg-white/[0.04] hover:border-white/[0.12]',
-      nodeColor.border,
-    )}>
+    <div
+      className={cn(
+        'group relative flex flex-col rounded-xl border bg-white/[0.02] transition-all duration-150',
+        'hover:bg-white/[0.04] hover:border-white/[0.12]',
+        nodeColor.border,
+      )}
+    >
       {/* Card header */}
       <div className="flex items-start justify-between gap-3 p-4 pb-3">
         <div className="flex items-start gap-3 min-w-0">
           {/* Accent icon */}
-          <div className={cn(
-            'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border',
-            nodeColor.bg, nodeColor.border,
-          )}>
+          <div
+            className={cn(
+              'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border',
+              nodeColor.bg,
+              nodeColor.border,
+            )}
+          >
             <span className={cn('text-base font-bold leading-none', nodeColor.color)}>
               {entry?.label.slice(0, 2).toUpperCase() ?? '??'}
             </span>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-bold text-white leading-tight truncate max-w-[160px]">
-                {filter.name}
-              </span>
+              <span className="text-sm font-bold text-white leading-tight truncate max-w-[160px]">{filter.name}</span>
               {!filter.enabled && (
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 border border-yellow-500/30 text-yellow-400">
                   DISABLED
                 </span>
               )}
             </div>
-            <span className={cn(
-              'inline-flex items-center mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full border',
-              catColor,
-            )}>
+            <span
+              className={cn(
+                'inline-flex items-center mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                catColor,
+              )}
+            >
               {category}
             </span>
           </div>
@@ -186,20 +190,21 @@ function FilterCard({
             title={filter.usageCount > 0 ? 'Detach from all routes first' : 'Delete filter'}
             className="p-1.5 rounded-md text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {isDeleting
-              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              : <Trash2 className="w-3.5 h-3.5" />
-            }
+            {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
       {/* Type chip */}
       <div className="px-4 pb-3">
-        <span className={cn(
-          'inline-flex text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md border',
-          nodeColor.color, nodeColor.bg, nodeColor.border,
-        )}>
+        <span
+          className={cn(
+            'inline-flex text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md border',
+            nodeColor.color,
+            nodeColor.bg,
+            nodeColor.border,
+          )}
+        >
           {filter.filterType}
         </span>
       </div>
@@ -207,12 +212,14 @@ function FilterCard({
       {/* Footer */}
       <div className="mt-auto flex items-center justify-end gap-2 px-4 py-2.5 border-t border-white/[0.05]">
         {/* Usage count */}
-        <span className={cn(
-          'flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border shrink-0',
-          filter.usageCount > 0
-            ? 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20'
-            : 'text-gray-600 bg-white/[0.02] border-white/[0.06]',
-        )}>
+        <span
+          className={cn(
+            'flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border shrink-0',
+            filter.usageCount > 0
+              ? 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20'
+              : 'text-gray-600 bg-white/[0.02] border-white/[0.06]',
+          )}
+        >
           {filter.usageCount} route{filter.usageCount !== 1 ? 's' : ''}
         </span>
       </div>
@@ -270,23 +277,26 @@ function FilterTypeBrowser({ onCreateWithType }: { onCreateWithType: (type: stri
   const [search, setSearch] = useState('')
 
   const filtered = search
-    ? FILTER_REGISTRY.filter(e =>
-        e.label.toLowerCase().includes(search.toLowerCase()) ||
-        e.category.toLowerCase().includes(search.toLowerCase()) ||
-        e.description.toLowerCase().includes(search.toLowerCase()),
+    ? FILTER_REGISTRY.filter(
+        (e) =>
+          e.label.toLowerCase().includes(search.toLowerCase()) ||
+          e.category.toLowerCase().includes(search.toLowerCase()) ||
+          e.description.toLowerCase().includes(search.toLowerCase()),
       )
     : FILTER_REGISTRY
 
   return (
     <div className="border border-white/[0.06] rounded-xl overflow-hidden">
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/[0.02] transition-colors"
       >
         <div className="flex items-center gap-2.5">
           <Layers className="w-4 h-4 text-gray-500" />
           <span className="text-xs font-semibold text-gray-400">Available Filter Types</span>
-          <span className="text-[10px] text-gray-600 bg-white/[0.04] px-1.5 py-0.5 rounded-full">{FILTER_REGISTRY.length}</span>
+          <span className="text-[10px] text-gray-600 bg-white/[0.04] px-1.5 py-0.5 rounded-full">
+            {FILTER_REGISTRY.length}
+          </span>
         </div>
         <ChevronRight className={cn('w-4 h-4 text-gray-600 transition-transform', open && 'rotate-90')} />
       </button>
@@ -298,27 +308,31 @@ function FilterTypeBrowser({ onCreateWithType }: { onCreateWithType: (type: stri
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
               <input
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search filter types…"
                 className="w-full bg-white/[0.04] border border-white/[0.07] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-all"
               />
             </div>
           </div>
           <div className="max-h-72 overflow-y-auto divide-y divide-white/[0.04]">
-            {filtered.map(entry => (
+            {filtered.map((entry) => (
               <button
                 key={entry.value}
                 onClick={() => onCreateWithType(entry.value)}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/[0.03] transition-colors group"
               >
-                <span className={cn(
-                  'text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0',
-                  CATEGORY_COLORS[entry.category],
-                )}>
+                <span
+                  className={cn(
+                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0',
+                    CATEGORY_COLORS[entry.category],
+                  )}
+                >
                   {entry.category.slice(0, 4)}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-gray-300 group-hover:text-white transition-colors">{entry.label}</div>
+                  <div className="text-xs font-semibold text-gray-300 group-hover:text-white transition-colors">
+                    {entry.label}
+                  </div>
                   <div className="text-[10px] text-gray-600 truncate mt-0.5">{entry.description}</div>
                 </div>
                 <Plus className="w-3.5 h-3.5 text-gray-600 group-hover:text-indigo-400 transition-colors shrink-0" />
@@ -336,10 +350,10 @@ function FilterTypeBrowser({ onCreateWithType }: { onCreateWithType: (type: stri
 export default function FiltersPage() {
   useDocumentTitle('Filters')
   const qc = useQueryClient()
-  const [showForm,      setShowForm]      = useState(false)
-  const [editingId,     setEditingId]     = useState<string | undefined>()
-  const [presetType,    setPresetType]    = useState<string | undefined>()
-  const [search,        setSearch]        = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | undefined>()
+  const [presetType, setPresetType] = useState<string | undefined>()
+  const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<FilterCategory | 'All'>('All')
 
   const { data, isLoading } = useRealtimeQuery({
@@ -357,23 +371,21 @@ export default function FiltersPage() {
     onError: () => toast.error('Failed to delete filter'),
   })
 
-  const allFilters = useMemo<FilterSummary[]>(
-    () => data?.content ?? [],
-    [data],
-  )
+  const allFilters = useMemo<FilterSummary[]>(() => data?.content ?? [], [data])
 
   // Apply category + search filters
   const visible = useMemo(() => {
     let result = allFilters
     if (activeCategory !== 'All') {
-      result = result.filter(f => getFilterEntry(f.filterType)?.category === activeCategory)
+      result = result.filter((f) => getFilterEntry(f.filterType)?.category === activeCategory)
     }
     if (search.trim()) {
       const q = search.toLowerCase()
-      result = result.filter(f =>
-        f.name.toLowerCase().includes(q) ||
-        f.filterType.toLowerCase().includes(q) ||
-        (getFilterEntry(f.filterType)?.category ?? '').toLowerCase().includes(q),
+      result = result.filter(
+        (f) =>
+          f.name.toLowerCase().includes(q) ||
+          f.filterType.toLowerCase().includes(q) ||
+          (getFilterEntry(f.filterType)?.category ?? '').toLowerCase().includes(q),
       )
     }
     return result
@@ -405,7 +417,6 @@ export default function FiltersPage() {
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
-
       {/* ── Page header ──────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06] bg-[#0c0e14] shrink-0">
         <div>
@@ -424,17 +435,11 @@ export default function FiltersPage() {
       </div>
 
       {/* ── Stats bar ────────────────────────────────────────────────────────── */}
-      {!isLoading && allFilters.length > 0 && (
-        <StatsBar filters={allFilters} />
-      )}
+      {!isLoading && allFilters.length > 0 && <StatsBar filters={allFilters} />}
 
       {/* ── Category tabs ─────────────────────────────────────────────────── */}
       {!isLoading && allFilters.length > 0 && (
-        <CategoryTabs
-          filters={allFilters}
-          active={activeCategory}
-          onChange={setActiveCategory}
-        />
+        <CategoryTabs filters={allFilters} active={activeCategory} onChange={setActiveCategory} />
       )}
 
       {/* ── Search bar ───────────────────────────────────────────────────────── */}
@@ -444,7 +449,7 @@ export default function FiltersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
             <input
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name, type, or category…"
               className="w-full bg-white/[0.04] border border-white/[0.07] rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all"
             />
@@ -463,7 +468,7 @@ export default function FiltersPage() {
           <div className="p-6 space-y-6">
             <EmptyState search="" category="All" onCreateClick={() => openCreate()} />
             <div className="max-w-2xl mx-auto">
-              <FilterTypeBrowser onCreateWithType={type => openCreate(type)} />
+              <FilterTypeBrowser onCreateWithType={(type) => openCreate(type)} />
             </div>
           </div>
         ) : visible.length === 0 ? (
@@ -474,7 +479,7 @@ export default function FiltersPage() {
           <div className="p-6">
             {/* Card grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {visible.map(f => (
+              {visible.map((f) => (
                 <FilterCard
                   key={f.id}
                   filter={f}
@@ -487,7 +492,7 @@ export default function FiltersPage() {
 
             {/* Filter type browser at bottom for discoverability */}
             <div className="mt-8 max-w-2xl">
-              <FilterTypeBrowser onCreateWithType={type => openCreate(type)} />
+              <FilterTypeBrowser onCreateWithType={(type) => openCreate(type)} />
             </div>
           </div>
         )}
@@ -508,4 +513,3 @@ export default function FiltersPage() {
     </div>
   )
 }
-

@@ -24,14 +24,7 @@ export interface ModalProps {
   className?: string
 }
 
-export function Modal({
-  open,
-  onClose,
-  children,
-  size = 'max-w-lg',
-  closeOnBackdrop = true,
-  className,
-}: ModalProps) {
+export function Modal({ open, onClose, children, size = 'max-w-lg', closeOnBackdrop = true, className }: ModalProps) {
   if (!open) return null
 
   return (
@@ -44,11 +37,7 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className={cn(
-          'bg-[#111318] border border-white/[0.08] rounded-2xl w-full shadow-2xl',
-          size,
-          className,
-        )}
+        className={cn('bg-[#111318] border border-white/[0.08] rounded-2xl w-full shadow-2xl', size, className)}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -72,9 +61,9 @@ export function ModalHeader({
   onClose: () => void
 }) {
   const iconColors = {
-    indigo:  'bg-indigo-500/20 border-indigo-500/30',
-    amber:   'bg-amber-500/20 border-amber-500/30',
-    red:     'bg-red-500/20 border-red-500/30',
+    indigo: 'bg-indigo-500/20 border-indigo-500/30',
+    amber: 'bg-amber-500/20 border-amber-500/30',
+    red: 'bg-red-500/20 border-red-500/30',
     emerald: 'bg-emerald-500/20 border-emerald-500/30',
   }
 
@@ -82,20 +71,13 @@ export function ModalHeader({
     <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
       <div className="flex items-center gap-2.5">
         {icon && (
-          <div
-            className={cn(
-              'w-7 h-7 rounded-lg border flex items-center justify-center',
-              iconColors[iconColor],
-            )}
-          >
+          <div className={cn('w-7 h-7 rounded-lg border flex items-center justify-center', iconColors[iconColor])}>
             {icon}
           </div>
         )}
         <div>
           <h2 className="text-sm font-bold text-white">{title}</h2>
-          {subtitle && (
-            <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
-          )}
+          {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
       </div>
       <button
@@ -110,37 +92,15 @@ export function ModalHeader({
 }
 
 /** Standard modal body — adds padding and optional scroll. */
-export function ModalBody({
-  children,
-  className,
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn('p-6', className)}>
-      {children}
-    </div>
-  )
+export function ModalBody({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn('p-6', className)}>{children}</div>
 }
 
 /** Standard modal footer — right-aligned action buttons. */
-export function ModalFooter({
-  children,
-  className,
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
+export function ModalFooter({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className={cn(
-        'flex items-center justify-end gap-2 px-6 py-4 border-t border-white/[0.06]',
-        className,
-      )}
-    >
+    <div className={cn('flex items-center justify-end gap-2 px-6 py-4 border-t border-white/[0.06]', className)}>
       {children}
     </div>
   )
 }
-

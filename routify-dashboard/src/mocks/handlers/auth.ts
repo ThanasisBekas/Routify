@@ -17,25 +17,48 @@ export const MOCK_ACCESS_TOKEN = 'mock-access-token-super-admin'
 
 /** A fake but plausible JWT payload encoded as base64url (not a real signed JWT) */
 function mockToken(role: string, userId: string): string {
-  const header  = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).replace(/=/g, '')
-  const payload = btoa(JSON.stringify({
-    sub: userId, role, tenantId: MOCK_TENANT_ID,
-    iss: 'routify-mock', exp: Math.floor(Date.now() / 1000) + 3600,
-  })).replace(/=/g, '')
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).replace(/=/g, '')
+  const payload = btoa(
+    JSON.stringify({
+      sub: userId,
+      role,
+      tenantId: MOCK_TENANT_ID,
+      iss: 'routify-mock',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    }),
+  ).replace(/=/g, '')
   return `${header}.${payload}.mock-signature`
 }
 
 const USERS: Record<string, { password: string; userId: string; role: string; username: string; email: string }> = {
-  admin:    { password: 'routify_admin_2025', userId: 'bbbbbbbb-0000-0000-0000-000000000001', role: 'SUPER_ADMIN', username: 'admin',    email: 'admin@routify.demo'    },
-  viewer:   { password: 'password',           userId: 'bbbbbbbb-0000-0000-0000-000000000002', role: 'VIEWER',      username: 'viewer',   email: 'viewer@routify.demo'   },
-  operator: { password: 'password',           userId: 'bbbbbbbb-0000-0000-0000-000000000003', role: 'OPERATOR',    username: 'operator', email: 'ops@routify.demo'      },
+  admin: {
+    password: 'routify_admin_2025',
+    userId: 'bbbbbbbb-0000-0000-0000-000000000001',
+    role: 'SUPER_ADMIN',
+    username: 'admin',
+    email: 'admin@routify.demo',
+  },
+  viewer: {
+    password: 'password',
+    userId: 'bbbbbbbb-0000-0000-0000-000000000002',
+    role: 'VIEWER',
+    username: 'viewer',
+    email: 'viewer@routify.demo',
+  },
+  operator: {
+    password: 'password',
+    userId: 'bbbbbbbb-0000-0000-0000-000000000003',
+    role: 'OPERATOR',
+    username: 'operator',
+    email: 'ops@routify.demo',
+  },
 }
 
 function buildLoginResponse(userId: string, role: string, username: string, email: string): LoginResponse {
   return {
-    accessToken:        mockToken(role, userId),
-    tokenType:          'Bearer',
-    expiresIn:          3600,
+    accessToken: mockToken(role, userId),
+    tokenType: 'Bearer',
+    expiresIn: 3600,
     mustChangePassword: false,
     user: { id: userId, tenantId: MOCK_TENANT_ID, username, email, role: role as LoginResponse['user']['role'] },
   }
@@ -45,7 +68,7 @@ export const authHandlers = [
   // ─── Login ──────────────────────────────────────────────────────────────────
   http.post('/api/v1/auth/login', async ({ request }) => {
     await delay(300)
-    const body = await request.json() as { username?: string; password?: string; tenantSlug?: string }
+    const body = (await request.json()) as { username?: string; password?: string; tenantSlug?: string }
 
     if (body.tenantSlug !== 'routify') {
       return HttpResponse.json(
@@ -83,11 +106,13 @@ export const authHandlers = [
   // ─── Change password ─────────────────────────────────────────────────────────
   http.post('/api/v1/auth/change-password', async ({ request }) => {
     await delay(200)
-    const body = await request.json() as { currentPassword?: string; newPassword?: string }
+    const body = (await request.json()) as { currentPassword?: string; newPassword?: string }
     if (!body.currentPassword || !body.newPassword) {
-      return HttpResponse.json({ success: false, message: 'Both current and new password are required.' }, { status: 400 })
+      return HttpResponse.json(
+        { success: false, message: 'Both current and new password are required.' },
+        { status: 400 },
+      )
     }
     return HttpResponse.json({ success: true, message: 'Password changed successfully.' })
   }),
 ]
-

@@ -46,4 +46,3 @@ export default function ValidationBanner({ valid }: ValidationBannerProps) {
     </div>
   )
 }
-

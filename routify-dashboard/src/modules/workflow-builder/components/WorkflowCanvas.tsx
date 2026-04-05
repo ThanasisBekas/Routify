@@ -45,9 +45,7 @@ import { useWorkflowStore, SINGLE_USE_NODE_TYPES } from '../store/workflowStore'
 import { edgeStyle, getFilterMeta } from '../constants/nodeMetadata'
 import { isFlowComplete, inferExecutionOrder } from '../hooks/buildGraph'
 import { RouteTriggerNode } from '../nodes/RouteTriggerNode'
-import {
-  ClientNode, UpstreamNode, FilterNode, ResponseNode, LabelNode,
-} from '../nodes/SharedNodes'
+import { ClientNode, UpstreamNode, FilterNode, ResponseNode, LabelNode } from '../nodes/SharedNodes'
 import ValidationBanner from './ValidationBanner'
 import PropertiesDrawer from './PropertiesDrawer'
 import type { RouteDto, AttachFilterRequest, FilterSummary } from '../../../types'
@@ -57,9 +55,9 @@ import { extractApiError } from '../../../lib/utils'
 // ─── Auto-spacing: collision avoidance for dropped nodes ──────────────────────
 
 /** Approximate bounding box dimensions for canvas nodes (generous to avoid visual overlap) */
-const NODE_WIDTH  = 240
+const NODE_WIDTH = 240
 const NODE_HEIGHT = 120
-const SPACING     = 20
+const SPACING = 20
 
 /**
  * Returns a position that does not overlap any existing node on the canvas.
@@ -67,17 +65,15 @@ const SPACING     = 20
  * algorithm scans downward (and then rightward) in increments until an
  * open slot is found.  Maximum 50 attempts to prevent infinite loops.
  */
-function findNonOverlappingPosition(
-  proposed: XYPosition,
-  existingNodes: FlowNode[],
-): XYPosition {
+function findNonOverlappingPosition(proposed: XYPosition, existingNodes: FlowNode[]): XYPosition {
   const overlaps = (pos: XYPosition) =>
-    existingNodes.some(n => (
-      pos.x < n.position.x + NODE_WIDTH  + SPACING &&
-      pos.x + NODE_WIDTH  + SPACING > n.position.x &&
-      pos.y < n.position.y + NODE_HEIGHT + SPACING &&
-      pos.y + NODE_HEIGHT + SPACING > n.position.y
-    ))
+    existingNodes.some(
+      (n) =>
+        pos.x < n.position.x + NODE_WIDTH + SPACING &&
+        pos.x + NODE_WIDTH + SPACING > n.position.x &&
+        pos.y < n.position.y + NODE_HEIGHT + SPACING &&
+        pos.y + NODE_HEIGHT + SPACING > n.position.y,
+    )
 
   if (!overlaps(proposed)) return proposed
 
@@ -105,12 +101,12 @@ function findNonOverlappingPosition(
 // every render (causes internal reconciliation warnings in @xyflow/react).
 
 const NODE_TYPES = {
-  clientNode:    ClientNode,
-  routeNode:     RouteTriggerNode,
-  filterNode:    FilterNode,
-  upstreamNode:  UpstreamNode,
-  responseNode:  ResponseNode,
-  labelNode:     LabelNode,
+  clientNode: ClientNode,
+  routeNode: RouteTriggerNode,
+  filterNode: FilterNode,
+  upstreamNode: UpstreamNode,
+  responseNode: ResponseNode,
+  labelNode: LabelNode,
 }
 
 // ─── FilterPickerModal ────────────────────────────────────────────────────────
@@ -127,7 +123,12 @@ interface FilterPickerModalProps {
 }
 
 function FilterPickerModal({
-  filterType, inferredPhase, inferredOrder, onAttach, onClose, isPending
+  filterType,
+  inferredPhase,
+  inferredOrder,
+  onAttach,
+  onClose,
+  isPending,
 }: FilterPickerModalProps) {
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState('')
@@ -138,13 +139,15 @@ function FilterPickerModal({
   })
   const all: FilterSummary[] = data?.content ?? []
 
-  const filtered = (search
-    ? all.filter(f =>
-        f.name.toLowerCase().includes(search.toLowerCase()) ||
-        f.filterType.toLowerCase().includes(search.toLowerCase()),
-      )
-    : all
-  ).filter(f => !filterType || f.filterType === filterType)
+  const filtered = (
+    search
+      ? all.filter(
+          (f) =>
+            f.name.toLowerCase().includes(search.toLowerCase()) ||
+            f.filterType.toLowerCase().includes(search.toLowerCase()),
+        )
+      : all
+  ).filter((f) => !filterType || f.filterType === filterType)
 
   const meta = getFilterMeta(filterType)
   const humanType = filterType.replace(/_/g, ' ')
@@ -179,7 +182,7 @@ function FilterPickerModal({
               <input
                 autoFocus
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${humanType} definitions…`}
                 className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-all"
               />
@@ -188,16 +191,14 @@ function FilterPickerModal({
             {filtered.length === 0 ? (
               <div className="text-center py-8 space-y-2">
                 <Filter className="w-7 h-7 text-gray-700 mx-auto" />
-                <p className="text-xs text-gray-500">
-                  No {humanType} filter definitions found.
-                </p>
+                <p className="text-xs text-gray-500">No {humanType} filter definitions found.</p>
                 <p className="text-[11px] text-gray-600">
                   Create one in the <strong className="text-gray-400">Filters</strong> section first.
                 </p>
               </div>
             ) : (
               <div className="space-y-1">
-                {filtered.map(f => (
+                {filtered.map((f) => (
                   <button
                     key={f.id}
                     onClick={() => setSelectedId(f.id === selectedId ? '' : f.id)}
@@ -210,11 +211,18 @@ function FilterPickerModal({
                   >
                     <span className={cn('p-1.5 rounded-lg', meta.bg)}>{meta.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <div className={cn('text-sm font-medium truncate', selectedId === f.id ? 'text-indigo-200' : 'text-white')}>
+                      <div
+                        className={cn(
+                          'text-sm font-medium truncate',
+                          selectedId === f.id ? 'text-indigo-200' : 'text-white',
+                        )}
+                      >
                         {f.name}
                       </div>
                       <div className="text-[10px] text-gray-500">
-                        {f.usageCount > 0 ? `Used on ${f.usageCount} route${f.usageCount !== 1 ? 's' : ''}` : 'Not attached anywhere yet'}
+                        {f.usageCount > 0
+                          ? `Used on ${f.usageCount} route${f.usageCount !== 1 ? 's' : ''}`
+                          : 'Not attached anywhere yet'}
                       </div>
                     </div>
                     {selectedId === f.id && <span className="text-indigo-400 text-sm shrink-0">✓</span>}
@@ -229,21 +237,25 @@ function FilterPickerModal({
             <div className="px-4 pb-4 space-y-3 border-t border-white/[0.06] pt-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest block">Phase</label>
-                  <div className={cn(
-                    'flex items-center justify-center py-1.5 rounded-lg border text-xs font-semibold',
-                    inferredPhase === 'PRE'
-                      ? 'bg-blue-600/20 border-blue-500/30 text-blue-200'
-                      : 'bg-purple-600/20 border-purple-500/30 text-purple-200',
-                  )}>
+                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest block">
+                    Phase
+                  </label>
+                  <div
+                    className={cn(
+                      'flex items-center justify-center py-1.5 rounded-lg border text-xs font-semibold',
+                      inferredPhase === 'PRE'
+                        ? 'bg-blue-600/20 border-blue-500/30 text-blue-200'
+                        : 'bg-purple-600/20 border-purple-500/30 text-purple-200',
+                    )}
+                  >
                     {inferredPhase === 'PRE' ? '↑ PRE' : '↓ POST'}
                   </div>
-                  <p className="text-[9px] text-gray-600">
-                    Auto-inferred from drop position
-                  </p>
+                  <p className="text-[9px] text-gray-600">Auto-inferred from drop position</p>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest block">Order</label>
+                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest block">
+                    Order
+                  </label>
                   <div className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-sm text-gray-300 font-mono text-center">
                     {inferredOrder}
                   </div>
@@ -256,10 +268,7 @@ function FilterPickerModal({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-white/[0.06] shrink-0">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
-          >
+          <button onClick={onClose} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">
             Cancel
           </button>
           <button
@@ -297,13 +306,7 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
   /** Canvas is locked when the route is live — no structural mutations allowed */
   const isLocked = route.status === 'ACTIVE'
 
-  const {
-    nodes, edges,
-    setNodes, setEdges,
-    selectNode,
-    selectedNodeId,
-    usedNodeTypes,
-  } = useWorkflowStore()
+  const { nodes, edges, setNodes, setEdges, selectNode, selectedNodeId, usedNodeTypes } = useWorkflowStore()
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -356,10 +359,9 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
         return
       }
       // Derive edge colour from the source node's position in the pipeline
-      const src = nodes.find(n => n.id === params.source)
+      const src = nodes.find((n) => n.id === params.source)
       const type =
-        src?.id === 'route'                                              ? 'route' :
-        src?.id?.startsWith('post-') || params.target === 'response'   ? 'post'  : 'pre'
+        src?.id === 'route' ? 'route' : src?.id?.startsWith('post-') || params.target === 'response' ? 'post' : 'pre'
       const newEdges = addEdge({ ...params, ...edgeStyle(type) }, edges)
       setEdges(newEdges, 'onConnect')
     },
@@ -369,12 +371,15 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
   // ── Delete selected node ──────────────────────────────────────────────────
   const deleteSelectedNode = useCallback(() => {
     if (isLocked) {
-      console.warn('[WorkflowBuilder] Edit blocked: route is active', { routeId: route.id, action: 'deleteSelectedNode' })
+      console.warn('[WorkflowBuilder] Edit blocked: route is active', {
+        routeId: route.id,
+        action: 'deleteSelectedNode',
+      })
       toast.warning('Route is active', { description: 'Pause the route first to remove nodes.' })
       return
     }
     if (!selectedNodeId) return
-    const node = nodes.find(n => n.id === selectedNodeId)
+    const node = nodes.find((n) => n.id === selectedNodeId)
     if (!node) return
 
     // Prevent deletion of core structural nodes
@@ -395,8 +400,8 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
     }
 
     // For unattached/local nodes: remove from canvas
-    const newNodes = nodes.filter(n => n.id !== selectedNodeId)
-    const newEdges = edges.filter(e => e.source !== selectedNodeId && e.target !== selectedNodeId)
+    const newNodes = nodes.filter((n) => n.id !== selectedNodeId)
+    const newEdges = edges.filter((e) => e.source !== selectedNodeId && e.target !== selectedNodeId)
     setNodes(newNodes, 'deleteNode')
     setEdges(newEdges, 'deleteNode')
     selectNode(null)
@@ -404,14 +409,17 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
 
   // ── Drag-and-drop from NodePalette ────────────────────────────────────────
 
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    if (isLocked) {
-      event.dataTransfer.dropEffect = 'none'
-      return
-    }
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-  }, [isLocked])
+  const onDragOver = useCallback(
+    (event: React.DragEvent) => {
+      if (isLocked) {
+        event.dataTransfer.dropEffect = 'none'
+        return
+      }
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+    },
+    [isLocked],
+  )
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -422,7 +430,7 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
         return
       }
 
-      const nodeType   = event.dataTransfer.getData('application/reactflow')
+      const nodeType = event.dataTransfer.getData('application/reactflow')
       const filterType = event.dataTransfer.getData('application/reactflow-filter-type')
 
       if (!nodeType || !rfInstance.current) return
@@ -460,11 +468,11 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
           return
         }
 
-        const upstreamNode = nodes.find(n => n.id === 'upstream')
+        const upstreamNode = nodes.find((n) => n.id === 'upstream')
         const upstreamX = upstreamNode?.position?.x ?? 600
         const existingExec = inferExecutionOrder(nodes, edges)
-        const preCount  = existingExec.filter(e => e.phase === 'PRE').length
-        const postCount = existingExec.filter(e => e.phase === 'POST').length
+        const preCount = existingExec.filter((e) => e.phase === 'PRE').length
+        const postCount = existingExec.filter((e) => e.phase === 'POST').length
         const inferredPhase: 'PRE' | 'POST' = position.x < upstreamX ? 'PRE' : 'POST'
         const inferredOrder = inferredPhase === 'PRE' ? preCount * 10 : postCount * 10
         const safeFilterPosition = findNonOverlappingPosition(position, nodes)
@@ -507,7 +515,7 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
   const valid = useMemo(() => isFlowComplete(nodes, edges), [nodes, edges])
 
   // Delete button only shown when not locked and node is deletable
-  const selectedNode = nodes.find(n => n.id === selectedNodeId)
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId)
   const canDeleteSelected = !isLocked && !!selectedNode && !SINGLE_USE_NODE_TYPES.has(selectedNode.type ?? '')
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -519,7 +527,10 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
         <div
           className="absolute inset-0 z-10 cursor-not-allowed"
           title="Route is active — pause it to make changes"
-          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'none' }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'none'
+          }}
           onDrop={(e) => e.preventDefault()}
         />
       )}
@@ -547,18 +558,10 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
         defaultEdgeOptions={{ type: 'smoothstep' }}
       >
         {/* Dot-grid background */}
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={24}
-          size={1}
-          color="rgba(255,255,255,0.04)"
-        />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
 
         {/* Zoom / pan controls */}
-        <Controls
-          className="!bg-[#111318] !border-white/10 !rounded-xl !shadow-xl"
-          showInteractive={false}
-        />
+        <Controls className="!bg-[#111318] !border-white/10 !rounded-xl !shadow-xl" showInteractive={false} />
 
         {/* Overview minimap */}
         <MiniMap
@@ -581,10 +584,11 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 bg-red-400/10 border border-red-400/20 hover:bg-red-400/20 disabled:opacity-50 transition-all shadow"
               title="Delete selected node (or press Delete)"
             >
-              {detachMutation.isPending
-                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                : <Trash2 className="w-3.5 h-3.5" />
-              }
+              {detachMutation.isPending ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
               Remove Node
             </button>
           </Panel>
@@ -595,8 +599,7 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
           <div className="text-[10px] text-gray-700 bg-[#080a0f]/80 px-3 py-1 rounded-full border border-white/[0.04]">
             {isLocked
               ? '🔒 Read-only — pause the route to make changes'
-              : 'Drag nodes from the palette · Click to configure · Connect handles · Delete / Backspace to remove'
-            }
+              : 'Drag nodes from the palette · Click to configure · Connect handles · Delete / Backspace to remove'}
           </div>
         </Panel>
       </ReactFlow>
@@ -628,7 +631,14 @@ function defaultDataForType(
 ): Record<string, unknown> {
   switch (nodeType) {
     case 'routeNode':
-      return { name: 'Route Trigger', pathPattern: '/new/**', methods: 'GET', status: 'DRAFT', version: 1, onSelect: () => onSelect('') }
+      return {
+        name: 'Route Trigger',
+        pathPattern: '/new/**',
+        methods: 'GET',
+        status: 'DRAFT',
+        version: 1,
+        onSelect: () => onSelect(''),
+      }
     case 'upstreamNode':
       return { uri: 'http://service:8080', onSelect: () => onSelect('') }
     case 'clientNode':

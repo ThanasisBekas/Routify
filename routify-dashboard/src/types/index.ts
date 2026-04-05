@@ -55,7 +55,6 @@ export interface LoginResponse {
 export type TenantPlan = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
 
-
 export interface TenantDto {
   id: string
   name: string
@@ -143,22 +142,36 @@ export interface AttachFilterRequest {
 // ─── Filters ──────────────────────────────────────────────────────────────────
 
 export type FilterType =
-  | 'AUTH_API_KEY' | 'AUTH_BASIC' | 'AUTH_JWT' | 'AUTH_MTLS' | 'AUTH_OAUTH2' | 'AUTH_CLIENT_ID' | 'AUTH_CERT_VAULT'
-  | 'DOWNSTREAM_BASIC_AUTH' | 'DOWNSTREAM_BEARER_CC'
-  | 'RATE_LIMIT_FIXED_WINDOW' | 'RATE_LIMIT_SLIDING_WINDOW'
-  | 'REQUEST_HEADER_MODIFY' | 'RESPONSE_HEADER_MODIFY'
+  | 'AUTH_API_KEY'
+  | 'AUTH_BASIC'
+  | 'AUTH_JWT'
+  | 'AUTH_MTLS'
+  | 'AUTH_OAUTH2'
+  | 'AUTH_CLIENT_ID'
+  | 'AUTH_CERT_VAULT'
+  | 'DOWNSTREAM_BASIC_AUTH'
+  | 'DOWNSTREAM_BEARER_CC'
+  | 'RATE_LIMIT_FIXED_WINDOW'
+  | 'RATE_LIMIT_SLIDING_WINDOW'
+  | 'REQUEST_HEADER_MODIFY'
+  | 'RESPONSE_HEADER_MODIFY'
   | 'BODY_JOLT_TRANSFORM'
   | 'VALIDATE_JSON_SCHEMA'
   | 'TIMEOUT'
-  | 'CONDITIONAL_ROUTE' | 'USER_ID_PAYLOAD_ROUTING'
-  | 'CERT_ROTATION' | 'CERT_VAULT_EXPIRY_CHECK'
+  | 'CONDITIONAL_ROUTE'
+  | 'USER_ID_PAYLOAD_ROUTING'
+  | 'CERT_ROTATION'
+  | 'CERT_VAULT_EXPIRY_CHECK'
   | 'API_VERSIONING'
-  | 'CORRELATION_ID' | 'REQUEST_LOGGER' | 'TENANT_CONTEXT' | 'SECURITY_HEADERS' | 'CUSTOM_METRIC'
+  | 'CORRELATION_ID'
+  | 'REQUEST_LOGGER'
+  | 'TENANT_CONTEXT'
+  | 'SECURITY_HEADERS'
+  | 'CUSTOM_METRIC'
   | 'CUSTOM_SPEL'
   // ─── AI ──────────────────────────────────────────────────────────────────
   | 'AI_FILTER'
   | 'AI_MODIFIER'
-
 
 export interface FilterDefinitionDto {
   id: string
@@ -326,7 +339,6 @@ export interface CreateUserRequest {
   role: UserRole
 }
 
-
 // ─── Gateway Configuration ────────────────────────────────────────────────────
 
 export interface GatewayCorsConfig {
@@ -422,7 +434,6 @@ export interface GatewayAuthProvider {
   algorithm?: string
 }
 
-
 export interface GatewayProxyConfig {
   enabled: boolean
   host?: string
@@ -445,7 +456,6 @@ export interface GatewayHttpClientConfig {
   followRedirects: boolean
   wiretapEnabled: boolean
 }
-
 
 export interface GatewayTenantIsolationConfig {
   enabled: boolean
@@ -560,7 +570,6 @@ export interface UpdateCertGroupRequest {
   description?: string
 }
 
-
 export interface UploadCertificateRequest {
   /** Mandatory: group this certificate belongs to */
   groupId: string
@@ -672,4 +681,3 @@ export interface AiModifierDecisionEntry {
   path: string
   evaluatedAt: string
 }
-
