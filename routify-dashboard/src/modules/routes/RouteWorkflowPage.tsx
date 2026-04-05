@@ -14,8 +14,10 @@ import RouteListHeader from './components/RouteListHeader'
 import RouteWorkflowCard from './components/RouteWorkflowCard'
 import RoutePagination from './components/RoutePagination'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 export default function RouteWorkflowPage() {
+  useDocumentTitle('Routes')
   const qc = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<StatusFilterTab>('')
   const [page, setPage]                 = useState(0)

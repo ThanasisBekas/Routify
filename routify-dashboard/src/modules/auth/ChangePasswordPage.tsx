@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Zap, KeyRound, Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ShieldAlert } from 'lucide-react'
 import { authApi } from '../../api/authApi'
 import { useAuthStore } from '../../store/authStore'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 interface Props {
   /** When true the user is forced here and cannot navigate away until password is changed. */
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function ChangePasswordPage({ forced = false }: Props) {
+  useDocumentTitle('Change Password')
   const navigate       = useNavigate()
   const { user, setUser, logout } = useAuthStore()
 

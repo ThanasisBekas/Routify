@@ -12,6 +12,7 @@ import {
   Loader2, X, Eye, EyeOff, AlertCircle, ShieldCheck, CheckCircle2,
   Building2, ChevronDown, Shield, Eye as EyeIcon, Wrench,
 } from 'lucide-react'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -492,6 +493,7 @@ function UserModal({
 // ─── Users Page ───────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
+  useDocumentTitle('Users')
   const qc = useQueryClient()
   const { user: currentUser } = useAuthStore()
   const isAdmin      = currentUser?.role === 'TENANT_ADMIN' || currentUser?.role === 'SUPER_ADMIN'

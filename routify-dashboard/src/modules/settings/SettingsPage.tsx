@@ -2,6 +2,7 @@ import { useAuthStore } from '../../store/authStore'
 import { User, Shield, Hash, Mail, Building2, Cpu, Layers, Zap } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import type { UserRole } from '../../types'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 const ROLE_CONFIG: Record<UserRole, { label: string; color: string }> = {
   SUPER_ADMIN:  { label: 'Super Admin',  color: 'text-red-400 bg-red-400/10 border-red-400/20' },
@@ -18,6 +19,7 @@ const STACK_ITEMS = [
 ]
 
 export default function SettingsPage() {
+  useDocumentTitle('Settings')
   const { user } = useAuthStore()
   const roleConfig = user?.role ? ROLE_CONFIG[user.role as UserRole] : null
 
