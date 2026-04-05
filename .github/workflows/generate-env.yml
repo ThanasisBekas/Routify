@@ -15,6 +15,7 @@
 # Credentials generated fresh on every run:
 #   - DB_PASS                   — 24-byte random, alphanumeric
 #   - RABBITMQ_PASS             — 24-byte random, alphanumeric
+#   - REDIS_PASS             — 24-byte random, alphanumeric
 #   - ADMIN_INITIAL_PASSWORD    — 16-byte random, hex
 #   - GRAFANA_PASSWORD          — 16-byte random, hex
 #   - CERT_VAULT_ENCRYPTION_KEY — 32-byte random AES key, base64
@@ -83,6 +84,7 @@ jobs:
           # ── Simple random strings ────────────────────────────────────────────
           DB_PASS=$(openssl rand -base64 24 | tr -d '=+/' | head -c 32)
           RABBITMQ_PASS=$(openssl rand -base64 24 | tr -d '=+/' | head -c 32)
+          REDIS_PASS=$(openssl rand -base64 24 | tr -d '=+/' | head -c 32)
           ADMIN_INITIAL_PASSWORD=$(openssl rand -hex 16)
           GRAFANA_PASSWORD=$(openssl rand -hex 16)
 
@@ -106,6 +108,7 @@ jobs:
           # ── Mask every secret immediately ────────────────────────────────────
           echo "::add-mask::${DB_PASS}"
           echo "::add-mask::${RABBITMQ_PASS}"
+          echo "::add-mask::${REDIS_PASS}"
           echo "::add-mask::${ADMIN_INITIAL_PASSWORD}"
           echo "::add-mask::${GRAFANA_PASSWORD}"
           echo "::add-mask::${CERT_VAULT_ENCRYPTION_KEY}"
@@ -121,6 +124,10 @@ jobs:
 
             echo "RABBITMQ_PASS<<__EOF__"
             echo "${RABBITMQ_PASS}"
+            echo "__EOF__"
+            
+            echo "REDIS_PASS<<__EOF__"
+            echo "${REDIS_PASS}"
             echo "__EOF__"
 
             echo "ADMIN_INITIAL_PASSWORD<<__EOF__"
@@ -152,6 +159,7 @@ jobs:
           SAFE_BRANCH:               ${{ steps.filename.outputs.safe_branch }}
           DB_PASS:                   ${{ steps.creds.outputs.DB_PASS }}
           RABBITMQ_PASS:             ${{ steps.creds.outputs.RABBITMQ_PASS }}
+          REDIS_PASS:                ${{ steps.creds.outputs.REDIS_PASS }}
           ADMIN_INITIAL_PASSWORD:    ${{ steps.creds.outputs.ADMIN_INITIAL_PASSWORD }}
           GRAFANA_PASSWORD:          ${{ steps.creds.outputs.GRAFANA_PASSWORD }}
           CERT_VAULT_ENCRYPTION_KEY: ${{ steps.creds.outputs.CERT_VAULT_ENCRYPTION_KEY }}
@@ -175,6 +183,7 @@ jobs:
           # Append secrets using printf — preserves special chars (=, +, /) verbatim
           printf 'DB_PASS=%s\n'                   "${DB_PASS}"                   >> "${ENV_FILE}"
           printf 'RABBITMQ_PASS=%s\n'             "${RABBITMQ_PASS}"             >> "${ENV_FILE}"
+          printf 'REDIS_PASS=%s\n'                "${REDIS_PASS}"                >> "${ENV_FILE}"
           printf 'JWT_PRIVATE_KEY=%s\n'           "${JWT_PRIVATE_KEY}"           >> "${ENV_FILE}"
           printf 'JWT_PUBLIC_KEY=%s\n'            "${JWT_PUBLIC_KEY}"            >> "${ENV_FILE}"
           printf 'CERT_VAULT_ENCRYPTION_KEY=%s\n' "${CERT_VAULT_ENCRYPTION_KEY}" >> "${ENV_FILE}"
@@ -212,6 +221,7 @@ jobs:
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| \`DB_PASS\` | ✅ rotated |" >> "$GITHUB_STEP_SUMMARY"
           echo "| \`RABBITMQ_PASS\` | ✅ rotated |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`REDIS_PASS\` | ✅ rotated |" >> "$GITHUB_STEP_SUMMARY"
           echo "| \`JWT_PRIVATE_KEY\` | ✅ rotated (RSA-2048) |" >> "$GITHUB_STEP_SUMMARY"
           echo "| \`JWT_PUBLIC_KEY\` | ✅ rotated (RSA-2048) |" >> "$GITHUB_STEP_SUMMARY"
           echo "| \`CERT_VAULT_ENCRYPTION_KEY\` | ✅ rotated (AES-256) |" >> "$GITHUB_STEP_SUMMARY"
