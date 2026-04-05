@@ -74,6 +74,13 @@
             <artifactId>micrometer-core</artifactId>
         </dependency>
 
+        <!-- ─── Test ────────────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <!-- No spring-boot-maven-plugin repackage — this is a library jar -->
