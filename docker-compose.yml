@@ -1,7 +1,6 @@
-version: '3.8'
 
 # ─── Routify — Infrastructure ─────────────────────────────────────────────
-# Services: postgres, redis, kafka, rabbitmq
+# Services: postgres, redis, kafka, rabbitmq, tempo, prometheus, grafana
 #
 # ⚠  DEV / LOCAL USE ONLY.
 #    All passwords here use environment-variable references.
@@ -35,20 +34,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [routify]
 
   redis:
     image: redis:7-alpine
     container_name: routify-redis
     ports:
       - "6379:6379"
-    command: redis-server --save 60 1 --loglevel warning
+    # Resolved from REDIS_PASS env var (set in .env file).
+    command: redis-server --save 60 1 --loglevel warning --requirepass ${REDIS_PASS}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASS}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [routify]
 
   kafka:
     image: apache/kafka:3.9.0
@@ -58,10 +60,13 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # Two listeners: EXTERNAL for host access (localhost:9092),
+      # INTERNAL for container-to-container on the routify network (kafka:29092).
+      KAFKA_LISTENERS: EXTERNAL://:9092,INTERNAL://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:9092,INTERNAL://kafka:29092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -75,6 +80,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
+    networks: [routify]
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -94,16 +100,36 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
+    networks: [routify]
 
-  # ─── Observability (Phase 4.6) ──────────────────────────────────────────────
+  # ─── Observability ──────────────────────────────────────────────────────────
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: routify-tempo
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    ports:
+      - "3200:3200"    # Query frontend (Grafana datasource)
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    volumes:
+      - ./docker/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3200/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks: [routify]
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.2.1
     container_name: routify-prometheus
     ports:
       - "9091:9090"
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./docker/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -113,9 +139,10 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+    networks: [routify]
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4.0
     container_name: routify-grafana
     ports:
       - "3001:3000"
@@ -127,10 +154,20 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+      tempo:
+        condition: service_healthy
+    networks: [routify]
 
 volumes:
   postgres_data:
   redis_data:
   kafka_data:
   rabbitmq_data:
+  tempo_data:
   grafana_data:
+
+# Shared network — used by both infra (this file) and app services (docker-compose.app.yml).
+networks:
+  routify:
+    driver: bridge
+

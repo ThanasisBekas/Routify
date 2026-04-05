@@ -17,7 +17,7 @@ The reactive API Gateway for the Routify platform, built on **Spring Cloud Gatew
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-api-gateway` |
+| Artifact | `io.routify:routify-api-gateway` |
 | Version | `1.0.2-SNAPSHOT` |
 | Default port | `8080` |
 | Actuator port | `9080` |

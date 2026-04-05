@@ -15,7 +15,20 @@
  */
 import { useState, useEffect } from 'react'
 import type { Node } from '@xyflow/react'
-import { X, Save, RefreshCw, Globe, Server, Shield, Filter, Trash2, Info, Lock, ChevronDown, AlertTriangle } from 'lucide-react'
+import {
+  X,
+  Save,
+  RefreshCw,
+  Globe,
+  Server,
+  Shield,
+  Filter,
+  Trash2,
+  Info,
+  Lock,
+  ChevronDown,
+  AlertTriangle,
+} from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { cn, extractApiError } from '../../../lib/utils'
@@ -37,12 +50,12 @@ interface PropertiesDrawerProps {
 
 const METHOD_OPTIONS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', '*'] as const
 const METHOD_STYLE: Record<string, string> = {
-  GET:    'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  POST:   'bg-green-500/20 text-green-300 border-green-500/30',
-  PUT:    'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  GET: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  POST: 'bg-green-500/20 text-green-300 border-green-500/30',
+  PUT: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
   DELETE: 'bg-red-500/20 text-red-300 border-red-500/30',
-  PATCH:  'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  '*':    'bg-gray-500/20 text-gray-300 border-gray-500/30',
+  PATCH: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+  '*': 'bg-gray-500/20 text-gray-300 border-gray-500/30',
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -51,13 +64,15 @@ export default function PropertiesDrawer({ route }: PropertiesDrawerProps) {
   const qc = useQueryClient()
   const { selectedNodeId, nodes, edges, selectNode, routeStatus } = useWorkflowStore()
 
-  const selectedNode = nodes.find(n => n.id === selectedNodeId)
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId)
   const isOpen = !!selectedNodeId && !!selectedNode
   const isLocked = routeStatus === 'ACTIVE'
 
   // Close on Escape
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') selectNode(null) }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') selectNode(null)
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [selectNode])
@@ -137,17 +152,50 @@ function NodePropertiesBody({
 }) {
   switch (node.type) {
     case 'routeNode':
-      return <RouteNodeProps route={route} data={node.data as RouteNodeData} onClose={onClose} qc={qc} isLocked={isLocked} />
+      return (
+        <RouteNodeProps route={route} data={node.data as RouteNodeData} onClose={onClose} qc={qc} isLocked={isLocked} />
+      )
     case 'upstreamNode':
-      return <UpstreamNodeProps route={route} data={node.data as UpstreamNodeData} onClose={onClose} qc={qc} isLocked={isLocked} />
+      return (
+        <UpstreamNodeProps
+          route={route}
+          data={node.data as UpstreamNodeData}
+          onClose={onClose}
+          qc={qc}
+          isLocked={isLocked}
+        />
+      )
     case 'filterNode':
-      return <FilterNodeProps route={route} node={node} nodes={nodes} edges={edges} data={node.data as FilterNodeData} onClose={onClose} qc={qc} isLocked={isLocked} />
+      return (
+        <FilterNodeProps
+          route={route}
+          node={node}
+          nodes={nodes}
+          edges={edges}
+          data={node.data as FilterNodeData}
+          onClose={onClose}
+          qc={qc}
+          isLocked={isLocked}
+        />
+      )
     case 'clientNode':
-      return <ReadOnlyPanel title="Client" description="Represents the incoming HTTP client request. No configuration required." />
+      return (
+        <ReadOnlyPanel
+          title="Client"
+          description="Represents the incoming HTTP client request. No configuration required."
+        />
+      )
     case 'responseNode':
-      return <ReadOnlyPanel title="Response" description="Represents the final HTTP response returned to the client. No configuration required." />
+      return (
+        <ReadOnlyPanel
+          title="Response"
+          description="Represents the final HTTP response returned to the client. No configuration required."
+        />
+      )
     default:
-      return <ReadOnlyPanel title={node.type ?? 'Node'} description="No configurable properties for this node type yet." />
+      return (
+        <ReadOnlyPanel title={node.type ?? 'Node'} description="No configurable properties for this node type yet." />
+      )
   }
 }
 
@@ -169,18 +217,24 @@ function RouteNodeProps({
 }) {
   const sc = STATUS_CFG[data.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.DRAFT
 
-  const [name, setName]               = useState(data.name)
+  const [name, setName] = useState(data.name)
   const [pathPattern, setPathPattern] = useState(data.pathPattern)
   const [description, setDescription] = useState(route.description ?? '')
-  const [methods, setMethods]         = useState<string[]>(data.methods.split(',').map(m => m.trim()).filter(Boolean))
+  const [methods, setMethods] = useState<string[]>(
+    data.methods
+      .split(',')
+      .map((m) => m.trim())
+      .filter(Boolean),
+  )
 
   const mutation = useMutation({
-    mutationFn: () => routesApi.update(route.id, {
-      name,
-      pathPattern,
-      description: description || undefined,
-      methods: methods.join(','),
-    }),
+    mutationFn: () =>
+      routesApi.update(route.id, {
+        name,
+        pathPattern,
+        description: description || undefined,
+        methods: methods.join(','),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['route', route.id] })
       qc.invalidateQueries({ queryKey: ['routes'] })
@@ -191,13 +245,14 @@ function RouteNodeProps({
   })
 
   const toggleMethod = (m: string) =>
-    setMethods(prev =>
-      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m],
-    )
+    setMethods((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
 
   return (
     <form
-      onSubmit={(e) => { e.preventDefault(); if (!isLocked) mutation.mutate() }}
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (!isLocked) mutation.mutate()
+      }}
       className="p-4 space-y-5"
     >
       {/* Lock notice */}
@@ -212,7 +267,7 @@ function RouteNodeProps({
       <Field label="Route Name">
         <input
           value={name}
-          onChange={e => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
           className={cn(inputClass, isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="e.g. User Auth Route"
           required
@@ -223,7 +278,7 @@ function RouteNodeProps({
       <Field label="Path Pattern">
         <input
           value={pathPattern}
-          onChange={e => setPathPattern(e.target.value)}
+          onChange={(e) => setPathPattern(e.target.value)}
           className={cn(inputClass, 'font-mono text-indigo-300', isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="/api/v1/**"
           required
@@ -233,7 +288,7 @@ function RouteNodeProps({
 
       <Field label="Methods">
         <div className="flex gap-1.5 flex-wrap">
-          {METHOD_OPTIONS.map(m => (
+          {METHOD_OPTIONS.map((m) => (
             <button
               key={m}
               type="button"
@@ -241,9 +296,7 @@ function RouteNodeProps({
               disabled={isLocked}
               className={cn(
                 'text-[10px] px-2 py-1 rounded-lg font-mono font-bold border transition-all',
-                methods.includes(m)
-                  ? METHOD_STYLE[m]
-                  : 'border-white/[0.08] text-gray-600 hover:text-gray-400',
+                methods.includes(m) ? METHOD_STYLE[m] : 'border-white/[0.08] text-gray-600 hover:text-gray-400',
                 isLocked && 'cursor-not-allowed opacity-50',
               )}
             >
@@ -251,15 +304,13 @@ function RouteNodeProps({
             </button>
           ))}
         </div>
-        {methods.length === 0 && (
-          <p className="text-[10px] text-red-400 mt-1">Select at least one method</p>
-        )}
+        {methods.length === 0 && <p className="text-[10px] text-red-400 mt-1">Select at least one method</p>}
       </Field>
 
       <Field label="Description">
         <textarea
           value={description}
-          onChange={e => setDescription(e.target.value)}
+          onChange={(e) => setDescription(e.target.value)}
           rows={3}
           className={cn(inputClass, 'resize-none', isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="Optional route description"
@@ -292,10 +343,11 @@ function UpstreamNodeProps({
   const [stripPrefix, setStripPrefix] = useState(data.stripPrefix ?? '')
 
   const mutation = useMutation({
-    mutationFn: () => routesApi.update(route.id, {
-      upstreamUri,
-      stripPrefix: stripPrefix || undefined,
-    }),
+    mutationFn: () =>
+      routesApi.update(route.id, {
+        upstreamUri,
+        stripPrefix: stripPrefix || undefined,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['route', route.id] })
       qc.invalidateQueries({ queryKey: ['routes'] })
@@ -306,13 +358,19 @@ function UpstreamNodeProps({
   })
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (!isLocked) mutation.mutate() }} className="p-4 space-y-5">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (!isLocked) mutation.mutate()
+      }}
+      className="p-4 space-y-5"
+    >
       {isLocked && <LockedNotice />}
 
       <Field label="Upstream URI">
         <input
           value={upstreamUri}
-          onChange={e => setUpstreamUri(e.target.value)}
+          onChange={(e) => setUpstreamUri(e.target.value)}
           className={cn(inputClass, 'font-mono text-emerald-300', isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="http://service:8080 or lb://service-name"
           required
@@ -326,14 +384,12 @@ function UpstreamNodeProps({
       <Field label="Strip Prefix">
         <input
           value={stripPrefix}
-          onChange={e => setStripPrefix(e.target.value)}
+          onChange={(e) => setStripPrefix(e.target.value)}
           className={cn(inputClass, 'font-mono', isLocked && 'opacity-50 cursor-not-allowed')}
           placeholder="/api/v1 (optional)"
           disabled={isLocked}
         />
-        <p className="text-[10px] text-gray-600 mt-1">
-          Path prefix stripped before forwarding to upstream.
-        </p>
+        <p className="text-[10px] text-gray-600 mt-1">Path prefix stripped before forwarding to upstream.</p>
       </Field>
 
       <SaveButton loading={mutation.isPending} disabled={isLocked} />
@@ -367,7 +423,7 @@ function FilterNodeProps({
 
   // ── Compute phase and order from graph topology (never from manual input) ──
   const inferred = inferExecutionOrder(nodes, edges)
-  const entry = inferred.find(e => e.nodeId === node.id)
+  const entry = inferred.find((e) => e.nodeId === node.id)
   const computedPhase = entry?.phase ?? 'PRE'
   const computedOrder = entry?.order ?? 0
 
@@ -429,12 +485,14 @@ function FilterNodeProps({
 
       {/* Computed phase — read-only */}
       <Field label="Phase (auto-computed)">
-        <div className={cn(
-          'flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold',
-          computedPhase === 'PRE'
-            ? 'bg-blue-500/10 border-blue-500/20 text-blue-300'
-            : 'bg-purple-500/10 border-purple-500/20 text-purple-300',
-        )}>
+        <div
+          className={cn(
+            'flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold',
+            computedPhase === 'PRE'
+              ? 'bg-blue-500/10 border-blue-500/20 text-blue-300'
+              : 'bg-purple-500/10 border-purple-500/20 text-purple-300',
+          )}
+        >
           <Info className="w-3.5 h-3.5 shrink-0" />
           {computedPhase === 'PRE' ? '↑ PRE — before upstream' : '↓ POST — after upstream'}
         </div>
@@ -458,7 +516,7 @@ function FilterNodeProps({
       <div className="rounded-xl border border-white/[0.07] overflow-hidden">
         <button
           type="button"
-          onClick={() => setConfigOpen(v => !v)}
+          onClick={() => setConfigOpen((v) => !v)}
           disabled={isLocked}
           className={cn(
             'w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors',
@@ -478,8 +536,8 @@ function FilterNodeProps({
             <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.07] border border-amber-500/20 text-[11px] text-amber-400/90 leading-relaxed">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
               <span>
-                Saving will update <strong className="text-amber-300">"{data.filter.filterName}"</strong> globally —
-                all routes that use this filter will be affected.
+                Saving will update <strong className="text-amber-300">"{data.filter.filterName}"</strong> globally — all
+                routes that use this filter will be affected.
               </span>
             </div>
 
@@ -489,11 +547,7 @@ function FilterNodeProps({
                 <span className="text-xs text-gray-500">Loading config…</span>
               </div>
             ) : (
-              <FilterConfigFields
-                filterType={data.filter.filterType}
-                config={localConfig}
-                onChange={setLocalConfig}
-              />
+              <FilterConfigFields filterType={data.filter.filterType} config={localConfig} onChange={setLocalConfig} />
             )}
 
             <button
@@ -502,10 +556,15 @@ function FilterNodeProps({
               disabled={configMutation.isPending || loadingDef}
               className="w-full py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
             >
-              {configMutation.isPending
-                ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-                : <><Save className="w-3.5 h-3.5" /> Save Config</>
-              }
+              {configMutation.isPending ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" /> Save Config
+                </>
+              )}
             </button>
           </div>
         )}
@@ -515,7 +574,9 @@ function FilterNodeProps({
       <div className="space-y-2 pt-1">
         <button
           type="button"
-          onClick={() => { if (!isLocked) detachMutation.mutate() }}
+          onClick={() => {
+            if (!isLocked) detachMutation.mutate()
+          }}
           disabled={detachMutation.isPending || isLocked}
           className={cn(
             'w-full py-2 rounded-lg text-xs font-semibold border transition-colors flex items-center justify-center gap-1.5',
@@ -525,17 +586,18 @@ function FilterNodeProps({
           )}
           title={isLocked ? 'Pause the route to detach filters' : 'Detach this filter from the route'}
         >
-          {detachMutation.isPending
-            ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            : <Trash2 className="w-3.5 h-3.5" />
-          }
+          {detachMutation.isPending ? (
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="w-3.5 h-3.5" />
+          )}
           {isLocked ? 'Detach (paused routes only)' : 'Detach Filter from Route'}
         </button>
       </div>
 
       <p className="text-[10px] text-gray-700 leading-relaxed">
-        Phase and execution order are automatically derived from canvas connections.
-        Reposition the node in the flow to change its phase or order.
+        Phase and execution order are automatically derived from canvas connections. Reposition the node in the flow to
+        change its phase or order.
       </p>
     </div>
   )
@@ -585,10 +647,15 @@ function SaveButton({ loading, disabled = false }: { loading: boolean; disabled?
       disabled={loading || disabled}
       className="w-full py-2 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-500/20"
     >
-      {loading
-        ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-        : <><Save className="w-3.5 h-3.5" /> Save Changes</>
-      }
+      {loading ? (
+        <>
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…
+        </>
+      ) : (
+        <>
+          <Save className="w-3.5 h-3.5" /> Save Changes
+        </>
+      )}
     </button>
   )
 }
@@ -598,21 +665,31 @@ function SaveButton({ loading, disabled = false }: { loading: boolean; disabled?
 function NodeTypeIcon({ node }: { node: { type?: string } }) {
   const cls = 'w-4 h-4'
   switch (node.type) {
-    case 'routeNode':   return <Globe    className={cn(cls, 'text-indigo-400')} />
-    case 'upstreamNode': return <Server   className={cn(cls, 'text-emerald-400')} />
-    case 'filterNode':  return <Shield   className={cn(cls, 'text-blue-400')} />
-    default:            return <Filter   className={cn(cls, 'text-gray-400')} />
+    case 'routeNode':
+      return <Globe className={cn(cls, 'text-indigo-400')} />
+    case 'upstreamNode':
+      return <Server className={cn(cls, 'text-emerald-400')} />
+    case 'filterNode':
+      return <Shield className={cn(cls, 'text-blue-400')} />
+    default:
+      return <Filter className={cn(cls, 'text-gray-400')} />
   }
 }
 
 function nodeTitle(node: { type?: string; data: Record<string, unknown> }): string {
   switch (node.type) {
-    case 'routeNode':   return (node.data as RouteNodeData).name
-    case 'upstreamNode': return 'Upstream Config'
-    case 'filterNode':  return (node.data as FilterNodeData).filter.filterName
-    case 'clientNode':  return 'Client'
-    case 'responseNode': return 'Response'
-    default: return node.type ?? 'Node'
+    case 'routeNode':
+      return (node.data as RouteNodeData).name
+    case 'upstreamNode':
+      return 'Upstream Config'
+    case 'filterNode':
+      return (node.data as FilterNodeData).filter.filterName
+    case 'clientNode':
+      return 'Client'
+    case 'responseNode':
+      return 'Response'
+    default:
+      return node.type ?? 'Node'
   }
 }
 
@@ -620,4 +697,3 @@ function nodeTitle(node: { type?: string; data: Record<string, unknown> }): stri
 
 const inputClass =
   'w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-all'
-

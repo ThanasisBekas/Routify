@@ -7,23 +7,34 @@ import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { cn, extractApiError } from '../../lib/utils'
 import type { TenantDto, TenantPlan } from '../../types'
 import {
-  Building2, Plus, Loader2, AlertCircle, CheckCircle2, X,
-  ShieldOff, RefreshCcw, Lock, Edit, Save, CircleDot,
+  Building2,
+  Plus,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  X,
+  ShieldOff,
+  RefreshCcw,
+  Lock,
+  Edit,
+  Save,
+  CircleDot,
 } from 'lucide-react'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 // ─── Plan badge ───────────────────────────────────────────────────────────────
 
 const PLAN_COLOR: Record<TenantPlan, string> = {
-  FREE:       'text-gray-400 bg-gray-400/10 border-gray-400/20',
-  STARTER:    'text-blue-400 bg-blue-400/10 border-blue-400/20',
-  PRO:        'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
+  FREE: 'text-gray-400 bg-gray-400/10 border-gray-400/20',
+  STARTER: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+  PRO: 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
   ENTERPRISE: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
 }
 
 const STATUS_COLOR: Record<TenantDto['status'], string> = {
-  ACTIVE:    'text-green-400 bg-green-400/10 border-green-400/20',
+  ACTIVE: 'text-green-400 bg-green-400/10 border-green-400/20',
   SUSPENDED: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
-  DELETED:   'text-red-400 bg-red-400/10 border-red-400/20',
+  DELETED: 'text-red-400 bg-red-400/10 border-red-400/20',
 }
 
 function Badge({ label, cls }: { label: string; cls: string }) {
@@ -46,7 +57,7 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
     plan: 'FREE',
     contactEmail: '',
   })
-  const [error,   setError]   = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
   const mutation = useMutation({
@@ -60,7 +71,10 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
   })
 
   const slugify = (name: string) =>
-    name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
 
   const inputCls =
     'w-full bg-white/[0.05] border border-white/[0.09] rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all'
@@ -74,8 +88,10 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
           <p className="text-gray-500 text-sm text-center">
             <code className="text-indigo-400">{form.slug}</code> is now available in the login dropdown.
           </p>
-          <button onClick={onClose}
-            className="mt-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors">
+          <button
+            onClick={onClose}
+            className="mt-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
             Done
           </button>
         </div>
@@ -92,7 +108,10 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
             <Building2 className="w-4 h-4 text-indigo-400" />
             <h2 className="text-sm font-semibold text-white">New Workspace</h2>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.06] transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.06] transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -106,11 +125,13 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
               className={inputCls}
               placeholder="Acme Corp"
               value={form.name}
-              onChange={e => setForm(f => ({
-                ...f,
-                name: e.target.value,
-                slug: f.slug === slugify(f.name) ? slugify(e.target.value) : f.slug,
-              }))}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  name: e.target.value,
+                  slug: f.slug === slugify(f.name) ? slugify(e.target.value) : f.slug,
+                }))
+              }
             />
           </div>
 
@@ -121,7 +142,9 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
               className={inputCls}
               placeholder="acme"
               value={form.slug}
-              onChange={e => setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))
+              }
             />
             <p className="text-[11px] text-gray-600 pl-1">URL-safe identifier used in the login dropdown</p>
           </div>
@@ -130,11 +153,11 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Plan</label>
             <div className="grid grid-cols-2 gap-2">
-              {PLAN_OPTIONS.map(plan => (
+              {PLAN_OPTIONS.map((plan) => (
                 <button
                   key={plan}
                   type="button"
-                  onClick={() => setForm(f => ({ ...f, plan }))}
+                  onClick={() => setForm((f) => ({ ...f, plan }))}
                   className={cn(
                     'py-2 px-3 rounded-lg text-xs font-semibold border transition-all',
                     form.plan === plan
@@ -158,7 +181,7 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
               className={inputCls}
               placeholder="admin@acme.example"
               value={form.contactEmail ?? ''}
-              onChange={e => setForm(f => ({ ...f, contactEmail: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))}
             />
           </div>
 
@@ -172,12 +195,17 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
 
         {/* Footer */}
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/[0.06]">
-          <button onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-xl hover:bg-white/[0.06] transition-colors">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-xl hover:bg-white/[0.06] transition-colors"
+          >
             Cancel
           </button>
           <button
-            onClick={() => { setError(null); mutation.mutate() }}
+            onClick={() => {
+              setError(null)
+              mutation.mutate()
+            }}
             disabled={mutation.isPending || !form.name.trim() || !form.slug.trim()}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
           >
@@ -199,7 +227,7 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
     plan: tenant.plan,
     contactEmail: tenant.contactEmail ?? '',
   })
-  const [error,   setError]   = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
   const mutation = useMutation({
@@ -224,8 +252,10 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
           <p className="text-gray-500 text-sm text-center">
             Changes to <code className="text-indigo-400">{tenant.slug}</code> have been saved.
           </p>
-          <button onClick={onClose}
-            className="mt-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors">
+          <button
+            onClick={onClose}
+            className="mt-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
             Done
           </button>
         </div>
@@ -243,7 +273,10 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
             <h2 className="text-sm font-semibold text-white">Edit Workspace</h2>
             <code className="text-[11px] text-gray-500 bg-white/[0.05] px-1.5 py-0.5 rounded">{tenant.slug}</code>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.06] transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.06] transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -257,16 +290,14 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
               className={inputCls}
               placeholder="Acme Corp"
               value={form.name ?? ''}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
           </div>
 
           {/* Slug (read-only) */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Slug</label>
-            <div className={cn(inputCls, 'bg-white/[0.02] text-gray-500 cursor-not-allowed')}>
-              {tenant.slug}
-            </div>
+            <div className={cn(inputCls, 'bg-white/[0.02] text-gray-500 cursor-not-allowed')}>{tenant.slug}</div>
             <p className="text-[11px] text-gray-600 pl-1">Slug cannot be changed after creation</p>
           </div>
 
@@ -274,11 +305,11 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Plan</label>
             <div className="grid grid-cols-2 gap-2">
-              {PLAN_OPTIONS.map(plan => (
+              {PLAN_OPTIONS.map((plan) => (
                 <button
                   key={plan}
                   type="button"
-                  onClick={() => setForm(f => ({ ...f, plan }))}
+                  onClick={() => setForm((f) => ({ ...f, plan }))}
                   className={cn(
                     'py-2 px-3 rounded-lg text-xs font-semibold border transition-all',
                     form.plan === plan
@@ -302,7 +333,7 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
               className={inputCls}
               placeholder="admin@acme.example"
               value={form.contactEmail ?? ''}
-              onChange={e => setForm(f => ({ ...f, contactEmail: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))}
             />
           </div>
 
@@ -316,12 +347,17 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
 
         {/* Footer */}
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/[0.06]">
-          <button onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-xl hover:bg-white/[0.06] transition-colors">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-xl hover:bg-white/[0.06] transition-colors"
+          >
             Cancel
           </button>
           <button
-            onClick={() => { setError(null); mutation.mutate() }}
+            onClick={() => {
+              setError(null)
+              mutation.mutate()
+            }}
             disabled={mutation.isPending || !(form.name ?? '').trim()}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
           >
@@ -337,11 +373,12 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
 // ─── Workspaces Page ──────────────────────────────────────────────────────────
 
 export default function WorkspacesPage() {
-  const user           = useAuthStore(s => s.user)
-  const isSuperAdmin   = user?.role === 'SUPER_ADMIN'
-  const queryClient    = useQueryClient()
-  const [showCreate, setShowCreate]         = useState(false)
-  const [editTenant, setEditTenant]         = useState<TenantDto | null>(null)
+  useDocumentTitle('Workspaces')
+  const user = useAuthStore((s) => s.user)
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+  const queryClient = useQueryClient()
+  const [showCreate, setShowCreate] = useState(false)
+  const [editTenant, setEditTenant] = useState<TenantDto | null>(null)
 
   const { data, isLoading } = useRealtimeQuery({
     queryKey: ['tenants'],
@@ -400,8 +437,11 @@ export default function WorkspacesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-              {['Name', 'Slug', 'Plan', 'Status', 'Created', ''].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              {['Name', 'Slug', 'Plan', 'Status', 'Created', ''].map((h) => (
+                <th
+                  key={h}
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
                   {h}
                 </th>
               ))}
@@ -418,16 +458,14 @@ export default function WorkspacesPage() {
                     ))}
                   </tr>
                 ))
-              : tenants.map(t => {
+              : tenants.map((t) => {
                   const isCurrent = t.id === currentTenantId
                   return (
                     <tr
                       key={t.id}
                       className={cn(
                         'transition-colors',
-                        isCurrent
-                          ? 'bg-indigo-500/[0.04] hover:bg-indigo-500/[0.07]'
-                          : 'hover:bg-white/[0.02]'
+                        isCurrent ? 'bg-indigo-500/[0.04] hover:bg-indigo-500/[0.07]' : 'hover:bg-white/[0.02]',
                       )}
                     >
                       <td className="px-4 py-3">
@@ -450,9 +488,7 @@ export default function WorkspacesPage() {
                       <td className="px-4 py-3">
                         <Badge label={t.status} cls={STATUS_COLOR[t.status]} />
                       </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">
-                        {new Date(t.createdAt).toLocaleDateString()}
-                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{new Date(t.createdAt).toLocaleDateString()}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 justify-end">
                           {/* Edit button */}
@@ -487,8 +523,7 @@ export default function WorkspacesPage() {
                       </td>
                     </tr>
                   )
-                })
-            }
+                })}
           </tbody>
         </table>
 
@@ -505,4 +540,3 @@ export default function WorkspacesPage() {
     </div>
   )
 }
-

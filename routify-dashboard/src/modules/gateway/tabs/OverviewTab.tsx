@@ -6,8 +6,17 @@
  */
 import { useQueryClient, useMutation } from '@tanstack/react-query'
 import {
-  Activity, Route, RefreshCw, RotateCcw, Server, Wifi,
-  CheckCircle, AlertTriangle, Gauge, Shield, ShieldCheck,
+  Activity,
+  Route,
+  RefreshCw,
+  RotateCcw,
+  Server,
+  Wifi,
+  CheckCircle,
+  AlertTriangle,
+  Gauge,
+  Shield,
+  ShieldCheck,
 } from 'lucide-react'
 import { gatewayApi } from '../../../api/gatewayApi'
 import { routesApi } from '../../../api/routesApi'
@@ -19,16 +28,20 @@ import { StatTile, StatusBadge, Card, InfoBanner } from '../components/GatewayPr
 
 // ─── Circuit-breaker state card ───────────────────────────────────────────────
 
-function CbCard({ name, state }: {
+function CbCard({
+  name,
+  state,
+}: {
   name: string
   state: { state: string; failureRate: number; bufferedCalls: number }
 }) {
   const norm = (state.state ?? 'UNKNOWN').toUpperCase()
-  const ring = {
-    CLOSED:    'border-emerald-500/30 bg-emerald-500/5',
-    OPEN:      'border-red-500/40 bg-red-500/[0.07]',
-    HALF_OPEN: 'border-amber-500/30 bg-amber-500/[0.06]',
-  }[norm] ?? 'border-white/[0.06] bg-white/[0.02]'
+  const ring =
+    {
+      CLOSED: 'border-emerald-500/30 bg-emerald-500/5',
+      OPEN: 'border-red-500/40 bg-red-500/[0.07]',
+      HALF_OPEN: 'border-amber-500/30 bg-amber-500/[0.06]',
+    }[norm] ?? 'border-white/[0.06] bg-white/[0.02]'
 
   return (
     <div className={cn('rounded-xl border p-4 space-y-3', ring)}>
@@ -41,11 +54,12 @@ function CbCard({ name, state }: {
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="bg-white/[0.04] rounded-lg px-3 py-2">
           <div className="text-gray-500 mb-0.5">Failure rate</div>
-          <div className={cn(
-            'font-semibold',
-            state.failureRate > 50 ? 'text-red-400' :
-            state.failureRate > 20 ? 'text-amber-400' : 'text-emerald-400',
-          )}>
+          <div
+            className={cn(
+              'font-semibold',
+              state.failureRate > 50 ? 'text-red-400' : state.failureRate > 20 ? 'text-amber-400' : 'text-emerald-400',
+            )}
+          >
             {state.failureRate?.toFixed(1)}%
           </div>
         </div>
@@ -64,11 +78,10 @@ function ConfigChip({ label, ok, value }: { label: string; ok: boolean; value: s
   return (
     <div className="bg-white/[0.025] rounded-lg px-4 py-3 border border-white/[0.05]">
       <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 font-medium">{label}</div>
-      <div className={cn('text-xs font-semibold flex items-center gap-1.5', ok ? 'text-emerald-400' : 'text-amber-400')}>
-        {ok
-          ? <CheckCircle className="w-3 h-3 shrink-0" />
-          : <AlertTriangle className="w-3 h-3 shrink-0" />
-        }
+      <div
+        className={cn('text-xs font-semibold flex items-center gap-1.5', ok ? 'text-emerald-400' : 'text-amber-400')}
+      >
+        {ok ? <CheckCircle className="w-3 h-3 shrink-0" /> : <AlertTriangle className="w-3 h-3 shrink-0" />}
         {value}
       </div>
     </div>
@@ -83,10 +96,10 @@ interface Props {
 
 export default function OverviewTab({ config }: Props) {
   const qc = useQueryClient()
-  const wsCbStates     = useWsStore(s => s.circuitBreakers)
-  const wsHealth       = useWsStore(s => s.gatewayHealth)
-  const wsLoadedRoutes = useWsStore(s => s.wsLoadedRoutes)
-  const wsStatus       = useWsStore(s => s.status)
+  const wsCbStates = useWsStore((s) => s.circuitBreakers)
+  const wsHealth = useWsStore((s) => s.gatewayHealth)
+  const wsLoadedRoutes = useWsStore((s) => s.wsLoadedRoutes)
+  const wsStatus = useWsStore((s) => s.status)
 
   const { data: status } = useRealtimeQuery({
     queryKey: ['gateway-status'],
@@ -110,20 +123,23 @@ export default function OverviewTab({ config }: Props) {
   })
 
   // Prefer live WS data; fall back to HTTP polled data
-  const cbStates = Object.keys(wsCbStates).length > 0
-    ? wsCbStates
-    : ((status?.circuitBreakers ?? {}) as Record<string, { state: string; failureRate: number; bufferedCalls: number }>)
+  const cbStates =
+    Object.keys(wsCbStates).length > 0
+      ? wsCbStates
+      : ((status?.circuitBreakers ?? {}) as Record<
+          string,
+          { state: string; failureRate: number; bufferedCalls: number }
+        >)
 
   const health = wsHealth ?? status?.health
   const loadedRoutes = wsLoadedRoutes ?? status?.routes?.count ?? activeRoutesPage?.totalElements
   const cbCount = Object.keys(cbStates).length
-  const openCbs = Object.values(cbStates).filter(s => s.state?.toUpperCase() === 'OPEN').length
+  const openCbs = Object.values(cbStates).filter((s) => s.state?.toUpperCase() === 'OPEN').length
 
   // Reload is exposed at page level; this is a read-only overview
 
   return (
     <div className="space-y-7 max-w-5xl">
-
       {/* Live indicator header */}
       <div className="flex items-center justify-between">
         <div>
@@ -175,7 +191,7 @@ export default function OverviewTab({ config }: Props) {
           icon={Gauge}
           label="Rate Policies"
           color="amber"
-          value={config.rateLimitPolicies.filter(p => p.enabled).length}
+          value={config.rateLimitPolicies.filter((p) => p.enabled).length}
           sub={`of ${config.rateLimitPolicies.length} active`}
         />
       </div>
@@ -185,10 +201,26 @@ export default function OverviewTab({ config }: Props) {
         <div className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Configuration Status</div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <ConfigChip label="CORS" ok={config.cors.enabled} value={config.cors.enabled ? 'Enabled' : 'Disabled'} />
-          <ConfigChip label="Security Headers" ok={config.securityHeaders.enabled} value={config.securityHeaders.enabled ? 'Enabled' : 'Disabled'} />
-          <ConfigChip label="Auth Providers" ok={config.authProviders.some(p => p.enabled)} value={`${config.authProviders.filter(p => p.enabled).length} enabled`} />
-          <ConfigChip label="Tenant Isolation" ok={config.tenantIsolation.enabled} value={config.tenantIsolation.enabled ? 'Caller-provided' : 'Auto-injected'} />
-          <ConfigChip label="Rate Limiting" ok={config.rateLimitPolicies.some(p => p.enabled)} value={`${config.rateLimitPolicies.filter(p => p.enabled).length} policies`} />
+          <ConfigChip
+            label="Security Headers"
+            ok={config.securityHeaders.enabled}
+            value={config.securityHeaders.enabled ? 'Enabled' : 'Disabled'}
+          />
+          <ConfigChip
+            label="Auth Providers"
+            ok={config.authProviders.some((p) => p.enabled)}
+            value={`${config.authProviders.filter((p) => p.enabled).length} enabled`}
+          />
+          <ConfigChip
+            label="Tenant Isolation"
+            ok={config.tenantIsolation.enabled}
+            value={config.tenantIsolation.enabled ? 'Caller-provided' : 'Auto-injected'}
+          />
+          <ConfigChip
+            label="Rate Limiting"
+            ok={config.rateLimitPolicies.some((p) => p.enabled)}
+            value={`${config.rateLimitPolicies.filter((p) => p.enabled).length} policies`}
+          />
         </div>
       </div>
 
@@ -244,10 +276,25 @@ export default function OverviewTab({ config }: Props) {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { step: '1', icon: Shield,      label: 'Admin saves config',    detail: 'Written to PostgreSQL via route-service — durable source of truth, survives pod restarts' },
-            { step: '2', icon: Activity,    label: 'Kafka event published', detail: 'GatewayConfigChanged → routify.gateway.config topic via transactional outbox (at-least-once)' },
-            { step: '3', icon: ShieldCheck, label: 'All pods reload',       detail: 'Every gateway instance reloads config from DB on event receipt — Redis-independent' },
-          ].map(item => (
+            {
+              step: '1',
+              icon: Shield,
+              label: 'Admin saves config',
+              detail: 'Written to PostgreSQL via route-service — durable source of truth, survives pod restarts',
+            },
+            {
+              step: '2',
+              icon: Activity,
+              label: 'Kafka event published',
+              detail: 'GatewayConfigChanged → routify.gateway.config topic via transactional outbox (at-least-once)',
+            },
+            {
+              step: '3',
+              icon: ShieldCheck,
+              label: 'All pods reload',
+              detail: 'Every gateway instance reloads config from DB on event receipt — Redis-independent',
+            },
+          ].map((item) => (
             <div key={item.step} className="bg-white/[0.04] rounded-lg p-3 flex gap-3">
               <div className="shrink-0 w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 text-xs font-bold">
                 {item.step}
@@ -269,4 +316,3 @@ export default function OverviewTab({ config }: Props) {
     </div>
   )
 }
-

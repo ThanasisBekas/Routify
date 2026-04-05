@@ -9,7 +9,6 @@ import React from 'react'
 import { Save, Server } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 
-
 // ─── Section heading with icon support ────────────────────────────────────────
 
 export function SectionHeader({
@@ -38,9 +37,7 @@ export function SectionHeader({
             <h2 className="text-base font-semibold text-white">{title}</h2>
             {badge}
           </div>
-          {description && (
-            <p className="text-sm text-gray-400 mt-0.5 leading-relaxed">{description}</p>
-          )}
+          {description && <p className="text-sm text-gray-400 mt-0.5 leading-relaxed">{description}</p>}
         </div>
       </div>
       {actions && <div className="shrink-0">{actions}</div>}
@@ -91,15 +88,15 @@ export function ToggleRow({
   danger?: boolean
 }) {
   return (
-    <div className={cn(
-      'flex items-center justify-between py-3 border-b border-white/[0.05] last:border-0',
-      disabled && 'opacity-50',
-    )}>
+    <div
+      className={cn(
+        'flex items-center justify-between py-3 border-b border-white/[0.05] last:border-0',
+        disabled && 'opacity-50',
+      )}
+    >
       <div className="mr-4 min-w-0">
         <div className="text-sm text-white">{label}</div>
-        {description && (
-          <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</div>
-        )}
+        {description && <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</div>}
       </div>
       <button
         type="button"
@@ -110,15 +107,19 @@ export function ToggleRow({
         className={cn(
           'relative shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0c10]',
           checked
-            ? danger ? 'bg-red-600 focus-visible:ring-red-500' : 'bg-indigo-600 focus-visible:ring-indigo-500'
+            ? danger
+              ? 'bg-red-600 focus-visible:ring-red-500'
+              : 'bg-indigo-600 focus-visible:ring-indigo-500'
             : 'bg-gray-700 focus-visible:ring-gray-500',
           disabled && 'cursor-not-allowed',
         )}
       >
-        <span className={cn(
-          'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-150',
-          checked ? 'translate-x-4' : 'translate-x-0',
-        )} />
+        <span
+          className={cn(
+            'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-150',
+            checked ? 'translate-x-4' : 'translate-x-0',
+          )}
+        />
       </button>
     </div>
   )
@@ -228,19 +229,18 @@ import { CheckCircle, XCircle, AlertTriangle, Activity } from 'lucide-react'
 export function StatusBadge({ state }: { state: string | null | undefined }) {
   const normalized = (state ?? 'UNKNOWN').toUpperCase()
   const cfg = {
-    CLOSED:    { color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle, label: 'Closed' },
-    OPEN:      { color: 'text-red-400 bg-red-400/10 border-red-400/20',             icon: XCircle,     label: 'Open' },
-    HALF_OPEN: { color: 'text-amber-400 bg-amber-400/10 border-amber-400/20',       icon: AlertTriangle, label: 'Half-Open' },
-    UP:        { color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle, label: 'UP' },
-    DOWN:      { color: 'text-red-400 bg-red-400/10 border-red-400/20',             icon: XCircle,     label: 'DOWN' },
-    UNKNOWN:   { color: 'text-gray-400 bg-gray-400/10 border-gray-400/20',          icon: Activity,    label: 'Unknown' },
+    CLOSED: { color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle, label: 'Closed' },
+    OPEN: { color: 'text-red-400 bg-red-400/10 border-red-400/20', icon: XCircle, label: 'Open' },
+    HALF_OPEN: { color: 'text-amber-400 bg-amber-400/10 border-amber-400/20', icon: AlertTriangle, label: 'Half-Open' },
+    UP: { color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle, label: 'UP' },
+    DOWN: { color: 'text-red-400 bg-red-400/10 border-red-400/20', icon: XCircle, label: 'DOWN' },
+    UNKNOWN: { color: 'text-gray-400 bg-gray-400/10 border-gray-400/20', icon: Activity, label: 'Unknown' },
   }[normalized] ?? { color: 'text-gray-400 bg-gray-400/10 border-gray-400/20', icon: Activity, label: normalized }
 
   return (
-    <span className={cn(
-      'inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border',
-      cfg.color,
-    )}>
+    <span
+      className={cn('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border', cfg.color)}
+    >
       <cfg.icon className="w-3 h-3" />
       {cfg.label}
     </span>
@@ -269,9 +269,7 @@ export function EmptyState({
       )}
       <div>
         <p className="text-sm font-medium text-gray-400">{title}</p>
-        {description && (
-          <p className="text-xs text-gray-600 mt-1 leading-relaxed max-w-xs mx-auto">{description}</p>
-        )}
+        {description && <p className="text-xs text-gray-600 mt-1 leading-relaxed max-w-xs mx-auto">{description}</p>}
       </div>
       {action}
     </div>
@@ -280,21 +278,20 @@ export function EmptyState({
 
 // ─── Info / warning banners ───────────────────────────────────────────────────
 
-export function InfoBanner({ children, variant = 'info' }: {
+export function InfoBanner({
+  children,
+  variant = 'info',
+}: {
   children: React.ReactNode
   variant?: 'info' | 'warning' | 'danger' | 'success'
 }) {
   const styles = {
-    info:    'bg-indigo-500/5 border-indigo-500/20 text-indigo-300/80',
+    info: 'bg-indigo-500/5 border-indigo-500/20 text-indigo-300/80',
     warning: 'bg-amber-500/[0.07] border-amber-500/20 text-amber-300/90',
-    danger:  'bg-red-500/[0.07] border-red-500/20 text-red-300/90',
+    danger: 'bg-red-500/[0.07] border-red-500/20 text-red-300/90',
     success: 'bg-emerald-500/[0.07] border-emerald-500/20 text-emerald-300/90',
   }
-  return (
-    <div className={cn('rounded-xl border px-4 py-3 text-xs leading-relaxed', styles[variant])}>
-      {children}
-    </div>
-  )
+  return <div className={cn('rounded-xl border px-4 py-3 text-xs leading-relaxed', styles[variant])}>{children}</div>
 }
 
 // ─── Card wrapper ─────────────────────────────────────────────────────────────
@@ -309,11 +306,7 @@ export function Card({
   padded?: boolean
 }) {
   return (
-    <div className={cn(
-      'bg-white/[0.03] rounded-xl border border-white/[0.06]',
-      padded && 'p-5',
-      className,
-    )}>
+    <div className={cn('bg-white/[0.03] rounded-xl border border-white/[0.06]', padded && 'p-5', className)}>
       {children}
     </div>
   )
@@ -335,17 +328,23 @@ export function StatTile({
   color?: 'indigo' | 'emerald' | 'amber' | 'rose' | 'sky'
 }) {
   const colors = {
-    indigo:  { bg: 'bg-indigo-500/10',  border: 'border-indigo-500/20',  icon: 'text-indigo-400' },
+    indigo: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', icon: 'text-indigo-400' },
     emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-400' },
-    amber:   { bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   icon: 'text-amber-400' },
-    rose:    { bg: 'bg-rose-500/10',    border: 'border-rose-500/20',    icon: 'text-rose-400' },
-    sky:     { bg: 'bg-sky-500/10',     border: 'border-sky-500/20',     icon: 'text-sky-400' },
+    amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', icon: 'text-amber-400' },
+    rose: { bg: 'bg-rose-500/10', border: 'border-rose-500/20', icon: 'text-rose-400' },
+    sky: { bg: 'bg-sky-500/10', border: 'border-sky-500/20', icon: 'text-sky-400' },
   }[color]
 
   return (
     <div className="bg-white/[0.03] rounded-xl border border-white/[0.06] p-5 flex items-start gap-4">
       {Icon && (
-        <div className={cn('mt-0.5 shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center', colors.bg, colors.border)}>
+        <div
+          className={cn(
+            'mt-0.5 shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center',
+            colors.bg,
+            colors.border,
+          )}
+        >
           <Icon className={cn('w-4.5 h-4.5', colors.icon)} />
         </div>
       )}
@@ -357,4 +356,3 @@ export function StatTile({
     </div>
   )
 }
-

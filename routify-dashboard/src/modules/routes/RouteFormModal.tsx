@@ -13,9 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import {
-  X, Route, AlertCircle, Zap, Network,
-} from 'lucide-react'
+import { X, Route, AlertCircle, Zap, Network } from 'lucide-react'
 import { toast } from 'sonner'
 import { routesApi } from '../../api/routesApi'
 import type { CreateRouteRequest, UpdateRouteRequest } from '../../types'
@@ -25,10 +23,10 @@ import { METHOD_OPTIONS, METHOD_COLORS_MODAL as METHOD_COLORS } from './routeCon
 // ─── Schema ────────────────────────────────────────────────────────────────────
 
 const schema = z.object({
-  name:        z.string().min(3).max(255),
+  name: z.string().min(3).max(255),
   description: z.string().max(1000).optional(),
   pathPattern: z.string().min(1).startsWith('/'),
-  methods:     z.string().min(1),
+  methods: z.string().min(1),
   upstreamUri: z.string().regex(/^(https?:\/\/.+|lb:\/\/.+)/, 'Must be http(s):// or lb://'),
   stripPrefix: z.string().optional(),
 })
@@ -54,9 +52,9 @@ interface Props {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
-  const qc       = useQueryClient()
+  const qc = useQueryClient()
   const navigate = useNavigate()
-  const isEdit   = !!editingId
+  const isEdit = !!editingId
 
   // ── Load existing route when editing ───────────────────────────────────────
   const { data: existing, isLoading: loadingExisting } = useQuery({
@@ -81,22 +79,31 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
   useEffect(() => {
     if (existing) {
       reset({
-        name:        existing.name,
+        name: existing.name,
         description: existing.description ?? '',
         pathPattern: existing.pathPattern,
-        methods:     existing.methods,
+        methods: existing.methods,
         upstreamUri: existing.upstreamUri,
         stripPrefix: existing.stripPrefix ?? '',
       })
     }
   }, [existing, reset])
 
-  const selectedMethods = watch('methods').split(',').map(m => m.trim()).filter(Boolean)
+  const selectedMethods = watch('methods')
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean)
 
   const toggleMethod = (m: string) => {
-    if (m === '*') { setValue('methods', '*'); return }
-    let current = watch('methods').split(',').map(x => x.trim()).filter(x => x && x !== '*')
-    if (current.includes(m)) current = current.filter(x => x !== m)
+    if (m === '*') {
+      setValue('methods', '*')
+      return
+    }
+    let current = watch('methods')
+      .split(',')
+      .map((x) => x.trim())
+      .filter((x) => x && x !== '*')
+    if (current.includes(m)) current = current.filter((x) => x !== m)
     else current.push(m)
     setValue('methods', current.join(',') || 'GET')
   }
@@ -111,7 +118,9 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
         description: 'The route is being provisioned. Click it in the list to open the Workflow Builder.',
       })
     },
-    onError: () => {/* errors shown inline */},
+    onError: () => {
+      /* errors shown inline */
+    },
   })
 
   // ── Update mutation ─────────────────────────────────────────────────────────
@@ -124,18 +133,17 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
     },
   })
 
-  const isPending   = createMutation.isPending || updateMutation.isPending
+  const isPending = createMutation.isPending || updateMutation.isPending
   const submitError = createMutation.error ?? updateMutation.error
 
   const onSubmit = (data: FormData) => {
     if (isEdit) updateMutation.mutate(data)
-    else        createMutation.mutate(data)
+    else createMutation.mutate(data)
   }
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-[#111318] border border-white/[0.08] rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh] animate-fade-in-up">
-
         {/* ── Header ────────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] shrink-0">
           <div className="flex items-center gap-2.5">
@@ -146,9 +154,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
               <h2 className="text-sm font-bold text-white leading-tight">
                 {isEdit ? 'Edit Route' : 'Create New Route'}
               </h2>
-              {existing && (
-                <p className="text-[11px] text-gray-500 mt-0.5 leading-tight">{existing.name}</p>
-              )}
+              {existing && <p className="text-[11px] text-gray-500 mt-0.5 leading-tight">{existing.name}</p>}
             </div>
           </div>
           <button
@@ -162,23 +168,20 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
         {/* ── Body ──────────────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
           <form id="route-form" onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-
             {/* Live route warning */}
             {existing?.status === 'ACTIVE' && (
               <div className="flex items-start gap-2.5 p-3.5 bg-amber-500/[0.07] border border-amber-500/20 rounded-xl text-xs text-amber-300">
                 <Zap className="w-4 h-4 mt-0.5 shrink-0 text-amber-400" />
                 <span>
-                  This route is <strong>live</strong>. Changes to path, methods and upstream apply
-                  instantly via Kafka hot-reload — no restart needed.
+                  This route is <strong>live</strong>. Changes to path, methods and upstream apply instantly via Kafka
+                  hot-reload — no restart needed.
                 </span>
               </div>
             )}
 
             {/* Name */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Route Name *
-              </label>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Route Name *</label>
               <input {...register('name')} placeholder="e.g. orders-api-v1" className={inputCls} />
               {errors.name && <p className="text-xs text-red-400">{errors.name.message}</p>}
             </div>
@@ -203,7 +206,8 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
               </label>
               <input {...register('pathPattern')} placeholder="/api/v1/orders/**" className={monoInputCls} />
               <p className="text-[11px] text-gray-600 pl-0.5">
-                Wildcards: <code className="font-mono">/api/**</code> · Path vars: <code className="font-mono">/users/&#123;id&#125;</code>
+                Wildcards: <code className="font-mono">/api/**</code> · Path vars:{' '}
+                <code className="font-mono">/users/&#123;id&#125;</code>
               </p>
               {errors.pathPattern && <p className="text-xs text-red-400">{errors.pathPattern.message}</p>}
             </div>
@@ -224,7 +228,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
                       className={cn(
                         'px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border',
                         active
-                          ? METHOD_COLORS[m] ?? 'bg-indigo-600 text-white border-indigo-500/50'
+                          ? (METHOD_COLORS[m] ?? 'bg-indigo-600 text-white border-indigo-500/50')
                           : 'bg-white/[0.04] text-gray-500 border-white/[0.08] hover:border-white/20 hover:text-gray-300',
                       )}
                     >
@@ -286,12 +290,13 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
             {/* Edit mode: open builder link */}
             {isEdit && existing && (
               <div className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/[0.06] rounded-xl">
-                <div className="text-xs text-gray-400">
-                  Manage filters and connections in the Workflow Builder
-                </div>
+                <div className="text-xs text-gray-400">Manage filters and connections in the Workflow Builder</div>
                 <button
                   type="button"
-                  onClick={() => { onClose(); navigate(`/routes/${existing.id}/builder`) }}
+                  onClick={() => {
+                    onClose()
+                    navigate(`/routes/${existing.id}/builder`)
+                  }}
                   className="flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-indigo-500/10 border border-transparent hover:border-indigo-500/20"
                 >
                   <Network className="w-3.5 h-3.5" />
@@ -317,9 +322,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
             disabled={isPending || (isEdit && loadingExisting)}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20"
           >
-            {isPending
-              ? (isEdit ? 'Saving…' : 'Creating…')
-              : (isEdit ? 'Save Changes' : 'Create Route')}
+            {isPending ? (isEdit ? 'Saving…' : 'Creating…') : isEdit ? 'Save Changes' : 'Create Route'}
           </button>
         </div>
       </div>

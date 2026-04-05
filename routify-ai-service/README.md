@@ -53,7 +53,7 @@ Both the API Gateway and the admin dashboard communicate with this service exclu
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-ai-service` |
+| Artifact | `io.routify:routify-ai-service` |
 | Version | `1.0.2-SNAPSHOT` |
 | Default port | `8086` |
 | Actuator port | `9086` |

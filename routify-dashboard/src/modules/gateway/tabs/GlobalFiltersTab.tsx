@@ -9,49 +9,44 @@
  */
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Layers, Search, GripVertical, Trash2, Plus, AlertTriangle,
-  ChevronUp, ChevronDown,
-} from 'lucide-react'
+import { Layers, Search, GripVertical, Trash2, Plus, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'
 import { filtersApi } from '../../../api/filtersApi'
 import type { GlobalFilterEntry, FilterType, FilterSummary } from '../../../types'
-import {
-  SectionHeader, SaveBar, InfoBanner, EmptyState, Card,
-} from '../components/GatewayPrimitives'
+import { SectionHeader, SaveBar, InfoBanner, EmptyState, Card } from '../components/GatewayPrimitives'
 import { cn } from '../../../lib/utils'
 
 // ─── Filter type display helpers ──────────────────────────────────────────────
 
 const FILTER_TYPE_LABELS: Record<string, string> = {
-  AUTH_API_KEY:              'API Key Auth',
-  AUTH_BASIC:                'Basic Auth',
-  AUTH_JWT:                  'JWT Auth',
-  AUTH_MTLS:                 'mTLS Auth',
-  AUTH_OAUTH2:               'OAuth2 Introspect',
-  AUTH_CLIENT_ID:            'Client ID Auth',
-  AUTH_CERT_VAULT:           'Cert Vault Auth',
-  DOWNSTREAM_BASIC_AUTH:     'Downstream Basic Auth',
-  DOWNSTREAM_BEARER_CC:      'Downstream Bearer CC',
-  RATE_LIMIT_FIXED_WINDOW:   'Rate Limit (Fixed)',
+  AUTH_API_KEY: 'API Key Auth',
+  AUTH_BASIC: 'Basic Auth',
+  AUTH_JWT: 'JWT Auth',
+  AUTH_MTLS: 'mTLS Auth',
+  AUTH_OAUTH2: 'OAuth2 Introspect',
+  AUTH_CLIENT_ID: 'Client ID Auth',
+  AUTH_CERT_VAULT: 'Cert Vault Auth',
+  DOWNSTREAM_BASIC_AUTH: 'Downstream Basic Auth',
+  DOWNSTREAM_BEARER_CC: 'Downstream Bearer CC',
+  RATE_LIMIT_FIXED_WINDOW: 'Rate Limit (Fixed)',
   RATE_LIMIT_SLIDING_WINDOW: 'Rate Limit (Sliding)',
-  REQUEST_HEADER_MODIFY:     'Request Header Modify',
-  RESPONSE_HEADER_MODIFY:    'Response Header Modify',
-  BODY_JOLT_TRANSFORM:       'Jolt Transform',
-  VALIDATE_JSON_SCHEMA:      'JSON Schema Validate',
-  TIMEOUT:                   'Timeout',
-  CONDITIONAL_ROUTE:         'Conditional Route',
-  USER_ID_PAYLOAD_ROUTING:   'User ID Routing',
-  CERT_ROTATION:             'Cert Rotation',
-  CERT_VAULT_EXPIRY_CHECK:   'Cert Vault Expiry',
-  API_VERSIONING:            'API Versioning',
-  CORRELATION_ID:            'Correlation ID',
-  REQUEST_LOGGER:            'Request Logger',
-  TENANT_CONTEXT:            'Tenant Context',
-  SECURITY_HEADERS:          'Security Headers',
-  CUSTOM_METRIC:             'Custom Metric',
-  CUSTOM_SPEL:               'Custom SpEL',
-  AI_FILTER:                 'AI Filter',
-  AI_MODIFIER:               'AI Modifier',
+  REQUEST_HEADER_MODIFY: 'Request Header Modify',
+  RESPONSE_HEADER_MODIFY: 'Response Header Modify',
+  BODY_JOLT_TRANSFORM: 'Jolt Transform',
+  VALIDATE_JSON_SCHEMA: 'JSON Schema Validate',
+  TIMEOUT: 'Timeout',
+  CONDITIONAL_ROUTE: 'Conditional Route',
+  USER_ID_PAYLOAD_ROUTING: 'User ID Routing',
+  CERT_ROTATION: 'Cert Rotation',
+  CERT_VAULT_EXPIRY_CHECK: 'Cert Vault Expiry',
+  API_VERSIONING: 'API Versioning',
+  CORRELATION_ID: 'Correlation ID',
+  REQUEST_LOGGER: 'Request Logger',
+  TENANT_CONTEXT: 'Tenant Context',
+  SECURITY_HEADERS: 'Security Headers',
+  CUSTOM_METRIC: 'Custom Metric',
+  CUSTOM_SPEL: 'Custom SpEL',
+  AI_FILTER: 'AI Filter',
+  AI_MODIFIER: 'AI Modifier',
 }
 
 function filterTypeLabel(type: FilterType): string {
@@ -59,12 +54,12 @@ function filterTypeLabel(type: FilterType): string {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  AUTH:          'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  RATE_LIMIT:    'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  AUTH: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  RATE_LIMIT: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   OBSERVABILITY: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  SECURITY:      'bg-red-500/10 text-red-400 border-red-500/20',
-  AI:            'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  DEFAULT:       'bg-gray-500/10 text-gray-400 border-gray-500/20',
+  SECURITY: 'bg-red-500/10 text-red-400 border-red-500/20',
+  AI: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  DEFAULT: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
 }
 
 function categoryFor(type: FilterType): string {
@@ -98,7 +93,7 @@ interface Props {
 
 export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) {
   const [entries, setEntries] = useState<GlobalFilterEntry[]>(initial ?? [])
-  const [search, setSearch]   = useState('')
+  const [search, setSearch] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const dirty = JSON.stringify(entries) !== JSON.stringify(initial ?? [])
@@ -110,58 +105,54 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
     staleTime: 30_000,
   })
 
-  const allFilters = useMemo<FilterSummary[]>(
-    () => filtersPage?.content ?? [],
-    [filtersPage],
-  )
+  const allFilters = useMemo<FilterSummary[]>(() => filtersPage?.content ?? [], [filtersPage])
 
   // IDs currently marked as global
-  const globalIds = useMemo(() => new Set(entries.map(e => e.filterId)), [entries])
+  const globalIds = useMemo(() => new Set(entries.map((e) => e.filterId)), [entries])
 
   // Available (not yet added)
   const available = useMemo(
-    () => allFilters
-      .filter(f => !globalIds.has(f.id))
-      .filter(f => {
-        if (!search.trim()) return true
-        const q = search.toLowerCase()
-        return f.name.toLowerCase().includes(q) || f.filterType.toLowerCase().includes(q)
-      }),
+    () =>
+      allFilters
+        .filter((f) => !globalIds.has(f.id))
+        .filter((f) => {
+          if (!search.trim()) return true
+          const q = search.toLowerCase()
+          return f.name.toLowerCase().includes(q) || f.filterType.toLowerCase().includes(q)
+        }),
     [allFilters, globalIds, search],
   )
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const addFilter = (f: FilterSummary) => {
-    const nextOrder = entries.length > 0 ? Math.max(...entries.map(e => e.order)) + 1 : 1
-    setEntries(prev => [
+    const nextOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1
+    setEntries((prev) => [
       ...prev,
       {
-        filterId:   f.id,
+        filterId: f.id,
         filterName: f.name,
         filterType: f.filterType,
-        order:      nextOrder,
-        enabled:    true,
+        order: nextOrder,
+        enabled: true,
       },
     ])
   }
 
   const removeFilter = (filterId: string) => {
-    setEntries(prev => {
-      const next = prev.filter(e => e.filterId !== filterId)
+    setEntries((prev) => {
+      const next = prev.filter((e) => e.filterId !== filterId)
       return next.map((e, i) => ({ ...e, order: i + 1 }))
     })
   }
 
   const toggleFilter = (filterId: string) => {
-    setEntries(prev => prev.map(e =>
-      e.filterId === filterId ? { ...e, enabled: !e.enabled } : e,
-    ))
+    setEntries((prev) => prev.map((e) => (e.filterId === filterId ? { ...e, enabled: !e.enabled } : e)))
   }
 
   const moveUp = (idx: number) => {
     if (idx === 0) return
-    setEntries(prev => {
+    setEntries((prev) => {
       const next = [...prev]
       ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
       return next.map((e, i) => ({ ...e, order: i + 1 }))
@@ -170,7 +161,7 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
 
   const moveDown = (idx: number) => {
     if (idx >= entries.length - 1) return
-    setEntries(prev => {
+    setEntries((prev) => {
       const next = [...prev]
       ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
       return next.map((e, i) => ({ ...e, order: i + 1 }))
@@ -192,7 +183,7 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
         }
         actions={
           <button
-            onClick={() => setPickerOpen(p => !p)}
+            onClick={() => setPickerOpen((p) => !p)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -209,8 +200,8 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
           concerns like correlation IDs, request logging, tenant context, and security headers.
         </p>
         <p className="text-amber-400/80 mt-2 leading-relaxed">
-          ⚠ Changes are persisted to PostgreSQL and broadcast to all gateway pods via Kafka.
-          All active routes will be reloaded.
+          ⚠ Changes are persisted to PostgreSQL and broadcast to all gateway pods via Kafka. All active routes will be
+          reloaded.
         </p>
       </InfoBanner>
 
@@ -226,7 +217,7 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
                 <input
                   type="text"
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by name or type…"
                   autoFocus
                   className="w-full bg-white/[0.04] border border-white/10 rounded-lg pl-10 pr-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder-gray-600"
@@ -248,10 +239,13 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {available.map(f => (
+                  {available.map((f) => (
                     <button
                       key={f.id}
-                      onClick={() => { addFilter(f); setSearch('') }}
+                      onClick={() => {
+                        addFilter(f)
+                        setSearch('')
+                      }}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-white/[0.04] transition-colors group"
                     >
                       <div className="flex-1 min-w-0">
@@ -274,7 +268,10 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
             {/* Footer */}
             <div className="px-5 py-3 border-t border-white/[0.06] flex justify-end">
               <button
-                onClick={() => { setPickerOpen(false); setSearch('') }}
+                onClick={() => {
+                  setPickerOpen(false)
+                  setSearch('')
+                }}
                 className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
               >
                 Close
@@ -305,10 +302,9 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
           <div className="space-y-1.5">
             {entries.map((entry, idx) => (
               <Card key={entry.filterId} padded={false} className="overflow-hidden">
-                <div className={cn(
-                  'flex items-center gap-3 px-4 py-3 transition-colors',
-                  !entry.enabled && 'opacity-50',
-                )}>
+                <div
+                  className={cn('flex items-center gap-3 px-4 py-3 transition-colors', !entry.enabled && 'opacity-50')}
+                >
                   {/* Order & reorder controls */}
                   <div className="flex flex-col items-center shrink-0 -my-1">
                     <button
@@ -353,10 +349,12 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
                     )}
                     title={entry.enabled ? 'Enabled — click to disable' : 'Disabled — click to enable'}
                   >
-                    <span className={cn(
-                      'absolute top-[2px] left-[2px] w-[14px] h-[14px] bg-white rounded-full shadow transition-transform duration-150',
-                      entry.enabled ? 'translate-x-[14px]' : 'translate-x-0',
-                    )} />
+                    <span
+                      className={cn(
+                        'absolute top-[2px] left-[2px] w-[14px] h-[14px] bg-white rounded-full shadow transition-transform duration-150',
+                        entry.enabled ? 'translate-x-[14px]' : 'translate-x-0',
+                      )}
+                    />
                   </button>
 
                   {/* Remove */}
@@ -375,14 +373,14 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
       </div>
 
       {/* ── Warning if any disabled filter is in the list ──────────────────── */}
-      {entries.some(e => !e.enabled) && (
+      {entries.some((e) => !e.enabled) && (
         <div className="mt-4">
           <InfoBanner variant="warning">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>
-                Some global filters are <strong>disabled</strong> — they will be skipped during request processing
-                but remain in the configuration for easy re-enabling.
+                Some global filters are <strong>disabled</strong> — they will be skipped during request processing but
+                remain in the configuration for easy re-enabling.
               </span>
             </div>
           </InfoBanner>
@@ -393,4 +391,3 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
     </div>
   )
 }
-

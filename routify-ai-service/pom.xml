@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>gr.routify</groupId>
+        <groupId>io.routify</groupId>
         <artifactId>routify-parent</artifactId>
         <version>1.0.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -27,7 +27,7 @@
 
         <!-- ─── Internal ────────────────────────────────────────────────────── -->
         <dependency>
-            <groupId>gr.routify</groupId>
+            <groupId>io.routify</groupId>
             <artifactId>routify-common</artifactId>
         </dependency>
 
@@ -120,6 +120,16 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
+        <!-- Distributed Tracing — Micrometer + OTLP export to Grafana Tempo -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
         <!-- ─── Utilities ──────────────────────────────────────────────────── -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -129,6 +139,15 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
+        </dependency>
+
+        <!-- DevTools — automatic restart on class change during local development.
+             optional=true prevents transitive propagation to dependent modules.
+             spring-boot-maven-plugin excludes this from the fat jar by default. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <optional>true</optional>
         </dependency>
 
 

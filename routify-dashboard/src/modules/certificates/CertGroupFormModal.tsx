@@ -16,21 +16,21 @@ interface Props {
 export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess }: Props) {
   const isEdit = !!group
 
-  const [logicalId,   setLogicalId]   = useState(group?.logicalId   ?? '')
-  const [alias,       setAlias]       = useState(group?.alias        ?? '')
-  const [description, setDescription] = useState(group?.description  ?? '')
-  const [error,       setError]       = useState('')
+  const [logicalId, setLogicalId] = useState(group?.logicalId ?? '')
+  const [alias, setAlias] = useState(group?.alias ?? '')
+  const [description, setDescription] = useState(group?.description ?? '')
+  const [error, setError] = useState('')
 
   const createMutation = useMutation({
     mutationFn: () => certVaultApi.createGroup(tenantId, { logicalId, alias, description: description || undefined }),
-    onSuccess:  () => onSuccess(),
-    onError:    (e: unknown) => setError(extractApiError(e, 'Creation failed')),
+    onSuccess: () => onSuccess(),
+    onError: (e: unknown) => setError(extractApiError(e, 'Creation failed')),
   })
 
   const updateMutation = useMutation({
     mutationFn: () => certVaultApi.updateGroup(group!.id, tenantId, { alias, description: description || undefined }),
-    onSuccess:  () => onSuccess(),
-    onError:    (e: unknown) => setError(extractApiError(e, 'Update failed')),
+    onSuccess: () => onSuccess(),
+    onError: (e: unknown) => setError(extractApiError(e, 'Update failed')),
   })
 
   const isPending = createMutation.isPending || updateMutation.isPending
@@ -38,13 +38,23 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!isEdit && !logicalId.trim()) { setError('Logical ID is required'); return }
-    if (!alias.trim()) { setError('Alias is required'); return }
+    if (!isEdit && !logicalId.trim()) {
+      setError('Logical ID is required')
+      return
+    }
+    if (!alias.trim()) {
+      setError('Alias is required')
+      return
+    }
     if (!isEdit && !/^[a-z0-9][a-z0-9\-_.]*$/.test(logicalId)) {
       setError('Logical ID must be URL-safe (lowercase alphanumeric, hyphens, underscores, dots)')
       return
     }
-    if (isEdit) { updateMutation.mutate() } else { createMutation.mutate() }
+    if (isEdit) {
+      updateMutation.mutate()
+    } else {
+      createMutation.mutate()
+    }
   }
 
   return (
@@ -84,10 +94,9 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
             <div className="p-3 rounded-lg bg-violet-500/5 border border-violet-500/20 flex items-start gap-2">
               <Info className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
               <p className="text-xs text-violet-300/90 leading-relaxed">
-                The group's <span className="font-semibold text-violet-300">Logical ID</span> is
-                the stable key used by the gateway TLS registry and the{' '}
-                <code className="text-violet-300">CertRotation</code> filter. It cannot be changed
-                after creation — choose carefully.
+                The group's <span className="font-semibold text-violet-300">Logical ID</span> is the stable key used by
+                the gateway TLS registry and the <code className="text-violet-300">CertRotation</code> filter. It cannot
+                be changed after creation — choose carefully.
               </p>
             </div>
           )}
@@ -101,7 +110,7 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
               <input
                 type="text"
                 value={logicalId}
-                onChange={e => setLogicalId(e.target.value.toLowerCase())}
+                onChange={(e) => setLogicalId(e.target.value.toLowerCase())}
                 placeholder="e.g. my-api-inbound-tls"
                 autoFocus
                 className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
@@ -120,7 +129,7 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
             <input
               type="text"
               value={alias}
-              onChange={e => setAlias(e.target.value)}
+              onChange={(e) => setAlias(e.target.value)}
               placeholder="e.g. My API Inbound TLS Group"
               autoFocus={isEdit}
               className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
@@ -129,12 +138,10 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">
-              Description
-            </label>
+            <label className="block text-xs font-semibold text-gray-400 mb-1.5">Description</label>
             <textarea
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description…"
               rows={2}
               className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 resize-none"
@@ -155,9 +162,13 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
               className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-lg transition-all disabled:opacity-60"
             >
               {isPending ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> {isEdit ? 'Saving…' : 'Creating…'}</>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> {isEdit ? 'Saving…' : 'Creating…'}
+                </>
               ) : (
-                <><Layers className="w-4 h-4" /> {isEdit ? 'Save Changes' : 'Create Group'}</>
+                <>
+                  <Layers className="w-4 h-4" /> {isEdit ? 'Save Changes' : 'Create Group'}
+                </>
               )}
             </button>
           </div>
@@ -166,4 +177,3 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
     </div>
   )
 }
-

@@ -22,6 +22,8 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: 6379
       timeout: 2000ms
+      # No default — must be supplied via REDIS_PASS environment variable.
+      password: ${REDIS_PASS:}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
@@ -95,6 +97,14 @@ management:
     export:
       prometheus:
         enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 routify:
   jwt:
@@ -105,7 +115,8 @@ routify:
   # falls back to ephemeral key validation (acceptable for local development only).
   # Add it here when deploying to staging/production environments.
   required-secrets: >-
-    spring.rabbitmq.password
+    spring.rabbitmq.password,
+    spring.data.redis.password
 
 resilience4j:
   circuitbreaker:
@@ -174,13 +185,13 @@ auth:
 
 logging:
   level:
-    gr.routify: DEBUG
-    gr.routify.gateway.certificate: INFO
-    gr.routify.gateway.downstream: INFO
+    io.routify: DEBUG
+    io.routify.gateway.certificate: INFO
+    io.routify.gateway.downstream: INFO
     org.springframework.cloud.gateway: INFO
     org.springframework.cloud.gateway.filter.ratelimit: DEBUG
     org.springframework.cloud.gateway.filter.factory.RequestRateLimiterGatewayFilterFactory: DEBUG
     org.springframework.kafka: WARN
     com.github.benmanes.caffeine: WARN
   pattern:
-    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] [tenant=%X{tenantId}] [user=%X{userId}] %logger{36} - %msg%n"

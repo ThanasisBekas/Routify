@@ -1,11 +1,16 @@
 import { http, HttpResponse, delay } from 'msw'
 import { gatewayConfig, gatewayLiveStatus, routes } from '../db'
 import type {
-  GatewayCorsConfig, GatewaySecurityHeadersConfig,
-  GatewayRateLimitPolicy, GatewayCircuitBreakerDefaults,
-  GatewayResilienceDefaults, GatewayAuthProvider,
-  GatewayProxyConfig, GatewayHttpClientConfig,
-  GatewayTenantIsolationConfig, GlobalFilterEntry,
+  GatewayCorsConfig,
+  GatewaySecurityHeadersConfig,
+  GatewayRateLimitPolicy,
+  GatewayCircuitBreakerDefaults,
+  GatewayResilienceDefaults,
+  GatewayAuthProvider,
+  GatewayProxyConfig,
+  GatewayHttpClientConfig,
+  GatewayTenantIsolationConfig,
+  GlobalFilterEntry,
 } from '../../types'
 
 const BASE = '/api/v1/admin/gateway'
@@ -18,7 +23,7 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/config`, async ({ request }) => {
     await delay(400)
-    const body = await request.json() as typeof gatewayConfig
+    const body = (await request.json()) as typeof gatewayConfig
     Object.assign(gatewayConfig, { ...body, updatedAt: new Date().toISOString(), updatedBy: 'admin' })
     return HttpResponse.json(gatewayConfig)
   }),
@@ -27,7 +32,7 @@ export const gatewayHandlers = [
   http.get(`${BASE}/status`, async () => {
     await delay(150)
     // Reflect current active route count from db
-    const activeCount = Array.from(routes.values()).filter(r => r.status === 'ACTIVE').length
+    const activeCount = Array.from(routes.values()).filter((r) => r.status === 'ACTIVE').length
     return HttpResponse.json({
       ...gatewayLiveStatus,
       routes: { ...gatewayLiveStatus.routes, count: activeCount },
@@ -44,10 +49,10 @@ export const gatewayHandlers = [
   http.get(`${BASE}/metrics`, async () => {
     await delay(150)
     return HttpResponse.json({
-      'gateway.requests.total':    { value: 142350 },
-      'gateway.requests.errors':   { value: 312 },
-      'gateway.requests.latency':  { p50: 45, p95: 210, p99: 580 },
-      'gateway.routes.active':     { value: Array.from(routes.values()).filter(r => r.status === 'ACTIVE').length },
+      'gateway.requests.total': { value: 142350 },
+      'gateway.requests.errors': { value: 312 },
+      'gateway.requests.latency': { p50: 45, p95: 210, p99: 580 },
+      'gateway.routes.active': { value: Array.from(routes.values()).filter((r) => r.status === 'ACTIVE').length },
     })
   }),
 
@@ -58,7 +63,7 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/cors`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GatewayCorsConfig
+    const body = (await request.json()) as GatewayCorsConfig
     gatewayConfig.cors = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
@@ -71,7 +76,7 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/security-headers`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GatewaySecurityHeadersConfig
+    const body = (await request.json()) as GatewaySecurityHeadersConfig
     gatewayConfig.securityHeaders = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
@@ -84,15 +89,15 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/rate-limit-policies`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GatewayRateLimitPolicy[]
+    const body = (await request.json()) as GatewayRateLimitPolicy[]
     gatewayConfig.rateLimitPolicies = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
   }),
   http.put(`${BASE}/rate-limit-policies/:policyId`, async ({ params, request }) => {
     await delay(350)
-    const body = await request.json() as GatewayRateLimitPolicy
-    const idx  = gatewayConfig.rateLimitPolicies.findIndex(p => p.id === params.policyId)
+    const body = (await request.json()) as GatewayRateLimitPolicy
+    const idx = gatewayConfig.rateLimitPolicies.findIndex((p) => p.id === params.policyId)
     if (idx >= 0) {
       gatewayConfig.rateLimitPolicies[idx] = body
     } else {
@@ -103,7 +108,7 @@ export const gatewayHandlers = [
   }),
   http.delete(`${BASE}/rate-limit-policies/:policyId`, async ({ params }) => {
     await delay(300)
-    gatewayConfig.rateLimitPolicies = gatewayConfig.rateLimitPolicies.filter(p => p.id !== params.policyId)
+    gatewayConfig.rateLimitPolicies = gatewayConfig.rateLimitPolicies.filter((p) => p.id !== params.policyId)
     gatewayConfig.updatedAt = new Date().toISOString()
     return new HttpResponse(null, { status: 204 })
   }),
@@ -115,7 +120,7 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/circuit-breaker`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GatewayCircuitBreakerDefaults
+    const body = (await request.json()) as GatewayCircuitBreakerDefaults
     gatewayConfig.circuitBreakerDefaults = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
@@ -132,7 +137,7 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/resilience`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GatewayResilienceDefaults
+    const body = (await request.json()) as GatewayResilienceDefaults
     gatewayConfig.resilienceDefaults = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
@@ -145,8 +150,8 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/auth-providers/:providerId`, async ({ params, request }) => {
     await delay(350)
-    const body = await request.json() as GatewayAuthProvider
-    const idx  = gatewayConfig.authProviders.findIndex(p => p.id === params.providerId)
+    const body = (await request.json()) as GatewayAuthProvider
+    const idx = gatewayConfig.authProviders.findIndex((p) => p.id === params.providerId)
     if (idx >= 0) {
       gatewayConfig.authProviders[idx] = body
     } else {
@@ -157,11 +162,10 @@ export const gatewayHandlers = [
   }),
   http.delete(`${BASE}/auth-providers/:providerId`, async ({ params }) => {
     await delay(300)
-    gatewayConfig.authProviders = gatewayConfig.authProviders.filter(p => p.id !== params.providerId)
+    gatewayConfig.authProviders = gatewayConfig.authProviders.filter((p) => p.id !== params.providerId)
     gatewayConfig.updatedAt = new Date().toISOString()
     return new HttpResponse(null, { status: 204 })
   }),
-
 
   // ─── Proxy ────────────────────────────────────────────────────────────────────
   http.get(`${BASE}/proxy`, async () => {
@@ -170,7 +174,7 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/proxy`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GatewayProxyConfig
+    const body = (await request.json()) as GatewayProxyConfig
     gatewayConfig.proxyConfig = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
@@ -183,7 +187,7 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/http-client`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GatewayHttpClientConfig
+    const body = (await request.json()) as GatewayHttpClientConfig
     gatewayConfig.httpClientConfig = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
@@ -196,7 +200,7 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/tenant-isolation`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GatewayTenantIsolationConfig
+    const body = (await request.json()) as GatewayTenantIsolationConfig
     gatewayConfig.tenantIsolation = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
@@ -209,10 +213,9 @@ export const gatewayHandlers = [
   }),
   http.put(`${BASE}/global-filter-entries`, async ({ request }) => {
     await delay(350)
-    const body = await request.json() as GlobalFilterEntry[]
+    const body = (await request.json()) as GlobalFilterEntry[]
     gatewayConfig.globalFilterEntries = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
   }),
 ]
-

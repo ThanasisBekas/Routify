@@ -34,4 +34,3 @@ export default function ProtectedRoute({ children, requiredRole }: Props) {
 
   return <>{children}</>
 }
-

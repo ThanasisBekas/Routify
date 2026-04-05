@@ -40,7 +40,7 @@ All `.run/*.run.xml` configurations use IntelliJ's `<envFilePaths>` element to l
 
 Non-secret, static variables (localhost addresses, ports, DB name/user) are still
 declared inline in the run configs so they are visible in version control.
-Secret variables (`DB_PASS`, `RABBITMQ_PASS`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`,
+Secret variables (`DB_PASS`, `RABBITMQ_PASS`, `REDIS_PASS`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`,
 `CERT_VAULT_ENCRYPTION_KEY`, `ADMIN_INITIAL_PASSWORD`, `OPENAI_API_KEY`) come
 exclusively from the env file.
 
@@ -57,6 +57,7 @@ cp .env environments/.env.develop
 |---|---|
 | `DB_PASS` | PostgreSQL password for the `routify` user |
 | `RABBITMQ_PASS` | RabbitMQ password for the `routify` user |
+| `REDIS_PASS` | Redis password (`--requirepass`) — used by all services that connect to Redis |
 | `JWT_PRIVATE_KEY` | RSA-2048 private key (PKCS8, DER, base64) — used by identity-service to sign JWTs |
 | `JWT_PUBLIC_KEY` | RSA-2048 public key (SPKI, DER, base64) — used by all services to verify JWTs |
 | `CERT_VAULT_ENCRYPTION_KEY` | AES-256 key (32 bytes, base64) — used by cert-vault to encrypt certificate material |

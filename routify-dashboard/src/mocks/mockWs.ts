@@ -14,14 +14,20 @@ import type { WsMessage } from '../types/ws'
 
 // Synthetic event catalogue — rotated in sequence
 const EVENT_CYCLE: WsMessage[] = [
-  { type: 'route.activated',        queryKey: 'routes',  occurredAt: '', message: 'Payments API activated', data: { routeId: 'dddddddd-0000-0000-0000-000000000001' } },
-  { type: 'gateway.reloaded',       queryKey: 'gateway-status', occurredAt: '', message: 'Gateway hot-reloaded' },
-  { type: 'filter.updated',         queryKey: 'filters', occurredAt: '', message: 'Rate limit filter updated' },
-  { type: 'route.updated',          queryKey: 'routes',  occurredAt: '', message: 'Users Service route updated' },
-  { type: 'certificate.uploaded',   queryKey: 'certificates', occurredAt: '', message: 'New certificate uploaded' },
-  { type: 'audit.request.logged',   queryKey: 'audit',   occurredAt: '', message: 'Request logged' },
-  { type: 'user.created',           queryKey: 'users',   occurredAt: '', message: 'New user created' },
-  { type: 'route.deactivated',      queryKey: 'routes',  occurredAt: '', message: 'Legacy route deactivated' },
+  {
+    type: 'route.activated',
+    queryKey: 'routes',
+    occurredAt: '',
+    message: 'Payments API activated',
+    data: { routeId: 'dddddddd-0000-0000-0000-000000000001' },
+  },
+  { type: 'gateway.reloaded', queryKey: 'gateway-status', occurredAt: '', message: 'Gateway hot-reloaded' },
+  { type: 'filter.updated', queryKey: 'filters', occurredAt: '', message: 'Rate limit filter updated' },
+  { type: 'route.updated', queryKey: 'routes', occurredAt: '', message: 'Users Service route updated' },
+  { type: 'certificate.uploaded', queryKey: 'certificates', occurredAt: '', message: 'New certificate uploaded' },
+  { type: 'audit.request.logged', queryKey: 'audit', occurredAt: '', message: 'Request logged' },
+  { type: 'user.created', queryKey: 'users', occurredAt: '', message: 'New user created' },
+  { type: 'route.deactivated', queryKey: 'routes', occurredAt: '', message: 'Legacy route deactivated' },
   { type: 'gateway.config.changed', queryKey: 'gateway-config', occurredAt: '', message: 'CORS config updated' },
 ]
 
@@ -31,14 +37,32 @@ let eventIndex = 0
 function buildMetricsMessage(): WsMessage {
   const cbStates = ['CLOSED', 'CLOSED', 'HALF_OPEN'] as const
   return {
-    type:     'metrics',
+    type: 'metrics',
     occurredAt: new Date().toISOString(),
     loadedRoutes: 6,
-    health: { status: 'UP', components: { redis: { status: 'UP' }, kafka: { status: 'UP' }, rabbitmq: { status: 'UP' } } },
+    health: {
+      status: 'UP',
+      components: { redis: { status: 'UP' }, kafka: { status: 'UP' }, rabbitmq: { status: 'UP' } },
+    },
     circuitBreakers: {
-      'payments-cb': { state: cbStates[Math.floor(Math.random() * 2)], failureRate: parseFloat((Math.random() * 5).toFixed(1)), slowCallRate: 0,  bufferedCalls: 10 },
-      'users-cb':    { state: 'CLOSED',  failureRate: 0, slowCallRate: parseFloat((Math.random() * 10).toFixed(1)), bufferedCalls: 8  },
-      'orders-cb':   { state: cbStates[Math.floor(Math.random() * 3)], failureRate: parseFloat((Math.random() * 60).toFixed(1)), slowCallRate: 20, bufferedCalls: 3  },
+      'payments-cb': {
+        state: cbStates[Math.floor(Math.random() * 2)],
+        failureRate: parseFloat((Math.random() * 5).toFixed(1)),
+        slowCallRate: 0,
+        bufferedCalls: 10,
+      },
+      'users-cb': {
+        state: 'CLOSED',
+        failureRate: 0,
+        slowCallRate: parseFloat((Math.random() * 10).toFixed(1)),
+        bufferedCalls: 8,
+      },
+      'orders-cb': {
+        state: cbStates[Math.floor(Math.random() * 3)],
+        failureRate: parseFloat((Math.random() * 60).toFixed(1)),
+        slowCallRate: 20,
+        bufferedCalls: 3,
+      },
     },
   }
 }
@@ -77,4 +101,3 @@ export function startMockWs(): () => void {
     store.setStatus('DISCONNECTED')
   }
 }
-

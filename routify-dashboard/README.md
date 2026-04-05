@@ -17,22 +17,22 @@ Management UI for the Routify API Gateway Platform, built with **React 19**, **T
 
 ## Tech Stack
 
-| Library | Purpose |
-|---|---|
-| React 19 | UI framework |
-| TypeScript 5.8 | Type safety |
-| Vite 6 | Build tool & dev server |
-| TailwindCSS 4 | Utility-first styling |
-| TanStack Query 5 | Server state & caching |
-| Zustand 5 | Client state management (`authStore`, `wsStore`) |
-| React Router 7 | Client-side routing |
-| React Hook Form + Zod | Form handling & validation |
-| Axios | HTTP client (`src/api/client.ts`) |
-| Recharts | Analytics charts |
-| `@xyflow/react` | Route topology flow editor |
-| Lucide React | Icon set |
-| MSW 2 | Mock Service Worker for offline dev |
-| `sonner` | Toast notifications |
+| Library               | Purpose                                          |
+| --------------------- | ------------------------------------------------ |
+| React 19              | UI framework                                     |
+| TypeScript 5.8        | Type safety                                      |
+| Vite 6                | Build tool & dev server                          |
+| TailwindCSS 4         | Utility-first styling                            |
+| TanStack Query 5      | Server state & caching                           |
+| Zustand 5             | Client state management (`authStore`, `wsStore`) |
+| React Router 7        | Client-side routing                              |
+| React Hook Form + Zod | Form handling & validation                       |
+| Axios                 | HTTP client (`src/api/client.ts`)                |
+| Recharts              | Analytics charts                                 |
+| `@xyflow/react`       | Route topology flow editor                       |
+| Lucide React          | Icon set                                         |
+| MSW 2                 | Mock Service Worker for offline dev              |
+| `sonner`              | Toast notifications                              |
 
 ## Project Structure
 
@@ -107,10 +107,10 @@ npm run preview # Preview production build locally
 
 Set variables in `.env.local` (not committed to version control).
 
-| Variable | Default | Description |
-|---|---|---|
+| Variable            | Default                 | Description                                                                                                 |
+| ------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `VITE_API_BASE_URL` | `http://localhost:8082` | Admin API base URL. Also used to derive the WebSocket URL. Leave unset in dev (Vite proxy handles routing). |
-| `VITE_MOCK` | `false` | Set to `true` to enable MSW mock mode |
+| `VITE_MOCK`         | `false`                 | Set to `true` to enable MSW mock mode                                                                       |
 
 > There is no separate `VITE_WS_URL` — the WebSocket URL is derived from `VITE_API_BASE_URL` in `src/hooks/useWebSocket.ts`.
 
@@ -123,6 +123,7 @@ Set variables in `.env.local` (not committed to version control).
 ## WebSocket / STOMP
 
 `WebSocketProvider` (`src/components/WebSocketProvider.tsx`) connects to `/ws/websocket` via raw STOMP and subscribes to:
+
 - `/topic/events` — domain events (routes, filters, certs, tenants, users)
 - `/topic/metrics` — live gateway metrics
 - `/topic/audit` — live audit entries
