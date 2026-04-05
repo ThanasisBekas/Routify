@@ -46,7 +46,9 @@ import java.util.UUID;
  *   <li>{@code X-From-Service} header identifying the calling service</li>
  *   <li>{@code X-Correlation-Id} header propagated from the active
  *       {@link gr.routify.common.security.SecurityContext} when available</li>
- *   <li>Null-reply detection (broker timeout) → {@link RoutifyException.GatewayError}</li>
+ *   <li>Null-reply detection (broker timeout) with <b>one transparent retry</b>
+ *       before throwing {@link RoutifyException.GatewayError} — covers transient
+ *       network blips without requiring caller-side retry logic</li>
  *   <li>Typed deserialisation of the response via a {@link TypeReference}</li>
  * </ul>
  */
@@ -113,12 +115,7 @@ public abstract class AmqpServiceClientSupport {
         Timer.Sample sample = metrics != null ? Timer.start() : null;
         try {
             Message request  = buildRequest(requestBody);
-            Message response = rabbitTemplate.sendAndReceive(exchange, routingKey, request);
-            if (response == null) {
-                throw new RoutifyException.GatewayError(
-                        "No reply from %s (exchange=%s, rk=%s) — timeout or service down"
-                                .formatted(serviceName, exchange, routingKey));
-            }
+            Message response = sendWithRetry(routingKey, request);
             String json = new String(response.getBody(), StandardCharsets.UTF_8);
             return objectMapper.readValue(json, responseType);
         } catch (RoutifyException e) {
@@ -188,12 +185,7 @@ public abstract class AmqpServiceClientSupport {
                                                      Class<R> responseType) {
         Timer.Sample sample = metrics != null ? Timer.start() : null;
         try {
-            Message reply = rabbitTemplate.sendAndReceive(exchange, routingKey, buildRequest(request));
-            if (reply == null) {
-                throw new gr.routify.common.exception.RoutifyException.GatewayError(
-                        "No reply from %s (exchange=%s, rk=%s) — timeout or service down"
-                                .formatted(serviceName, exchange, routingKey));
-            }
+            Message reply = sendWithRetry(routingKey, buildRequest(request));
             String json = new String(reply.getBody(), java.nio.charset.StandardCharsets.UTF_8);
             return objectMapper.readValue(json, responseType);
         } catch (gr.routify.common.exception.RoutifyException e) {
@@ -218,12 +210,7 @@ public abstract class AmqpServiceClientSupport {
                                                      Class<R> responseType) {
         Timer.Sample sample = metrics != null ? Timer.start() : null;
         try {
-            Message reply = rabbitTemplate.sendAndReceive(exchange, routingKey, buildRequest(command));
-            if (reply == null) {
-                throw new gr.routify.common.exception.RoutifyException.GatewayError(
-                        "No reply from %s (exchange=%s, rk=%s) — timeout or service down"
-                                .formatted(serviceName, exchange, routingKey));
-            }
+            Message reply = sendWithRetry(routingKey, buildRequest(command));
             String json = new String(reply.getBody(), java.nio.charset.StandardCharsets.UTF_8);
             return objectMapper.readValue(json, responseType);
         } catch (gr.routify.common.exception.RoutifyException e) {
@@ -269,6 +256,33 @@ public abstract class AmqpServiceClientSupport {
     protected String serviceName() { return serviceName; }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
+
+    /**
+     * Sends a message and waits for a reply, retrying <b>once</b> on a {@code null} reply
+     * (broker timeout). This covers transient network blips — a single retry is sufficient
+     * because the Resilience4j circuit breaker in admin-api provides higher-level protection.
+     *
+     * @return Non-null reply message.
+     * @throws RoutifyException.GatewayError if both attempts return {@code null}.
+     */
+    private Message sendWithRetry(String routingKey, Message request) {
+        Message response = rabbitTemplate.sendAndReceive(exchange, routingKey, request);
+        if (response != null) {
+            return response;
+        }
+
+        // First attempt returned null — retry once
+        log.warn("[{}] Null reply from exchange={} rk={} — retrying once", serviceName, exchange, routingKey);
+        response = rabbitTemplate.sendAndReceive(exchange, routingKey, request);
+        if (response != null) {
+            log.info("[{}] Retry succeeded for exchange={} rk={}", serviceName, exchange, routingKey);
+            return response;
+        }
+
+        throw new RoutifyException.GatewayError(
+                "No reply from %s (exchange=%s, rk=%s) — timeout or service down (after 1 retry)"
+                        .formatted(serviceName, exchange, routingKey));
+    }
 
     private Message buildRequest(Object requestBody) throws Exception {
         String json = objectMapper.writeValueAsString(requestBody);

@@ -18,6 +18,7 @@ import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.Map;
 
@@ -37,6 +38,12 @@ public class CertVaultKafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
+
+    private final MeterRegistry meterRegistry;
+
+    public CertVaultKafkaConfig(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+    }
 
     // ─── ObjectMapper ─────────────────────────────────────────────────────────
 
@@ -81,13 +88,15 @@ public class CertVaultKafkaConfig {
 
     @Bean
     public ConsumerFactory<String, Object> certCommandConsumerFactory() {
-        return new DefaultKafkaConsumerFactory<>(Map.of(
+        var factory = new DefaultKafkaConsumerFactory<String, Object>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,          bootstrapServers,
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,     StringDeserializer.class,
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,   StringDeserializer.class,
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,          "earliest",
                 ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,         "false"
         ));
+        factory.addListener(new MicrometerConsumerListener<>(meterRegistry));
+        return factory;
     }
 
     @Bean
