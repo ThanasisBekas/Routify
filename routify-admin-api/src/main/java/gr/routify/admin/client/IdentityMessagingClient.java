@@ -1,6 +1,7 @@
 package gr.routify.admin.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gr.routify.admin.config.CacheConfig;
 import gr.routify.admin.dto.CreateTenantRequest;
 import gr.routify.admin.dto.CreateUserRequest;
 import gr.routify.admin.dto.UpdateTenantRequest;
@@ -18,6 +19,8 @@ import gr.routify.common.observability.RoutifyMetrics;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -138,6 +141,7 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     // ─── Tenant Queries (RabbitMQ) ────────────────────────────────────────────
 
+    @Cacheable(CacheConfig.CACHE_ACTIVE_WORKSPACES)
     @CircuitBreaker(name = "identity-service", fallbackMethod = "listActiveWorkspacesFallback")
     public QueryResponse.ActiveWorkspacesList listActiveWorkspaces() {
         return rpc(RabbitTopology.RK_TENANTS_LIST_ACTIVE,
@@ -179,6 +183,7 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
 
     // ─── Tenant Commands (RabbitMQ sync) ─────────────────────────────────────
 
+    @CacheEvict(value = CacheConfig.CACHE_ACTIVE_WORKSPACES, allEntries = true)
     @CircuitBreaker(name = "identity-service", fallbackMethod = "createTenantFallback")
     public QueryResponse.TenantDetail createTenant(CreateTenantRequest req) {
         TenantPlan plan = parsePlan(req.plan(), TenantPlan.FREE);
@@ -194,6 +199,7 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
         return null;
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_ACTIVE_WORKSPACES, allEntries = true)
     @CircuitBreaker(name = "identity-service", fallbackMethod = "updateTenantFallback")
     public QueryResponse.TenantDetail updateTenant(UUID tenantId, UpdateTenantRequest req) {
         TenantPlan plan = parsePlan(req.plan(), null);
@@ -209,6 +215,7 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
         return null;
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_ACTIVE_WORKSPACES, allEntries = true)
     @CircuitBreaker(name = "identity-service", fallbackMethod = "suspendTenantFallback")
     public QueryResponse.TenantDetail suspendTenant(UUID tenantId, String reason) {
         CommandEvent cmd = new CommandEvent.SuspendTenant(
@@ -222,6 +229,7 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
         return null;
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_ACTIVE_WORKSPACES, allEntries = true)
     @CircuitBreaker(name = "identity-service", fallbackMethod = "reactivateTenantFallback")
     public QueryResponse.TenantDetail reactivateTenant(UUID tenantId) {
         CommandEvent cmd = new CommandEvent.ReactivateTenant(

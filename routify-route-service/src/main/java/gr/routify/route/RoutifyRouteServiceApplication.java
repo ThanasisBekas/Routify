@@ -3,6 +3,7 @@ package gr.routify.route;
 import gr.routify.common.config.SecretValidator;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -25,6 +26,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @EnableScheduling
+@EnableCaching
 public class RoutifyRouteServiceApplication {
 
     public static void main(String[] args) {
