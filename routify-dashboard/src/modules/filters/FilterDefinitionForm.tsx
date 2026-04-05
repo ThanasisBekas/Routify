@@ -4,37 +4,20 @@
  *
  * Filter type catalogue and visual metadata are sourced from filterRegistry.ts
  * so this component no longer maintains its own duplicate lists.
- *
- * ARCHITECTURAL CONSTRAINT — External config sources:
- *   Standard filters are SELF-CONTAINED. They store all their configuration
- *   inline in the filter definition and MUST NOT import configuration from the
- *   API gateway config (no auth-provider refs, no rate-limit policy refs, etc.).
- *
- *   Two exceptions are allowed:
- *   1. Cert filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK`)
- *      may bind to a Certificate Group via `CertVaultGroupPicker`.
- *   2. Auth filters (`AUTH_JWT`, `AUTH_OAUTH2`, `AUTH_BASIC`, `DOWNSTREAM_BASIC_AUTH`,
- *      `DOWNSTREAM_BEARER_CC`) may bind to a Gateway Auth Provider via `AuthProviderPicker`.
- *      The selected provider's `id` is written into the filter config as `authProviderId`.
  */
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { X, AlertCircle, Filter, ChevronDown } from 'lucide-react'
 import { filtersApi } from '../../api/filtersApi'
-import type { FilterType, CreateFilterRequest, UpdateFilterRequest, GatewayConfigRef } from '../../types'
-import { FILTER_TYPES_WITH_CERT_VAULT_REF } from '../../types'
+import type { FilterType, CreateFilterRequest, UpdateFilterRequest } from '../../types'
 import FilterConfigFields from './FilterConfigFields'
 import { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './filterConfigConstants'
-import CertVaultGroupPicker from './CertVaultGroupPicker'
-import AuthProviderPicker, { FILTER_TYPES_WITH_AUTH_PROVIDER_REF, type AuthProviderRef } from './AuthProviderPicker'
-import { cn } from '../../lib/utils'
-import { extractApiError } from '../../lib/errorUtils'
+import { cn, extractApiError } from '../../lib/utils'
 import {
   FILTER_REGISTRY,
   CATEGORY_ORDER,
   CATEGORY_COLORS,
-  assertStandardFilterIsolation,
 } from './filterRegistry'
 
 // ─── Re-shape registry for the picker ────────────────────────────────────────
@@ -255,8 +238,6 @@ export default function FilterDefinitionForm({
   const [config,           setConfig]           = useState<FilterConfig>(
     DEFAULT_CONFIGS[(presetFilterType as FilterType) ?? 'AUTH_JWT'] ?? {}
   )
-  const [gatewayConfigRef, setGatewayConfigRef] = useState<GatewayConfigRef | null>(null)
-  const [authProviderRef,  setAuthProviderRef]  = useState<AuthProviderRef | null>(null)
 
   // Populate from existing when editing
   useEffect(() => {
@@ -266,26 +247,6 @@ export default function FilterDefinitionForm({
       setFilterType(existing.filterType)
       const existingConfig = existing.config ?? {}
       setConfig(existingConfig)
-
-      // Enforce isolation rule: standard filters must not have a gateway config ref.
-      // If an existing record has one (legacy data), strip it and warn.
-      const existingRef = existing.gatewayConfigRef ?? null
-      assertStandardFilterIsolation(existing.filterType, !!existingRef)
-      setGatewayConfigRef(
-        FILTER_TYPES_WITH_CERT_VAULT_REF.has(existing.filterType) ? existingRef : null,
-      )
-
-      // Restore auth provider ref from stored config fields (authProviderId + authProviderName)
-      if (
-        FILTER_TYPES_WITH_AUTH_PROVIDER_REF.has(existing.filterType) &&
-        existingConfig.authProviderId
-      ) {
-        setAuthProviderRef({
-          providerId:   existingConfig.authProviderId as string,
-          providerName: (existingConfig.authProviderName as string) ?? existingConfig.authProviderId as string,
-          providerType: (existingConfig.authProviderType as AuthProviderRef['providerType']) ?? 'JWT_VERIFY',
-        })
-      }
     }
   }, [existing])
 
@@ -293,56 +254,6 @@ export default function FilterDefinitionForm({
   const handleTypeChange = (t: FilterType) => {
     setFilterType(t)
     setConfig(DEFAULT_CONFIGS[t] ?? {})
-    setGatewayConfigRef(null)
-    setAuthProviderRef(null)
-  }
-
-  /**
-   * Cert Vault group selection handler.
-   *
-   * Only cert filter types reach this handler (the picker is not rendered for
-   * standard filters). When the user picks a group, we sync its `logicalId`
-   * into the filter's inline config so the gateway registry filter binds
-   * correctly at runtime — no gateway restart required.
-   */
-  const handleCertVaultRefChange = (ref: GatewayConfigRef | null) => {
-    setGatewayConfigRef(ref)
-    if (ref?.refType === 'VAULT_CERT') {
-      // Auto-fill the logicalId config field from the selected group
-      setConfig(prev => ({ ...prev, logicalId: ref.refId }))
-    } else if (ref === null && FILTER_TYPES_WITH_CERT_VAULT_REF.has(filterType)) {
-      // Clear logicalId when unlinking a cert group
-      setConfig(prev => ({ ...prev, logicalId: '' }))
-    }
-  }
-
-  /**
-   * Auth Provider selection handler.
-   *
-   * When a provider is selected we write its `id`, `name`, and `type` into
-   * the filter's inline config as `authProviderId`, `authProviderName`,
-   * `authProviderType`. The gateway factory reads `authProviderId` to resolve
-   * the full provider config at runtime.
-   */
-  const handleAuthProviderRefChange = (ref: AuthProviderRef | null) => {
-    setAuthProviderRef(ref)
-    if (ref) {
-      setConfig(prev => ({
-        ...prev,
-        authProviderId:   ref.providerId,
-        authProviderName: ref.providerName,
-        authProviderType: ref.providerType,
-      }))
-    } else {
-      // Clear auth provider fields from config when unlinking
-      setConfig(prev => {
-        const next = { ...prev }
-        delete next.authProviderId
-        delete next.authProviderName
-        delete next.authProviderType
-        return next
-      })
-    }
   }
 
   const createMutation = useMutation({
@@ -361,16 +272,11 @@ export default function FilterDefinitionForm({
     e.preventDefault()
     if (!name.trim()) return
 
-    // Cert Vault ref is only valid for cert filter types — strip it for standard filters
-    // to enforce the architectural rule that standard filters are self-contained.
-    const certRef = supportsCertVaultRef ? gatewayConfigRef : null
-
     if (isEdit) {
       updateMutation.mutate({
         name: name.trim(),
         description: description.trim() || undefined,
         config,
-        gatewayConfigRef: certRef ?? null,
       })
     } else {
       createMutation.mutate({
@@ -378,21 +284,11 @@ export default function FilterDefinitionForm({
         description: description.trim() || undefined,
         filterType,
         config,
-        gatewayConfigRef: certRef ?? undefined,
       })
     }
   }
 
   const selectedMeta = FILTER_TYPES.find(f => f.value === filterType)
-  /**
-   * Whether this filter type may reference a Cert Vault group.
-   * Standard filter types always return false — they are self-contained.
-   */
-  const supportsCertVaultRef    = FILTER_TYPES_WITH_CERT_VAULT_REF.has(filterType)
-  /**
-   * Whether this filter type may reference a Gateway Auth Provider.
-   */
-  const supportsAuthProviderRef = FILTER_TYPES_WITH_AUTH_PROVIDER_REF.has(filterType)
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6 animate-fade-in">
@@ -482,30 +378,6 @@ export default function FilterDefinitionForm({
                       </div>
                     </div>
                   )}
-
-                  {/* Cert Vault Group binding — ONLY for cert filter types */}
-                  {supportsCertVaultRef && (
-                    <CertVaultGroupPicker
-                      filterType={filterType}
-                      value={gatewayConfigRef}
-                      onChange={handleCertVaultRefChange}
-                      onNavigateToCertVault={() => {
-                        window.open('/certificates', '_blank')
-                      }}
-                    />
-                  )}
-
-                  {/* Auth Provider binding — for auth / downstream-auth filter types */}
-                  {supportsAuthProviderRef && (
-                    <AuthProviderPicker
-                      filterType={filterType}
-                      value={authProviderRef}
-                      onChange={handleAuthProviderRefChange}
-                      onNavigateToGatewayConfig={() => {
-                        window.open('/gateway?tab=auth-providers', '_blank')
-                      }}
-                    />
-                  )}
                 </div>
 
                 {/* ── Right panel — type-specific configuration ─────────────── */}
@@ -520,41 +392,7 @@ export default function FilterDefinitionForm({
                     <span className="text-xs font-semibold text-gray-400">
                       {isEdit ? filterType.replace(/_/g, ' ') : (selectedMeta?.label ?? filterType)} Configuration
                     </span>
-                    {gatewayConfigRef && supportsCertVaultRef && (
-                      <span className="ml-auto text-[10px] text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded-full border border-sky-400/20 whitespace-nowrap">
-                        ↑ logicalId synced
-                      </span>
-                    )}
-                    {authProviderRef && supportsAuthProviderRef && (
-                      <span className="ml-auto text-[10px] text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded-full border border-indigo-400/20 whitespace-nowrap">
-                        ↑ provider synced
-                      </span>
-                    )}
                   </div>
-
-                  {/* Cert Vault sync notice */}
-                  {gatewayConfigRef && supportsCertVaultRef && (
-                    <div className="px-3 py-2.5 rounded-lg bg-sky-500/5 border border-sky-500/20 text-xs text-sky-300/70 leading-relaxed">
-                      The <code className="font-mono text-sky-200">logicalId</code> field below has been
-                      auto-filled from the linked Cert Vault group{' '}
-                      <span className="font-mono text-sky-200">
-                        {gatewayConfigRef.refName ?? gatewayConfigRef.refId}
-                      </span>.
-                      At runtime the gateway certificate registry uses this ID to resolve active certificates.
-                    </div>
-                  )}
-
-                  {/* Auth Provider sync notice */}
-                  {authProviderRef && supportsAuthProviderRef && (
-                    <div className="px-3 py-2.5 rounded-lg bg-indigo-500/5 border border-indigo-500/20 text-xs text-indigo-300/70 leading-relaxed">
-                      <code className="font-mono text-indigo-200">authProviderId</code> has been set
-                      to the linked provider{' '}
-                      <span className="font-mono text-indigo-200">{authProviderRef.providerName}</span>{' '}
-                      (<code className="font-mono text-indigo-300/80">{authProviderRef.providerId}</code>).
-                      The gateway factory resolves this provider's credentials at runtime — inline
-                      credential fields below are superseded when a provider is linked.
-                    </div>
-                  )}
 
                   {/* Type-specific fields */}
                   <FilterConfigFields

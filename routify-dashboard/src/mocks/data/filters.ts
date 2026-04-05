@@ -19,7 +19,7 @@ export const seedFilters: FilterDefinitionDto[] = [
     name:         'JWT Auth (RS256)',
     description:  'Validates RS256 JWT tokens from the identity service.',
     filterType:   'AUTH_JWT',
-    config:       { algorithm: 'RS256', issuer: 'routify-identity', authProviderId: 'ap-jwt-01', authProviderName: 'JWT RS256 Provider', authProviderType: 'JWT_VERIFY' },
+    config:       { algorithm: 'RS256', issuer: 'routify-identity' },
     systemManaged: false,
     enabled:      true,
     usageCount:   4,

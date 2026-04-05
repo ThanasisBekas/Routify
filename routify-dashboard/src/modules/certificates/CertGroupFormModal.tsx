@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { certVaultApi } from '../../api/certVaultApi'
 import type { CertGroupDto } from '../../types'
 import { X, Layers, Loader2, AlertCircle, Info } from 'lucide-react'
-import { extractApiError } from '../../lib/errorUtils'
+import { extractApiError } from '../../lib/utils'
 
 interface Props {
   tenantId: string

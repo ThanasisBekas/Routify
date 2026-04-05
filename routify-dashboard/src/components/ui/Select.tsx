@@ -2,7 +2,7 @@
  * Select — a fully-styled custom dropdown component for Routify Dashboard.
  *
  * Features:
- *  - Dark-theme consistent styling (matches FilterTypePicker / GatewayConfigRefPicker)
+ *  - Dark-theme consistent styling (matches FilterTypePicker)
  *  - Optional grouped options via `group` property
  *  - Optional inline search (enabled when `searchable` prop is true or option count ≥ 6)
  *  - Chevron rotate animation on open

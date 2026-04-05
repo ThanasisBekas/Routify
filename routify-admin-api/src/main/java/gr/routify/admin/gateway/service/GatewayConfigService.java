@@ -114,6 +114,7 @@ public class GatewayConfigService {
     public HttpClientConfigDto getHttpClientConfig()           { return getConfig().getHttpClientConfig(); }
     public GlobalFiltersConfig getGlobalFilters()              { return getConfig().getGlobalFilters(); }
     public TenantIsolationConfig getTenantIsolation()          { return getConfig().getTenantIsolation(); }
+    public List<GlobalFilterEntryDto> getGlobalFilterEntries() { var l = getConfig().getGlobalFilterEntries(); return l != null ? l : new ArrayList<>(); }
 
     // ─── Write ────────────────────────────────────────────────────────────────
 
@@ -243,6 +244,11 @@ public class GatewayConfigService {
         return persistAndNotify(cfg, updatedBy, "TENANT_ISOLATION");
     }
 
+    public GatewayConfigDto updateGlobalFilterEntries(List<GlobalFilterEntryDto> entries, String updatedBy) {
+        GatewayConfigDto cfg = getConfig(); cfg.setGlobalFilterEntries(entries);
+        return persistAndNotify(cfg, updatedBy, "GLOBAL_FILTER_ENTRIES");
+    }
+
     // ─── Private ──────────────────────────────────────────────────────────────
 
     /**
@@ -301,6 +307,7 @@ public class GatewayConfigService {
         if (incoming.getHttpClientConfig() != null)    existing.setHttpClientConfig(incoming.getHttpClientConfig());
         if (incoming.getGlobalFilters() != null)       existing.setGlobalFilters(incoming.getGlobalFilters());
         if (incoming.getTenantIsolation() != null)     existing.setTenantIsolation(incoming.getTenantIsolation());
+        if (incoming.getGlobalFilterEntries() != null) existing.setGlobalFilterEntries(incoming.getGlobalFilterEntries());
     }
 
     private GatewayConfigDto buildDefaults() {
@@ -357,8 +364,9 @@ public class GatewayConfigService {
                                 .tenantHeaderName(RoutifyHeaders.TENANT_ID).enforceOnAllRoutes(false).build())
                         .build())
                 .tenantIsolation(TenantIsolationConfig.builder()
-                        .enabled(true).enforceHeaderPredicate(true)
+                        .enabled(true)
                         .tenantIdHeader(RoutifyHeaders.TENANT_ID).allowCrossTenantsForSuperAdmin(true).build())
+                .globalFilterEntries(List.of())
                 .build();
     }
 }

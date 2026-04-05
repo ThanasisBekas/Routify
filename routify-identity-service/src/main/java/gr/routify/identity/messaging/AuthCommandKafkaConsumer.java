@@ -28,9 +28,6 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class AuthCommandKafkaConsumer {
 
-    /** @deprecated Use {@link RedisKeys#BLOCKLIST_PREFIX} instead. */
-    @Deprecated
-    public static final String BLACKLIST_PREFIX = RedisKeys.BLOCKLIST_PREFIX;
 
     private final StringRedisTemplate redisTemplate;
     private final gr.routify.identity.security.JwtService jwtService;
