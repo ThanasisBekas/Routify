@@ -290,5 +290,19 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <!--
+            Quick verification — runs unit tests only, skips Testcontainers integration tests.
+            Usage: mvn verify -Pquick
+            Typical time: <30s (vs ~2min for full verify with Docker containers).
+        -->
+        <profile>
+            <id>quick</id>
+            <properties>
+                <skipITs>true</skipITs>
+            </properties>
+        </profile>
+    </profiles>
 </project>
 

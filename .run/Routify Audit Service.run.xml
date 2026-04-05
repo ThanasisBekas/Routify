@@ -9,6 +9,8 @@
       <option name="environmentVariables" />
     </selectedOptions>
     <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.audit.RoutifyAuditServiceApplication" />
+    <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UPDATE_CLASSES_AND_RESOURCES" />
+    <option name="UPDATE_POLICY" value="UPDATE_CLASSES_AND_RESOURCES" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
