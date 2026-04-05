@@ -63,11 +63,11 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 ## Project Conventions
 
 **Java services:**
-- Java 21 with **Virtual Threads** enabled (`spring.threads.virtual.enabled: true`) on all services except the reactive gateway.
-- Spring Boot **3.4.4**, Spring Cloud **2024.0.1**, Spring AI **1.0.0**, JJWT **0.12.6**, Resilience4j **2.2.0**, MapStruct **1.6.3**.
+- Java 25 with **Virtual Threads** enabled (`spring.threads.virtual.enabled: true`) on all services except the reactive gateway.
+- Spring Boot **3.5.13**, Spring Cloud **2025.0.2**, Spring AI **1.1.4**, JJWT **0.13.0**, Resilience4j **2.2.0**, MapStruct **1.6.3**.
 - `routify-api-gateway` is **reactive** (WebFlux/Reactor/Netty) — never use blocking code there.
 - Exceptions extend the **sealed** `RoutifyException` hierarchy (`NotFound`, `Conflict`, `Validation`, `BadRequest`, `Unauthorized`, `Forbidden`, `RateLimitExceeded`, `QuotaExceeded`, `GatewayError`, `HeuristicError`) — never throw raw `RuntimeException`. Error responses are serialised by `exception.io.routify.common.GlobalExceptionHandler` as **RFC 9457 ProblemDetail** JSON (`type`, `title`, `status`, `detail`, `errorCode`).
-- Use **MapStruct** for DTO↔entity mappings (annotation processor configured in parent `pom.xml`). Lombok + MapStruct binding order matters: `lombok-mapstruct-binding` is declared explicitly. Lombok version is overridden to **1.18.38** in the parent POM for JDK compatibility.
+- Use **MapStruct** for DTO↔entity mappings (annotation processor configured in parent `pom.xml`). Lombok + MapStruct binding order matters: `lombok-mapstruct-binding` is declared explicitly. Lombok version is overridden to **1.18.38** in the parent POM for JDK 25 compatibility.
 - All Kafka producers use `acks=all` + idempotent mode. Kafka writes from `route-service` go through the **Transactional Outbox** pattern (`OutboxPoller` polls every 250 ms, retries failed after 30 s, max 5 attempts).
 - **Application-level caching** uses **Caffeine** in-process caches (`@EnableCaching` + `CacheConfig` class per service, `@Cacheable`/`@CacheEvict` annotations). Three services have caches: **route-service** (`gatewaySnapshot` — maximumSize=1, TTL=60s, evicted on outbox publish), **identity-service** (`users` — maximumSize=500, TTL=120s; `tenants` — maximumSize=100, TTL=300s; both evicted on any mutation), **admin-api** (`activeWorkspaces` — maximumSize=1, TTL=30s, evicted on tenant create/update/suspend/reactivate). Cache stats are enabled via `recordStats()` and auto-exposed as Micrometer `cache_*` metrics.
 - Database migrations use **Flyway** (`classpath:db/migration`). `ddl-auto: validate` — never `update`. Each service uses its own schema: `routify` (route-service), `routify_identity` (identity-service), `routify_audit` (audit-service), `routify_cert` (cert-vault).
@@ -85,7 +85,7 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 - `event.io.routify.common.DomainEvent` — base type for domain event payloads published on event topics.
 - `event.io.routify.common.QueryRequest` / `QueryResponse` — typed wrappers for all RabbitMQ request/reply calls. Each query variant is a nested record (e.g. `QueryRequest.AiFilterEvaluate`).
 - `kafka.io.routify.common.KafkaDlqErrorHandlerFactory` — shared DLQ `DefaultErrorHandler` with exponential back-off (1 s × 2.0, max 30 s ≈ 5 retries); deserialisation errors go straight to DLQ. Use: `factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate))`.
-- `security.io.routify.common.SecurityContext` — Java 21 **record** (`userId`, `tenantId`, `username`, `role`, `correlationId`) stored in a `ThreadLocal`; set by the JWT filter in each service. Call `SecurityContext.current()` / `SecurityContext.set()` / `SecurityContext.clear()`. Convenience helpers: `hasRole(String)`, `isSuperAdmin()`, `isTenantAdmin()`. MDC enrichment: call `ctx.setMdc()` to populate SLF4J MDC with `userId`, `tenantId`, `correlationId`; call `SecurityContext.clearMdc()` on scope end. Static `putMdc(userId, tenantId, correlationId)` is available for Kafka consumers that extract identifiers from record headers.
+- `security.io.routify.common.SecurityContext` — Java 21 **record** (`userId: UUID`, `tenantId: UUID`, `username`, `role`, `correlationId`) stored in a `ThreadLocal`; set by the JWT filter in each service. Call `SecurityContext.current()` / `SecurityContext.set()` / `SecurityContext.clear()`. Convenience helpers: `hasRole(String)`, `isSuperAdmin()`, `isTenantAdmin()`. MDC enrichment: call `ctx.setMdc()` to populate SLF4J MDC with `userId`, `tenantId`, `correlationId`; call `SecurityContext.clearMdc()` on scope end. Static `putMdc(userId, tenantId, correlationId)` is available for Kafka consumers that extract identifiers from record headers.
 - `security.io.routify.common.RedisKeys` — centralised Redis key prefixes (e.g. `BLOCKLIST_PREFIX = "routify:token:blocklist:"`).
 - `config.io.routify.common.SecretValidator` — validates required secrets at startup via `routify.required-secrets` config property.
 - `domain.io.routify.common.FilterType` — enum of all gateway filter types (keep in sync with TypeScript `FilterType` union in dashboard and every `*GatewayFilterFactory` in the gateway). Active types include `AUTH_*` (`AUTH_API_KEY`, `AUTH_BASIC`, `AUTH_JWT`, `AUTH_MTLS`, `AUTH_OAUTH2`, `AUTH_CLIENT_ID`, `AUTH_CERT_VAULT`), `DOWNSTREAM_BASIC_AUTH`, `DOWNSTREAM_BEARER_CC`, `RATE_LIMIT_FIXED_WINDOW`, `RATE_LIMIT_SLIDING_WINDOW`, `REQUEST_HEADER_MODIFY`, `RESPONSE_HEADER_MODIFY`, `AI_FILTER`, `AI_MODIFIER`, `BODY_JOLT_TRANSFORM`, `VALIDATE_JSON_SCHEMA`, `TIMEOUT`, `CONDITIONAL_ROUTE`, `USER_ID_PAYLOAD_ROUTING`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK`, `API_VERSIONING`, `CORRELATION_ID`, `REQUEST_LOGGER`, `TENANT_CONTEXT`, `SECURITY_HEADERS`, `CUSTOM_METRIC`, `CUSTOM_SPEL`. Several legacy values are `@Deprecated` (no factory implementation — kept for DB compatibility only; `RouteDefinitionBuilder` logs a warning and skips them): `AUTH_NONE`, `RATE_LIMIT_TOKEN_BUCKET`, `PATH_REWRITE`, `PATH_STRIP_PREFIX`, `PATH_ADD_PREFIX`, `QUERY_PARAM_MODIFY`, `BODY_JSONATA_TRANSFORM`, `BODY_SPEL_TRANSFORM`, `VALIDATE_REGEX`, `VALIDATE_SIZE`, `CIRCUIT_BREAKER`, `RETRY`.
@@ -138,7 +138,9 @@ npm install
 npm run dev           # requires backend running
 npm run dev:mock      # MSW offline mode — no backend needed
 npm run build         # production build → dist/
-npm run lint          # ESLint
+npm run lint          # ESLint + Prettier check
+npm run format        # Prettier auto-fix
+npm run typecheck     # tsc type-check only (no emit)
 ```
 Mock handlers live in `src/mocks/handlers/`. Mock mode is enabled by `VITE_MOCK=true`.
 
@@ -160,9 +162,12 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
 
 **Java integration tests** use **Testcontainers** (Kafka, RabbitMQ, Redis, PostgreSQL). Convention: `*IT.java` suffix (run by maven-failsafe-plugin). Base class `AdminApiIntegrationBase` provides MockMvc, unsigned JWT generation (`generateTestJwt()`), mock RabbitMQ reply listeners (`mockRabbitReply()`), and Kafka test consumer (`drainTopic()`).
 
+> **ITs disabled by default:** `<skipITs>true</skipITs>` is set globally in the parent POM due to a Docker Engine 29.x / Testcontainers incompatibility. Re-enable with `mvn verify -DskipITs=false`. The `docker-java` client is overridden to **3.7.1** for API version negotiation with Docker Engine 29.x. Testcontainers version is managed by Boot 3.5.13 (TC 1.21.4).
+
 ```bash
-mvn verify                             # unit + integration tests
-mvn verify -Pquick                     # unit tests only (skips Testcontainers ITs, <30s)
+mvn verify                             # unit tests only (ITs skipped by default)
+mvn verify -DskipITs=false             # unit + integration tests (requires Docker)
+mvn verify -Pquick                     # unit tests only (legacy alias, same as default)
 mvn verify -pl routify-admin-api -am   # single module with deps
 ```
 
