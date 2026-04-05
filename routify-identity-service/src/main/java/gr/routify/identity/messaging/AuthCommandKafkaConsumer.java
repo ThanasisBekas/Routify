@@ -22,6 +22,9 @@ import java.time.Instant;
  *   <li>{@link CommandEvent.Logout} — extracts the refresh token's JTI and stores it
  *       in Redis with a TTL equal to the remaining token lifetime.</li>
  * </ul>
+ *
+ * <p><b>Idempotency:</b> No {@code processed_command} check needed — Redis {@code SET}
+ * with TTL is inherently idempotent (re-setting the same key/value is a no-op).
  */
 @Slf4j
 @Component

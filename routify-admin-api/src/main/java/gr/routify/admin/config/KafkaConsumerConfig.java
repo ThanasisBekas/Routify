@@ -15,7 +15,9 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.MicrometerConsumerListener;
 import org.springframework.kafka.support.converter.StringJsonMessageConverter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.Map;
 
@@ -41,9 +43,15 @@ public class KafkaConsumerConfig {
     @Value("${spring.kafka.consumer.group-id:routify-admin-api}")
     private String groupId;
 
+    private final MeterRegistry meterRegistry;
+
+    public KafkaConsumerConfig(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+    }
+
     @Bean
     public ConsumerFactory<String, Object> adminConsumerFactory() {
-        return new DefaultKafkaConsumerFactory<>(Map.of(
+        var factory = new DefaultKafkaConsumerFactory<String, Object>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ConsumerConfig.GROUP_ID_CONFIG,                 groupId,
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,   StringDeserializer.class,
@@ -51,6 +59,8 @@ public class KafkaConsumerConfig {
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,        "latest",
                 ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,       "false"
         ));
+        factory.addListener(new MicrometerConsumerListener<>(meterRegistry));
+        return factory;
     }
 
     @Bean
