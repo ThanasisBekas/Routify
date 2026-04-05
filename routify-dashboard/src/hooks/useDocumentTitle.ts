@@ -19,4 +19,3 @@ export function useDocumentTitle(title?: string) {
     }
   }, [title])
 }
-

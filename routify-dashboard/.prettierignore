@@ -1,0 +1,5 @@
+dist
+public/mockServiceWorker.js
+node_modules
+*.svg
+

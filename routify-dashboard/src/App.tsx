@@ -9,6 +9,7 @@ import LoginPage from './modules/auth/LoginPage'
 import ChangePasswordPage from './modules/auth/ChangePasswordPage'
 import { WebSocketProvider } from './components/WebSocketProvider'
 import { useBootstrapAuth } from './hooks/useBootstrapAuth'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import MockBanner from './components/MockBanner'
 
 // ─── Lazy-loaded page modules ─────────────────────────────────────────────
@@ -87,31 +88,112 @@ function AppRoutes() {
         <Route index element={<Navigate to="/routes" replace />} />
 
         {/* Routes — core of Routify */}
-        <Route path="routes" element={<Suspense fallback={<PageLoader />}><RouteWorkflowPage /></Suspense>} />
+        <Route
+          path="routes"
+          element={
+            <ErrorBoundary label="Routes">
+              <Suspense fallback={<PageLoader />}>
+                <RouteWorkflowPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
 
         {/* Workflow Builder — full-page node canvas for a single route */}
-        <Route path="routes/:routeId/builder" element={<Suspense fallback={<PageLoader />}><WorkflowBuilderPage /></Suspense>} />
+        <Route
+          path="routes/:routeId/builder"
+          element={
+            <ErrorBoundary label="Route Builder">
+              <Suspense fallback={<PageLoader />}>
+                <WorkflowBuilderPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
 
         {/* Filters — reusable filter definitions */}
-        <Route path="filters" element={<Suspense fallback={<PageLoader />}><FiltersPage /></Suspense>} />
+        <Route
+          path="filters"
+          element={
+            <ErrorBoundary label="Filters">
+              <Suspense fallback={<PageLoader />}>
+                <FiltersPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
 
         {/* Gateway — full configuration management */}
-        <Route path="gateway" element={<Suspense fallback={<PageLoader />}><GatewayPage /></Suspense>} />
+        <Route
+          path="gateway"
+          element={
+            <ErrorBoundary label="Gateway">
+              <Suspense fallback={<PageLoader />}>
+                <GatewayPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
 
         {/* Certificate Vault — inbound TLS certificate storage */}
-        <Route path="certificates" element={<Suspense fallback={<PageLoader />}><CertVaultPage /></Suspense>} />
+        <Route
+          path="certificates"
+          element={
+            <ErrorBoundary label="Certificate Vault">
+              <Suspense fallback={<PageLoader />}>
+                <CertVaultPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
 
         {/* Audit log */}
-        <Route path="audit" element={<Suspense fallback={<PageLoader />}><AuditPage /></Suspense>} />
+        <Route
+          path="audit"
+          element={
+            <ErrorBoundary label="Audit Log">
+              <Suspense fallback={<PageLoader />}>
+                <AuditPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
 
         {/* Users management */}
-        <Route path="users" element={<Suspense fallback={<PageLoader />}><UsersPage /></Suspense>} />
+        <Route
+          path="users"
+          element={
+            <ErrorBoundary label="Users">
+              <Suspense fallback={<PageLoader />}>
+                <UsersPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
 
         {/* Settings */}
-        <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+        <Route
+          path="settings"
+          element={
+            <ErrorBoundary label="Settings">
+              <Suspense fallback={<PageLoader />}>
+                <SettingsPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
 
         {/* Workspaces — SUPER_ADMIN only (page enforces the guard internally) */}
-        <Route path="workspaces" element={<Suspense fallback={<PageLoader />}><WorkspacesPage /></Suspense>} />
+        <Route
+          path="workspaces"
+          element={
+            <ErrorBoundary label="Workspaces">
+              <Suspense fallback={<PageLoader />}>
+                <WorkspacesPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
       </Route>
 
       <Route path="*" element={<Navigate to="/routes" replace />} />

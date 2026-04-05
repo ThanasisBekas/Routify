@@ -17,21 +17,26 @@ export type FilterConfig = Record<string, unknown>
 
 export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Authentication — field names match backend Config classes exactly
-  AUTH_JWT:           { issuer: '', audience: '', algorithm: 'RS256' },
-  AUTH_API_KEY:       { headerName: 'X-API-Key', queryParam: '', validationMode: 'REDIS' },
-  AUTH_BASIC:         { username: '', password: '' },
-  AUTH_OAUTH2:        { providerName: '', claimsToHeaderMapping: {} },
-  AUTH_MTLS:          { values: [] },
-  AUTH_CLIENT_ID:     { values: [] },
-  AUTH_CERT_VAULT:    { logicalId: '', certificateHeader: 'X-Client-Certificate', requireCertificate: true, stripCertificateHeader: false },
+  AUTH_JWT: { issuer: '', audience: '', algorithm: 'RS256' },
+  AUTH_API_KEY: { headerName: 'X-API-Key', queryParam: '', validationMode: 'REDIS' },
+  AUTH_BASIC: { username: '', password: '' },
+  AUTH_OAUTH2: { providerName: '', claimsToHeaderMapping: {} },
+  AUTH_MTLS: { values: [] },
+  AUTH_CLIENT_ID: { values: [] },
+  AUTH_CERT_VAULT: {
+    logicalId: '',
+    certificateHeader: 'X-Client-Certificate',
+    requireCertificate: true,
+    stripCertificateHeader: false,
+  },
   // Downstream Auth
   DOWNSTREAM_BASIC_AUTH: { username: '', password: '' },
-  DOWNSTREAM_BEARER_CC:  { oauth2ProviderName: '', forwardCallerAuth: false },
+  DOWNSTREAM_BEARER_CC: { oauth2ProviderName: '', forwardCallerAuth: false },
   // Rate Limiting
-  RATE_LIMIT_FIXED_WINDOW:   { maxRequests: 100, windowMs: 60000, keyResolver: 'IP' },
+  RATE_LIMIT_FIXED_WINDOW: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP' },
   RATE_LIMIT_SLIDING_WINDOW: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP' },
   // Modification
-  REQUEST_HEADER_MODIFY:  { add: {}, set: {}, remove: {} },
+  REQUEST_HEADER_MODIFY: { add: {}, set: {}, remove: {} },
   RESPONSE_HEADER_MODIFY: { add: {}, set: {}, remove: {} },
   // Transformation
   BODY_JOLT_TRANSFORM: { spec: '[]', phase: 'REQUEST' },
@@ -40,21 +45,34 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Resilience
   TIMEOUT: { timeoutMs: 30000 },
   // Observability
-  CORRELATION_ID:  {},
-  REQUEST_LOGGER:  { logRequestHeaders: true, logResponseHeaders: true, logRequestBody: false, logResponseBody: false, maxBodyLogSize: 4096, failedStatusThreshold: 500 },
-  TENANT_CONTEXT:  {},
-  SECURITY_HEADERS:{},
-  CUSTOM_METRIC:   { metricName: '', description: '', tags: {} },
+  CORRELATION_ID: {},
+  REQUEST_LOGGER: {
+    logRequestHeaders: true,
+    logResponseHeaders: true,
+    logRequestBody: false,
+    logResponseBody: false,
+    maxBodyLogSize: 4096,
+    failedStatusThreshold: 500,
+  },
+  TENANT_CONTEXT: {},
+  SECURITY_HEADERS: {},
+  CUSTOM_METRIC: { metricName: '', description: '', tags: {} },
   // Security
-  CERT_ROTATION:           { logicalId: '', certificateHeader: 'X-Client-Certificate' },
+  CERT_ROTATION: { logicalId: '', certificateHeader: 'X-Client-Certificate' },
   CERT_VAULT_EXPIRY_CHECK: { logicalId: '', warningDays: 30, rejectOnExpiringSoon: false, injectMetadataHeaders: true },
   // Versioning
-  API_VERSIONING: { version: 'v1', strategy: 'HEADER', versionHeader: 'X-Api-Version', versionParam: 'version', versionPrefix: '' },
+  API_VERSIONING: {
+    version: 'v1',
+    strategy: 'HEADER',
+    versionHeader: 'X-Api-Version',
+    versionParam: 'version',
+    versionPrefix: '',
+  },
   // Routing
-  CONDITIONAL_ROUTE:       { conditionHeader: '', conditionParam: '', conditionPattern: '.*', alternativeUri: '' },
+  CONDITIONAL_ROUTE: { conditionHeader: '', conditionParam: '', conditionPattern: '.*', alternativeUri: '' },
   USER_ID_PAYLOAD_ROUTING: { enabled: true, userIdField: 'userId', allowlistUserIds: [], alternativeUri: '' },
   // Custom
-  CUSTOM_SPEL:   { expression: '', description: '' },
+  CUSTOM_SPEL: { expression: '', description: '' },
   // AI
   AI_FILTER: {
     policyDescription: '',
@@ -80,4 +98,3 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
     cacheTtlSeconds: 60,
   },
 }
-

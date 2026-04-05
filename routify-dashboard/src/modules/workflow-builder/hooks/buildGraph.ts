@@ -11,22 +11,36 @@ import { FLOW_COL, FLOW_ROW_GAP, FLOW_START_Y } from '../../routes/routeConstant
 
 // ─── Node data shapes (exported so custom node components can type their props) ─
 
-export interface ClientNodeData   extends Record<string, unknown> { status: string }
-export interface RouteNodeData    extends Record<string, unknown> {
-  name: string; pathPattern: string; methods: string; status: string; version: number
+export interface ClientNodeData extends Record<string, unknown> {
+  status: string
+}
+export interface RouteNodeData extends Record<string, unknown> {
+  name: string
+  pathPattern: string
+  methods: string
+  status: string
+  version: number
   onSelect?: () => void
 }
-export interface FilterNodeData   extends Record<string, unknown> {
-  filter: RouteFilterRef; phase: 'PRE' | 'POST'
+export interface FilterNodeData extends Record<string, unknown> {
+  filter: RouteFilterRef
+  phase: 'PRE' | 'POST'
   onDetach: (id: string) => void
   onSelect?: () => void
 }
 export interface UpstreamNodeData extends Record<string, unknown> {
-  uri: string; stripPrefix?: string
+  uri: string
+  stripPrefix?: string
   onSelect?: () => void
 }
-export interface ResponseNodeData extends Record<string, unknown> { status: string }
-export interface LabelNodeData    extends Record<string, unknown> { label: string; sub?: string; color: string }
+export interface ResponseNodeData extends Record<string, unknown> {
+  status: string
+}
+export interface LabelNodeData extends Record<string, unknown> {
+  label: string
+  sub?: string
+  color: string
+}
 
 // ─── Graph builder ────────────────────────────────────────────────────────────
 
@@ -38,10 +52,10 @@ export function buildGraph(
   const nodes: Node[] = []
   const edges: Edge[] = []
 
-  const pre  = [...(route.filters ?? [])].filter(f => f.phase === 'PRE').sort((a, b) => a.order - b.order)
-  const post = [...(route.filters ?? [])].filter(f => f.phase === 'POST').sort((a, b) => a.order - b.order)
+  const pre = [...(route.filters ?? [])].filter((f) => f.phase === 'PRE').sort((a, b) => a.order - b.order)
+  const post = [...(route.filters ?? [])].filter((f) => f.phase === 'POST').sort((a, b) => a.order - b.order)
   const maxR = Math.max(pre.length, post.length, 1)
-  const cy   = FLOW_START_Y + ((maxR - 1) * FLOW_ROW_GAP) / 2
+  const cy = FLOW_START_Y + ((maxR - 1) * FLOW_ROW_GAP) / 2
 
   // ── Client ────────────────────────────────────────────────────────────────
   nodes.push({
@@ -238,9 +252,16 @@ export function buildEmptyGraph(route: RouteDto): { nodes: Node[]; edges: Edge[]
   ]
 
   const edges: Edge[] = [
-    { id: 'e-client-route',    source: 'client',   target: 'route',    ...edgeStyle('pre') },
-    { id: 'e-route-upstream',  source: 'route',    target: 'upstream', ...edgeStyle('route'),
-      label: 'forward', labelStyle: { fill: '#4b5563', fontSize: 10 }, labelBgStyle: { fill: '#0c0e14', fillOpacity: 0.8 } },
+    { id: 'e-client-route', source: 'client', target: 'route', ...edgeStyle('pre') },
+    {
+      id: 'e-route-upstream',
+      source: 'route',
+      target: 'upstream',
+      ...edgeStyle('route'),
+      label: 'forward',
+      labelStyle: { fill: '#4b5563', fontSize: 10 },
+      labelBgStyle: { fill: '#0c0e14', fillOpacity: 0.8 },
+    },
     { id: 'e-upstream-response', source: 'upstream', target: 'response', ...edgeStyle('post') },
   ]
 
@@ -270,13 +291,12 @@ export interface InferredFilterExecution {
   order: number
 }
 
-export function inferExecutionOrder(
-  nodes: Node[],
-  edges: Edge[],
-): InferredFilterExecution[] {
+export function inferExecutionOrder(nodes: Node[], edges: Edge[]): InferredFilterExecution[] {
   // Build adjacency (source → targets)
   const adj: Record<string, string[]> = {}
-  edges.forEach(e => { (adj[e.source] ??= []).push(e.target) })
+  edges.forEach((e) => {
+    ;(adj[e.source] ??= []).push(e.target)
+  })
 
   // BFS from 'client' — track traversal order
   const visitOrder: Record<string, number> = {}
@@ -288,10 +308,10 @@ export function inferExecutionOrder(
     if (visited.has(cur)) continue
     visited.add(cur)
     visitOrder[cur] = order++
-    ;(adj[cur] ?? []).forEach(t => queue.push(t))
+    ;(adj[cur] ?? []).forEach((t) => queue.push(t))
   }
 
-  const filterNodes = nodes.filter(n => n.type === 'filterNode')
+  const filterNodes = nodes.filter((n) => n.type === 'filterNode')
   const upstreamOrder = visitOrder['upstream'] ?? Infinity
 
   const result: InferredFilterExecution[] = filterNodes.map((n, i) => {
@@ -312,27 +332,30 @@ export function inferExecutionOrder(
   })
 
   // Re-number order sequentially within each phase (0, 10, 20, …)
-  let preIdx = 0, postIdx = 0
-  return result.map(r => ({
+  let preIdx = 0,
+    postIdx = 0
+  return result.map((r) => ({
     ...r,
-    order: r.phase === 'PRE' ? (preIdx++) * 10 : (postIdx++) * 10,
+    order: r.phase === 'PRE' ? preIdx++ * 10 : postIdx++ * 10,
   }))
 }
 
 // ─── Flow completeness validator ──────────────────────────────────────────────
 
 export function isFlowComplete(nodes: Node[], edges: Edge[]): boolean {
-  const ids = new Set(nodes.map(n => n.id))
+  const ids = new Set(nodes.map((n) => n.id))
   if (!ids.has('client') || !ids.has('route') || !ids.has('upstream') || !ids.has('response')) return false
   const adj: Record<string, string[]> = {}
-  edges.forEach(e => { (adj[e.source] ??= []).push(e.target) })
+  edges.forEach((e) => {
+    ;(adj[e.source] ??= []).push(e.target)
+  })
   const visited = new Set<string>()
   const queue = ['client']
   while (queue.length) {
     const cur = queue.shift()!
     if (visited.has(cur)) continue
     visited.add(cur)
-    ;(adj[cur] ?? []).forEach(t => queue.push(t))
+    ;(adj[cur] ?? []).forEach((t) => queue.push(t))
   }
   return visited.has('response')
 }

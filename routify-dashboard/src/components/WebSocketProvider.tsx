@@ -20,34 +20,36 @@ import type { WsMessage } from '../types/ws'
 
 // Map from server-emitted queryKey to React Query cache keys to invalidate
 const QUERY_KEY_MAP: Record<string, string[][]> = {
-  routes:            [['routes'], ['route']],
-  filters:           [['filters']],
-  'gateway-config':  [['gateway-config']],
-  'gateway-status':  [['gateway-status']],
-  audit:             [['audit-events'], ['audit-requests'], ['audit-failed'], ['replay-stats']],
-  replay:            [['audit-failed'], ['replay-stats']],
-  certificates:      [['cert-groups'], ['cert-group-detail'], ['cert-stats'], ['certs-active']],
-  'cert-groups':     [['cert-groups'], ['cert-group-detail'], ['cert-stats'], ['certs-active']],
-  users:             [['users']],
-  tenants:           [['tenants'], ['tenants-for-user-create']],
-  misc:              [],
+  routes: [['routes'], ['route']],
+  filters: [['filters']],
+  'gateway-config': [['gateway-config']],
+  'gateway-status': [['gateway-status']],
+  audit: [['audit-events'], ['audit-requests'], ['audit-failed'], ['replay-stats']],
+  replay: [['audit-failed'], ['replay-stats']],
+  certificates: [['cert-groups'], ['cert-group-detail'], ['cert-stats'], ['certs-active']],
+  'cert-groups': [['cert-groups'], ['cert-group-detail'], ['cert-stats'], ['certs-active']],
+  users: [['users']],
+  tenants: [['tenants'], ['tenants-for-user-create']],
+  misc: [],
 }
 
 // Events that change the number of active routes in the gateway — refresh the status count
-const GATEWAY_ROUTE_EVENTS = new Set([
-  'route.activated',
-  'route.deactivated',
-  'route.deleted',
-  'gateway.reloaded',
-])
+const GATEWAY_ROUTE_EVENTS = new Set(['route.activated', 'route.deactivated', 'route.deleted', 'gateway.reloaded'])
 
 // Events that affect audit trail
 const AUDIT_EVENTS = new Set([
-  'route.created', 'route.updated', 'route.activated',
-  'route.deactivated', 'route.deleted',
-  'filter.created', 'filter.updated', 'filter.deleted',
-  'filter.attached', 'filter.detached',
-  'gateway.reloaded', 'gateway.config.changed',
+  'route.created',
+  'route.updated',
+  'route.activated',
+  'route.deactivated',
+  'route.deleted',
+  'filter.created',
+  'filter.updated',
+  'filter.deleted',
+  'filter.attached',
+  'filter.detached',
+  'gateway.reloaded',
+  'gateway.config.changed',
 ])
 
 const IS_MOCK = import.meta.env.VITE_MOCK === 'true'
@@ -56,7 +58,7 @@ const IS_MOCK = import.meta.env.VITE_MOCK === 'true'
 // Extracted so we can conditionally mount it (IS_MOCK=false) without calling
 // hooks conditionally — which would violate the Rules of Hooks.
 function RealWebSocketProvider({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const qc = useQueryClient()
   const { setStatus, pushEvent, setMetrics } = useWsStore()
 
@@ -68,7 +70,9 @@ function RealWebSocketProvider({ children }: { children: React.ReactNode }) {
     }
     pushEvent(msg)
     if (msg.queryKey && QUERY_KEY_MAP[msg.queryKey]) {
-      QUERY_KEY_MAP[msg.queryKey].forEach(key => { qc.invalidateQueries({ queryKey: key }) })
+      QUERY_KEY_MAP[msg.queryKey].forEach((key) => {
+        qc.invalidateQueries({ queryKey: key })
+      })
     }
     if (GATEWAY_ROUTE_EVENTS.has(msg.type)) {
       qc.invalidateQueries({ queryKey: ['gateway-status'] })

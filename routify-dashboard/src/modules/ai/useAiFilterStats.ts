@@ -23,14 +23,10 @@ export const useAiFilterStats = (routeId: string, from?: string, to?: string) =>
  * @param routeId  UUID of the route to fetch decisions for.
  * @param params   Optional pagination and filter params.
  */
-export const useAiFilterDecisions = (
-  routeId: string,
-  params?: { page?: number; size?: number; action?: string },
-) =>
+export const useAiFilterDecisions = (routeId: string, params?: { page?: number; size?: number; action?: string }) =>
   useQuery({
     queryKey: ['ai-filter-decisions', routeId, params],
     queryFn: () => aiApi.listAiFilterDecisions(routeId, params),
     refetchInterval: 30_000,
     enabled: !!routeId,
   })
-

@@ -44,15 +44,16 @@ interface FilterPillProps {
 export function FilterPill({ count, phase }: FilterPillProps) {
   const isPre = phase === 'PRE'
   return (
-    <div className={cn(
-      'flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-semibold',
-      isPre
-        ? 'bg-blue-500/10 border-blue-500/20 text-blue-400'
-        : 'bg-purple-500/10 border-purple-500/20 text-purple-400',
-    )}>
+    <div
+      className={cn(
+        'flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] font-semibold',
+        isPre
+          ? 'bg-blue-500/10 border-blue-500/20 text-blue-400'
+          : 'bg-purple-500/10 border-purple-500/20 text-purple-400',
+      )}
+    >
       <Filter className="w-2.5 h-2.5" />
       {count}
     </div>
   )
 }
-

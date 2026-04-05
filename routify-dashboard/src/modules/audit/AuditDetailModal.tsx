@@ -1,4 +1,17 @@
-import { X, Clock, Tag, CornerDownRight, Activity, AlertTriangle, CheckCircle2, XCircle, SkipForward, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
+import {
+  X,
+  Clock,
+  Tag,
+  CornerDownRight,
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  SkipForward,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react'
 import { cn } from '../../lib/utils'
 import type { AuditEntry, RequestLogDto, FailedRequestDto, ReplayStatus } from '../../types'
 import { useState } from 'react'
@@ -9,19 +22,23 @@ function Field({ label, children, mono = false }: { label: string; children: Rea
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">{label}</span>
-      <span className={cn('text-sm text-gray-200 break-all', mono && 'font-mono text-xs text-gray-300')}>{children}</span>
+      <span className={cn('text-sm text-gray-200 break-all', mono && 'font-mono text-xs text-gray-300')}>
+        {children}
+      </span>
     </div>
   )
 }
 
-
 function StatusBadge({ code }: { code?: number }) {
-  const cls =
-    !code        ? 'text-gray-400 bg-gray-500/10 border-gray-500/20' :
-    code >= 500  ? 'text-red-400 bg-red-500/10 border-red-500/20' :
-    code >= 400  ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
-    code >= 300  ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
-                   'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+  const cls = !code
+    ? 'text-gray-400 bg-gray-500/10 border-gray-500/20'
+    : code >= 500
+      ? 'text-red-400 bg-red-500/10 border-red-500/20'
+      : code >= 400
+        ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+        : code >= 300
+          ? 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+          : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
   return (
     <span className={cn('inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-full border', cls)}>
       {code ?? '—'}
@@ -31,12 +48,17 @@ function StatusBadge({ code }: { code?: number }) {
 
 function MethodBadge({ method }: { method: string }) {
   const cls =
-    method === 'GET'    ? 'bg-blue-500/10 text-blue-300 border-blue-500/20' :
-    method === 'POST'   ? 'bg-green-500/10 text-green-300 border-green-500/20' :
-    method === 'PUT'    ? 'bg-orange-500/10 text-orange-300 border-orange-500/20' :
-    method === 'PATCH'  ? 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20' :
-    method === 'DELETE' ? 'bg-red-500/10 text-red-300 border-red-500/20' :
-                          'bg-gray-500/10 text-gray-300 border-gray-500/20'
+    method === 'GET'
+      ? 'bg-blue-500/10 text-blue-300 border-blue-500/20'
+      : method === 'POST'
+        ? 'bg-green-500/10 text-green-300 border-green-500/20'
+        : method === 'PUT'
+          ? 'bg-orange-500/10 text-orange-300 border-orange-500/20'
+          : method === 'PATCH'
+            ? 'bg-yellow-500/10 text-yellow-300 border-yellow-500/20'
+            : method === 'DELETE'
+              ? 'bg-red-500/10 text-red-300 border-red-500/20'
+              : 'bg-gray-500/10 text-gray-300 border-gray-500/20'
   return (
     <span className={cn('inline-flex items-center text-[11px] px-2 py-0.5 rounded font-mono font-bold border', cls)}>
       {method}
@@ -47,16 +69,22 @@ function MethodBadge({ method }: { method: string }) {
 function ReplayStatusBadge({ status }: { status?: ReplayStatus }) {
   if (!status) return <span className="text-gray-600 text-xs">—</span>
   const cfg = {
-    PENDING:     { label: 'Pending',    cls: 'text-amber-400 bg-amber-400/10 border-amber-400/20',       icon: Clock },
-    IN_PROGRESS: { label: 'Replaying…', cls: 'text-blue-400 bg-blue-400/10 border-blue-400/20',         icon: Loader2 },
-    SUCCEEDED:   { label: 'Replayed',   cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle2 },
-    FAILED:      { label: 'Failed',     cls: 'text-red-400 bg-red-400/10 border-red-400/20',             icon: XCircle },
-    SKIPPED:     { label: 'Skipped',    cls: 'text-gray-400 bg-gray-400/10 border-gray-400/20',         icon: SkipForward },
+    PENDING: { label: 'Pending', cls: 'text-amber-400 bg-amber-400/10 border-amber-400/20', icon: Clock },
+    IN_PROGRESS: { label: 'Replaying…', cls: 'text-blue-400 bg-blue-400/10 border-blue-400/20', icon: Loader2 },
+    SUCCEEDED: {
+      label: 'Replayed',
+      cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+      icon: CheckCircle2,
+    },
+    FAILED: { label: 'Failed', cls: 'text-red-400 bg-red-400/10 border-red-400/20', icon: XCircle },
+    SKIPPED: { label: 'Skipped', cls: 'text-gray-400 bg-gray-400/10 border-gray-400/20', icon: SkipForward },
   }[status]
   if (!cfg) return null
   const Icon = cfg.icon
   return (
-    <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border', cfg.cls)}>
+    <span
+      className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border', cfg.cls)}
+    >
       <Icon className={cn('w-3 h-3', status === 'IN_PROGRESS' && 'animate-spin')} />
       {cfg.label}
     </span>
@@ -64,11 +92,13 @@ function ReplayStatusBadge({ status }: { status?: ReplayStatus }) {
 }
 
 function EventTypeBadge({ type }: { type: string }) {
-  const cls =
-    type.includes('ACTIVATED')   ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' :
-    type.includes('DEACTIVATED') ? 'text-amber-400 bg-amber-400/10 border-amber-400/20' :
-    type.includes('DELETED')     ? 'text-red-400 bg-red-400/10 border-red-400/20' :
-                                   'text-indigo-400 bg-indigo-400/10 border-indigo-400/20'
+  const cls = type.includes('ACTIVATED')
+    ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20'
+    : type.includes('DEACTIVATED')
+      ? 'text-amber-400 bg-amber-400/10 border-amber-400/20'
+      : type.includes('DELETED')
+        ? 'text-red-400 bg-red-400/10 border-red-400/20'
+        : 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20'
   return (
     <span className={cn('inline-flex items-center text-xs font-bold px-3 py-1 rounded-full border tracking-wide', cls)}>
       {type}
@@ -87,7 +117,14 @@ interface ModalShellProps {
   children: React.ReactNode
 }
 
-function ModalShell({ title, subtitle, icon: Icon, iconColor = 'text-indigo-400', onClose, children }: ModalShellProps) {
+function ModalShell({
+  title,
+  subtitle,
+  icon: Icon,
+  iconColor = 'text-indigo-400',
+  onClose,
+  children,
+}: ModalShellProps) {
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
@@ -102,11 +139,16 @@ function ModalShell({ title, subtitle, icon: Icon, iconColor = 'text-indigo-400'
         aria-modal="true"
         aria-label={title}
         className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.09] bg-[#0e1018] shadow-2xl animate-fade-in"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* header */}
         <div className="sticky top-0 z-10 flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-[#0e1018]">
-          <div className={cn('w-8 h-8 rounded-xl border border-white/[0.08] flex items-center justify-center bg-white/[0.04]', iconColor)}>
+          <div
+            className={cn(
+              'w-8 h-8 rounded-xl border border-white/[0.08] flex items-center justify-center bg-white/[0.04]',
+              iconColor,
+            )}
+          >
             <Icon className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
@@ -166,7 +208,7 @@ function HeadersSection({ title, headers: rawHeaders }: { title: string; headers
   return (
     <div>
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 hover:text-gray-300 transition-colors"
       >
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
@@ -199,12 +241,14 @@ function BodySection({ title, body }: { title: string; body?: string }) {
   let formatted = body
   try {
     formatted = JSON.stringify(JSON.parse(body), null, 2)
-  } catch { /* not JSON — display as-is */ }
+  } catch {
+    /* not JSON — display as-is */
+  }
 
   return (
     <div>
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2 hover:text-gray-300 transition-colors"
       >
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
@@ -238,8 +282,12 @@ function AuditEntryModal({ entry, onClose }: { entry: AuditEntry; onClose: () =>
             <EventTypeBadge type={entry.eventType} />
           </Field>
         </FullRow>
-        <Field label="Event ID" mono>{entry.eventId}</Field>
-        <Field label="Correlation ID" mono>{entry.correlationId ?? '—'}</Field>
+        <Field label="Event ID" mono>
+          {entry.eventId}
+        </Field>
+        <Field label="Correlation ID" mono>
+          {entry.correlationId ?? '—'}
+        </Field>
       </Section>
 
       <Section title="Aggregate">
@@ -248,8 +296,12 @@ function AuditEntryModal({ entry, onClose }: { entry: AuditEntry; onClose: () =>
             {entry.aggregateType}
           </span>
         </Field>
-        <Field label="ID" mono>{entry.aggregateId}</Field>
-        <Field label="Tenant ID" mono>{entry.tenantId}</Field>
+        <Field label="ID" mono>
+          {entry.aggregateId}
+        </Field>
+        <Field label="Tenant ID" mono>
+          {entry.tenantId}
+        </Field>
         <Field label="Actor">{entry.actorId ?? <span className="text-gray-600 italic">system</span>}</Field>
       </Section>
 
@@ -277,9 +329,7 @@ function AuditEntryModal({ entry, onClose }: { entry: AuditEntry; onClose: () =>
 
 function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => void }) {
   const durationColor =
-    (log.durationMs ?? 0) > 1000 ? 'text-red-400' :
-    (log.durationMs ?? 0) > 300  ? 'text-amber-400' :
-    'text-emerald-400'
+    (log.durationMs ?? 0) > 1000 ? 'text-red-400' : (log.durationMs ?? 0) > 300 ? 'text-amber-400' : 'text-emerald-400'
 
   return (
     <ModalShell
@@ -297,11 +347,15 @@ function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => 
           <StatusBadge code={log.responseStatus} />
         </Field>
         <FullRow>
-          <Field label="Path" mono>{log.path}</Field>
+          <Field label="Path" mono>
+            {log.path}
+          </Field>
         </FullRow>
         {log.queryString && (
           <FullRow>
-            <Field label="Query String" mono>{log.queryString}</Field>
+            <Field label="Query String" mono>
+              {log.queryString}
+            </Field>
           </FullRow>
         )}
         {log.upstreamUri && (
@@ -318,18 +372,32 @@ function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => 
 
       <Section title="Route & Client">
         <Field label="Route Name">{log.routeName ?? '—'}</Field>
-        <Field label="Route ID" mono>{log.routeId ?? '—'}</Field>
-        <Field label="Client IP" mono>{log.clientIp ?? '—'}</Field>
-        <Field label="Correlation ID" mono>{log.correlationId ?? '—'}</Field>
+        <Field label="Route ID" mono>
+          {log.routeId ?? '—'}
+        </Field>
+        <Field label="Client IP" mono>
+          {log.clientIp ?? '—'}
+        </Field>
+        <Field label="Correlation ID" mono>
+          {log.correlationId ?? '—'}
+        </Field>
         <Field label="Duration">
           <span className={cn('font-mono text-sm font-semibold', durationColor)}>
             {log.durationMs != null ? `${log.durationMs} ms` : '—'}
           </span>
         </Field>
         <Field label="Failed">
-          {log.failed
-            ? <span className="flex items-center gap-1.5 text-xs text-red-400"><AlertTriangle className="w-3.5 h-3.5" />Yes</span>
-            : <span className="flex items-center gap-1.5 text-xs text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />No</span>}
+          {log.failed ? (
+            <span className="flex items-center gap-1.5 text-xs text-red-400">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Yes
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              No
+            </span>
+          )}
         </Field>
       </Section>
 
@@ -348,7 +416,7 @@ function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => 
         <div>
           <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest mb-3">Headers</p>
           <div className="space-y-3">
-            <HeadersSection title="Request Headers"  headers={log.requestHeaders} />
+            <HeadersSection title="Request Headers" headers={log.requestHeaders} />
             <HeadersSection title="Response Headers" headers={log.responseHeaders} />
           </div>
         </div>
@@ -359,7 +427,7 @@ function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => 
         <div>
           <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest mb-3">Payloads</p>
           <div className="space-y-3">
-            <BodySection title="Request Body"  body={log.requestBody} />
+            <BodySection title="Request Body" body={log.requestBody} />
             <BodySection title="Response Body" body={log.responseBody} />
           </div>
         </div>
@@ -371,8 +439,12 @@ function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => 
             <ReplayStatusBadge status={log.replayStatus} />
           </Field>
           <Field label="Attempts">
-            <span className={cn('font-mono font-bold text-sm',
-              log.replayCount >= 5 ? 'text-red-400' : log.replayCount >= 3 ? 'text-amber-400' : 'text-gray-300')}>
+            <span
+              className={cn(
+                'font-mono font-bold text-sm',
+                log.replayCount >= 5 ? 'text-red-400' : log.replayCount >= 3 ? 'text-amber-400' : 'text-gray-300',
+              )}
+            >
               {log.replayCount} / 5
             </span>
           </Field>
@@ -406,7 +478,9 @@ function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => 
             {new Date(log.requestedAt).toLocaleString()}
           </span>
         </Field>
-        <Field label="Tenant ID" mono>{log.tenantId}</Field>
+        <Field label="Tenant ID" mono>
+          {log.tenantId}
+        </Field>
       </Section>
     </ModalShell>
   )
@@ -418,9 +492,7 @@ function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => 
 
 function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: () => void }) {
   const durationColor =
-    (req.durationMs ?? 0) > 1000 ? 'text-red-400' :
-    (req.durationMs ?? 0) > 300  ? 'text-amber-400' :
-    'text-emerald-400'
+    (req.durationMs ?? 0) > 1000 ? 'text-red-400' : (req.durationMs ?? 0) > 300 ? 'text-amber-400' : 'text-emerald-400'
 
   return (
     <ModalShell
@@ -438,11 +510,15 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
           <StatusBadge code={req.responseStatus} />
         </Field>
         <FullRow>
-          <Field label="Path" mono>{req.path}</Field>
+          <Field label="Path" mono>
+            {req.path}
+          </Field>
         </FullRow>
         {req.queryString && (
           <FullRow>
-            <Field label="Query String" mono>{req.queryString}</Field>
+            <Field label="Query String" mono>
+              {req.queryString}
+            </Field>
           </FullRow>
         )}
         {req.upstreamUri && (
@@ -459,8 +535,12 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
 
       <Section title="Route & Client">
         <Field label="Route Name">{req.routeName ?? '—'}</Field>
-        <Field label="Route ID" mono>{req.routeId ?? '—'}</Field>
-        <Field label="Correlation ID" mono>{req.correlationId ?? '—'}</Field>
+        <Field label="Route ID" mono>
+          {req.routeId ?? '—'}
+        </Field>
+        <Field label="Correlation ID" mono>
+          {req.correlationId ?? '—'}
+        </Field>
         <Field label="Duration">
           <span className={cn('font-mono text-sm font-semibold', durationColor)}>
             {req.durationMs != null ? `${req.durationMs} ms` : '—'}
@@ -471,9 +551,11 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
       <Section title="Error">
         <FullRow>
           <Field label="Error Message">
-            {req.errorMessage
-              ? <span className="text-red-400/90 text-xs font-mono leading-relaxed">{req.errorMessage}</span>
-              : <span className="text-gray-600 italic text-xs">—</span>}
+            {req.errorMessage ? (
+              <span className="text-red-400/90 text-xs font-mono leading-relaxed">{req.errorMessage}</span>
+            ) : (
+              <span className="text-gray-600 italic text-xs">—</span>
+            )}
           </Field>
         </FullRow>
       </Section>
@@ -483,7 +565,7 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
         <div>
           <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest mb-3">Headers</p>
           <div className="space-y-3">
-            <HeadersSection title="Request Headers"  headers={req.requestHeaders} />
+            <HeadersSection title="Request Headers" headers={req.requestHeaders} />
             <HeadersSection title="Response Headers" headers={req.responseHeaders} />
           </div>
         </div>
@@ -494,7 +576,7 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
         <div>
           <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-widest mb-3">Payloads</p>
           <div className="space-y-3">
-            <BodySection title="Request Body"  body={req.requestBody} />
+            <BodySection title="Request Body" body={req.requestBody} />
             <BodySection title="Response Body" body={req.responseBody} />
           </div>
         </div>
@@ -505,8 +587,12 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
           <ReplayStatusBadge status={req.replayStatus} />
         </Field>
         <Field label="Attempts">
-          <span className={cn('font-mono font-bold text-sm',
-            req.replayCount >= 5 ? 'text-red-400' : req.replayCount >= 3 ? 'text-amber-400' : 'text-gray-300')}>
+          <span
+            className={cn(
+              'font-mono font-bold text-sm',
+              req.replayCount >= 5 ? 'text-red-400' : req.replayCount >= 3 ? 'text-amber-400' : 'text-gray-300',
+            )}
+          >
             {req.replayCount} / 5
           </span>
         </Field>
@@ -539,7 +625,9 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
             {new Date(req.requestedAt).toLocaleString()}
           </span>
         </Field>
-        <Field label="Tenant ID" mono>{req.tenantId}</Field>
+        <Field label="Tenant ID" mono>
+          {req.tenantId}
+        </Field>
       </Section>
     </ModalShell>
   )
@@ -550,9 +638,9 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
 ═══════════════════════════════════════════════════════════════════════════════ */
 
 export type AuditModalPayload =
-  | { kind: 'event';   data: AuditEntry }
+  | { kind: 'event'; data: AuditEntry }
   | { kind: 'request'; data: RequestLogDto }
-  | { kind: 'failed';  data: FailedRequestDto }
+  | { kind: 'failed'; data: FailedRequestDto }
 
 interface AuditDetailModalProps {
   payload: AuditModalPayload | null
@@ -562,10 +650,9 @@ interface AuditDetailModalProps {
 export function AuditDetailModal({ payload, onClose }: AuditDetailModalProps) {
   if (!payload) return null
 
-  if (payload.kind === 'event')   return <AuditEntryModal   entry={payload.data} onClose={onClose} />
-  if (payload.kind === 'request') return <RequestLogModal   log={payload.data}   onClose={onClose} />
-  if (payload.kind === 'failed')  return <FailedRequestModal req={payload.data}  onClose={onClose} />
+  if (payload.kind === 'event') return <AuditEntryModal entry={payload.data} onClose={onClose} />
+  if (payload.kind === 'request') return <RequestLogModal log={payload.data} onClose={onClose} />
+  if (payload.kind === 'failed') return <FailedRequestModal req={payload.data} onClose={onClose} />
 
   return null
 }
-

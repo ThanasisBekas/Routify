@@ -19,9 +19,8 @@ import { useAuthStore } from '../store/authStore'
 // (http://localhost:5173/api/...) and the MSW service worker can intercept them.
 // In production/dev-with-backend mode, use the configured API base URL which
 // Vite proxies (or the browser sends directly in prod).
-const BASE_URL = import.meta.env.VITE_MOCK === 'true'
-  ? ''
-  : (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8082')
+const BASE_URL =
+  import.meta.env.VITE_MOCK === 'true' ? '' : (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8082')
 
 // ─── Refresh lock state ───────────────────────────────────────────────────────
 let isRefreshing = false
@@ -47,7 +46,7 @@ export const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30_000,
-  withCredentials: true,   // Send cookies (refresh_token) cross-origin
+  withCredentials: true, // Send cookies (refresh_token) cross-origin
 })
 
 // ─── Request interceptor — inject access token + tenant ID ───────────────────
@@ -103,10 +102,7 @@ apiClient.interceptors.response.use(
       // POST with no body — the HttpOnly cookie is sent automatically by the browser.
       // Use the apiClient (relative URL) so the request is same-origin in dev (Vite proxy)
       // and in production, which ensures the refresh_token cookie is always forwarded.
-      const res = await apiClient.post(
-        '/api/v1/auth/refresh',
-        {},
-      )
+      const res = await apiClient.post('/api/v1/auth/refresh', {})
       const { accessToken } = res.data
       useAuthStore.getState().setTokens(accessToken)
       if (res.data.user) useAuthStore.getState().setUser(res.data.user)

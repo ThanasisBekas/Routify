@@ -7,12 +7,12 @@ import { FlaskConical, X, ChevronDown, ChevronUp } from 'lucide-react'
 
 const CREDENTIALS = [
   { label: 'Workspace', value: 'routify' },
-  { label: 'Username',  value: 'admin' },
-  { label: 'Password',  value: 'routify_admin_2025' },
+  { label: 'Username', value: 'admin' },
+  { label: 'Password', value: 'routify_admin_2025' },
 ]
 
 export default function MockBanner() {
-  const [expanded, setExpanded]   = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const [dismissed, setDismissed] = useState(false)
 
   if (dismissed) return null
@@ -27,7 +27,7 @@ export default function MockBanner() {
         </span>
 
         <button
-          onClick={() => setExpanded(v => !v)}
+          onClick={() => setExpanded((v) => !v)}
           className="ml-auto flex items-center gap-1 text-amber-400/70 hover:text-amber-300 transition-colors"
           title={expanded ? 'Hide credentials' : 'Show mock credentials'}
         >
@@ -59,4 +59,3 @@ export default function MockBanner() {
     </div>
   )
 }
-

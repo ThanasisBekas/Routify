@@ -4,11 +4,12 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
 import tseslint from 'typescript-eslint'
+import eslintConfigPrettier from 'eslint-config-prettier'
 
 export default tseslint.config(
   { ignores: ['dist', 'public/mockServiceWorker.js'] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended, eslintConfigPrettier],
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
@@ -22,19 +23,19 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       // autoFocus in modals is intentional UX — focus-trap on open is good a11y practice
       'jsx-a11y/no-autofocus': ['warn', { ignoreNonDOM: true }],
       // Our <FormField>/<Field> wrappers pass <input> as children — the label
       // association is implicit via nesting. The rule can't trace dynamic children
       // so we warn instead of error. Direct <label> → <input> pairs still error.
-      'jsx-a11y/label-has-associated-control': ['warn', {
-        assert: 'either',
-        depth: 3,
-      }],
+      'jsx-a11y/label-has-associated-control': [
+        'warn',
+        {
+          assert: 'either',
+          depth: 3,
+        },
+      ],
     },
   },
 )

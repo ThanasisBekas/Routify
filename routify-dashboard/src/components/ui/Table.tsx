@@ -35,11 +35,7 @@ function Root({ children, className }: { children: React.ReactNode; className?: 
 }
 
 function Header({ children }: { children: React.ReactNode }) {
-  return (
-    <thead className="bg-white/[0.02] border-b border-white/[0.06]">
-      {children}
-    </thead>
-  )
+  return <thead className="bg-white/[0.02] border-b border-white/[0.06]">{children}</thead>
 }
 
 function Body({ children }: { children: React.ReactNode }) {
@@ -57,11 +53,7 @@ function Row({
 }) {
   return (
     <tr
-      className={cn(
-        'transition-colors',
-        onClick && 'cursor-pointer hover:bg-white/[0.03]',
-        className,
-      )}
+      className={cn('transition-colors', onClick && 'cursor-pointer hover:bg-white/[0.03]', className)}
       onClick={onClick}
     >
       {children}
@@ -71,24 +63,14 @@ function Row({
 
 function Head({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
-    <th
-      className={cn(
-        'px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider',
-        className,
-      )}
-    >
+    <th className={cn('px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider', className)}>
       {children}
     </th>
   )
 }
 
 function Cell({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return (
-    <td className={cn('px-4 py-3 text-gray-300', className)}>
-      {children}
-    </td>
-  )
+  return <td className={cn('px-4 py-3 text-gray-300', className)}>{children}</td>
 }
 
 export const Table = { Root, Header, Body, Row, Head, Cell }
-

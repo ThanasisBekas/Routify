@@ -15,15 +15,8 @@ export interface CardProps {
 
 export function Card({ children, className, padded = true }: CardProps) {
   return (
-    <div
-      className={cn(
-        'bg-white/[0.03] rounded-xl border border-white/[0.06]',
-        padded && 'p-5',
-        className,
-      )}
-    >
+    <div className={cn('bg-white/[0.03] rounded-xl border border-white/[0.06]', padded && 'p-5', className)}>
       {children}
     </div>
   )
 }
-

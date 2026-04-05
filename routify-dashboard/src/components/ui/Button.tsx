@@ -16,12 +16,9 @@ import { Loader2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 const variants = {
-  primary:
-    'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 font-semibold',
-  secondary:
-    'text-gray-400 hover:text-white hover:bg-white/[0.04] font-medium',
-  danger:
-    'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20 font-semibold',
+  primary: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 font-semibold',
+  secondary: 'text-gray-400 hover:text-white hover:bg-white/[0.04] font-medium',
+  danger: 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20 font-semibold',
   outline:
     'border border-white/[0.08] text-gray-300 hover:text-white hover:bg-white/[0.04] hover:border-white/20 font-medium',
 } as const
@@ -40,19 +37,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      variant = 'primary',
-      size = 'md',
-      loading = false,
-      icon,
-      disabled,
-      className,
-      children,
-      ...props
-    },
-    ref,
-  ) => (
+  ({ variant = 'primary', size = 'md', loading = false, icon, disabled, className, children, ...props }, ref) => (
     <button
       ref={ref}
       type="button"
@@ -76,4 +61,3 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 )
 
 Button.displayName = 'Button'
-
