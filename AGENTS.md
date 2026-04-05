@@ -46,7 +46,7 @@ All inter-service messaging constants live in `routify-common`:
 The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exchange: `RabbitTopology.EXCHANGE_AI_SERVICE` (`routify.ai-service`). Two queues:
 - `QUEUE_AI_FILTER_EVALUATE` / `RK_AI_FILTER_EVALUATE` — filter verdict (ALLOW/BLOCK/FLAG).
 - `QUEUE_AI_MODIFIER_EVALUATE` / `RK_AI_MODIFIER_EVALUATE` — request mutation (PII scrubbing, payload translation).
-Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIMEOUT_MS` = 5 000 ms.
+  Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIMEOUT_MS` = 5 000 ms.
 
 > Note: `routify-ai-service` has **no REST controllers**. The dashboard "Test Policy" dry-run feature hits `POST /api/v1/admin/ai-filter/test-policy` on `routify-admin-api`, which proxies the call to `routify-ai-service` via `AiMessagingClient` over RabbitMQ (same `EXCHANGE_AI_SERVICE`). `AI_MODIFIER` dry-runs go to `POST /api/v1/admin/ai-modifier/test-modification`. The gateway always uses RabbitMQ via `AiGatewayFilterFactory` / `AiModifierGatewayFilterFactory`; blocking `sendAndReceive` is offloaded to `Schedulers.boundedElastic()` to avoid blocking the Netty event loop. For air-gapped/local deployments, swap `spring-ai-starter-model-openai` → `spring-ai-starter-model-ollama` in `routify-ai-service/pom.xml` — no Java logic changes required (`ChatClient` is provider-agnostic).
 
@@ -73,6 +73,7 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 - Database migrations use **Flyway** (`classpath:db/migration`). `ddl-auto: validate` — never `update`. Each service uses its own schema: `routify` (route-service), `routify_identity` (identity-service), `routify_audit` (audit-service), `routify_cert` (cert-vault).
 - Write endpoints that dispatch Kafka commands return `AsyncAcknowledgement` (HTTP 202) from `web.io.routify.common.AsyncAcknowledgement`.
 - Actuator management ports are `9080`–`9086` (app port + 1000). Prometheus metrics scraped there.
+- **Distributed tracing** uses **Micrometer Tracing + OpenTelemetry OTLP** exporter. All services export spans to **Grafana Tempo** (`http://localhost:4318/v1/traces`). W3C trace propagation is enabled. Sampling probability defaults to `1.0` (override with `TRACING_SAMPLING_PROBABILITY`). Tracing is disabled in the test profile (`management.tracing.enabled: false`).
 - Metrics are registered in `RoutifyMetrics` (from `routify-common`) under the `routify.*` namespace.
 - Sensitive DTO fields (secrets, passwords, API keys) are masked via `@SensitiveField` annotation + `Sensitive.maskFields(dto)` before returning to clients. On incoming writes, check `Sensitive.isMasked(value)` before overwriting stored secrets.
 - All `routify-admin-api` REST endpoints use the `/api/v1/admin/` prefix (e.g. `/api/v1/admin/routes`, `/api/v1/admin/gateway`, `/api/v1/admin/audit/replay`). Auth endpoints use `/api/v1/auth/`. Gateway config endpoints live in a separate package (`controller.gateway.io.routify.admin.GatewayConfigController`). Each downstream messaging client in admin-api (e.g. `RouteServiceClient`, `RouteFilterMessagingClient`, `IdentityMessagingClient`, `AuditMessagingClient`, `CertVaultMessagingClient`, `AiMessagingClient`) is wrapped with a **Resilience4j circuit breaker** named after the service (e.g. `"route-service"`, `"identity-service"`) with a 5 s time limiter.
@@ -84,7 +85,7 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 - `event.io.routify.common.DomainEvent` — base type for domain event payloads published on event topics.
 - `event.io.routify.common.QueryRequest` / `QueryResponse` — typed wrappers for all RabbitMQ request/reply calls. Each query variant is a nested record (e.g. `QueryRequest.AiFilterEvaluate`).
 - `kafka.io.routify.common.KafkaDlqErrorHandlerFactory` — shared DLQ `DefaultErrorHandler` with exponential back-off (1 s × 2.0, max 30 s ≈ 5 retries); deserialisation errors go straight to DLQ. Use: `factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate))`.
-- `security.io.routify.common.SecurityContext` — Java 21 **record** (`userId`, `tenantId`, `username`, `role`, `correlationId`) stored in a `ThreadLocal`; set by the JWT filter in each service. Call `SecurityContext.current()` / `SecurityContext.set()` / `SecurityContext.clear()`. Convenience helpers: `hasRole(String)`, `isSuperAdmin()`, `isTenantAdmin()`.
+- `security.io.routify.common.SecurityContext` — Java 21 **record** (`userId`, `tenantId`, `username`, `role`, `correlationId`) stored in a `ThreadLocal`; set by the JWT filter in each service. Call `SecurityContext.current()` / `SecurityContext.set()` / `SecurityContext.clear()`. Convenience helpers: `hasRole(String)`, `isSuperAdmin()`, `isTenantAdmin()`. MDC enrichment: call `ctx.setMdc()` to populate SLF4J MDC with `userId`, `tenantId`, `correlationId`; call `SecurityContext.clearMdc()` on scope end. Static `putMdc(userId, tenantId, correlationId)` is available for Kafka consumers that extract identifiers from record headers.
 - `security.io.routify.common.RedisKeys` — centralised Redis key prefixes (e.g. `BLOCKLIST_PREFIX = "routify:token:blocklist:"`).
 - `config.io.routify.common.SecretValidator` — validates required secrets at startup via `routify.required-secrets` config property.
 - `domain.io.routify.common.FilterType` — enum of all gateway filter types (keep in sync with TypeScript `FilterType` union in dashboard and every `*GatewayFilterFactory` in the gateway). Active types include `AUTH_*` (`AUTH_API_KEY`, `AUTH_BASIC`, `AUTH_JWT`, `AUTH_MTLS`, `AUTH_OAUTH2`, `AUTH_CLIENT_ID`, `AUTH_CERT_VAULT`), `DOWNSTREAM_BASIC_AUTH`, `DOWNSTREAM_BEARER_CC`, `RATE_LIMIT_FIXED_WINDOW`, `RATE_LIMIT_SLIDING_WINDOW`, `REQUEST_HEADER_MODIFY`, `RESPONSE_HEADER_MODIFY`, `AI_FILTER`, `AI_MODIFIER`, `BODY_JOLT_TRANSFORM`, `VALIDATE_JSON_SCHEMA`, `TIMEOUT`, `CONDITIONAL_ROUTE`, `USER_ID_PAYLOAD_ROUTING`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK`, `API_VERSIONING`, `CORRELATION_ID`, `REQUEST_LOGGER`, `TENANT_CONTEXT`, `SECURITY_HEADERS`, `CUSTOM_METRIC`, `CUSTOM_SPEL`. Several legacy values are `@Deprecated` (no factory implementation — kept for DB compatibility only; `RouteDefinitionBuilder` logs a warning and skips them): `AUTH_NONE`, `RATE_LIMIT_TOKEN_BUCKET`, `PATH_REWRITE`, `PATH_STRIP_PREFIX`, `PATH_ADD_PREFIX`, `QUERY_PARAM_MODIFY`, `BODY_JSONATA_TRANSFORM`, `BODY_SPEL_TRANSFORM`, `VALIDATE_REGEX`, `VALIDATE_SIZE`, `CIRCUIT_BREAKER`, `RETRY`.
@@ -92,6 +93,7 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 - `domain.io.routify.common.UserRole` / `RouteStatus` — additional domain enums in the same package. `UserRole` values: `SUPER_ADMIN`, `TENANT_ADMIN`, `VIEWER`, `OPERATOR`. `RouteStatus` values: `DRAFT`, `ACTIVE`, `DISABLED`, `ARCHIVED` (lifecycle: `DRAFT` → `ACTIVE` ↔ `DISABLED` → `ARCHIVED`).
 - `web.io.routify.common.RoutifyHeaders.resolveActor(userId, principalName)` — resolves the acting principal for audit/command attribution (resolution order: `X-User-Id` header → principal name → `"system"`).
 - `event.io.routify.common.RequestTelemetryEvent` / `AiFilterDecisionEvent` / `AiModificationDecisionEvent` — event payloads published to their respective Kafka topics (telemetry, AI filter decisions, AI modification events).
+- `web.io.routify.common.PageResponse` — generic paginated response **record** wrapping `content`, `page`, `size`, `totalElements`, `totalPages`, `first`, `last`. Factory methods: `PageResponse.of(content, page, size, totalElements)` and `PageResponse.from(Spring Data Page<T>)`. Used by all RabbitMQ query handlers that return paginated results.
 
 **Frontend (`routify-dashboard`):**
 - Feature code lives in `src/modules/<feature>/`. Shared primitives go in `src/components/ui/`.
@@ -102,7 +104,7 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 - Forms use **React Hook Form + Zod**.
 - Route topology editor uses **`@xyflow/react`** (`src/modules/routes/`, `src/modules/workflow-builder/`).
 - Routing uses **React Router 7** (`react-router-dom` v7). Charts use **Recharts**. Icons use **Lucide React**. Toasts use **sonner**.
-- Custom hooks in `src/hooks/`: `useWebSocket` (STOMP-lite over native WS, exponential backoff, singleton per URL), `useRealtimeQuery` (wraps TanStack Query with automatic WS-event-driven cache invalidation — replaces polling), `useBootstrapAuth` (silent session restore via HttpOnly cookie on page load).
+- Custom hooks in `src/hooks/`: `useWebSocket` (STOMP-lite over native WS, exponential backoff, singleton per URL), `useRealtimeQuery` (wraps TanStack Query with automatic WS-event-driven cache invalidation — replaces polling), `useBootstrapAuth` (silent session restore via HttpOnly cookie on page load), `useDocumentTitle` (sets `document.title` to `"PageName — Routify"`, restores on unmount).
 - TypeScript types are split: `src/types/index.ts` (domain types: `UserRole`, `FilterType`, `Page<T>`, `ApiError`, etc.) and `src/types/ws.ts` (WebSocket types: `WsEventType`, `WsMessage`, `CircuitBreakerState`, `WsStatus`).
 - Real-time gateway events are delivered via **WebSocket/STOMP** through `WebSocketProvider` (`src/components/WebSocketProvider.tsx`). The admin-api exposes two endpoints: `GET /api/v1/admin/events` (SSE, `text/event-stream`) and a STOMP broker at `/ws` (SockJS fallback) / `/ws/websocket` (raw WS). The dashboard connects to `/ws/websocket` via raw STOMP and subscribes to `/topic/events` (domain events), `/topic/metrics` (live gateway metrics), and `/topic/audit` (live audit entries). `wsStore` (`src/store/wsStore.ts`) holds connection status, recent events, circuit-breaker state, and live metrics.
 - `src/modules/ai/` — AI filter and AI modifier stats pages. `src/modules/workspaces/` — workspace (tenant) management. `src/modules/gateway/` — gateway status dashboard. `src/modules/settings/` — platform settings. `src/modules/workflow-builder/` — visual route topology editor (shares `@xyflow/react` with `src/modules/routes/`).
@@ -115,7 +117,7 @@ Reply timeouts: `AI_FILTER_REPLY_TIMEOUT_MS` = 3 500 ms; `AI_MODIFIER_REPLY_TIME
 ```bash
 docker compose --env-file .env up -d
 # PostgreSQL :5432, Redis :6379, Kafka :9092, RabbitMQ :5672/:15672
-# Prometheus :9091, Grafana :3001
+# Tempo :3200/:4317/:4318, Prometheus :9091, Grafana :3001
 ```
 
 ### Build all Java modules
@@ -154,9 +156,43 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
 ./scripts/reset-data.sh --skip-grafana # keep Grafana dashboards
 ```
 
+### Testing
+
+**Java integration tests** use **Testcontainers** (Kafka, RabbitMQ, Redis, PostgreSQL). Convention: `*IT.java` suffix (run by maven-failsafe-plugin). Base class `AdminApiIntegrationBase` provides MockMvc, unsigned JWT generation (`generateTestJwt()`), mock RabbitMQ reply listeners (`mockRabbitReply()`), and Kafka test consumer (`drainTopic()`).
+
+```bash
+mvn verify                             # unit + integration tests
+mvn verify -Pquick                     # unit tests only (skips Testcontainers ITs, <30s)
+mvn verify -pl routify-admin-api -am   # single module with deps
+```
+
+**Frontend unit tests** use **Vitest** + happy-dom + Testing Library. Tests live in `src/__tests__/` and `src/**/*.{test,spec}.{ts,tsx}`.
+
+```bash
+cd routify-dashboard
+npm test                               # watch mode
+npm run test:ci                        # single run (CI)
+```
+
+**Frontend E2E tests** use **Playwright** running against MSW mock mode (no backend). Auth setup pattern (`e2e/auth.setup.ts`) stores session in `e2e/.auth/user.json`.
+
+```bash
+cd routify-dashboard
+npm run test:e2e                       # headless
+npm run test:e2e:ui                    # interactive UI mode
+```
+
+**CI containerised build** uses `docker-compose.ci.yml` overlay with `Dockerfile.ci` (copies pre-built JARs, no in-Docker Maven build):
+
+```bash
+mvn clean package -DskipTests
+docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml build
+docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml up -d
+```
+
 ## Environment / Secrets
 
-Copy `environments/.env.develop` → `.env` (or generate via the **"Generate .env"** GitHub Actions workflow). Required variables: `DB_PASS`, `RABBITMQ_PASS`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `CERT_VAULT_ENCRYPTION_KEY`. Optional: `ADMIN_INITIAL_PASSWORD` (initial admin seed — identity-service `DataSeeder`), `GRAFANA_PASSWORD` (Grafana admin). For the AI service: `OPENAI_API_KEY` (fail-fast at startup if absent). Services validate required secrets at boot via `routify.required-secrets` config property.
+Copy `environments/.env.develop` → `.env` (or generate via the **"Generate .env"** GitHub Actions workflow). Required variables: `DB_PASS`, `RABBITMQ_PASS`, `REDIS_PASS`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `CERT_VAULT_ENCRYPTION_KEY`. Optional: `ADMIN_INITIAL_PASSWORD` (initial admin seed — identity-service `DataSeeder`), `GRAFANA_PASSWORD` (Grafana admin). For the AI service: `OPENAI_API_KEY` (fail-fast at startup if absent). Services validate required secrets at boot via `routify.required-secrets` config property.
 
 IntelliJ `.run/*.run.xml` configs auto-load `$PROJECT_DIR$/environments/.env.develop` via `<envFilePaths>` — no manual copying needed for local dev.
 

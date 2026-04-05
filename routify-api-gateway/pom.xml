@@ -101,12 +101,12 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>1.83</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>1.83</version>
         </dependency>
 
         <!-- Caffeine — in-memory OAuth2 token caching with TTL/single-flight -->
@@ -154,14 +154,14 @@
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>1.4.3</version>
+            <version>1.5.9</version>
         </dependency>
 
         <!-- JSONata expression engine for BODY_JSONATA_TRANSFORM filter -->
         <dependency>
             <groupId>com.dashjoin</groupId>
             <artifactId>jsonata</artifactId>
-            <version>0.9.7</version>
+            <version>0.9.9</version>
         </dependency>
 
         <!-- Utilities -->
