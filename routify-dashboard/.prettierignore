@@ -2,4 +2,7 @@ dist
 public/mockServiceWorker.js
 node_modules
 *.svg
+playwright-report
+test-results
+e2e/.auth
 

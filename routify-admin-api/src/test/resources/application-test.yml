@@ -1,0 +1,83 @@
+# ─── Test profile overrides for routify-admin-api integration tests ───────────
+# Testcontainers dynamically injects Kafka, RabbitMQ, and Redis properties
+# via @DynamicPropertySource. This file handles everything else.
+
+spring:
+  # Disable WebSocket/STOMP auto-configuration — not needed in MockMvc tests.
+  # The WebSocketConfig + STOMP broker would otherwise try to start and
+  # interfere with the test context.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.websocket.servlet.WebSocketMessagingAutoConfiguration
+
+# ─── Routify overrides ─────────────────────────────────────────────────────────
+routify:
+  # Bypass SecretValidator startup check — no real secrets in test env
+  required-secrets:
+
+  jwt:
+    # Empty key → dev-mode: JwtAuthFilter skips signature verification and
+    # decodes claims from the JWT payload directly. Tests generate unsigned JWTs.
+    public-key:
+
+# ─── Actuator ──────────────────────────────────────────────────────────────────
+management:
+  server:
+    port: 0   # Random port to avoid conflicts with parallel test runs
+  tracing:
+    enabled: false
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+
+server:
+  port: 0   # Random port
+
+# ─── Resilience4j — disable circuit breakers in tests ──────────────────────────
+# CB fallbacks mask RabbitMQ interaction failures; disabling them ensures test
+# assertions see the real response (or a clear error if the mock listener fails).
+resilience4j:
+  circuitbreaker:
+    instances:
+      route-service:
+        sliding-window-size: 100
+        failure-rate-threshold: 100
+        register-health-indicator: false
+      identity-service:
+        sliding-window-size: 100
+        failure-rate-threshold: 100
+        register-health-indicator: false
+      audit-service:
+        sliding-window-size: 100
+        failure-rate-threshold: 100
+        register-health-indicator: false
+      cert-vault:
+        sliding-window-size: 100
+        failure-rate-threshold: 100
+        register-health-indicator: false
+      ai-service:
+        sliding-window-size: 100
+        failure-rate-threshold: 100
+        register-health-indicator: false
+  timelimiter:
+    instances:
+      route-service:
+        timeout-duration: 30s
+      identity-service:
+        timeout-duration: 30s
+      audit-service:
+        timeout-duration: 30s
+      cert-vault:
+        timeout-duration: 30s
+      ai-service:
+        timeout-duration: 30s
+
+# ─── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    gr.routify: DEBUG
+    org.testcontainers: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.springframework.amqp: WARN
+
