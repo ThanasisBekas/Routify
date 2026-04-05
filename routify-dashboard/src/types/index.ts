@@ -55,11 +55,6 @@ export interface LoginResponse {
 export type TenantPlan = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
 
-/** Lightweight workspace descriptor used in the login-page dropdown. */
-export interface WorkspaceOption {
-  name: string
-  slug: string
-}
 
 export interface TenantDto {
   id: string
@@ -163,11 +158,6 @@ export type FilterType =
   // ─── AI ──────────────────────────────────────────────────────────────────
   | 'AI_FILTER'
   | 'AI_MODIFIER'
-
-export type FilterCategory =
-  | 'Authentication' | 'Downstream Auth' | 'Rate Limiting' | 'Request Modification'
-  | 'Body Transformation' | 'Validation' | 'Resilience'
-  | 'Routing' | 'Security' | 'Versioning' | 'Observability' | 'Custom'
 
 
 export interface FilterDefinitionDto {
@@ -336,23 +326,6 @@ export interface CreateUserRequest {
   role: UserRole
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-
-export interface DashboardStats {
-  routes?: { total: number; active: number; draft: number; disabled: number }
-  filters?: { total: number; inUse: number }
-  requests?: { last24h: number; errorRate: number; avgLatencyMs: number }
-  gateway?: { status: 'UP' | 'DOWN' | 'DEGRADED'; loadedRoutes: number }
-}
-
-// ─── SSE Events ───────────────────────────────────────────────────────────────
-
-export type DashboardEventType =
-  | 'connected' | 'route.created' | 'route.updated'
-  | 'route.activated' | 'route.deactivated' | 'route.deleted'
-  | 'filter.created' | 'filter.updated' | 'filter.deleted'
-  | 'filter.attached' | 'filter.detached'
-  | 'gateway.reloaded' | 'gateway.config.changed'
 
 // ─── Gateway Configuration ────────────────────────────────────────────────────
 
@@ -471,24 +444,6 @@ export interface GatewayHttpClientConfig {
   compressionEnabled: boolean
   followRedirects: boolean
   wiretapEnabled: boolean
-}
-
-export interface GatewayCorrelationIdConfig {
-  enabled: boolean
-  headerName: string
-  generateIfMissing: boolean
-  propagateToResponse: boolean
-}
-
-export interface GatewayRequestLoggerConfig {
-  enabled: boolean
-  logRequestHeaders: boolean
-  logResponseHeaders: boolean
-  logRequestBody: boolean
-  logResponseBody: boolean
-  maxBodyLogSize: number
-  excludePaths: string[]
-  maskHeaders: string[]
 }
 
 
@@ -717,5 +672,4 @@ export interface AiModifierDecisionEntry {
   path: string
   evaluatedAt: string
 }
-
 

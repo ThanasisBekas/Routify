@@ -4,8 +4,7 @@ import { tenantsApi } from '../../api/tenantsApi'
 import type { CreateWorkspaceRequest, UpdateWorkspaceRequest } from '../../api/tenantsApi'
 import { useAuthStore } from '../../store/authStore'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
-import { cn } from '../../lib/utils'
-import { extractApiError } from '../../lib/errorUtils'
+import { cn, extractApiError } from '../../lib/utils'
 import type { TenantDto, TenantPlan } from '../../types'
 import {
   Building2, Plus, Loader2, AlertCircle, CheckCircle2, X,

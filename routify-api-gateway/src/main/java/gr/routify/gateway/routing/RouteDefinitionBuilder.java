@@ -243,16 +243,28 @@ public class RouteDefinitionBuilder {
                 f.setArgs(Map.of("prefix", String.valueOf(cfg.getOrDefault("prefix", ""))));
                 yield f;
             }
-            case "QUERY_PARAM_MODIFY" -> customFilter("QueryParamModify", cfg);
+            case "QUERY_PARAM_MODIFY" -> {
+                log.warn("Deprecated filter type QUERY_PARAM_MODIFY — ignored (no factory implementation)");
+                yield null;
+            }
 
             // ─── Body Transformation ──────────────────────────────────────────
             case "BODY_JOLT_TRANSFORM" -> customFilter("JoltTransform", cfg);
-            case "BODY_JSONATA_TRANSFORM" -> customFilter("JsonataTransform", cfg);
-            case "BODY_SPEL_TRANSFORM" -> customFilter("SpelTransform", cfg);
+            case "BODY_JSONATA_TRANSFORM" -> {
+                log.warn("Deprecated filter type BODY_JSONATA_TRANSFORM — ignored (no factory implementation)");
+                yield null;
+            }
+            case "BODY_SPEL_TRANSFORM" -> {
+                log.warn("Deprecated filter type BODY_SPEL_TRANSFORM — ignored (no factory implementation)");
+                yield null;
+            }
 
             // ─── Validation ───────────────────────────────────────────────────
             case "VALIDATE_JSON_SCHEMA" -> customFilter("JsonSchemaValidate", cfg);
-            case "VALIDATE_REGEX" -> customFilter("RegexValidate", cfg);
+            case "VALIDATE_REGEX" -> {
+                log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation)");
+                yield null;
+            }
             case "VALIDATE_SIZE" -> {
                 var f = new FilterDefinition();
                 f.setName("RequestSize");

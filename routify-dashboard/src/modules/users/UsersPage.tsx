@@ -5,8 +5,7 @@ import { authApi } from '../../api/authApi'
 import { tenantsApi } from '../../api/tenantsApi'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { useAuthStore } from '../../store/authStore'
-import { cn } from '../../lib/utils'
-import { extractApiError } from '../../lib/errorUtils'
+import { cn, extractApiError } from '../../lib/utils'
 import type { TenantDto, UserDto, UserRole, CreateUserRequest } from '../../types'
 import {
   Users, Plus, Pencil, Trash2, KeyRound,

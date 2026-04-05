@@ -13,8 +13,7 @@ import { filtersApi } from '../../api/filtersApi'
 import type { FilterType, CreateFilterRequest, UpdateFilterRequest } from '../../types'
 import FilterConfigFields from './FilterConfigFields'
 import { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './filterConfigConstants'
-import { cn } from '../../lib/utils'
-import { extractApiError } from '../../lib/errorUtils'
+import { cn, extractApiError } from '../../lib/utils'
 import {
   FILTER_REGISTRY,
   CATEGORY_ORDER,

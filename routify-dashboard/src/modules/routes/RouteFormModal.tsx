@@ -19,8 +19,7 @@ import {
 import { toast } from 'sonner'
 import { routesApi } from '../../api/routesApi'
 import type { CreateRouteRequest, UpdateRouteRequest } from '../../types'
-import { cn } from '../../lib/utils'
-import { extractApiError } from '../../lib/errorUtils'
+import { cn, extractApiError } from '../../lib/utils'
 import { METHOD_OPTIONS, METHOD_COLORS_MODAL as METHOD_COLORS } from './routeConstants'
 
 // ─── Schema ────────────────────────────────────────────────────────────────────
