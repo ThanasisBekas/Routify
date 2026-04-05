@@ -120,7 +120,7 @@ routify:
 
 logging:
   level:
-    gr.routify: DEBUG
+    io.routify: DEBUG
   pattern:
     console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] [tenant=%X{tenantId}] [user=%X{userId}] %logger{36} - %msg%n"
 

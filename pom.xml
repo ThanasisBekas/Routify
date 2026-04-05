@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>gr.routify</groupId>
+    <groupId>io.routify</groupId>
     <artifactId>routify-parent</artifactId>
     <version>1.0.2-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -63,7 +63,7 @@
         <dependencies>
             <!-- Internal modules -->
             <dependency>
-                <groupId>gr.routify</groupId>
+                <groupId>io.routify</groupId>
                 <artifactId>routify-common</artifactId>
                 <version>${project.version}</version>
             </dependency>

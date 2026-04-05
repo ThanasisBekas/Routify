@@ -17,7 +17,7 @@ Backend-for-Frontend (BFF) service that powers the `routify-dashboard`. It is th
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-admin-api` |
+| Artifact | `io.routify:routify-admin-api` |
 | Version | `1.0.2-SNAPSHOT` |
 | Default port | `8082` |
 | Actuator port | `9082` |

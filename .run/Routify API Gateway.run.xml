@@ -8,7 +8,7 @@
     <selectedOptions>
       <option name="environmentVariables" />
     </selectedOptions>
-    <option name="SPRING_BOOT_MAIN_CLASS" value="gr.routify.gateway.RoutifyApiGatewayApplication" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="io.routify.gateway.RoutifyApiGatewayApplication" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

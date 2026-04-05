@@ -16,7 +16,7 @@ Immutable audit log service for the Routify platform. Records every significant 
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-audit-service` |
+| Artifact | `io.routify:routify-audit-service` |
 | Version | `1.0.2-SNAPSHOT` |
 | Default port | `8084` |
 | Actuator port | `9084` |

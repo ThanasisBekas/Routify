@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>gr.routify</groupId>
+        <groupId>io.routify</groupId>
         <artifactId>routify-parent</artifactId>
         <version>1.0.2-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -25,7 +25,7 @@
     <dependencies>
         <!-- Internal -->
         <dependency>
-            <groupId>gr.routify</groupId>
+            <groupId>io.routify</groupId>
             <artifactId>routify-common</artifactId>
         </dependency>
 
