@@ -115,7 +115,13 @@ resilience4j:
         register-health-indicator: true
       audit-service:
         sliding-window-size: 20
+        # Intentionally higher than the 50% used by route/identity/cert services.
+        # Audit queries are non-critical (read-only analytics, log browsing) — a
+        # temporarily degraded audit-service should not trip the breaker as eagerly
+        # as a route-service or identity-service failure would.
         failure-rate-threshold: 60
+        # Shorter open-state wait (10s vs 15s for others) — recover faster since
+        # audit failures are transient and the service has no write-side coupling.
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true

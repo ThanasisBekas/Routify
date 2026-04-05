@@ -51,6 +51,7 @@ function FilterTypeDropdownPortal({
   return createPortal(
     <>
       {/* backdrop — closes dropdown on outside click */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div className="fixed inset-0 z-9998" onClick={onClose} />
       <div
         style={style}

@@ -40,6 +40,8 @@ export function UpstreamNode({ data, selected }: NodeProps) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
         'px-4 py-3.5 bg-[#111318] rounded-xl shadow-xl min-w-[200px] transition-all duration-150 cursor-pointer',
         'border',
@@ -48,6 +50,7 @@ export function UpstreamNode({ data, selected }: NodeProps) {
           : 'border-emerald-500/30 hover:border-emerald-400/60 shadow-emerald-500/5',
       )}
       onClick={() => d.onSelect?.()}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); d.onSelect?.() } }}
     >
       <Handle type="target" position={Position.Left}  className="!w-2.5 !h-2.5 !bg-emerald-400 !border-0 !rounded-full" />
       <Handle type="source" position={Position.Right} className="!w-2.5 !h-2.5 !bg-emerald-400 !border-0 !rounded-full" />
@@ -83,12 +86,15 @@ export function FilterNode({ data, selected }: NodeProps) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
         'px-3 py-2.5 border rounded-xl shadow-lg min-w-[170px] bg-[#111318] group cursor-pointer transition-all duration-150',
         selected ? `${meta.border} shadow-lg` : meta.border,
         'hover:brightness-110',
       )}
       onClick={() => d.onSelect?.()}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); d.onSelect?.() } }}
     >
       <Handle type="target" position={Position.Left}  className="!w-2.5 !h-2.5 !bg-gray-500 !border-0 !rounded-full" />
       <Handle type="source" position={Position.Right} className="!w-2.5 !h-2.5 !bg-gray-500 !border-0 !rounded-full" />

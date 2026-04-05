@@ -96,6 +96,7 @@ export default function RouteTableRow({
 
       {/* Actions */}
       <td className="px-4 py-3.5">
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
         <div
           className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity relative"
           onClick={e => e.stopPropagation()}

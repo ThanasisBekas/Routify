@@ -89,14 +89,18 @@ interface ModalShellProps {
 
 function ModalShell({ title, subtitle, icon: Icon, iconColor = 'text-indigo-400', onClose, children }: ModalShellProps) {
   return (
-    /* backdrop */
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       {/* panel */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/[0.09] bg-[#0e1018] shadow-2xl animate-fade-in"
         onClick={e => e.stopPropagation()}
       >

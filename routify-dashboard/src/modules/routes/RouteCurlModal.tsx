@@ -250,12 +250,17 @@ export default function RouteCurlModal({
   /* ── render ──────────────────────────────────────────────────────────────── */
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="cURL command builder"
         className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-2xl border border-white/[0.09] bg-[#0d0f15] shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
@@ -450,7 +455,10 @@ export default function RouteCurlModal({
             {/* ── Options ──────────────────────────────────────────────────── */}
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer select-none">
-                <div
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={verbose}
                   onClick={() => setVerbose(v => !v)}
                   className={cn(
                     'w-8 h-4 rounded-full border transition-all relative',
@@ -458,7 +466,7 @@ export default function RouteCurlModal({
                   )}
                 >
                   <div className={cn('absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow', verbose ? 'left-4' : 'left-0.5')} />
-                </div>
+                </button>
                 <span className="text-xs text-gray-400">Verbose (<code className="font-mono">-v</code>)</span>
               </label>
             </div>
