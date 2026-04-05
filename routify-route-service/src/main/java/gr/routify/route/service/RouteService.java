@@ -4,6 +4,7 @@ import gr.routify.common.domain.RouteStatus;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.exception.RoutifyException;
+import gr.routify.route.config.CacheConfig;
 import gr.routify.route.dto.RouteStatusCount;
 import gr.routify.route.domain.FilterDefinition;
 import gr.routify.route.domain.Route;
@@ -13,6 +14,7 @@ import gr.routify.route.repository.FilterDefinitionRepository;
 import gr.routify.route.repository.RouteRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -93,6 +95,7 @@ public class RouteService {
                 .orElseThrow(() -> new RoutifyException.NotFound("Route", id.toString()));
     }
 
+    @Cacheable(CacheConfig.CACHE_GATEWAY_SNAPSHOT)
     @Transactional(readOnly = true)
     public List<Route> findAllActiveWithFilters() {
         return routeRepository.findAllActiveWithFilters();

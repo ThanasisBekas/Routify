@@ -4,12 +4,15 @@ import gr.routify.common.domain.TenantPlan;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.exception.RoutifyException;
+import gr.routify.identity.config.CacheConfig;
 import gr.routify.identity.domain.Tenant;
 import gr.routify.identity.dto.AuthDto;
 import gr.routify.identity.outbox.IdentityOutboxEventStore;
 import gr.routify.identity.repository.TenantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,17 +36,20 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final IdentityOutboxEventStore outboxStore;
 
+    @Cacheable(value = CacheConfig.CACHE_TENANTS, key = "'list:' + #pageable.pageNumber + ':' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<Tenant> findAll(Pageable pageable) {
         return tenantRepository.findAll(pageable);
     }
 
+    @Cacheable(value = CacheConfig.CACHE_TENANTS, key = "#id")
     @Transactional(readOnly = true)
     public Tenant findById(UUID id) {
         return tenantRepository.findById(id)
                 .orElseThrow(() -> new RoutifyException.NotFound("Tenant", id.toString()));
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_TENANTS, allEntries = true)
     @Transactional
     public Tenant create(AuthDto.CreateTenantRequest request) {
         if (tenantRepository.existsByName(request.name())) {
@@ -74,6 +80,7 @@ public class TenantService {
         return saved;
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_TENANTS, allEntries = true)
     @Transactional
     public Tenant update(UUID id, String name, TenantPlan plan, String contactEmail) {
         Tenant tenant = findById(id);
@@ -103,6 +110,7 @@ public class TenantService {
         return saved;
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_TENANTS, allEntries = true)
     @Transactional
     public Tenant suspend(UUID id, String reason) {
         Tenant tenant = findById(id);
@@ -119,6 +127,7 @@ public class TenantService {
         return saved;
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_TENANTS, allEntries = true)
     @Transactional
     public Tenant reactivate(UUID id) {
         Tenant tenant = findById(id);

@@ -2,11 +2,13 @@ package gr.routify.route.outbox;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gr.routify.common.event.DomainEvent;
+import gr.routify.route.config.CacheConfig;
 import gr.routify.route.domain.OutboxEvent;
 import gr.routify.route.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -48,6 +50,7 @@ public class OutboxPoller {
 
     @Scheduled(fixedDelayString = "${routify.outbox.poll-interval-ms:250}")
     @Transactional
+    @CacheEvict(value = CacheConfig.CACHE_GATEWAY_SNAPSHOT, allEntries = true)
     public void pollAndPublish() {
         List<OutboxEvent> pending = outboxRepository.findPendingForPublishing(batchSize);
         if (pending.isEmpty()) return;

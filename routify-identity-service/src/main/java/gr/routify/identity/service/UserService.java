@@ -3,6 +3,7 @@ package gr.routify.identity.service;
 import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.exception.RoutifyException;
+import gr.routify.identity.config.CacheConfig;
 import gr.routify.identity.domain.AppUser;
 import gr.routify.identity.domain.Tenant;
 import gr.routify.identity.dto.AuthDto;
@@ -11,6 +12,8 @@ import gr.routify.identity.repository.TenantRepository;
 import gr.routify.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,6 +40,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final IdentityOutboxEventStore outboxStore;
 
+    @Cacheable(value = CacheConfig.CACHE_USERS, key = "'list:' + #tenantId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<AppUser> findAll(UUID tenantId, Pageable pageable) {
         if (tenantId == null) {
@@ -46,12 +50,14 @@ public class UserService {
         return userRepository.findAllByTenantId(tenantId, pageable);
     }
 
+    @Cacheable(value = CacheConfig.CACHE_USERS, key = "#id")
     @Transactional(readOnly = true)
     public AppUser findById(UUID id, UUID tenantId) {
         return userRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new RoutifyException.NotFound("User", id.toString()));
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_USERS, allEntries = true)
     @Transactional
     public AppUser create(AuthDto.CreateUserRequest request, UUID tenantId) {
         // Validate tenant exists
@@ -91,6 +97,7 @@ public class UserService {
         return saved;
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_USERS, allEntries = true)
     @Transactional
     public AppUser update(UUID id, UUID tenantId, AuthDto.UpdateUserRequest request) {
         AppUser user = findById(id, tenantId);
@@ -123,6 +130,7 @@ public class UserService {
         return saved;
     }
 
+    @CacheEvict(value = CacheConfig.CACHE_USERS, allEntries = true)
     @Transactional
     public void delete(UUID id, UUID tenantId) {
         AppUser user = findById(id, tenantId);
