@@ -109,11 +109,16 @@ management:
 # ─── Routify Configuration ───────────────────────────────────────────────────
 routify:
   outbox:
-    poll-interval-ms: 250
+    # Primary wake-up is via PostgreSQL LISTEN/NOTIFY (OutboxNotifyListener).
+    # This scheduled interval is a safety-net fallback only — catches any
+    # notifications missed due to connection drops or edge cases.
+    poll-interval-ms: 5000
     retry-interval-ms: 30000
     batch-size: 50
     retry-batch-size: 50   # C6/M9: configurable retry batch (was hardcoded 5)
     max-retries: 5
+    notify:
+      enabled: true   # PostgreSQL LISTEN/NOTIFY for on-demand outbox wake-up
 
   jwt:
     # RSA public key for validating inter-service JWTs (issued by routify-identity-service)

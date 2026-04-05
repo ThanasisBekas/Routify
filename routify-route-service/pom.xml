@@ -42,7 +42,8 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
+            <!-- compile scope (not runtime) — OutboxNotifyListener uses PG-specific
+                 LISTEN/NOTIFY APIs: PGConnection, PGNotification -->
         </dependency>
 
         <!-- Flyway -->

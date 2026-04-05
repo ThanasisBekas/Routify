@@ -12,8 +12,13 @@ spring:
     # No default — must be supplied via DB_PASS environment variable.
     password: ${DB_PASS:}
     hikari:
-      maximum-pool-size: 10
+      # Sized for 3 concurrent Kafka consumer threads doing batch inserts
+      # + RabbitMQ query handlers + replay service connections.
+      # Previous value (10) could saturate under telemetry spikes.
+      maximum-pool-size: 15
       minimum-idle: 3
+      connection-timeout: 10000
+      pool-name: audit-pool
 
   jpa:
     hibernate:
