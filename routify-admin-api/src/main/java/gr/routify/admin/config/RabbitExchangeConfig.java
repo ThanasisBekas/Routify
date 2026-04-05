@@ -52,6 +52,7 @@ public class RabbitExchangeConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(new Jackson2JsonMessageConverter());
         template.setReplyTimeout(REPLY_TIMEOUT_MS);
+        template.setObservationEnabled(true);
         return template;
     }
 

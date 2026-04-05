@@ -48,6 +48,10 @@
         <!-- Testing -->
         <testcontainers.version>1.20.4</testcontainers.version>
 
+        <!-- Distributed Tracing (OpenTelemetry) -->
+        <micrometer-tracing.version>1.4.4</micrometer-tracing.version>
+        <opentelemetry.version>1.38.0</opentelemetry.version>
+
         <!-- Override Spring Boot managed Lombok for JDK 25 compatibility -->
         <lombok.version>1.18.38</lombok.version>
 
@@ -116,6 +120,22 @@
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
                 <scope>runtime</scope>
+            </dependency>
+
+            <!-- ─── Distributed Tracing ───────────────────────────────────────── -->
+
+            <!-- Micrometer Tracing bridge for OpenTelemetry -->
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-tracing-bridge-otel</artifactId>
+                <version>${micrometer-tracing.version}</version>
+            </dependency>
+
+            <!-- OTLP exporter — sends spans to Grafana Tempo (or any OTLP-compatible backend) -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-exporter-otlp</artifactId>
+                <version>${opentelemetry.version}</version>
             </dependency>
 
             <!-- ─── Testing ─────────────────────────────────────────────────────── -->

@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -59,6 +60,7 @@ public class AdminAiModifierController {
      * @return the mutation result showing what was changed (or passthrough if no change needed)
      */
     @PostMapping("/test-modification")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<QueryResponse.AiModifierVerdict> testModification(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody TestModificationRequest request) {
@@ -105,4 +107,3 @@ public class AdminAiModifierController {
         return ResponseEntity.ok(verdict);
     }
 }
-

@@ -1,6 +1,7 @@
 package gr.routify.cert.config;
 
 import gr.routify.common.web.RoutifyHeaders;
+import gr.routify.common.security.SecurityContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,9 +41,17 @@ public class CertVaultPreAuthFilter extends OncePerRequestFilter {
             var auth = new UsernamePasswordAuthenticationToken(userId, null, authorities);
             auth.setDetails(new CertVaultAuthDetails(userId, tenantId, role));
             SecurityContextHolder.getContext().setAuthentication(auth);
+
+            // Enrich MDC for structured logging
+            SecurityContext.putMdc(userId, tenantId,
+                    request.getHeader(RoutifyHeaders.CORRELATION_ID));
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            SecurityContext.clearMdc();
+        }
     }
 
     public record CertVaultAuthDetails(String userId, String tenantId, String role) {}

@@ -1,6 +1,7 @@
 package gr.routify.route.config;
 
 import gr.routify.common.web.RoutifyHeaders;
+import gr.routify.common.security.SecurityContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,9 +59,17 @@ public class GatewayPreAuthFilter extends OncePerRequestFilter {
             authentication.setDetails(new GatewayAuthDetails(userId, tenantId, role));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            // Enrich MDC for structured logging
+            SecurityContext.putMdc(userId, tenantId,
+                    request.getHeader(RoutifyHeaders.CORRELATION_ID));
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            SecurityContext.clearMdc();
+        }
     }
 
     /**

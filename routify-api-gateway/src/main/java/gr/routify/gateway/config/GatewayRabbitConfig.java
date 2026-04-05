@@ -96,6 +96,7 @@ public class GatewayRabbitConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(gatewayJsonMessageConverter());
         template.setReplyTimeout(RabbitTopology.REPLY_TIMEOUT_MS);
+        template.setObservationEnabled(true);
         return template;
     }
 
@@ -116,6 +117,7 @@ public class GatewayRabbitConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(gatewayJsonMessageConverter());
         template.setReplyTimeout(RabbitTopology.AI_FILTER_REPLY_TIMEOUT_MS);
+        template.setObservationEnabled(true);
         return template;
     }
 }

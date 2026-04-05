@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +21,12 @@ import java.util.UUID;
  *
  * <p>Read operations go via RabbitMQ to routify-route-service.
  * Write operations are published as Kafka command events to routify-route-service.
+ *
+ * <p>Authorization:
+ * <ul>
+ *   <li>Read (GET): any authenticated user (VIEWER and above)</li>
+ *   <li>Write (POST/PUT/DELETE): OPERATOR, TENANT_ADMIN, or SUPER_ADMIN</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/v1/admin/filters")
@@ -29,6 +36,7 @@ public class AdminFiltersController {
     private final RouteFilterMessagingClient messagingClient;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.FiltersPage> listFilters(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
@@ -40,6 +48,7 @@ public class AdminFiltersController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.FilterDetail> getFilter(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -47,6 +56,7 @@ public class AdminFiltersController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> createFilter(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
@@ -59,6 +69,7 @@ public class AdminFiltersController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> updateFilter(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -72,6 +83,7 @@ public class AdminFiltersController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> deleteFilter(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,

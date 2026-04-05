@@ -62,6 +62,7 @@ public class KafkaConsumerConfig {
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
+        factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
 

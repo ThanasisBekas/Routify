@@ -7,6 +7,7 @@ import gr.routify.common.event.DomainEvent;
 import gr.routify.common.event.KafkaTopics;
 import gr.routify.common.event.QueryRequest;
 import gr.routify.common.event.RabbitTopology;
+import gr.routify.common.observability.RoutifyMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -44,8 +45,9 @@ public class GatewayActuatorClient extends AmqpServiceClientSupport {
 
     public GatewayActuatorClient(RabbitTemplate rabbitTemplate,
                                  ObjectMapper objectMapper,
-                                 KafkaTemplate<String, Object> kafkaTemplate) {
-        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_GATEWAY, "admin-api");
+                                 KafkaTemplate<String, Object> kafkaTemplate,
+                                 RoutifyMetrics metrics) {
+        super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_GATEWAY, "admin-api", metrics);
         this.kafka = new KafkaServiceClientSupport(kafkaTemplate, "admin-api") {};
     }
 

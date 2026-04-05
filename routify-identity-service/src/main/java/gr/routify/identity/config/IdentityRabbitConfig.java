@@ -158,6 +158,7 @@ public class IdentityRabbitConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(new Jackson2JsonMessageConverter());
         template.setReplyTimeout(RabbitTopology.REPLY_TIMEOUT_MS);
+        template.setObservationEnabled(true);
         return template;
     }
 }

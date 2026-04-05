@@ -136,6 +136,7 @@ public class AiRabbitConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(aiJsonMessageConverter());
         template.setReplyTimeout(RabbitTopology.REPLY_TIMEOUT_MS);
+        template.setObservationEnabled(true);
         return template;
     }
 }

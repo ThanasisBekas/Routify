@@ -48,18 +48,21 @@ public class AuditServiceConfig {
 
     @Bean
     public ProducerFactory<String, Object> auditProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(Map.of(
+        var factory = new DefaultKafkaProducerFactory<String, Object>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,   StringSerializer.class,
                 ProducerConfig.ACKS_CONFIG,                     "1",
                 ProducerConfig.RETRIES_CONFIG,                  3
         ));
+        return factory;
     }
 
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
-        return new KafkaTemplate<>(auditProducerFactory());
+        var template = new KafkaTemplate<>(auditProducerFactory());
+        template.setObservationEnabled(true);
+        return template;
     }
 
     // ─── Consumer ─────────────────────────────────────────────────────────────
@@ -85,6 +88,7 @@ public class AuditServiceConfig {
         factory.setConcurrency(3);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
+        factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
 
@@ -108,6 +112,7 @@ public class AuditServiceConfig {
         factory.setConcurrency(1);
         // No retries, no DLQ forwarding — the DlqEventConsumer handles failures itself
         factory.setCommonErrorHandler(new DefaultErrorHandler(new FixedBackOff(0L, 0L)));
+        factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
 

@@ -26,5 +26,27 @@ public final class RedisKeys {
      * gateway returns HTTP 401 immediately.
      */
     public static final String BLOCKLIST_PREFIX = "routify:token:blocklist:";
-}
 
+    /**
+     * Prefix for API key hashes used by the gateway's
+     * {@code ApiKeyAuthGatewayFilterFactory} for authentication.
+     *
+     * <p>Full key format: {@code routify:apikeys:<api-key-value>}
+     *
+     * <p>Each key is a Redis Hash with fields:
+     * <ul>
+     *   <li>{@code tenantId} — UUID of the owning tenant</li>
+     *   <li>{@code userId}   — UUID of the user the key acts as</li>
+     *   <li>{@code role}     — role granted to requests using this key (e.g. OPERATOR)</li>
+     *   <li>{@code email}    — email for audit attribution</li>
+     *   <li>{@code expiresAt} — (optional) epoch-second expiry; if absent the key
+     *       relies solely on Redis TTL for expiration</li>
+     * </ul>
+     *
+     * <p>Written by the identity-service API key management (future) or seeded
+     * manually via {@code redis-cli HSET routify:apikeys:<key> tenantId ... userId ... role ... email ...}.
+     *
+     * <p>Read by {@code ApiKeyAuthGatewayFilterFactory} on every API-key-authenticated request.
+     */
+    public static final String APIKEY_PREFIX = "routify:apikeys:";
+}

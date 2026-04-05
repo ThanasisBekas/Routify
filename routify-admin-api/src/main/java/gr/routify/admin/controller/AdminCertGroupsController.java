@@ -10,6 +10,7 @@ import gr.routify.common.web.RoutifyHeaders;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +22,12 @@ import java.util.UUID;
  * <p>Read operations are served via RabbitMQ request/reply to routify-cert-vault.
  * Write operations are published as Kafka command events to routify-cert-vault.
  * There are NO direct HTTP calls to cert-vault.
+ *
+ * <p>Authorization:
+ * <ul>
+ *   <li>Read (GET): any authenticated user (VIEWER and above)</li>
+ *   <li>Write (POST/PUT/DELETE): OPERATOR, TENANT_ADMIN, or SUPER_ADMIN</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/v1/admin/cert-groups")
@@ -30,6 +37,7 @@ public class AdminCertGroupsController {
     private final CertVaultMessagingClient messagingClient;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.CertGroupsPage> listGroups(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(required = false) String status,
@@ -42,6 +50,7 @@ public class AdminCertGroupsController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.CertGroupDetail> getGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -49,6 +58,7 @@ public class AdminCertGroupsController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> createGroup(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
@@ -61,6 +71,7 @@ public class AdminCertGroupsController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> updateGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -74,6 +85,7 @@ public class AdminCertGroupsController {
     }
 
     @PostMapping("/{id}/archive")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> archiveGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -86,6 +98,7 @@ public class AdminCertGroupsController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> deleteGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -98,6 +111,7 @@ public class AdminCertGroupsController {
     }
 
     @GetMapping("/{id}/members")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.CertGroupMembersList> listGroupMembers(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -105,6 +119,7 @@ public class AdminCertGroupsController {
     }
 
     @PostMapping("/{id}/members")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> addMemberToGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -118,6 +133,7 @@ public class AdminCertGroupsController {
     }
 
     @DeleteMapping("/{id}/members/{certId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> removeMemberFromGroup(
             @PathVariable UUID id,
             @PathVariable UUID certId,

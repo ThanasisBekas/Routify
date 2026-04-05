@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +24,12 @@ import java.util.UUID;
  * <p>Read queries go via RabbitMQ to routify-identity-service.
  * Write commands (create, update, delete) are published as Kafka events
  * to routify-identity-service.
+ *
+ * <p>Authorization:
+ * <ul>
+ *   <li>Read (GET): any authenticated user (VIEWER and above)</li>
+ *   <li>Write (POST/PUT/DELETE): TENANT_ADMIN or SUPER_ADMIN only</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/v1/admin/users")
@@ -32,6 +39,7 @@ public class AdminUsersController {
     private final IdentityMessagingClient messagingClient;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.UsersPage> listUsers(
             @RequestHeader(value = RoutifyHeaders.TENANT_ID, required = false) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
@@ -40,6 +48,7 @@ public class AdminUsersController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.UserDetail> getUser(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -47,6 +56,7 @@ public class AdminUsersController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> createUser(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody CreateUserRequest request,
@@ -58,6 +68,7 @@ public class AdminUsersController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> updateUser(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -70,6 +81,7 @@ public class AdminUsersController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> deleteUser(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -85,6 +97,7 @@ public class AdminUsersController {
      * the target user to change it on next login ({@code mustChangePassword=true}).
      */
     @PostMapping("/{id}/reset-password")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<?> resetPassword(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,

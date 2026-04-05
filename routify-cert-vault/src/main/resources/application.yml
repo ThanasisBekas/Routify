@@ -89,6 +89,14 @@ management:
     export:
       prometheus:
         enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 # ─── Routify Configuration ───────────────────────────────────────────────────
 routify:
@@ -122,5 +130,5 @@ logging:
     gr.routify: DEBUG
     org.springframework.kafka: WARN
   pattern:
-    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] [tenant=%X{tenantId}] [user=%X{userId}] %logger{36} - %msg%n"
 

@@ -4,6 +4,7 @@ import gr.routify.admin.client.AuditMessagingClient;
 import gr.routify.common.event.QueryResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -13,10 +14,13 @@ import java.util.UUID;
  *
  * <p>All queries go via RabbitMQ to routify-audit-service.
  * Audit data is immutable — no write operations.
+ *
+ * <p>Authorization: any authenticated user (VIEWER and above) — read-only.
  */
 @RestController
 @RequestMapping("/api/v1/admin/audit")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
 public class AdminAuditController {
 
     private final AuditMessagingClient messagingClient;

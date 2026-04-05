@@ -40,7 +40,7 @@ All inter-service messaging constants live in `routify-common`:
 - `AI_FILTER_DECISIONS`, `AI_MODIFICATION_EVENTS` — published by `routify-ai-service` after every LLM evaluation.
 - `AUTH_COMMANDS` — logout blacklisting, consumed by `routify-identity-service`.
 - `CERT_GROUP_EVENTS` — certificate group lifecycle, consumed by `routify-api-gateway`.
-- All failed events are forwarded to DLQ topics named `<original-topic>.DLQ` (e.g. `routify.route.events.DLQ`), consumed exclusively by `routify-audit-service`. Named constants: `DLQ_ROUTE_EVENTS`, `DLQ_FILTER_EVENTS`, `DLQ_TENANT_EVENTS`, `DLQ_USER_EVENTS`, `DLQ_GATEWAY_RELOAD`, `DLQ_GATEWAY_CONFIG`, `DLQ_CERT_EVENTS`, `DLQ_CERT_GROUP_EVENTS`, `DLQ_REQUEST_TELEMETRY`, `DLQ_ROUTE_COMMANDS`, `DLQ_FILTER_COMMANDS`, `DLQ_USER_COMMANDS`, `DLQ_TENANT_COMMANDS`, `DLQ_AUTH_COMMANDS`, `DLQ_CERT_COMMANDS`, `DLQ_AI_MODIFICATION_EVENTS`.
+- All failed events are forwarded to DLQ topics named `<original-topic>.DLQ` (e.g. `routify.route.events.DLQ`), consumed exclusively by `routify-audit-service`. Named constants: `DLQ_ROUTE_EVENTS`, `DLQ_FILTER_EVENTS`, `DLQ_TENANT_EVENTS`, `DLQ_USER_EVENTS`, `DLQ_GATEWAY_RELOAD`, `DLQ_GATEWAY_CONFIG`, `DLQ_CERT_EVENTS`, `DLQ_CERT_GROUP_EVENTS`, `DLQ_REQUEST_TELEMETRY`, `DLQ_ROUTE_COMMANDS`, `DLQ_FILTER_COMMANDS`, `DLQ_USER_COMMANDS`, `DLQ_TENANT_COMMANDS`, `DLQ_AUTH_COMMANDS`, `DLQ_CERT_COMMANDS`, `DLQ_AI_FILTER_DECISIONS`, `DLQ_AI_MODIFICATION_EVENTS`.
 
 ### `routify-ai-service` communication
 The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exchange: `RabbitTopology.EXCHANGE_AI_SERVICE` (`routify.ai-service`). Two queues:

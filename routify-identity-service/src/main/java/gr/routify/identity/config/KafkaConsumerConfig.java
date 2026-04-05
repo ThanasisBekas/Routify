@@ -38,18 +38,21 @@ public class KafkaConsumerConfig {
 
     @Bean
     public ProducerFactory<String, Object> identityDlqProducerFactory() {
-        return new DefaultKafkaProducerFactory<>(Map.of(
+        var factory = new DefaultKafkaProducerFactory<String, Object>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,    bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
                 ProducerConfig.ACKS_CONFIG,                 "1",
                 ProducerConfig.RETRIES_CONFIG,              3
         ));
+        return factory;
     }
 
     @Bean
     public KafkaTemplate<String, Object> identityDlqKafkaTemplate() {
-        return new KafkaTemplate<>(identityDlqProducerFactory());
+        var template = new KafkaTemplate<>(identityDlqProducerFactory());
+        template.setObservationEnabled(true);
+        return template;
     }
 
     // ─── Consumer ─────────────────────────────────────────────────────────────
@@ -76,6 +79,7 @@ public class KafkaConsumerConfig {
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(identityDlqKafkaTemplate));
+        factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
 }

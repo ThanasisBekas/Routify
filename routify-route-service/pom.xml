@@ -97,6 +97,22 @@
             <artifactId>jjwt-jackson</artifactId>
         </dependency>
 
+        <!-- Actuator — health, metrics, Prometheus, tracing export -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Distributed Tracing — Micrometer + OTLP export to Grafana Tempo -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
 
 
         <!-- Utilities -->
