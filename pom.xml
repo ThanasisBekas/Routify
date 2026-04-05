@@ -46,7 +46,9 @@
         <rabbitmq-amqp-client.version>5.21.0</rabbitmq-amqp-client.version>
 
         <!-- Testing -->
-        <testcontainers.version>1.20.4</testcontainers.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
+        <!-- Override docker-java for Docker Engine 29.x API compatibility (min API 1.40) -->
+        <docker-java.version>3.5.1</docker-java.version>
 
         <!-- Distributed Tracing (OpenTelemetry) -->
         <micrometer-tracing.version>1.4.4</micrometer-tracing.version>
@@ -140,6 +142,23 @@
 
             <!-- ─── Testing ─────────────────────────────────────────────────────── -->
 
+            <!-- Override docker-java to fix API version negotiation with Docker Engine 29.x -->
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-api</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-transport-zerodep</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-transport</artifactId>
+                <version>${docker-java.version}</version>
+            </dependency>
+
             <!-- Testcontainers BOM — aligns all TC module versions -->
             <dependency>
                 <groupId>org.testcontainers</groupId>
@@ -161,6 +180,7 @@
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>postgresql</artifactId>
+                <version>${testcontainers.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -168,6 +188,7 @@
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>kafka</artifactId>
+                <version>${testcontainers.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -175,6 +196,7 @@
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>rabbitmq</artifactId>
+                <version>${testcontainers.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -182,6 +204,7 @@
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>junit-jupiter</artifactId>
+                <version>${testcontainers.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -199,6 +222,7 @@
                         <!-- Open Java modules required by Spring + Mockito on JDK 21+ -->
                         <argLine>
                             --add-opens java.base/java.lang=ALL-UNNAMED
+                            --add-opens java.base/java.lang.reflect=ALL-UNNAMED
                             --add-opens java.base/java.util=ALL-UNNAMED
                         </argLine>
                     </configuration>
@@ -211,6 +235,7 @@
                     <configuration>
                         <argLine>
                             --add-opens java.base/java.lang=ALL-UNNAMED
+                            --add-opens java.base/java.lang.reflect=ALL-UNNAMED
                             --add-opens java.base/java.util=ALL-UNNAMED
                         </argLine>
                     </configuration>

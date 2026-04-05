@@ -1,0 +1,54 @@
+# ─── Test profile overrides for routify-identity-service integration tests ──────
+# Testcontainers dynamically injects datasource, Kafka, RabbitMQ, and Redis
+# properties via @DynamicPropertySource. This file handles everything else.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Flyway runs first — same as production
+
+  flyway:
+    enabled: true
+    clean-disabled: false
+
+# ─── Outbox tuning for deterministic test control ──────────────────────────────
+routify:
+  outbox:
+    # Prevent the @Scheduled poller from running automatically.
+    # Tests call outboxPoller.pollAndPublish() directly for deterministic assertions.
+    poll-interval-ms: 999999999
+    retry-interval-ms: 999999999
+    batch-size: 50
+    max-retries: 5
+
+  # Bypass SecretValidator startup check — no real secrets in test env
+  required-secrets:
+
+  jwt:
+    # Empty — JwtService generates an ephemeral RSA dev key pair
+    private-key:
+    public-key:
+    access-token-ttl-seconds: 3600
+    refresh-token-ttl-seconds: 86400
+    refresh-cookie-secure: false
+
+  seed:
+    # Known password for deterministic DataSeeder output in tests
+    admin-password: testpassword123
+
+# ─── Actuator ──────────────────────────────────────────────────────────────────
+management:
+  server:
+    port: 0   # Random port to avoid conflicts with parallel test runs
+
+server:
+  port: 0   # Random port
+
+# ─── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    gr.routify: DEBUG
+    org.testcontainers: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+
