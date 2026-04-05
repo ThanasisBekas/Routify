@@ -24,7 +24,7 @@ Shared library module for the Routify platform. Provides the common building blo
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-common` |
+| Artifact | `io.routify:routify-common` |
 | Version | `1.0.2-SNAPSHOT` |
 | Packaging | `jar` |
 | Java | 21 |
@@ -32,7 +32,7 @@ Shared library module for the Routify platform. Provides the common building blo
 ## Package Structure
 
 ```
-gr.routify.common/
+io.routify.common/
 ├── client/         # AmqpServiceClientSupport, KafkaServiceClientSupport
 ├── config/         # SecretValidator
 ├── domain/         # FilterType, TenantPlan, UserRole, RouteStatus
@@ -62,7 +62,7 @@ gr.routify.common/
 
 ```xml
 <dependency>
-    <groupId>gr.routify</groupId>
+    <groupId>io.routify</groupId>
     <artifactId>routify-common</artifactId>
 </dependency>
 ```

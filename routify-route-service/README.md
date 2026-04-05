@@ -16,7 +16,7 @@ Internal service responsible for persisting API route and filter definitions, pu
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-route-service` |
+| Artifact | `io.routify:routify-route-service` |
 | Version | `1.0.2-SNAPSHOT` |
 | Default port | `8081` |
 | Actuator port | `9081` |

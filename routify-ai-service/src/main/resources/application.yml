@@ -235,7 +235,7 @@ routify:
 
 logging:
   level:
-    gr.routify: DEBUG
+    io.routify: DEBUG
     org.springframework.ai: INFO
     org.springframework.ai.openai: DEBUG   # verbose OpenAI HTTP for local dev (disable in prod)
     org.springframework.kafka: WARN

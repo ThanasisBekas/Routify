@@ -185,9 +185,9 @@ auth:
 
 logging:
   level:
-    gr.routify: DEBUG
-    gr.routify.gateway.certificate: INFO
-    gr.routify.gateway.downstream: INFO
+    io.routify: DEBUG
+    io.routify.gateway.certificate: INFO
+    io.routify.gateway.downstream: INFO
     org.springframework.cloud.gateway: INFO
     org.springframework.cloud.gateway.filter.ratelimit: DEBUG
     org.springframework.cloud.gateway.filter.factory.RequestRateLimiterGatewayFilterFactory: DEBUG

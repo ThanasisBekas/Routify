@@ -16,7 +16,7 @@ Authentication and identity management service for the Routify platform.
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-identity-service` |
+| Artifact | `io.routify:routify-identity-service` |
 | Version | `1.0.2-SNAPSHOT` |
 | Default port | `8083` |
 | Actuator port | `9083` |

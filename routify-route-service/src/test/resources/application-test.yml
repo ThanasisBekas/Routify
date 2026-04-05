@@ -47,7 +47,7 @@ server:
 # ─── Logging ───────────────────────────────────────────────────────────────────
 logging:
   level:
-    gr.routify: DEBUG
+    io.routify: DEBUG
     org.testcontainers: INFO
     org.springframework.kafka: WARN
     org.apache.kafka: WARN
