@@ -50,7 +50,7 @@
         <docker-java.version>3.7.1</docker-java.version>
 
         <!-- Override Spring Boot managed Lombok — pinned for JDK 25 compatibility -->
-        <lombok.version>1.18.38</lombok.version>
+        <lombok.version>1.18.44</lombok.version>
 
     </properties>
 
