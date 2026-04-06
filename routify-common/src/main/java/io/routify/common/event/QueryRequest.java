@@ -62,6 +62,11 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.ApiKeyCreate.class,   name = "APIKEY_CREATE"),
     @JsonSubTypes.Type(value = QueryRequest.ApiKeyRevoke.class,   name = "APIKEY_REVOKE"),
     @JsonSubTypes.Type(value = QueryRequest.ApiKeyRotate.class,   name = "APIKEY_ROTATE"),
+    // ─── routify-identity-service webhooks ─────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.WebhooksQuery.class,     name = "WEBHOOKS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.WebhookGet.class,        name = "WEBHOOK_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.WebhookDeliveries.class, name = "WEBHOOK_DELIVERIES"),
+    @JsonSubTypes.Type(value = QueryRequest.WebhookTest.class,       name = "WEBHOOK_TEST"),
     // ─── routify-audit-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AuditEventsQuery.class,  name = "AUDIT_EVENTS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AuditRequestsQuery.class,name = "AUDIT_REQUESTS_QUERY"),
@@ -113,6 +118,10 @@ public sealed interface QueryRequest
             QueryRequest.ApiKeyCreate,
             QueryRequest.ApiKeyRevoke,
             QueryRequest.ApiKeyRotate,
+            QueryRequest.WebhooksQuery,
+            QueryRequest.WebhookGet,
+            QueryRequest.WebhookDeliveries,
+            QueryRequest.WebhookTest,
             QueryRequest.AuditEventsQuery,
             QueryRequest.AuditRequestsQuery,
             QueryRequest.AuditRequestStats,
@@ -244,6 +253,20 @@ public sealed interface QueryRequest
 
     /** Rotate an API key — sync RPC because new raw key must be returned. */
     record ApiKeyRotate(UUID id, UUID tenantId, String actor) implements QueryRequest {}
+
+    // ─── Webhook queries (routify-identity-service) ────────────────────────────
+
+    /** Paginated webhook subscription list, scoped to a tenant. */
+    record WebhooksQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single webhook subscription by ID. */
+    record WebhookGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Paginated delivery log for a webhook subscription. */
+    record WebhookDeliveries(UUID subscriptionId, UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Send a test ping to a webhook subscription — sync RPC. */
+    record WebhookTest(UUID id, UUID tenantId) implements QueryRequest {}
 
     // ─── routify-audit-service ────────────────────────────────────────────────
 

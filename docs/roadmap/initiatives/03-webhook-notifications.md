@@ -64,11 +64,11 @@ CREATE INDEX idx_webhook_delivery_retry ON routify_identity.webhook_delivery(sta
 ```
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Create `WebhookSubscription` entity
-- [ ] Create `WebhookDelivery` entity
-- [ ] Create repository interfaces
-- [ ] Create `WebhookEventType` enum in `routify-common`
+- [x] Create Flyway migration
+- [x] Create `WebhookSubscription` entity
+- [x] Create `WebhookDelivery` entity
+- [x] Create repository interfaces
+- [x] Create `WebhookEventType` enum in `routify-common`
 
 ---
 
@@ -92,8 +92,8 @@ public enum WebhookEventType {
 ```
 
 **Task list:**
-- [ ] Create enum
-- [ ] Add TypeScript mirror type to `src/types/index.ts`
+- [x] Create enum
+- [x] Add TypeScript mirror type to `src/types/index.ts`
 
 ---
 
@@ -130,12 +130,12 @@ For each event:
 7. If `failureCount >= 10` → auto-suspend subscription (`status=SUSPENDED`), publish audit event.
 
 **Task list:**
-- [ ] Create `WebhookService` with CRUD for subscriptions
-- [ ] Create `WebhookEventConsumer` Kafka listener
-- [ ] Create `WebhookDispatcher` with retry logic
-- [ ] Add HTTP client bean (RestClient with 5s connect timeout, 10s read timeout)
-- [ ] Add delivery retry scheduler (`@Scheduled`, polls PENDING deliveries with `nextRetryAt <= now()`)
-- [ ] Add auto-suspend logic
+- [x] Create `WebhookService` with CRUD for subscriptions
+- [x] Create `WebhookEventConsumer` Kafka listener
+- [x] Create `WebhookDispatcher` with retry logic
+- [x] Add HTTP client bean (RestClient with 5s connect timeout, 10s read timeout)
+- [x] Add delivery retry scheduler (`@Scheduled`, polls PENDING deliveries with `nextRetryAt <= now()`)
+- [x] Add auto-suspend logic
 
 ---
 
@@ -164,10 +164,10 @@ record DeleteWebhook(UUID commandId, UUID tenantId, UUID webhookId,
 ```
 
 **Task list:**
-- [ ] Add RabbitTopology constants
-- [ ] Add CommandEvent records
-- [ ] Add QueryRequest/QueryResponse records
-- [ ] Add Kafka topic constant if using dedicated topic (or reuse USER_COMMANDS)
+- [x] Add RabbitTopology constants
+- [x] Add CommandEvent records
+- [x] Add QueryRequest/QueryResponse records
+- [x] Add Kafka topic constant if using dedicated topic (or reuse USER_COMMANDS)
 
 ---
 
@@ -188,10 +188,10 @@ record DeleteWebhook(UUID commandId, UUID tenantId, UUID webhookId,
 | `GET` | `/api/v1/admin/webhooks/{id}/deliveries` | Delivery log (paginated) |
 
 **Task list:**
-- [ ] Create controller
-- [ ] Wire RabbitMQ queries and Kafka commands
-- [ ] Add Resilience4j wrapping
-- [ ] Add test-ping endpoint (sync RPC → identity-service dispatches test event)
+- [x] Create controller
+- [x] Wire RabbitMQ queries and Kafka commands
+- [x] Add Resilience4j wrapping
+- [x] Add test-ping endpoint (sync RPC → identity-service dispatches test event)
 
 ---
 
@@ -211,14 +211,14 @@ record DeleteWebhook(UUID commandId, UUID tenantId, UUID webhookId,
 - Retry button on failed deliveries.
 
 **Task list:**
-- [ ] Create `webhooksApi.ts`
-- [ ] Add TypeScript types (`WebhookSubscriptionDto`, `WebhookDeliveryDto`, `CreateWebhookRequest`)
-- [ ] Create list page
-- [ ] Create form modal with event type checkboxes
-- [ ] Create delivery log component
-- [ ] Add route in React Router
-- [ ] Add sidebar navigation entry
-- [ ] Add MSW mock handlers
+- [x] Create `webhooksApi.ts`
+- [x] Add TypeScript types (`WebhookSubscriptionDto`, `WebhookDeliveryDto`, `CreateWebhookRequest`)
+- [x] Create list page
+- [x] Create form modal with event type checkboxes
+- [x] Create delivery log component
+- [x] Add route in React Router
+- [x] Add sidebar navigation entry
+- [x] Add MSW mock handlers
 
 ---
 
@@ -230,18 +230,17 @@ record DeleteWebhook(UUID commandId, UUID tenantId, UUID webhookId,
 - Configurable via `routify.webhooks.delivery-retention-days: 7`.
 
 **Task list:**
-- [ ] Add scheduled cleanup method to `WebhookService` or a new scheduler
-- [ ] Add retention config property
+- [x] Add scheduled cleanup method to `WebhookService` or a new scheduler
+- [x] Add retention config property
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Tenant admin can create a webhook subscription for `ROUTE_ACTIVATED` events
-- [ ] When a route is activated, the registered URL receives a POST within 5 seconds
-- [ ] The POST includes a valid `X-Routify-Signature` header verifiable with the subscription secret
-- [ ] Failed deliveries are retried up to 3 times with exponential backoff
-- [ ] Subscriptions with 10+ consecutive failures are auto-suspended
-- [ ] Test ping from the dashboard returns success/failure inline
-- [ ] Delivery log shows attempt history with response codes
-
+- [x] Tenant admin can create a webhook subscription for `ROUTE_ACTIVATED` events
+- [x] When a route is activated, the registered URL receives a POST within 5 seconds
+- [x] The POST includes a valid `X-Routify-Signature` header verifiable with the subscription secret
+- [x] Failed deliveries are retried up to 3 times with exponential backoff
+- [x] Subscriptions with 10+ consecutive failures are auto-suspended
+- [x] Test ping from the dashboard returns success/failure inline
+- [x] Delivery log shows attempt history with response codes

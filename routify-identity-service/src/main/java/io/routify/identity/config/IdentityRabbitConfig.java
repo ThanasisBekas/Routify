@@ -106,6 +106,28 @@ public class IdentityRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_ROTATE).build();
     }
 
+    // ─── Webhook Queues ────────────────────────────────────────────────────────
+
+    @Bean
+    public Queue webhooksQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_WEBHOOKS_QUERY).build();
+    }
+
+    @Bean
+    public Queue webhooksGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_WEBHOOKS_GET).build();
+    }
+
+    @Bean
+    public Queue webhooksDeliveriesQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_WEBHOOKS_DELIVERIES).build();
+    }
+
+    @Bean
+    public Queue webhooksTestQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_WEBHOOKS_TEST).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -198,6 +220,32 @@ public class IdentityRabbitConfig {
     public Binding apiKeysRotateBinding(Queue apiKeysRotateQueue, DirectExchange identityServiceExchange) {
         return BindingBuilder.bind(apiKeysRotateQueue)
                 .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_ROTATE);
+    }
+
+    // ─── Webhook Bindings ─────────────────────────────────────────────────────
+
+    @Bean
+    public Binding webhooksQueryBinding(Queue webhooksQueryQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(webhooksQueryQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_QUERY);
+    }
+
+    @Bean
+    public Binding webhooksGetBinding(Queue webhooksGetQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(webhooksGetQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_GET);
+    }
+
+    @Bean
+    public Binding webhooksDeliveriesBinding(Queue webhooksDeliveriesQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(webhooksDeliveriesQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_DELIVERIES);
+    }
+
+    @Bean
+    public Binding webhooksTestBinding(Queue webhooksTestQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(webhooksTestQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_TEST);
     }
 
     // ─── Message converter & template ─────────────────────────────────────────

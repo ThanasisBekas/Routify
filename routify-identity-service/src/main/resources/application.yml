@@ -108,6 +108,9 @@ routify:
     # The seeded account is always flagged must_change_password=true.
     admin-password: ${ADMIN_INITIAL_PASSWORD:}
 
+  webhooks:
+    delivery-retention-days: ${WEBHOOK_RETENTION_DAYS:7}
+
   # ─── Startup secret validation ────────────────────────────────────────────────
   # SecretValidator (registered in RoutifyIdentityServiceApplication) checks these
   # keys are non-blank before the application context finishes loading.
