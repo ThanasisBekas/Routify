@@ -54,7 +54,7 @@ jobs:
     steps:
       # Always commit to develop — env files live there regardless of source branch
       - name: Checkout develop
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: develop
           fetch-depth: 1
