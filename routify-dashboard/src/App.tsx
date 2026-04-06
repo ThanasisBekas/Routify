@@ -27,6 +27,7 @@ const CertVaultPage = lazy(() => import('./modules/certificates/CertVaultPage'))
 const WorkspacesPage = lazy(() => import('./modules/workspaces/WorkspacesPage'))
 const ApiKeysPage = lazy(() => import('./modules/api-keys/ApiKeysPage'))
 const WebhooksPage = lazy(() => import('./modules/webhooks/WebhooksPage'))
+const RolesPage = lazy(() => import('./modules/roles/RolesPage'))
 
 /** Minimal full-screen spinner shown while a lazy chunk is loading. */
 function PageLoader() {
@@ -192,6 +193,18 @@ function AppRoutes() {
             <ErrorBoundary label="Webhooks">
               <Suspense fallback={<PageLoader />}>
                 <WebhooksPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* Roles & Permissions */}
+        <Route
+          path="roles"
+          element={
+            <ErrorBoundary label="Roles">
+              <Suspense fallback={<PageLoader />}>
+                <RolesPage />
               </Suspense>
             </ErrorBoundary>
           }

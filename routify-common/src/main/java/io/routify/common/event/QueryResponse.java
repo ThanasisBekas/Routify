@@ -67,6 +67,9 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.WebhookDetail.class,       name = "WEBHOOK_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.WebhookDeliveriesPage.class, name = "WEBHOOK_DELIVERIES_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.WebhookTestResult.class,   name = "WEBHOOK_TEST_RESULT"),
+    // ─── routify-identity-service roles ──────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.RolesPage.class,           name = "ROLES_PAGE"),
+    @JsonSubTypes.Type(value = QueryResponse.RoleDetail.class,          name = "ROLE_DETAIL"),
     // ─── routify-audit-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.AuditEventsPage.class,      name = "AUDIT_EVENTS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.RequestLogsPage.class,      name = "REQUEST_LOGS_PAGE"),
@@ -115,6 +118,8 @@ public sealed interface QueryResponse
             QueryResponse.WebhookDetail,
             QueryResponse.WebhookDeliveriesPage,
             QueryResponse.WebhookTestResult,
+            QueryResponse.RolesPage,
+            QueryResponse.RoleDetail,
             QueryResponse.AuditEventsPage,
             QueryResponse.RequestLogsPage,
             QueryResponse.RequestStatsResult,
@@ -303,7 +308,8 @@ public sealed interface QueryResponse
                 String username,
                 String email,
                 UserRole role,
-                boolean mustChangePassword
+                boolean mustChangePassword,
+                List<String> permissions
         ) {}
     }
 
@@ -328,7 +334,10 @@ public sealed interface QueryResponse
                 String status,
                 boolean mustChangePassword,
                 Instant lastLoginAt,
-                Instant createdAt
+                Instant createdAt,
+                UUID roleId,
+                String roleName,
+                List<String> permissions
         ) {}
     }
 
@@ -342,7 +351,10 @@ public sealed interface QueryResponse
             String status,
             boolean mustChangePassword,
             Instant lastLoginAt,
-            Instant createdAt
+            Instant createdAt,
+            UUID roleId,
+            String roleName,
+            List<String> permissions
     ) implements QueryResponse {}
 
     /** Paginated list of tenants. */
@@ -506,6 +518,39 @@ public sealed interface QueryResponse
             boolean success,
             Integer responseStatus,
             String message
+    ) implements QueryResponse {}
+
+    // ─── Role responses ──────────────────────────────────────────────────────
+
+    /** Paginated list of role definitions. */
+    record RolesPage(
+            List<RoleSummary> content,
+            long totalElements,
+            int totalPages,
+            int page,
+            int size
+    ) implements QueryResponse {
+
+        public record RoleSummary(
+                UUID id,
+                UUID tenantId,
+                String name,
+                String description,
+                boolean builtIn,
+                List<String> permissions,
+                Instant createdAt
+        ) {}
+    }
+
+    /** Full detail of a single role definition with permissions. */
+    record RoleDetail(
+            UUID id,
+            UUID tenantId,
+            String name,
+            String description,
+            boolean builtIn,
+            List<String> permissions,
+            Instant createdAt
     ) implements QueryResponse {}
 
     // ═══════════════════════════════════════════════════════════════════════════

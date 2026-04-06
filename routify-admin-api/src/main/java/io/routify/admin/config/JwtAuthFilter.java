@@ -78,9 +78,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             // Set Spring Security authentication
             String role = getClaimOrEmpty(claims, "role");
-            var authorities = role.isEmpty()
-                    ? Collections.<SimpleGrantedAuthority>emptyList()
-                    : List.of(new SimpleGrantedAuthority("ROLE_" + role));
+            List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+
+            // Always add the ROLE_<role> authority for backward compat
+            if (!role.isEmpty()) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+            }
+
+            // Granular RBAC: parse permissions claim and add as authorities
+            @SuppressWarnings("unchecked")
+            List<String> permissions = claims.get("permissions", List.class);
+            if (permissions != null && !permissions.isEmpty()) {
+                for (String perm : permissions) {
+                    authorities.add(new SimpleGrantedAuthority(perm));
+                }
+            }
+
             var auth = new UsernamePasswordAuthenticationToken(
                     claims.getSubject(), null, authorities);
             auth.setDetails(claims);

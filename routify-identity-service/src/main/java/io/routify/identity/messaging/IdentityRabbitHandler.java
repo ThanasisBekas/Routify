@@ -8,12 +8,14 @@ import io.routify.common.event.RabbitTopology;
 import io.routify.common.exception.RoutifyException;
 import io.routify.identity.domain.AppUser;
 import io.routify.identity.domain.ApiKey;
+import io.routify.identity.domain.RoleDefinition;
 import io.routify.identity.domain.Tenant;
 import io.routify.identity.domain.WebhookDelivery;
 import io.routify.identity.domain.WebhookSubscription;
 import io.routify.identity.dto.AuthDto;
 import io.routify.identity.service.ApiKeyService;
 import io.routify.identity.service.AuthService;
+import io.routify.identity.service.RoleService;
 import io.routify.identity.service.TenantService;
 import io.routify.identity.service.UserService;
 import io.routify.identity.service.WebhookDispatcher;
@@ -27,6 +29,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.HashSet;
 
 /**
  * RabbitMQ request/reply handler for routify-identity-service.
@@ -46,6 +49,7 @@ public class IdentityRabbitHandler {
     private final ApiKeyService apiKeyService;
     private final WebhookService webhookService;
     private final WebhookDispatcher webhookDispatcher;
+    private final RoleService roleService;
 
     // ─── Auth ─────────────────────────────────────────────────────────────────
 
@@ -333,14 +337,69 @@ public class IdentityRabbitHandler {
         }
     }
 
+    // ─── Role Queries ──────────────────────────────────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ROLES_QUERY)
+    public QueryResponse.RolesPage handleRolesQuery(QueryRequest.RolesQuery req) {
+        log.debug("RabbitMQ: received roles.query request");
+        try {
+            var result = roleService.findAllForTenant(req.tenantId(),
+                    PageRequest.of(req.page(), req.size()));
+            var content = result.getContent().stream().map(this::toRoleSummary).toList();
+            return new QueryResponse.RolesPage(content, result.getTotalElements(),
+                    result.getTotalPages(), result.getNumber(), result.getSize());
+        } catch (RoutifyException e) {
+            log.warn("roles.query rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ROLES_GET)
+    public QueryResponse.RoleDetail handleRoleGet(QueryRequest.RoleGet req) {
+        log.debug("RabbitMQ: received roles.get request");
+        try {
+            return toRoleDetail(roleService.findById(req.id()));
+        } catch (RoutifyException e) {
+            log.warn("roles.get rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ROLES_COMMAND)
+    public QueryResponse.RoleDetail handleRoleCommand(CommandEvent command) {
+        log.info("RabbitMQ: received roles.command request");
+        try {
+            RoleDefinition result = switch (command) {
+                case CommandEvent.CreateRole c ->
+                        roleService.create(c.tenantId(), c.name(), c.description(),
+                                c.permissions() != null ? new HashSet<>(c.permissions()) : new HashSet<>());
+                case CommandEvent.UpdateRole c ->
+                        roleService.update(c.roleId(), c.name(), c.description(),
+                                c.permissions() != null ? new HashSet<>(c.permissions()) : null);
+                case CommandEvent.DeleteRole c -> {
+                    roleService.delete(c.roleId());
+                    yield null;
+                }
+                default -> throw new IllegalArgumentException(
+                        "Unexpected command type: " + command.getClass().getSimpleName());
+            };
+            return result != null ? toRoleDetail(result) : null;
+        } catch (RoutifyException e) {
+            log.warn("roles.command rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private QueryResponse.LoginResult toLoginResult(AuthDto.LoginResponse r) {
         QueryResponse.LoginResult.UserInfo user = null;
         if (r.user() != null) {
+            List<String> permissions = resolveUserPermissions(r.user().role());
             user = new QueryResponse.LoginResult.UserInfo(
                     r.user().id(), r.user().tenantId(), r.user().username(),
-                    r.user().email(), r.user().role(), r.user().mustChangePassword());
+                    r.user().email(), r.user().role(), r.user().mustChangePassword(),
+                    permissions);
         }
         return new QueryResponse.LoginResult(
                 r.accessToken(), r.refreshToken(), r.tokenType(),
@@ -348,17 +407,33 @@ public class IdentityRabbitHandler {
     }
 
     private QueryResponse.UsersPage.UserSummary toUserSummary(AppUser u) {
+        RoleDefinition rd = u.getRoleDefinition();
         return new QueryResponse.UsersPage.UserSummary(
                 u.getId(), u.getTenantId(), u.getUsername(), u.getEmail(),
                 u.getRole(), u.getStatus().name(), u.isMustChangePassword(),
-                u.getLastLoginAt(), u.getCreatedAt());
+                u.getLastLoginAt(), u.getCreatedAt(),
+                rd != null ? rd.getId() : null,
+                rd != null ? rd.getName() : u.getRole().name(),
+                rd != null ? List.copyOf(rd.getPermissions()) : List.of());
     }
 
     private QueryResponse.UserDetail toUserDetail(AppUser u) {
+        RoleDefinition rd = u.getRoleDefinition();
         return new QueryResponse.UserDetail(
                 u.getId(), u.getTenantId(), u.getUsername(), u.getEmail(),
                 u.getRole(), u.getStatus().name(), u.isMustChangePassword(),
-                u.getLastLoginAt(), u.getCreatedAt());
+                u.getLastLoginAt(), u.getCreatedAt(),
+                rd != null ? rd.getId() : null,
+                rd != null ? rd.getName() : u.getRole().name(),
+                rd != null ? List.copyOf(rd.getPermissions()) : List.of());
+    }
+
+    private List<String> resolveUserPermissions(io.routify.common.domain.UserRole role) {
+        try {
+            return roleService.getPermissionsForRole(role, null);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     private QueryResponse.TenantsPage.TenantSummary toTenantSummary(Tenant t) {
@@ -409,5 +484,17 @@ public class IdentityRabbitHandler {
                 d.getPayload(), d.getResponseStatus(), d.getResponseBody(),
                 d.getAttempt(), d.getStatus().name(), d.getDeliveredAt(),
                 d.getNextRetryAt(), d.getErrorMessage(), d.getCreatedAt());
+    }
+
+    private QueryResponse.RolesPage.RoleSummary toRoleSummary(RoleDefinition r) {
+        return new QueryResponse.RolesPage.RoleSummary(
+                r.getId(), r.getTenantId(), r.getName(), r.getDescription(),
+                r.isBuiltIn(), List.copyOf(r.getPermissions()), r.getCreatedAt());
+    }
+
+    private QueryResponse.RoleDetail toRoleDetail(RoleDefinition r) {
+        return new QueryResponse.RoleDetail(
+                r.getId(), r.getTenantId(), r.getName(), r.getDescription(),
+                r.isBuiltIn(), List.copyOf(r.getPermissions()), r.getCreatedAt());
     }
 }

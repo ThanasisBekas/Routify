@@ -31,13 +31,79 @@ export interface ApiError {
 
 export type UserRole = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'VIEWER' | 'OPERATOR'
 
+/** Fine-grained RBAC permission constants — mirrors `io.routify.common.domain.Permission`. */
+export type Permission =
+  | 'ROUTES_READ' | 'ROUTES_WRITE' | 'ROUTES_ACTIVATE' | 'ROUTES_DELETE' | 'ROUTES_PROMOTE'
+  | 'FILTERS_READ' | 'FILTERS_WRITE' | 'FILTERS_DELETE'
+  | 'USERS_READ' | 'USERS_WRITE' | 'USERS_DELETE'
+  | 'CERTS_READ' | 'CERTS_WRITE' | 'CERTS_ADMIN'
+  | 'AUDIT_READ' | 'AUDIT_REPLAY'
+  | 'GATEWAY_CONFIG_READ' | 'GATEWAY_CONFIG_WRITE'
+  | 'API_KEYS_READ' | 'API_KEYS_ADMIN'
+  | 'WEBHOOKS_READ' | 'WEBHOOKS_ADMIN'
+  | 'AI_POLICY_READ' | 'AI_POLICY_WRITE'
+  | 'TENANTS_READ' | 'TENANTS_WRITE' | 'TENANTS_SUSPEND'
+
+/** All available permissions — useful for form builders. */
+export const ALL_PERMISSIONS: Permission[] = [
+  'ROUTES_READ', 'ROUTES_WRITE', 'ROUTES_ACTIVATE', 'ROUTES_DELETE', 'ROUTES_PROMOTE',
+  'FILTERS_READ', 'FILTERS_WRITE', 'FILTERS_DELETE',
+  'USERS_READ', 'USERS_WRITE', 'USERS_DELETE',
+  'CERTS_READ', 'CERTS_WRITE', 'CERTS_ADMIN',
+  'AUDIT_READ', 'AUDIT_REPLAY',
+  'GATEWAY_CONFIG_READ', 'GATEWAY_CONFIG_WRITE',
+  'API_KEYS_READ', 'API_KEYS_ADMIN',
+  'WEBHOOKS_READ', 'WEBHOOKS_ADMIN',
+  'AI_POLICY_READ', 'AI_POLICY_WRITE',
+  'TENANTS_READ', 'TENANTS_WRITE', 'TENANTS_SUSPEND',
+]
+
+/** Groups permissions by resource type for form builders. */
+export const PERMISSION_GROUPS: Record<string, Permission[]> = {
+  Routes: ['ROUTES_READ', 'ROUTES_WRITE', 'ROUTES_ACTIVATE', 'ROUTES_DELETE', 'ROUTES_PROMOTE'],
+  Filters: ['FILTERS_READ', 'FILTERS_WRITE', 'FILTERS_DELETE'],
+  Users: ['USERS_READ', 'USERS_WRITE', 'USERS_DELETE'],
+  Certificates: ['CERTS_READ', 'CERTS_WRITE', 'CERTS_ADMIN'],
+  Audit: ['AUDIT_READ', 'AUDIT_REPLAY'],
+  'Gateway Config': ['GATEWAY_CONFIG_READ', 'GATEWAY_CONFIG_WRITE'],
+  'API Keys': ['API_KEYS_READ', 'API_KEYS_ADMIN'],
+  Webhooks: ['WEBHOOKS_READ', 'WEBHOOKS_ADMIN'],
+  AI: ['AI_POLICY_READ', 'AI_POLICY_WRITE'],
+  Tenants: ['TENANTS_READ', 'TENANTS_WRITE', 'TENANTS_SUSPEND'],
+}
+
 export interface UserInfo {
   id: string
   tenantId: string
   username: string
   email: string
   role: UserRole
+  permissions?: Permission[]
   mustChangePassword?: boolean
+}
+
+// ─── Roles & RBAC ────────────────────────────────────────────────────────────
+
+export interface RoleDefinitionDto {
+  id: string
+  tenantId?: string
+  name: string
+  description?: string
+  builtIn: boolean
+  permissions: Permission[]
+  createdAt: string
+}
+
+export interface CreateRoleRequest {
+  name: string
+  description?: string
+  permissions: Permission[]
+}
+
+export interface UpdateRoleRequest {
+  name?: string
+  description?: string
+  permissions?: Permission[]
 }
 
 export interface LoginResponse {
@@ -334,6 +400,9 @@ export interface UserDto {
   mustChangePassword?: boolean
   lastLoginAt?: string
   createdAt: string
+  roleId?: string
+  roleName?: string
+  permissions?: Permission[]
 }
 
 export interface CreateUserRequest {

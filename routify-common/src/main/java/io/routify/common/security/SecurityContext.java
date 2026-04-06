@@ -1,7 +1,9 @@
 package io.routify.common.security;
 
+import io.routify.common.domain.Permission;
 import org.slf4j.MDC;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -12,6 +14,7 @@ import java.util.UUID;
  * <pre>{@code
  * var ctx = SecurityContext.current();
  * if (ctx.hasRole(UserRole.TENANT_ADMIN)) { ... }
+ * if (ctx.hasPermission(Permission.ROUTES_WRITE)) { ... }
  * }</pre>
  *
  * <h2>MDC enrichment</h2>
@@ -25,7 +28,8 @@ public record SecurityContext(
         UUID tenantId,
         String username,
         String role,
-        String correlationId
+        String correlationId,
+        Set<String> permissions
 ) {
     /** MDC key for the authenticated user ID. */
     public static final String MDC_USER_ID = "userId";
@@ -33,6 +37,23 @@ public record SecurityContext(
     public static final String MDC_TENANT_ID = "tenantId";
     /** MDC key for the correlation / trace ID. */
     public static final String MDC_CORRELATION_ID = "correlationId";
+
+    /**
+     * Compact constructor — defaults {@code permissions} to an empty set when null.
+     * Provides backward compatibility for callers that don't supply permissions.
+     */
+    public SecurityContext {
+        if (permissions == null) {
+            permissions = Set.of();
+        }
+    }
+
+    /**
+     * Backward-compatible constructor without permissions parameter.
+     */
+    public SecurityContext(UUID userId, UUID tenantId, String username, String role, String correlationId) {
+        this(userId, tenantId, username, role, correlationId, Set.of());
+    }
 
     private static final ThreadLocal<SecurityContext> HOLDER = new ThreadLocal<>();
 
@@ -95,6 +116,26 @@ public record SecurityContext(
 
     public boolean isTenantAdmin() {
         return "TENANT_ADMIN".equalsIgnoreCase(this.role) || isSuperAdmin();
+    }
+
+    /**
+     * Checks whether this security context includes the given permission.
+     *
+     * @param permission the permission to check
+     * @return {@code true} if the permission is present in the JWT claims
+     */
+    public boolean hasPermission(Permission permission) {
+        return permissions != null && permissions.contains(permission.name());
+    }
+
+    /**
+     * Checks whether this security context includes the given permission by code string.
+     *
+     * @param permissionCode the permission code to check (e.g. "ROUTES_READ")
+     * @return {@code true} if the permission is present
+     */
+    public boolean hasPermission(String permissionCode) {
+        return permissions != null && permissions.contains(permissionCode);
     }
 }
 

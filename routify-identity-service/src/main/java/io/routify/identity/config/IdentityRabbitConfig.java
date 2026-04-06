@@ -248,6 +248,43 @@ public class IdentityRabbitConfig {
                 .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_TEST);
     }
 
+    // ─── Role Queues ─────────────────────────────────────────────────────────
+
+    @Bean
+    public Queue rolesQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROLES_QUERY).build();
+    }
+
+    @Bean
+    public Queue rolesGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROLES_GET).build();
+    }
+
+    @Bean
+    public Queue rolesCommandQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROLES_COMMAND).build();
+    }
+
+    // ─── Role Bindings ──────────────────────────────────────────────────────
+
+    @Bean
+    public Binding rolesQueryBinding(Queue rolesQueryQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(rolesQueryQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_ROLES_QUERY);
+    }
+
+    @Bean
+    public Binding rolesGetBinding(Queue rolesGetQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(rolesGetQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_ROLES_GET);
+    }
+
+    @Bean
+    public Binding rolesCommandBinding(Queue rolesCommandQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(rolesCommandQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_ROLES_COMMAND);
+    }
+
     // ─── Message converter & template ─────────────────────────────────────────
 
     /**

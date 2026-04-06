@@ -59,7 +59,7 @@ public class AdminAiFilterController {
      * @return the LLM's verdict (action, reason, confidence) for the sample request
      */
     @PostMapping("/test-policy")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('AI_POLICY_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<QueryResponse.AiFilterVerdict> testPolicy(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody TestPolicyRequest request) {
