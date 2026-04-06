@@ -204,7 +204,7 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose
 docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml up -d
 ```
 
-> **JDK 25 compatibility shim:** The project root contains compiled class overrides at `org/springframework/kafka/listener/` (`DefaultErrorHandler.class`, `ExceptionClassifier.class`, `FailedRecordProcessor.class`). These patch Spring Kafka for JDK 25 sealed-class compatibility. Do not delete these files — the classpath loads them before the JAR-packaged originals.
+> **JDK 25 compatibility:** Spring Kafka sealed-class compatibility with JDK 25 is resolved in the current dependency set (Boot 3.5.13). The compiled class overrides (`org/springframework/kafka/listener/`) that previously patched Spring Kafka have been removed — they are no longer needed.
 
 ## Environment / Secrets
 

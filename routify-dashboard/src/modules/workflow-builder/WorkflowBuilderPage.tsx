@@ -197,7 +197,7 @@ export default function WorkflowBuilderPage() {
   const sc = STATUS_CFG[route.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.DRAFT
 
   return (
-    <div className="flex flex-col h-full bg-[#080a0f] animate-fade-in">
+    <div className="flex flex-col h-full bg-[#080a0f] animate-fade-in overflow-hidden">
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] bg-[#0d0f14] shrink-0">
         {/* Left: back + route identity */}

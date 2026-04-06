@@ -55,9 +55,9 @@ import { extractApiError } from '../../../lib/utils'
 // ─── Auto-spacing: collision avoidance for dropped nodes ──────────────────────
 
 /** Approximate bounding box dimensions for canvas nodes (generous to avoid visual overlap) */
-const NODE_WIDTH = 240
-const NODE_HEIGHT = 120
-const SPACING = 20
+const NODE_WIDTH = 260
+const NODE_HEIGHT = 130
+const SPACING = 40
 
 /**
  * Returns a position that does not overlap any existing node on the canvas.
@@ -507,7 +507,7 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
 
   const onInit = useCallback((instance: ReactFlowInstance) => {
     rfInstance.current = instance
-    setTimeout(() => instance.fitView({ padding: 0.14, duration: 400 }), 80)
+    setTimeout(() => instance.fitView({ padding: 0.2, duration: 400 }), 80)
   }, [])
 
   // ── Validation ────────────────────────────────────────────────────────────
@@ -521,88 +521,96 @@ export default function WorkflowCanvas({ route }: WorkflowCanvasProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className={cn('relative flex-1 h-full bg-[#080a0f]', isLocked && 'opacity-75 cursor-not-allowed select-none')}>
-      {/* Lock overlay — intercepts all pointer events when active */}
-      {isLocked && (
-        <div
-          className="absolute inset-0 z-10 cursor-not-allowed"
-          title="Route is active — pause it to make changes"
-          onDragOver={(e) => {
-            e.preventDefault()
-            e.dataTransfer.dropEffect = 'none'
-          }}
-          onDrop={(e) => e.preventDefault()}
-        />
+    <div
+      className={cn(
+        'relative flex-1 min-h-0 overflow-hidden bg-[#080a0f]',
+        isLocked && 'opacity-75 cursor-not-allowed select-none',
       )}
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={NODE_TYPES}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={isLocked ? undefined : onConnect}
-        onNodeClick={onNodeClick}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onInit={onInit}
-        fitView
-        fitViewOptions={{ padding: 0.14 }}
-        minZoom={0.1}
-        maxZoom={2}
-        deleteKeyCode={isLocked ? null : ['Delete', 'Backspace']}
-        nodesConnectable={!isLocked}
-        nodesDraggable={!isLocked}
-        proOptions={{ hideAttribution: true }}
-        className="bg-[#080a0f]"
-        connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2, strokeDasharray: '6 3' }}
-        defaultEdgeOptions={{ type: 'smoothstep' }}
-      >
-        {/* Dot-grid background */}
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
-
-        {/* Zoom / pan controls */}
-        <Controls className="!bg-[#111318] !border-white/10 !rounded-xl !shadow-xl" showInteractive={false} />
-
-        {/* Overview minimap */}
-        <MiniMap
-          className="!bg-[#0d0f14] !border-white/10 !rounded-xl"
-          nodeColor="#1e2030"
-          maskColor="rgba(0,0,0,0.4)"
-        />
-
-        {/* Validation banner — top-right */}
-        <Panel position="top-right" className="flex items-center gap-2 pr-2 pt-2">
-          <ValidationBanner valid={valid} />
-        </Panel>
-
-        {/* Delete selected node button — top-left (hidden when locked) */}
-        {canDeleteSelected && (
-          <Panel position="top-left" className="pl-2 pt-2">
-            <button
-              onClick={deleteSelectedNode}
-              disabled={detachMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 bg-red-400/10 border border-red-400/20 hover:bg-red-400/20 disabled:opacity-50 transition-all shadow"
-              title="Delete selected node (or press Delete)"
-            >
-              {detachMutation.isPending ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="w-3.5 h-3.5" />
-              )}
-              Remove Node
-            </button>
-          </Panel>
+    >
+      {/* Absolute wrapper gives React Flow an explicit width & height (fixes xyflow #004) */}
+      <div className="absolute inset-0">
+        {/* Lock overlay — intercepts all pointer events when active */}
+        {isLocked && (
+          <div
+            className="absolute inset-0 z-10 cursor-not-allowed"
+            title="Route is active — pause it to make changes"
+            onDragOver={(e) => {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'none'
+            }}
+            onDrop={(e) => e.preventDefault()}
+          />
         )}
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_TYPES}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={isLocked ? undefined : onConnect}
+          onNodeClick={onNodeClick}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onInit={onInit}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.1}
+          maxZoom={2}
+          deleteKeyCode={isLocked ? null : ['Delete', 'Backspace']}
+          nodesConnectable={!isLocked}
+          nodesDraggable={!isLocked}
+          proOptions={{ hideAttribution: true }}
+          className="bg-[#080a0f]"
+          connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2, strokeDasharray: '6 3' }}
+          defaultEdgeOptions={{ type: 'smoothstep' }}
+        >
+          {/* Dot-grid background */}
+          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
 
-        {/* Usage hint — bottom-centre */}
-        <Panel position="bottom-center">
-          <div className="text-[10px] text-gray-700 bg-[#080a0f]/80 px-3 py-1 rounded-full border border-white/[0.04]">
-            {isLocked
-              ? '🔒 Read-only — pause the route to make changes'
-              : 'Drag nodes from the palette · Click to configure · Connect handles · Delete / Backspace to remove'}
-          </div>
-        </Panel>
-      </ReactFlow>
+          {/* Zoom / pan controls */}
+          <Controls className="!bg-[#111318] !border-white/10 !rounded-xl !shadow-xl" showInteractive={false} />
+
+          {/* Overview minimap */}
+          <MiniMap
+            className="!bg-[#0d0f14] !border-white/10 !rounded-xl"
+            nodeColor="#1e2030"
+            maskColor="rgba(0,0,0,0.4)"
+          />
+
+          {/* Validation banner — top-right */}
+          <Panel position="top-right" className="flex items-center gap-2 pr-2 pt-2">
+            <ValidationBanner valid={valid} />
+          </Panel>
+
+          {/* Delete selected node button — top-left (hidden when locked) */}
+          {canDeleteSelected && (
+            <Panel position="top-left" className="pl-2 pt-2">
+              <button
+                onClick={deleteSelectedNode}
+                disabled={detachMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 bg-red-400/10 border border-red-400/20 hover:bg-red-400/20 disabled:opacity-50 transition-all shadow"
+                title="Delete selected node (or press Delete)"
+              >
+                {detachMutation.isPending ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                Remove Node
+              </button>
+            </Panel>
+          )}
+
+          {/* Usage hint — bottom-centre */}
+          <Panel position="bottom-center">
+            <div className="text-[10px] text-gray-700 bg-[#080a0f]/80 px-3 py-1 rounded-full border border-white/[0.04]">
+              {isLocked
+                ? '🔒 Read-only — pause the route to make changes'
+                : 'Drag nodes from the palette · Click to configure · Connect handles · Delete / Backspace to remove'}
+            </div>
+          </Panel>
+        </ReactFlow>
+      </div>
 
       {/* Properties Drawer */}
       <PropertiesDrawer route={route} />

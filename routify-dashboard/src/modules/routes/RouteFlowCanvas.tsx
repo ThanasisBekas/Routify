@@ -641,55 +641,60 @@ export default function RouteFlowCanvas({ route, height = 480, onValidityChange 
   }, [valid, onValidityChange])
 
   const onInit = useCallback(
-    (i: ReactFlowInstance) => setTimeout(() => i.fitView({ padding: 0.14, duration: 400 }), 50),
+    (i: ReactFlowInstance) => setTimeout(() => i.fitView({ padding: 0.2, duration: 400 }), 50),
     [],
   )
 
   return (
-    <div style={{ height }} className="w-full rounded-xl overflow-hidden border border-white/[0.06] bg-[#080a0f]">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={NODE_TYPES}
-        onInit={onInit}
-        fitView
-        fitViewOptions={{ padding: 0.14 }}
-        minZoom={0.15}
-        maxZoom={1.8}
-        deleteKeyCode={null}
-        proOptions={{ hideAttribution: true }}
-        className="bg-[#080a0f]"
-        connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
-        defaultEdgeOptions={{ type: 'smoothstep' }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
-        <Controls className="!bg-[#111318] !border-white/10 !rounded-lg !shadow-xl" showInteractive={false} />
-        <MiniMap
-          className="!bg-[#0d0f14] !border-white/10 !rounded-lg"
-          nodeColor="#1e2030"
-          maskColor="rgba(0,0,0,0.4)"
-        />
+    <div
+      style={{ height }}
+      className="relative w-full rounded-xl overflow-hidden border border-white/[0.06] bg-[#080a0f]"
+    >
+      <div className="absolute inset-0">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_TYPES}
+          onInit={onInit}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.15}
+          maxZoom={1.8}
+          deleteKeyCode={null}
+          proOptions={{ hideAttribution: true }}
+          className="bg-[#080a0f]"
+          connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
+          defaultEdgeOptions={{ type: 'smoothstep' }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
+          <Controls className="!bg-[#111318] !border-white/10 !rounded-lg !shadow-xl" showInteractive={false} />
+          <MiniMap
+            className="!bg-[#0d0f14] !border-white/10 !rounded-lg"
+            nodeColor="#1e2030"
+            maskColor="rgba(0,0,0,0.4)"
+          />
 
-        <Panel position="top-right" className="flex items-center gap-2">
-          <ValidationBanner valid={valid} />
-          {/* Filters can only be managed via the full Workflow Builder */}
-          <button
-            onClick={() => navigate(`/routes/${route.id}/builder`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-violet-500/25 transition-all"
-          >
-            <Network className="w-3.5 h-3.5" /> Edit in Builder
-          </button>
-        </Panel>
+          <Panel position="top-right" className="flex items-center gap-2">
+            <ValidationBanner valid={valid} />
+            {/* Filters can only be managed via the full Workflow Builder */}
+            <button
+              onClick={() => navigate(`/routes/${route.id}/builder`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-violet-500/25 transition-all"
+            >
+              <Network className="w-3.5 h-3.5" /> Edit in Builder
+            </button>
+          </Panel>
 
-        <Panel position="bottom-center">
-          <div className="text-[10px] text-gray-700 bg-[#080a0f]/80 px-3 py-1 rounded-full border border-white/[0.04]">
-            Preview only — use <strong className="text-gray-500">Edit in Builder</strong> to add or remove filters
-          </div>
-        </Panel>
-      </ReactFlow>
+          <Panel position="bottom-center">
+            <div className="text-[10px] text-gray-700 bg-[#080a0f]/80 px-3 py-1 rounded-full border border-white/[0.04]">
+              Preview only — use <strong className="text-gray-500">Edit in Builder</strong> to add or remove filters
+            </div>
+          </Panel>
+        </ReactFlow>
+      </div>
     </div>
   )
 }
