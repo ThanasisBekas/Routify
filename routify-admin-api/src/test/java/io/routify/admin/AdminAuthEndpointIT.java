@@ -45,7 +45,7 @@ class AdminAuthEndpointIT extends AdminApiIntegrationBase {
                 false,
                 new QueryResponse.LoginResult.UserInfo(
                         USER_ID, TENANT_ID, "admin", "admin@test.io",
-                        UserRole.SUPER_ADMIN, false));
+                        UserRole.SUPER_ADMIN, false, List.of()));
 
         mockRabbitReply(RabbitTopology.EXCHANGE_IDENTITY_SERVICE, RabbitTopology.RK_AUTH_LOGIN,
                 request -> mockLogin);
@@ -79,7 +79,7 @@ class AdminAuthEndpointIT extends AdminApiIntegrationBase {
                 false,
                 new QueryResponse.LoginResult.UserInfo(
                         USER_ID, TENANT_ID, "admin", "admin@test.io",
-                        UserRole.SUPER_ADMIN, false));
+                        UserRole.SUPER_ADMIN, false, List.of()));
 
         mockRabbitReply(RabbitTopology.EXCHANGE_IDENTITY_SERVICE, RabbitTopology.RK_AUTH_REFRESH,
                 request -> mockRefresh);
@@ -131,7 +131,8 @@ class AdminAuthEndpointIT extends AdminApiIntegrationBase {
         var mockUsers = new QueryResponse.UsersPage(
                 List.of(new QueryResponse.UsersPage.UserSummary(
                         USER_ID, TENANT_ID, "test-user", "test@test.io",
-                        UserRole.OPERATOR, "ACTIVE", false, null, null)),
+                        UserRole.OPERATOR, "ACTIVE", false, null, null,
+                        null, null, List.of())),
                 1L, 1, 0, 20);
 
         mockRabbitReply(RabbitTopology.EXCHANGE_IDENTITY_SERVICE, RabbitTopology.RK_USERS_QUERY,

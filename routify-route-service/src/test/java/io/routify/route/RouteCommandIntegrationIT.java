@@ -2,6 +2,7 @@ package io.routify.route;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.routify.common.domain.FilterType;
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.common.event.CommandEvent;
 import io.routify.common.event.KafkaTopics;
@@ -43,7 +44,7 @@ class RouteCommandIntegrationIT extends RouteServiceIntegrationBase {
                 "test-route", "A test route",
                 "/api/v1/test/**", "GET,POST",
                 "http://upstream:8080", "/api/v1",
-                Map.of("timeout", 30000)
+                Map.of("timeout", 30000), RouteEnvironment.PRODUCTION
         );
 
         sendCommand(KafkaTopics.ROUTE_COMMANDS, cmd);
@@ -91,7 +92,7 @@ class RouteCommandIntegrationIT extends RouteServiceIntegrationBase {
                 commandId, TENANT_ID, ACTOR, Instant.now(),
                 "outbox-test-route", null,
                 "/api/v1/outbox/**", "*",
-                "http://upstream:8080", null, null
+                "http://upstream:8080", null, null, RouteEnvironment.PRODUCTION
         );
 
         sendCommand(KafkaTopics.ROUTE_COMMANDS, cmd);
@@ -130,7 +131,7 @@ class RouteCommandIntegrationIT extends RouteServiceIntegrationBase {
                 createCmdId, TENANT_ID, ACTOR, Instant.now(),
                 "activate-test", null,
                 "/api/v1/activate/**", "GET",
-                "http://upstream:8080", null, null
+                "http://upstream:8080", null, null, RouteEnvironment.PRODUCTION
         );
         sendCommand(KafkaTopics.ROUTE_COMMANDS, createCmd);
 
@@ -189,7 +190,7 @@ class RouteCommandIntegrationIT extends RouteServiceIntegrationBase {
                 createCmdId, TENANT_ID, ACTOR, Instant.now(),
                 "update-me", "original desc",
                 "/api/v1/update/**", "GET",
-                "http://upstream:8080", null, null
+                "http://upstream:8080", null, null, RouteEnvironment.PRODUCTION
         );
         sendCommand(KafkaTopics.ROUTE_COMMANDS, createCmd);
 
@@ -241,7 +242,7 @@ class RouteCommandIntegrationIT extends RouteServiceIntegrationBase {
                 createCmdId, TENANT_ID, ACTOR, Instant.now(),
                 "delete-me", null,
                 "/api/v1/delete/**", "*",
-                "http://upstream:8080", null, null
+                "http://upstream:8080", null, null, RouteEnvironment.PRODUCTION
         );
         sendCommand(KafkaTopics.ROUTE_COMMANDS, createCmd);
 
@@ -288,7 +289,7 @@ class RouteCommandIntegrationIT extends RouteServiceIntegrationBase {
                 commandId, TENANT_ID, ACTOR, Instant.now(),
                 "idempotent-route", null,
                 "/api/v1/idem/**", "*",
-                "http://upstream:8080", null, null
+                "http://upstream:8080", null, null, RouteEnvironment.PRODUCTION
         );
 
         // Send the same command twice
@@ -362,7 +363,7 @@ class RouteCommandIntegrationIT extends RouteServiceIntegrationBase {
                 cmd1Id, TENANT_ID, ACTOR, Instant.now(),
                 "duplicate-name-route", null,
                 "/api/v1/dup1/**", "*",
-                "http://upstream:8080", null, null
+                "http://upstream:8080", null, null, RouteEnvironment.PRODUCTION
         );
         sendCommand(KafkaTopics.ROUTE_COMMANDS, cmd1);
 
@@ -374,7 +375,7 @@ class RouteCommandIntegrationIT extends RouteServiceIntegrationBase {
                 cmd2Id, TENANT_ID, ACTOR, Instant.now(),
                 "duplicate-name-route", null,
                 "/api/v1/dup2/**", "*",
-                "http://upstream-2:8080", null, null
+                "http://upstream-2:8080", null, null, RouteEnvironment.PRODUCTION
         );
         sendCommand(KafkaTopics.ROUTE_COMMANDS, cmd2);
 

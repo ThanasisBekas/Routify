@@ -63,6 +63,7 @@ public class OutboxEventStore {
             case DomainEvent.RouteActivated r  -> "Route";
             case DomainEvent.RouteDeactivated r-> "Route";
             case DomainEvent.RouteDeleted r    -> "Route";
+            case DomainEvent.RoutePromoted r   -> "Route";
             case DomainEvent.FilterCreated f   -> "FilterDefinition";
             case DomainEvent.FilterUpdated f   -> "FilterDefinition";
             case DomainEvent.FilterDeleted f   -> "FilterDefinition";
@@ -88,6 +89,8 @@ public class OutboxEventStore {
             case DomainEvent.CertRemovedFromGroup ignored -> "CertGroup";
             case DomainEvent.GatewayReloadRequested g -> "Gateway";
             case DomainEvent.GatewayConfigChanged g   -> "GatewayConfig";
+            case DomainEvent.ApiKeyCreated ignored     -> "ApiKey";
+            case DomainEvent.ApiKeyRevoked ignored     -> "ApiKey";
             case DomainEvent.Unknown unknown -> "Unknown";
         };
     }
@@ -100,6 +103,7 @@ public class OutboxEventStore {
             case DomainEvent.RouteActivated r  -> r.routeId().toString();
             case DomainEvent.RouteDeactivated r-> r.routeId().toString();
             case DomainEvent.RouteDeleted r    -> r.routeId().toString();
+            case DomainEvent.RoutePromoted r   -> r.stagingRouteId().toString();
             case DomainEvent.FilterCreated f   -> f.filterId().toString();
             case DomainEvent.FilterUpdated f   -> f.filterId().toString();
             case DomainEvent.FilterDeleted f   -> f.filterId().toString();
@@ -125,6 +129,8 @@ public class OutboxEventStore {
             case DomainEvent.CertRemovedFromGroup e      -> e.groupId().toString();
             case DomainEvent.GatewayReloadRequested g -> g.tenantId() != null ? g.tenantId().toString() : "platform";
             case DomainEvent.GatewayConfigChanged g   -> g.section() != null ? g.section() : "global";
+            case DomainEvent.ApiKeyCreated e           -> e.apiKeyId().toString();
+            case DomainEvent.ApiKeyRevoked e           -> e.apiKeyId().toString();
             case DomainEvent.Unknown u -> u.tenantId() != null ? u.tenantId().toString() : "platform";
         };
     }

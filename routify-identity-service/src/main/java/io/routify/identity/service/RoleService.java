@@ -40,7 +40,7 @@ public class RoleService {
 
     public RoleDefinition findById(UUID id) {
         return roleRepository.findById(id)
-                .orElseThrow(() -> new RoutifyException.NotFound("Role not found: " + id));
+                .orElseThrow(() -> new RoutifyException.NotFound("Role", id.toString()));
     }
 
     /**
