@@ -40,7 +40,7 @@ public class AdminRoutesController {
     // ─── Queries ─────────────────────────────────────────────────────────────
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('ROUTES_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.RoutesPage> listRoutes(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(required = false) String status,
@@ -54,7 +54,7 @@ public class AdminRoutesController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('ROUTES_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.RouteDetail> getRoute(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -64,7 +64,7 @@ public class AdminRoutesController {
     // ─── Commands ────────────────────────────────────────────────────────────
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('ROUTES_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> createRoute(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
@@ -77,7 +77,7 @@ public class AdminRoutesController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('ROUTES_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> updateRoute(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -91,7 +91,7 @@ public class AdminRoutesController {
     }
 
     @PostMapping("/{id}/activate")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('ROUTES_ACTIVATE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> activateRoute(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -104,7 +104,7 @@ public class AdminRoutesController {
     }
 
     @PostMapping("/{id}/deactivate")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('ROUTES_ACTIVATE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> deactivateRoute(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -117,7 +117,7 @@ public class AdminRoutesController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('ROUTES_DELETE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> deleteRoute(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -130,7 +130,7 @@ public class AdminRoutesController {
     }
 
     @PostMapping("/{id}/clone")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('ROUTES_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<QueryResponse.RouteDetail> cloneRoute(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -142,7 +142,7 @@ public class AdminRoutesController {
     }
 
     @PostMapping("/{id}/promote")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('ROUTES_PROMOTE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> promoteRoute(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -157,7 +157,7 @@ public class AdminRoutesController {
     // ─── Filter chain on route ────────────────────────────────────────────────
 
     @PostMapping("/{id}/filters")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('FILTERS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> attachFilter(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -172,7 +172,7 @@ public class AdminRoutesController {
     }
 
     @DeleteMapping("/{id}/filters/{filterId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('FILTERS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> detachFilter(
             @PathVariable UUID id,
             @PathVariable UUID filterId,

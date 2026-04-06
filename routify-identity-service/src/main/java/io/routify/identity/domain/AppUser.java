@@ -49,6 +49,10 @@ public class AppUser {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private RoleDefinition roleDefinition;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Status status;
@@ -87,6 +91,7 @@ public class AppUser {
         this.email                = Objects.requireNonNull(b.email);
         this.passwordHash         = Objects.requireNonNull(b.passwordHash);
         this.role                 = b.role != null ? b.role : UserRole.VIEWER;
+        this.roleDefinition       = b.roleDefinition;
         this.status               = Status.ACTIVE;
         this.failedLoginAttempts  = 0;
         this.mustChangePassword   = b.mustChangePassword;
@@ -122,6 +127,7 @@ public class AppUser {
     public String getEmail()             { return email; }
     public String getPasswordHash()      { return passwordHash; }
     public UserRole getRole()            { return role; }
+    public RoleDefinition getRoleDefinition() { return roleDefinition; }
     public Status getStatus()            { return status; }
     public Instant getLastLoginAt()      { return lastLoginAt; }
     public Instant getCreatedAt()        { return createdAt; }
@@ -130,6 +136,7 @@ public class AppUser {
     public void setUsername(String u)    { this.username = u; }
     public void setEmail(String e)       { this.email = e; }
     public void setRole(UserRole r)      { this.role = r; }
+    public void setRoleDefinition(RoleDefinition rd) { this.roleDefinition = rd; }
     public void lock()                   { this.status = Status.LOCKED; }
     public void unlock()                 { this.status = Status.ACTIVE; this.lockedUntil = null; this.failedLoginAttempts = 0; }
     public void delete()                 { this.status = Status.DELETED; }
@@ -158,6 +165,7 @@ public class AppUser {
         private String email;
         private String passwordHash;
         private UserRole role;
+        private RoleDefinition roleDefinition;
         private boolean mustChangePassword = false;
 
         public Builder tenantId(UUID tenantId)                      { this.tenantId = tenantId; return this; }
@@ -165,6 +173,7 @@ public class AppUser {
         public Builder email(String email)                          { this.email = email; return this; }
         public Builder passwordHash(String hash)                    { this.passwordHash = hash; return this; }
         public Builder role(UserRole role)                          { this.role = role; return this; }
+        public Builder roleDefinition(RoleDefinition rd)            { this.roleDefinition = rd; return this; }
         public Builder mustChangePassword(boolean mustChange)       { this.mustChangePassword = mustChange; return this; }
         public AppUser build()                                      { return new AppUser(this); }
     }

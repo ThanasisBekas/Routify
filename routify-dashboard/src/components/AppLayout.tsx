@@ -13,6 +13,7 @@ import {
   Building2,
   Key,
   Bell,
+  Shield,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { to: '/users', label: 'Users', icon: Users, desc: 'User management' },
   { to: '/api-keys', label: 'API Keys', icon: Key, desc: 'API key management' },
   { to: '/webhooks', label: 'Webhooks', icon: Bell, desc: 'Webhook notifications' },
+  { to: '/roles', label: 'Roles', icon: Shield, desc: 'Roles & permissions' },
   { to: '/settings', label: 'Settings', icon: Settings, desc: 'Platform settings' },
 ]
 

@@ -37,7 +37,7 @@ public class AdminCertGroupsController {
     private final CertVaultMessagingClient messagingClient;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('CERTS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.CertGroupsPage> listGroups(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(required = false) String status,
@@ -50,7 +50,7 @@ public class AdminCertGroupsController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('CERTS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.CertGroupDetail> getGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -58,7 +58,7 @@ public class AdminCertGroupsController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('CERTS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> createGroup(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
@@ -71,7 +71,7 @@ public class AdminCertGroupsController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('CERTS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> updateGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -85,7 +85,7 @@ public class AdminCertGroupsController {
     }
 
     @PostMapping("/{id}/archive")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('CERTS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> archiveGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -98,7 +98,7 @@ public class AdminCertGroupsController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('CERTS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> deleteGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -111,7 +111,7 @@ public class AdminCertGroupsController {
     }
 
     @GetMapping("/{id}/members")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('CERTS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.CertGroupMembersList> listGroupMembers(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -119,7 +119,7 @@ public class AdminCertGroupsController {
     }
 
     @PostMapping("/{id}/members")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('CERTS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> addMemberToGroup(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -133,7 +133,7 @@ public class AdminCertGroupsController {
     }
 
     @DeleteMapping("/{id}/members/{certId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('CERTS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> removeMemberFromGroup(
             @PathVariable UUID id,
             @PathVariable UUID certId,

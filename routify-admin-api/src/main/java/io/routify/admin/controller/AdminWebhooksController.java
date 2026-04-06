@@ -30,7 +30,7 @@ public class AdminWebhooksController {
     private final IdentityMessagingClient messagingClient;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('WEBHOOKS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.WebhooksPage> listWebhooks(
             @RequestHeader(value = RoutifyHeaders.TENANT_ID, required = false) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
@@ -39,7 +39,7 @@ public class AdminWebhooksController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('WEBHOOKS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.WebhookDetail> getWebhook(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -50,7 +50,7 @@ public class AdminWebhooksController {
      * Create a new webhook subscription. Returns HTTP 202 — subscription created asynchronously.
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('WEBHOOKS_ADMIN') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> createWebhook(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody CreateWebhookRequest request,
@@ -64,7 +64,7 @@ public class AdminWebhooksController {
      * Update an existing webhook subscription. Returns HTTP 202.
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('WEBHOOKS_ADMIN') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> updateWebhook(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -79,7 +79,7 @@ public class AdminWebhooksController {
      * Delete a webhook subscription. Returns HTTP 202.
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('WEBHOOKS_ADMIN') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> deleteWebhook(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -93,7 +93,7 @@ public class AdminWebhooksController {
      * Send a test ping to a webhook subscription — synchronous, returns result inline.
      */
     @PostMapping("/{id}/test")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('WEBHOOKS_ADMIN') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<QueryResponse.WebhookTestResult> testWebhook(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -104,7 +104,7 @@ public class AdminWebhooksController {
      * Delivery log for a specific subscription.
      */
     @GetMapping("/{id}/deliveries")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('WEBHOOKS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.WebhookDeliveriesPage> getDeliveries(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,

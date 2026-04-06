@@ -67,6 +67,9 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.WebhookGet.class,        name = "WEBHOOK_GET"),
     @JsonSubTypes.Type(value = QueryRequest.WebhookDeliveries.class, name = "WEBHOOK_DELIVERIES"),
     @JsonSubTypes.Type(value = QueryRequest.WebhookTest.class,       name = "WEBHOOK_TEST"),
+    // ─── routify-identity-service roles ──────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.RolesQuery.class,        name = "ROLES_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.RoleGet.class,           name = "ROLE_GET"),
     // ─── routify-audit-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AuditEventsQuery.class,  name = "AUDIT_EVENTS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AuditRequestsQuery.class,name = "AUDIT_REQUESTS_QUERY"),
@@ -122,6 +125,8 @@ public sealed interface QueryRequest
             QueryRequest.WebhookGet,
             QueryRequest.WebhookDeliveries,
             QueryRequest.WebhookTest,
+            QueryRequest.RolesQuery,
+            QueryRequest.RoleGet,
             QueryRequest.AuditEventsQuery,
             QueryRequest.AuditRequestsQuery,
             QueryRequest.AuditRequestStats,
@@ -267,6 +272,14 @@ public sealed interface QueryRequest
 
     /** Send a test ping to a webhook subscription — sync RPC. */
     record WebhookTest(UUID id, UUID tenantId) implements QueryRequest {}
+
+    // ─── Role queries (routify-identity-service) ────────────────────────────────
+
+    /** Paginated role list, scoped to a tenant (includes built-in roles). */
+    record RolesQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single role by ID. */
+    record RoleGet(UUID id) implements QueryRequest {}
 
     // ─── routify-audit-service ────────────────────────────────────────────────
 

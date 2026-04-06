@@ -30,7 +30,7 @@ public class AdminApiKeysController {
     private final IdentityMessagingClient messagingClient;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('API_KEYS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.ApiKeysPage> listApiKeys(
             @RequestHeader(value = RoutifyHeaders.TENANT_ID, required = false) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
@@ -39,7 +39,7 @@ public class AdminApiKeysController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('API_KEYS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.ApiKeyDetail> getApiKey(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -51,7 +51,7 @@ public class AdminApiKeysController {
      * The raw key is never stored or retrievable again.
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('API_KEYS_ADMIN') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<QueryResponse.ApiKeyCreated> createApiKey(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody CreateApiKeyRequest request,
@@ -66,7 +66,7 @@ public class AdminApiKeysController {
     }
 
     @PostMapping("/{id}/revoke")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('API_KEYS_ADMIN') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<QueryResponse.ApiKeyDetail> revokeApiKey(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -79,7 +79,7 @@ public class AdminApiKeysController {
      * Rotate an API key — revokes the old key and returns a new raw key.
      */
     @PostMapping("/{id}/rotate")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('API_KEYS_ADMIN') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<QueryResponse.ApiKeyCreated> rotateApiKey(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,

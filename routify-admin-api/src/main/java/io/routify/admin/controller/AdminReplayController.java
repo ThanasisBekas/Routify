@@ -31,7 +31,7 @@ public class AdminReplayController {
     private final AuditMessagingClient messagingClient;
 
     @GetMapping("/failed")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('AUDIT_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.RequestLogsPage> listFailed(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) UUID routeId,
@@ -41,7 +41,7 @@ public class AdminReplayController {
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('AUDIT_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.RequestLogsPage> listPending(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(required = false) UUID routeId,
@@ -51,14 +51,14 @@ public class AdminReplayController {
     }
 
     @GetMapping("/stats")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('AUDIT_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.ReplayStatsResult> getStats(
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
         return ResponseEntity.ok(messagingClient.getReplayStats(tenantId));
     }
 
     @PostMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('AUDIT_REPLAY') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<QueryResponse.ReplaySingleResult> replaySingle(
             @PathVariable UUID id,
             @RequestHeader("X-Tenant-Id") UUID tenantId) {
@@ -67,7 +67,7 @@ public class AdminReplayController {
     }
 
     @PostMapping("/bulk")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('AUDIT_REPLAY') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<QueryResponse.ReplayBulkResult> replayBulk(
             @RequestHeader("X-Tenant-Id") UUID tenantId,
             @RequestParam(defaultValue = "50") int limit) {

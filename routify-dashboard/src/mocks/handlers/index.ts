@@ -13,6 +13,7 @@ import { auditHandlers } from './audit'
 import { aiHandlers } from './ai'
 import { apiKeyHandlers } from './apiKeys'
 import { webhookHandlers } from './webhooks'
+import { roleHandlers } from './roles'
 
 export const handlers = [
   ...authHandlers,
@@ -22,6 +23,7 @@ export const handlers = [
   ...userHandlers,
   ...apiKeyHandlers,
   ...webhookHandlers,
+  ...roleHandlers,
   ...gatewayHandlers,
   ...certHandlers,
   ...auditHandlers,

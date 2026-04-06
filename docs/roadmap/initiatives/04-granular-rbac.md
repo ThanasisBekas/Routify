@@ -57,8 +57,8 @@ public enum Permission {
 ```
 
 **Task list:**
-- [ ] Create `Permission` enum
-- [ ] Add TypeScript mirror type to `src/types/index.ts`
+- [x] Create `Permission` enum
+- [x] Add TypeScript mirror type to `src/types/index.ts`
 
 ---
 
@@ -102,11 +102,11 @@ INSERT INTO routify_identity.role_definition (id, name, built_in, description) V
 ```
 
 **Task list:**
-- [ ] Create Flyway migration with schema + seed data
-- [ ] Create `RoleDefinition` entity
-- [ ] Create `RolePermission` entity (or use `@ElementCollection`)
-- [ ] Create repository
-- [ ] Create `RoleService` for CRUD operations
+- [x] Create Flyway migration with schema + seed data
+- [x] Create `RoleDefinition` entity
+- [x] Create `RolePermission` entity (or use `@ElementCollection`)
+- [x] Create repository
+- [x] Create `RoleService` for CRUD operations
 
 ---
 
@@ -129,11 +129,11 @@ claims.put("permissions", permissions);
 **Feature flag:** `routify.rbac.granular-enabled: false` (default). When false, JWT includes no `permissions` claim and all services fall back to role-based checks.
 
 **Task list:**
-- [ ] Resolve permissions in `JwtService`
-- [ ] Add `permissions` claim to JWT
-- [ ] Add feature flag config property
-- [ ] Update `SecurityContext` record in `routify-common` to carry permissions
-- [ ] Add `hasPermission(Permission)` helper to `SecurityContext`
+- [x] Resolve permissions in `JwtService`
+- [x] Add `permissions` claim to JWT
+- [x] Add feature flag config property
+- [x] Update `SecurityContext` record in `routify-common` to carry permissions
+- [x] Add `hasPermission(Permission)` helper to `SecurityContext`
 
 ---
 
@@ -162,13 +162,13 @@ if (permissions != null) {
 3. Phase C: Remove feature flag, permissions are always present.
 
 **Task list:**
-- [ ] Update JWT filter in admin-api
-- [ ] Update JWT filter in identity-service  
-- [ ] Update JWT filter in route-service
-- [ ] Update JWT filter in audit-service
-- [ ] Update JWT filter in cert-vault
-- [ ] Convert `AdminRoutesController` authorization annotations (pilot)
-- [ ] Convert remaining controllers after validation
+- [x] Update JWT filter in admin-api
+- [x] Update JWT filter in identity-service  
+- [x] Update JWT filter in route-service
+- [x] Update JWT filter in audit-service
+- [x] Update JWT filter in cert-vault
+- [x] Convert `AdminRoutesController` authorization annotations (pilot)
+- [x] Convert remaining controllers after validation
 
 ---
 
@@ -188,9 +188,9 @@ if (permissions != null) {
 | `GET` | `/api/v1/admin/permissions` | List all available permissions |
 
 **Task list:**
-- [ ] Create controller
-- [ ] Add RabbitMQ query handlers in identity-service
-- [ ] Add Kafka command handlers for role mutations
+- [x] Create controller
+- [x] Add RabbitMQ query handlers in identity-service
+- [x] Add Kafka command handlers for role mutations
 
 ---
 
@@ -208,14 +208,14 @@ if (permissions != null) {
 - User create/edit form gains a role dropdown that includes custom roles.
 
 **Task list:**
-- [ ] Create `rolesApi.ts`
-- [ ] Add TypeScript types (`RoleDefinitionDto`, `PermissionDto`)
-- [ ] Create roles list page
-- [ ] Create role editor with permission checkboxes
-- [ ] Update user form to show custom roles
-- [ ] Add route in React Router
-- [ ] Add sidebar navigation entry
-- [ ] Add MSW mock handlers
+- [x] Create `rolesApi.ts`
+- [x] Add TypeScript types (`RoleDefinitionDto`, `PermissionDto`)
+- [x] Create roles list page
+- [x] Create role editor with permission checkboxes
+- [x] Update user form to show custom roles
+- [x] Add route in React Router
+- [x] Add sidebar navigation entry
+- [x] Add MSW mock handlers
 
 ---
 
@@ -228,21 +228,21 @@ if (permissions != null) {
 **Backward compatibility:** The `UserRole` enum remains in `routify-common` for display purposes. The `roleId` FK points to `role_definition`, and the response DTO includes both `roleName` and `permissions[]`.
 
 **Task list:**
-- [ ] Create Flyway migration to add `role_id` column and backfill
-- [ ] Update `User` entity
-- [ ] Update user DTOs to include `permissions` list
-- [ ] Update dashboard user views
+- [x] Create Flyway migration to add `role_id` column and backfill
+- [x] Update `User` entity
+- [x] Update user DTOs to include `permissions` list
+- [x] Update dashboard user views
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] A custom role "CertManager" with only `CERTS_READ` + `CERTS_WRITE` + `CERTS_ADMIN` can be created
-- [ ] A user assigned "CertManager" can manage certificates but gets 403 on route operations
-- [ ] Built-in roles have sensible default permissions that match current behavior
-- [ ] Existing JWTs without `permissions` claim continue to work (role-based fallback)
-- [ ] Feature flag allows gradual rollout without breaking existing deployments
-- [ ] All permission checks are logged in audit trail for compliance
+- [x] A custom role "CertManager" with only `CERTS_READ` + `CERTS_WRITE` + `CERTS_ADMIN` can be created
+- [x] A user assigned "CertManager" can manage certificates but gets 403 on route operations
+- [x] Built-in roles have sensible default permissions that match current behavior
+- [x] Existing JWTs without `permissions` claim continue to work (role-based fallback)
+- [x] Feature flag allows gradual rollout without breaking existing deployments
+- [x] All permission checks are logged in audit trail for compliance
 
 ---
 

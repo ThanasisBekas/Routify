@@ -221,6 +221,22 @@ public final class RabbitTopology {
 
     // ─── routify-identity-service webhook queues & routing keys ───────────────
 
+    // ─── routify-identity-service role queues & routing keys ────────────────────
+
+    /** Queue: identity-service serves paginated role list queries from admin-api */
+    public static final String QUEUE_ROLES_QUERY              = "routify.identity-service.roles.query";
+    public static final String RK_ROLES_QUERY                 = "roles.query";
+
+    /** Queue: identity-service serves single role GET queries from admin-api */
+    public static final String QUEUE_ROLES_GET                = "routify.identity-service.roles.get";
+    public static final String RK_ROLES_GET                   = "roles.get";
+
+    /** Queue: identity-service handles role commands (create/update/delete) from admin-api (sync RPC) */
+    public static final String QUEUE_ROLES_COMMAND            = "routify.identity-service.roles.command";
+    public static final String RK_ROLES_COMMAND               = "roles.command";
+
+    // ─── routify-identity-service webhook queues & routing keys (continued) ────
+
     /** Queue: identity-service serves paginated webhook subscription list queries from admin-api */
     public static final String QUEUE_WEBHOOKS_QUERY              = "routify.identity-service.webhooks.query";
     public static final String RK_WEBHOOKS_QUERY                 = "webhooks.query";
