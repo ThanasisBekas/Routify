@@ -11,6 +11,7 @@ import { gatewayHandlers } from './gateway'
 import { certHandlers } from './certs'
 import { auditHandlers } from './audit'
 import { aiHandlers } from './ai'
+import { apiKeyHandlers } from './apiKeys'
 
 export const handlers = [
   ...authHandlers,
@@ -18,6 +19,7 @@ export const handlers = [
   ...routeHandlers,
   ...filterHandlers,
   ...userHandlers,
+  ...apiKeyHandlers,
   ...gatewayHandlers,
   ...certHandlers,
   ...auditHandlers,

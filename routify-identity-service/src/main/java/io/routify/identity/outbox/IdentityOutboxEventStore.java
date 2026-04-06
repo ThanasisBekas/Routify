@@ -79,6 +79,8 @@ public class IdentityOutboxEventStore {
             case DomainEvent.UserCreated ignored     -> "User";
             case DomainEvent.UserUpdated ignored     -> "User";
             case DomainEvent.UserDeleted ignored     -> "User";
+            case DomainEvent.ApiKeyCreated ignored   -> "API_KEY";
+            case DomainEvent.ApiKeyRevoked ignored   -> "API_KEY";
             default -> event.getClass().getSimpleName();
         };
     }
@@ -91,6 +93,8 @@ public class IdentityOutboxEventStore {
             case DomainEvent.UserCreated u     -> u.userId().toString();
             case DomainEvent.UserUpdated u     -> u.userId().toString();
             case DomainEvent.UserDeleted u     -> u.userId().toString();
+            case DomainEvent.ApiKeyCreated a   -> a.apiKeyId().toString();
+            case DomainEvent.ApiKeyRevoked a   -> a.apiKeyId().toString();
             default -> event.tenantId() != null ? event.tenantId().toString() : "platform";
         };
     }

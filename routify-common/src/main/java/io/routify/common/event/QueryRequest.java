@@ -56,6 +56,12 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.TenantsQuery.class,      name = "TENANTS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.TenantGet.class,         name = "TENANT_GET"),
     @JsonSubTypes.Type(value = QueryRequest.ListActiveWorkspaces.class, name = "LIST_ACTIVE_WORKSPACES"),
+    // ─── routify-identity-service API keys ──────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeysQuery.class,   name = "APIKEYS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeyGet.class,      name = "APIKEY_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeyCreate.class,   name = "APIKEY_CREATE"),
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeyRevoke.class,   name = "APIKEY_REVOKE"),
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeyRotate.class,   name = "APIKEY_ROTATE"),
     // ─── routify-audit-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AuditEventsQuery.class,  name = "AUDIT_EVENTS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AuditRequestsQuery.class,name = "AUDIT_REQUESTS_QUERY"),
@@ -102,6 +108,11 @@ public sealed interface QueryRequest
             QueryRequest.TenantsQuery,
             QueryRequest.TenantGet,
             QueryRequest.ListActiveWorkspaces,
+            QueryRequest.ApiKeysQuery,
+            QueryRequest.ApiKeyGet,
+            QueryRequest.ApiKeyCreate,
+            QueryRequest.ApiKeyRevoke,
+            QueryRequest.ApiKeyRotate,
             QueryRequest.AuditEventsQuery,
             QueryRequest.AuditRequestsQuery,
             QueryRequest.AuditRequestStats,
@@ -207,6 +218,31 @@ public sealed interface QueryRequest
 
     /** Returns active workspace names + slugs for the login-page dropdown. */
     record ListActiveWorkspaces() implements QueryRequest {}
+
+    // ─── API Key queries (routify-identity-service) ────────────────────────────
+
+    /** Paginated API key list, scoped to a tenant. */
+    record ApiKeysQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single API key by ID. */
+    record ApiKeyGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Create an API key — sync RPC because raw key must be returned once. */
+    record ApiKeyCreate(
+            UUID     tenantId,
+            UUID     userId,
+            String   name,
+            String   role,
+            String   email,
+            String   expiresAt,
+            String   actor
+    ) implements QueryRequest {}
+
+    /** Revoke an API key — sync RPC for immediate confirmation. */
+    record ApiKeyRevoke(UUID id, UUID tenantId, String actor) implements QueryRequest {}
+
+    /** Rotate an API key — sync RPC because new raw key must be returned. */
+    record ApiKeyRotate(UUID id, UUID tenantId, String actor) implements QueryRequest {}
 
     // ─── routify-audit-service ────────────────────────────────────────────────
 

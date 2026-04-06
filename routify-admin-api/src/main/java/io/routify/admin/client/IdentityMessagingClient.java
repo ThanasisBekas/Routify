@@ -268,6 +268,78 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.DeleteUser(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
     }
 
+    // ─── API Key Queries (RabbitMQ sync) ──────────────────────────────────────
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "queryApiKeysFallback")
+    public QueryResponse.ApiKeysPage queryApiKeys(UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_APIKEYS_QUERY,
+                new QueryRequest.ApiKeysQuery(tenantId, page, size),
+                QueryResponse.ApiKeysPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeysPage queryApiKeysFallback(UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryApiKeys circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.ApiKeysPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "getApiKeyFallback")
+    public QueryResponse.ApiKeyDetail getApiKey(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_APIKEYS_GET,
+                new QueryRequest.ApiKeyGet(id, tenantId),
+                QueryResponse.ApiKeyDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeyDetail getApiKeyFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("getApiKey circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    // ─── API Key Commands (RabbitMQ sync — raw key must be returned) ──────────
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "createApiKeyFallback")
+    public QueryResponse.ApiKeyCreated createApiKey(UUID tenantId, UUID userId, String name,
+                                                     String role, String email, String expiresAt, String actor) {
+        return rpc(RabbitTopology.RK_APIKEYS_CREATE,
+                new QueryRequest.ApiKeyCreate(tenantId, userId, name, role, email, expiresAt, actor),
+                QueryResponse.ApiKeyCreated.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeyCreated createApiKeyFallback(UUID tenantId, UUID userId, String name,
+                                                              String role, String email, String expiresAt,
+                                                              String actor, Throwable t) {
+        log.warn("createApiKey circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "revokeApiKeyFallback")
+    public QueryResponse.ApiKeyDetail revokeApiKey(UUID id, UUID tenantId, String actor) {
+        return rpc(RabbitTopology.RK_APIKEYS_REVOKE,
+                new QueryRequest.ApiKeyRevoke(id, tenantId, actor),
+                QueryResponse.ApiKeyDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeyDetail revokeApiKeyFallback(UUID id, UUID tenantId, String actor, Throwable t) {
+        log.warn("revokeApiKey circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "rotateApiKeyFallback")
+    public QueryResponse.ApiKeyCreated rotateApiKey(UUID id, UUID tenantId, String actor) {
+        return rpc(RabbitTopology.RK_APIKEYS_ROTATE,
+                new QueryRequest.ApiKeyRotate(id, tenantId, actor),
+                QueryResponse.ApiKeyCreated.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeyCreated rotateApiKeyFallback(UUID id, UUID tenantId, String actor, Throwable t) {
+        log.warn("rotateApiKey circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private TenantPlan parsePlan(String planStr, TenantPlan defaultPlan) {

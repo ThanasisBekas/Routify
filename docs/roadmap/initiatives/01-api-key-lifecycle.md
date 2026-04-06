@@ -78,10 +78,10 @@ public class ApiKey {
 ```
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Create `ApiKey` entity + `ApiKeyStatus` enum (`ACTIVE`, `REVOKED`, `EXPIRED`)
-- [ ] Create `ApiKeyRepository` (Spring Data JPA)
-- [ ] Add `ApiKeyMapper` (MapStruct)
+- [x] Create Flyway migration
+- [x] Create `ApiKey` entity + `ApiKeyStatus` enum (`ACTIVE`, `REVOKED`, `EXPIRED`)
+- [x] Create `ApiKeyRepository` (Spring Data JPA)
+- [x] Add `ApiKeyMapper` (MapStruct)
 
 ---
 
@@ -112,9 +112,9 @@ public static final String DLQ_APIKEY_COMMANDS = APIKEY_COMMANDS + ".DLQ";
 ```
 
 **Task list:**
-- [ ] Add 3 command records to `CommandEvent`
-- [ ] Add topic constants to `KafkaTopics`
-- [ ] Add DLQ topic constant
+- [x] Add 3 command records to `CommandEvent`
+- [x] Add topic constants to `KafkaTopics`
+- [x] Add DLQ topic constant
 
 ---
 
@@ -145,11 +145,11 @@ redisTemplate.delete(RedisKeys.APIKEY_PREFIX + rawKey);
 ```
 
 **Task list:**
-- [ ] Create `ApiKeyService` with create/revoke/rotate methods
-- [ ] Create `ApiKeyCommandConsumer` (Kafka listener)
-- [ ] Add Redis projection logic
-- [ ] Add outbox event publishing (reuse `IdentityOutboxPoller`)
-- [ ] Add DLQ error handler registration
+- [x] Create `ApiKeyService` with create/revoke/rotate methods
+- [x] Create `ApiKeyCommandConsumer` (Kafka listener)
+- [x] Add Redis projection logic
+- [x] Add outbox event publishing (reuse `IdentityOutboxPoller`)
+- [x] Add DLQ error handler registration
 
 ---
 
@@ -170,10 +170,10 @@ public static final String RK_APIKEYS_GET      = "apikeys.get";
 ```
 
 **Task list:**
-- [ ] Add `RabbitTopology` constants
-- [ ] Add `QueryRequest.ApiKeysQuery` / `QueryRequest.ApiKeyGet` records
-- [ ] Add `QueryResponse.ApiKeyPage` / `QueryResponse.ApiKeyDetail` records
-- [ ] Implement `ApiKeyRabbitHandler` in identity-service
+- [x] Add `RabbitTopology` constants
+- [x] Add `QueryRequest.ApiKeysQuery` / `QueryRequest.ApiKeyGet` records
+- [x] Add `QueryResponse.ApiKeyPage` / `QueryResponse.ApiKeyDetail` records
+- [x] Implement `ApiKeyRabbitHandler` in identity-service
 
 ---
 
@@ -195,9 +195,9 @@ public static final String RK_APIKEYS_GET      = "apikeys.get";
 Create and rotate are **synchronous RPC** (not async Kafka) because the raw key must be returned to the caller exactly once. Use `RabbitTopology` for these two operations.
 
 **Task list:**
-- [ ] Create controller with 5 endpoints
-- [ ] Wire Resilience4j circuit breaker (`"identity-service"`)
-- [ ] Add `@PreAuthorize` (SUPER_ADMIN, TENANT_ADMIN only for create/revoke/rotate)
+- [x] Create controller with 5 endpoints
+- [x] Wire Resilience4j circuit breaker (`"identity-service"`)
+- [x] Add `@PreAuthorize` (SUPER_ADMIN, TENANT_ADMIN only for create/revoke/rotate)
 
 ---
 
@@ -217,31 +217,31 @@ Create and rotate are **synchronous RPC** (not async Kafka) because the raw key 
 - Status chips: `ACTIVE` (green), `REVOKED` (red), `EXPIRED` (gray).
 
 **Task list:**
-- [ ] Create `apiKeysApi.ts` with typed functions
-- [ ] Add TypeScript types to `src/types/index.ts` (`ApiKeyDto`, `CreateApiKeyRequest`, etc.)
-- [ ] Create list page with DataTable
-- [ ] Create modal with copy-to-clipboard
-- [ ] Create detail/revoke/rotate modals
-- [ ] Add route in React Router config
-- [ ] Add sidebar navigation entry
-- [ ] Add MSW mock handlers in `src/mocks/handlers/`
+- [x] Create `apiKeysApi.ts` with typed functions
+- [x] Add TypeScript types to `src/types/index.ts` (`ApiKeyDto`, `CreateApiKeyRequest`, etc.)
+- [x] Create list page with DataTable
+- [x] Create modal with copy-to-clipboard
+- [x] Create detail/revoke/rotate modals
+- [x] Add route in React Router config
+- [x] Add sidebar navigation entry
+- [x] Add MSW mock handlers in `src/mocks/handlers/`
 
 ---
 
 ### Step 7: Audit Integration
 
 **Task list:**
-- [ ] Ensure outbox events for api-key create/revoke/rotate include `aggregateType: "API_KEY"` for audit-service consumption
-- [ ] Verify audit log entries appear in dashboard audit viewer
+- [x] Ensure outbox events for api-key create/revoke/rotate include `aggregateType: "API_KEY"` for audit-service consumption
+- [x] Verify audit log entries appear in dashboard audit viewer
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Operator can create an API key from the dashboard and use it to authenticate a `curl` request through the gateway
-- [ ] Revoking a key immediately blocks gateway access (Redis projection is synchronous)
-- [ ] Rotating a key invalidates the old key and issues a new one atomically
-- [ ] Expired keys are automatically rejected by the gateway (Redis TTL)
-- [ ] All key lifecycle actions appear in the audit log
-- [ ] Raw key is shown only once at creation; only the prefix is stored/displayed afterward
+- [x] Operator can create an API key from the dashboard and use it to authenticate a `curl` request through the gateway
+- [x] Revoking a key immediately blocks gateway access (Redis projection is synchronous)
+- [x] Rotating a key invalidates the old key and issues a new one atomically
+- [x] Expired keys are automatically rejected by the gateway (Redis TTL)
+- [x] All key lifecycle actions appear in the audit log
+- [x] Raw key is shown only once at creation; only the prefix is stored/displayed afterward
 

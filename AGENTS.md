@@ -9,7 +9,7 @@ routify-dashboard  (React/Vite, port 5173)
        │
 routify-admin-api  (BFF, port 8082) ← sole backend for the dashboard
        │ Kafka commands (writes) + RabbitMQ request/reply (reads)
-       ├── routify-identity-service  (port 8083) — JWT issuance, users, tenants
+       ├── routify-identity-service  (port 8083) — JWT issuance, users, tenants, API key lifecycle
        ├── routify-route-service     (port 8081) — route/filter persistence + Outbox
        ├── routify-audit-service     (port 8084) — append-only audit log + request replay
        ├── routify-cert-vault        (port 8085) — AES-encrypted TLS certs + cert groups
@@ -39,8 +39,9 @@ All inter-service messaging constants live in `routify-common`:
 - `AUDIT_EVENTS`, `REQUEST_TELEMETRY` — consumed by `routify-audit-service`.
 - `AI_FILTER_DECISIONS`, `AI_MODIFICATION_EVENTS` — published by `routify-ai-service` after every LLM evaluation.
 - `AUTH_COMMANDS` — logout blacklisting, consumed by `routify-identity-service`.
+- `APIKEY_COMMANDS` — API key create/revoke/rotate, consumed by `routify-identity-service`. Keys are persisted in PostgreSQL and projected to Redis for gateway reads.
 - `CERT_GROUP_EVENTS` — certificate group lifecycle, consumed by `routify-api-gateway`.
-- All failed events are forwarded to DLQ topics named `<original-topic>.DLQ` (e.g. `routify.route.events.DLQ`), consumed exclusively by `routify-audit-service`. Named constants: `DLQ_ROUTE_EVENTS`, `DLQ_FILTER_EVENTS`, `DLQ_TENANT_EVENTS`, `DLQ_USER_EVENTS`, `DLQ_GATEWAY_RELOAD`, `DLQ_GATEWAY_CONFIG`, `DLQ_CERT_EVENTS`, `DLQ_CERT_GROUP_EVENTS`, `DLQ_REQUEST_TELEMETRY`, `DLQ_ROUTE_COMMANDS`, `DLQ_FILTER_COMMANDS`, `DLQ_USER_COMMANDS`, `DLQ_TENANT_COMMANDS`, `DLQ_AUTH_COMMANDS`, `DLQ_CERT_COMMANDS`, `DLQ_AI_FILTER_DECISIONS`, `DLQ_AI_MODIFICATION_EVENTS`.
+- All failed events are forwarded to DLQ topics named `<original-topic>.DLQ` (e.g. `routify.route.events.DLQ`), consumed exclusively by `routify-audit-service`. Named constants: `DLQ_ROUTE_EVENTS`, `DLQ_FILTER_EVENTS`, `DLQ_TENANT_EVENTS`, `DLQ_USER_EVENTS`, `DLQ_GATEWAY_RELOAD`, `DLQ_GATEWAY_CONFIG`, `DLQ_CERT_EVENTS`, `DLQ_CERT_GROUP_EVENTS`, `DLQ_REQUEST_TELEMETRY`, `DLQ_ROUTE_COMMANDS`, `DLQ_FILTER_COMMANDS`, `DLQ_USER_COMMANDS`, `DLQ_TENANT_COMMANDS`, `DLQ_AUTH_COMMANDS`, `DLQ_APIKEY_COMMANDS`, `DLQ_CERT_COMMANDS`, `DLQ_AI_FILTER_DECISIONS`, `DLQ_AI_MODIFICATION_EVENTS`.
 
 ### `routify-ai-service` communication
 The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exchange: `RabbitTopology.EXCHANGE_AI_SERVICE` (`routify.ai-service`). Two queues:
@@ -52,6 +53,7 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 
 ### Additional `RabbitTopology` queues (beyond obvious CRUD queries)
 - **Auth** (all on `EXCHANGE_IDENTITY_SERVICE`): `QUEUE_AUTH_LOGIN` / `QUEUE_AUTH_REFRESH` / `QUEUE_AUTH_CHANGE_PASSWORD` / `QUEUE_USERS_CHANGE_PASSWORD` — admin-api proxies all auth operations over RabbitMQ to identity-service. The dashboard hits `/api/v1/auth/*` on admin-api, never directly on identity-service.
+- **API Keys** (on `EXCHANGE_IDENTITY_SERVICE`): `QUEUE_APIKEYS_QUERY` / `QUEUE_APIKEYS_GET` / `QUEUE_APIKEYS_CREATE` / `QUEUE_APIKEYS_REVOKE` / `QUEUE_APIKEYS_ROTATE` — full API key lifecycle. Create and rotate are sync RPC (raw key must be returned). Revoke is sync for immediate confirmation. Dashboard hits `/api/v1/admin/api-keys` on admin-api.
 - **Route extras**: `QUEUE_ROUTES_CLONE` (`routes.clone`) — sync RPC for route cloning; `QUEUE_ROUTE_STATS` (`route.stats`); `QUEUE_GATEWAY_CONFIG_GET` / `QUEUE_GATEWAY_CONFIG_SAVE` — gateway-wide CORS/security/rate-limit config stored by route-service.
 - **Workspace**: `QUEUE_TENANTS_LIST_ACTIVE` (`tenants.list-active`) — active workspace list for login dropdown; `QUEUE_TENANTS_COMMAND` (`tenants.command`) — sync suspend/reactivate tenant.
 - **Gateway**: `QUEUE_GATEWAY_CERT_REGISTRY` (`gateway.cert.registry`) — gateway serves a snapshot of its live in-memory `CertificateRegistry` (fingerprint, expiry, source, status per logical cert ID).
@@ -68,7 +70,8 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 - `routify-api-gateway` is **reactive** (WebFlux/Reactor/Netty) — never use blocking code there.
 - Exceptions extend the **sealed** `RoutifyException` hierarchy (`NotFound`, `Conflict`, `Validation`, `BadRequest`, `Unauthorized`, `Forbidden`, `RateLimitExceeded`, `QuotaExceeded`, `GatewayError`, `HeuristicError`) — never throw raw `RuntimeException`. Error responses are serialised by `exception.io.routify.common.GlobalExceptionHandler` as **RFC 9457 ProblemDetail** JSON (`type`, `title`, `status`, `detail`, `errorCode`).
 - Use **MapStruct** for DTO↔entity mappings (annotation processor configured in parent `pom.xml`). Lombok + MapStruct binding order matters: `lombok-mapstruct-binding` is declared explicitly. Lombok version is overridden to **1.18.44** in the parent POM for JDK 25 compatibility.
-- All Kafka producers use `acks=all` + idempotent mode. Kafka writes go through the **Transactional Outbox** pattern in three services: **route-service** (`OutboxPoller`), **identity-service** (`IdentityOutboxPoller`), and **cert-vault** (`CertOutboxPoller`). All pollers share the same design: poll every 250 ms, retry failed after 30 s, max 5 attempts, graceful shutdown with `ReentrantLock` + 10 s drain timeout. Configurable via `routify.outbox.*` properties (`poll-interval-ms`, `batch-size`, `max-retries`, `retry-interval-ms`).
+- All Kafka producers use `acks=all` + idempotent mode. Kafka writes go through the **Transactional Outbox** pattern in three services: **route-service** (`OutboxPoller`), **identity-service** (`IdentityOutboxPoller`), and **cert-vault** (`CertOutboxPoller`). All pollers share the same design: poll every 250 ms, retry failed after 30 s, max 5 attempts, graceful shutdown with `ReentrantLock` + 10 s drain timeout. Configurable via `routify.outbox.*` properties (`poll-interval-ms`, `batch-size`, `max-retries`, `retry-interval-ms`). **Route-service** additionally uses a PostgreSQL `NOTIFY/LISTEN` trigger (`V4__outbox_notify_trigger.sql` + `OutboxNotifyListener`) to wake the poller immediately on insert — the scheduled poll is a safety-net fallback.
+- **Kafka command idempotency**: All command consumers (route-service, identity-service, cert-vault) persist processed command IDs in a `processed_commands` table (`ProcessedCommandRepository`). The `commandId` field on `CommandEvent` is the idempotency key — duplicate deliveries are detected and skipped before execution. Migration: `V5__add_processed_commands.sql` (route-service, identity-service) / `V4__add_processed_commands.sql` (cert-vault).
 - **Application-level caching** uses **Caffeine** in-process caches (`@EnableCaching` + `CacheConfig` class per service, `@Cacheable`/`@CacheEvict` annotations). Three services have caches: **route-service** (`gatewaySnapshot` — maximumSize=1, TTL=60s, evicted on outbox publish), **identity-service** (`users` — maximumSize=500, TTL=120s; `tenants` — maximumSize=100, TTL=300s; both evicted on any mutation), **admin-api** (`activeWorkspaces` — maximumSize=1, TTL=30s, evicted on tenant create/update/suspend/reactivate). Cache stats are enabled via `recordStats()` and auto-exposed as Micrometer `cache_*` metrics.
 - Database migrations use **Flyway** (`classpath:db/migration`). `ddl-auto: validate` — never `update`. Each service uses its own schema: `routify` (route-service), `routify_identity` (identity-service), `routify_audit` (audit-service), `routify_cert` (cert-vault).
 - Write endpoints that dispatch Kafka commands return `AsyncAcknowledgement` (HTTP 202) from `web.io.routify.common.AsyncAcknowledgement`.
@@ -107,8 +110,8 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 - Custom hooks in `src/hooks/`: `useWebSocket` (STOMP-lite over native WS, exponential backoff, singleton per URL), `useRealtimeQuery` (wraps TanStack Query with automatic WS-event-driven cache invalidation — replaces polling), `useBootstrapAuth` (silent session restore via HttpOnly cookie on page load), `useDocumentTitle` (sets `document.title` to `"PageName — Routify"`, restores on unmount).
 - TypeScript types are split: `src/types/index.ts` (domain types: `UserRole`, `FilterType`, `Page<T>`, `ApiError`, etc.) and `src/types/ws.ts` (WebSocket types: `WsEventType`, `WsMessage`, `CircuitBreakerState`, `WsStatus`).
 - Real-time gateway events are delivered via **WebSocket/STOMP** through `WebSocketProvider` (`src/components/WebSocketProvider.tsx`). The admin-api exposes two endpoints: `GET /api/v1/admin/events` (SSE, `text/event-stream`) and a STOMP broker at `/ws` (SockJS fallback) / `/ws/websocket` (raw WS). The dashboard connects to `/ws/websocket` via raw STOMP and subscribes to `/topic/events` (domain events), `/topic/metrics` (live gateway metrics), and `/topic/audit` (live audit entries). `wsStore` (`src/store/wsStore.ts`) holds connection status, recent events, circuit-breaker state, and live metrics.
-- `src/modules/ai/` — AI filter and AI modifier stats pages. `src/modules/audit/` — audit log viewer. `src/modules/auth/` — login, password change, protected route guard. `src/modules/certificates/` — cert vault + cert groups management. `src/modules/filters/` — filter definition and configuration. `src/modules/gateway/` — gateway status dashboard. `src/modules/routes/` — route management. `src/modules/settings/` — platform settings. `src/modules/users/` — user management. `src/modules/workspaces/` — workspace (tenant) management. `src/modules/workflow-builder/` — visual route topology editor (shares `@xyflow/react` with `src/modules/routes/`).
-- Separate API modules in `src/api/`: `authApi.ts`, `routesApi.ts`, `filtersApi.ts`, `usersApi.ts`, `tenantsApi.ts`, `auditApi.ts`, `certVaultApi.ts`, `gatewayApi.ts`, `aiApi.ts`.
+- `src/modules/ai/` — AI filter and AI modifier stats pages. `src/modules/api-keys/` — API key lifecycle management (create, revoke, rotate). `src/modules/audit/` — audit log viewer. `src/modules/auth/` — login, password change, protected route guard. `src/modules/certificates/` — cert vault + cert groups management. `src/modules/filters/` — filter definition and configuration. `src/modules/gateway/` — gateway status dashboard. `src/modules/routes/` — route management. `src/modules/settings/` — platform settings. `src/modules/users/` — user management. `src/modules/workspaces/` — workspace (tenant) management. `src/modules/workflow-builder/` — visual route topology editor (shares `@xyflow/react` with `src/modules/routes/`).
+- Separate API modules in `src/api/`: `authApi.ts`, `routesApi.ts`, `filtersApi.ts`, `usersApi.ts`, `tenantsApi.ts`, `auditApi.ts`, `certVaultApi.ts`, `gatewayApi.ts`, `aiApi.ts`, `apiKeysApi.ts`.
 - Key env vars: `VITE_API_BASE_URL` (defaults to `http://localhost:8082`) — used by both `apiClient` and as the base for the derived WebSocket URL. `VITE_MOCK=true` enables MSW mode. In dev the Vite proxy forwards `/api`, `/ws`, and `/sse` to `localhost:8082` so `VITE_API_BASE_URL` can be left unset. Set in `.env.local`.
 
 ## Developer Workflows
@@ -129,7 +132,7 @@ mvn clean package -pl routify-route-service -am -DskipTests
 
 ### Run services locally
 Use the pre-configured IntelliJ run configurations in `.run/` (`Routify All Services`, `Routify Full Stack`, per-service configs).  
-Or from CLI: `java -jar routify-<service>/target/routify-<service>-2.0.1-SNAPSHOT.jar`
+Or from CLI: `java -jar routify-<service>/target/routify-<service>-2.0.2-SNAPSHOT.jar`
 
 ### Frontend development
 ```bash
@@ -168,7 +171,10 @@ Copies `environments/.env.<branch>` → `.env` and brings up the requested Docke
 
 ### Testing
 
-**Java integration tests** use **Testcontainers** (Kafka, RabbitMQ, Redis, PostgreSQL). Convention: `*IT.java` suffix (run by maven-failsafe-plugin). Base class `AdminApiIntegrationBase` provides MockMvc, unsigned JWT generation (`generateTestJwt()`), mock RabbitMQ reply listeners (`mockRabbitReply()`), and Kafka test consumer (`drainTopic()`).
+**Java integration tests** use **Testcontainers** (Kafka, RabbitMQ, Redis, PostgreSQL). Convention: `*IT.java` suffix (run by maven-failsafe-plugin). Each service with ITs has its own base class:
+- `AdminApiIntegrationBase` (admin-api) — MockMvc, unsigned JWT generation (`generateTestJwt()`), mock RabbitMQ reply listeners (`mockRabbitReply()`), and Kafka test consumer (`drainTopic()`).
+- `RouteServiceIntegrationBase` (route-service) — Testcontainers for Postgres/Kafka/RabbitMQ, outbox poller, and `ProcessedCommandRepository` cleanup.
+- `IdentityServiceIntegrationBase` (identity-service) — Testcontainers for Postgres/Kafka/RabbitMQ/Redis, JWT service, and auth/user repositories.
 
 > **ITs disabled by default:** `<skipITs>true</skipITs>` is set globally in the parent POM due to a Docker Engine 29.x / Testcontainers incompatibility. Re-enable with `mvn verify -DskipITs=false`. The `docker-java` client is overridden to **3.7.1** for API version negotiation with Docker Engine 29.x. Testcontainers version is managed by Boot 4.0.5 (TC 2.0.4). TC 2.x renamed artifacts with `testcontainers-` prefix (e.g. `testcontainers-junit-jupiter`, `testcontainers-kafka`).
 
