@@ -1,5 +1,6 @@
 package io.routify.route.messaging;
 
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
@@ -50,7 +51,7 @@ public class RouteServiceRabbitHandler {
                     return new QueryResponse.GatewaySnapshotList.RouteSnapshot(
                             dto.routeId(), dto.tenantId(), dto.name(), dto.pathPattern(),
                             dto.methods(), dto.upstreamUri(), dto.stripPrefix(), dto.version(),
-                            filters, dto.extraConfig());
+                            dto.environment(), filters, dto.extraConfig());
                 })
                 .toList();
         log.debug("RabbitMQ: returning {} active routes in snapshot", snapshots.size());
@@ -98,17 +99,19 @@ public class RouteServiceRabbitHandler {
         log.debug("RabbitMQ: received routes.query request");
         RouteStatus status = (req.status() != null && !req.status().isBlank())
                 ? RouteStatus.valueOf(req.status().toUpperCase()) : null;
+        RouteEnvironment environment = (req.environment() != null && !req.environment().isBlank())
+                ? RouteEnvironment.valueOf(req.environment().toUpperCase()) : null;
         String sortBy  = req.sortBy()  != null ? req.sortBy()  : "createdAt";
         String sortDir = req.sortDir() != null ? req.sortDir() : "DESC";
 
         var pageable = PageRequest.of(req.page(), req.size(),
                 Sort.by(Sort.Direction.fromString(sortDir), sortBy));
-        var result = routeService.findAllWithFilters(req.tenantId(), status, pageable);
+        var result = routeService.findAllWithFilters(req.tenantId(), status, environment, pageable);
 
         var content = result.getContent().stream().map(routeMapper::toSummary).map(s ->
                 new QueryResponse.RoutesPage.RouteSummary(
                         s.id(), s.name(), s.description(), s.pathPattern(), s.methods(),
-                        s.upstreamUri(), s.status(), s.version(), s.filterCount(),
+                        s.upstreamUri(), s.status(), s.environment(), s.version(), s.filterCount(),
                         s.createdAt(), s.activatedAt()))
                 .toList();
         return new QueryResponse.RoutesPage(content, result.getTotalElements(),
@@ -126,7 +129,7 @@ public class RouteServiceRabbitHandler {
                 .toList();
         return new QueryResponse.RouteDetail(
                 r.id(), r.tenantId(), r.name(), r.description(), r.pathPattern(),
-                r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.version(),
+                r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.environment(), r.version(),
                 filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt());
     }
 
@@ -142,7 +145,7 @@ public class RouteServiceRabbitHandler {
                 .toList();
         return new QueryResponse.RouteDetail(
                 r.id(), r.tenantId(), r.name(), r.description(), r.pathPattern(),
-                r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.version(),
+                r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.environment(), r.version(),
                 filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt());
     }
 

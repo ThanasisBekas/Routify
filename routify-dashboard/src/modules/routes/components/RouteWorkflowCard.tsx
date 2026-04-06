@@ -12,6 +12,7 @@ import {
   Terminal,
   Copy,
   Network,
+  ArrowUpRight,
 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary } from '../../../types'
@@ -19,6 +20,7 @@ import { STATUS_CONFIG } from '../constants/routeStatusConfig'
 import { METHOD_COLORS } from '../routeConstants'
 import { PipelineNode, PipelineArrow, FilterPill } from './PipelineComponents'
 import ConfirmDeletePopover from './ConfirmDeletePopover'
+import EnvironmentBadge from './EnvironmentBadge'
 
 interface Props {
   route: RouteSummary
@@ -30,6 +32,7 @@ interface Props {
   onActivate: () => void
   onDeactivate: () => void
   onDelete: () => void
+  onPromote?: () => void
   isActivating: boolean
   isCloning: boolean
 }
@@ -44,6 +47,7 @@ export default function RouteWorkflowCard({
   onActivate,
   onDeactivate,
   onDelete,
+  onPromote,
   isActivating,
   isCloning,
 }: Props) {
@@ -87,6 +91,7 @@ export default function RouteWorkflowCard({
             <div className="flex items-center gap-2 mb-0.5">
               <h3 className="text-sm font-bold text-white truncate">{route.name}</h3>
               <span className="text-[9px] text-gray-600 font-mono shrink-0">v{route.version}</span>
+              {route.environment === 'STAGING' && <EnvironmentBadge environment="STAGING" />}
             </div>
             {route.description && <p className="text-[11px] text-gray-500 truncate">{route.description}</p>}
           </div>
@@ -240,6 +245,17 @@ export default function RouteWorkflowCard({
             >
               <Pause className="w-3 h-3" />
               Pause
+            </button>
+          )}
+
+          {route.environment === 'STAGING' && route.status === 'ACTIVE' && onPromote && (
+            <button
+              onClick={onPromote}
+              title="Promote to Production"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/20 transition-all"
+            >
+              <ArrowUpRight className="w-3 h-3" />
+              Promote
             </button>
           )}
 

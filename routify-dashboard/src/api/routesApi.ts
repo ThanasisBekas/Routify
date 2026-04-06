@@ -14,7 +14,7 @@ import type {
 const BASE = '/api/v1/admin/routes'
 
 export const routesApi = {
-  list: (params?: { status?: string; page?: number; size?: number; sortBy?: string; sortDir?: string }) =>
+  list: (params?: { status?: string; environment?: string; page?: number; size?: number; sortBy?: string; sortDir?: string }) =>
     apiClient.get<Page<RouteSummary>>(BASE, { params }).then((r) => r.data),
 
   get: (id: string) => apiClient.get<RouteDto>(`${BASE}/${id}`).then((r) => r.data),
@@ -30,6 +30,8 @@ export const routesApi = {
   delete: (id: string) => apiClient.delete(`${BASE}/${id}`).then((r) => r.data),
 
   clone: (id: string) => apiClient.post<RouteDto>(`${BASE}/${id}/clone`).then((r) => r.data),
+
+  promote: (id: string) => apiClient.post<AsyncAcknowledgement>(`${BASE}/${id}/promote`).then((r) => r.data),
 
   attachFilter: (routeId: string, req: AttachFilterRequest) =>
     apiClient.post<RouteDto>(`${BASE}/${routeId}/filters`, req).then((r) => r.data),

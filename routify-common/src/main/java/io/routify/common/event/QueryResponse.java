@@ -3,6 +3,7 @@ package io.routify.common.event;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.routify.common.domain.FilterType;
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.common.domain.TenantPlan;
 import io.routify.common.domain.UserRole;
@@ -143,6 +144,7 @@ public sealed interface QueryResponse
                 String upstreamUri,
                 String stripPrefix,
                 Integer version,
+                String environment,
                 List<FilterSnapshot> filters,
                 Map<String, Object> extraConfig
         ) {
@@ -186,6 +188,7 @@ public sealed interface QueryResponse
                 String methods,
                 String upstreamUri,
                 RouteStatus status,
+                RouteEnvironment environment,
                 Integer version,
                 int filterCount,
                 Instant createdAt,
@@ -204,6 +207,7 @@ public sealed interface QueryResponse
             String upstreamUri,
             String stripPrefix,
             RouteStatus status,
+            RouteEnvironment environment,
             Integer version,
             List<FilterRef> filters,
             Map<String, Object> extraConfig,

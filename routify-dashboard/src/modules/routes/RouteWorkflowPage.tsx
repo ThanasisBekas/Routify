@@ -7,10 +7,11 @@ import type { RouteStatus } from '../../types'
 import RouteFormModal from './RouteFormModal'
 import RouteDetailModal from './RouteDetailModal'
 import RouteCurlModal from './RouteCurlModal'
+import PromoteDiffModal from './components/PromoteDiffModal'
 import { useRouteActions } from './useRouteActions'
 import { STATUS_CONFIG } from './constants/routeStatusConfig'
 import { type StatusFilterTab } from './routeConstants'
-import RouteListHeader from './components/RouteListHeader'
+import RouteListHeader, { type EnvironmentFilterTab } from './components/RouteListHeader'
 import RouteWorkflowCard from './components/RouteWorkflowCard'
 import RoutePagination from './components/RoutePagination'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
@@ -20,10 +21,12 @@ export default function RouteWorkflowPage() {
   useDocumentTitle('Routes')
   const qc = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<StatusFilterTab>('')
+  const [environmentFilter, setEnvironmentFilter] = useState<EnvironmentFilterTab>('')
   const [page, setPage] = useState(0)
   const [formModal, setFormModal] = useState<{ open: boolean; editingId?: string }>({ open: false })
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [curlRouteId, setCurlRouteId] = useState<string | null>(null)
+  const [promoteRoute, setPromoteRoute] = useState<{ id: string; name: string } | null>(null)
 
   const openCreate = () => setFormModal({ open: true, editingId: undefined })
   const openEdit = (id: string) => setFormModal({ open: true, editingId: id })
@@ -32,10 +35,11 @@ export default function RouteWorkflowPage() {
   const wsStatus = useWsStore((s) => s.status)
 
   const { data, isLoading, isFetching, refetch } = useRealtimeQuery({
-    queryKey: ['routes', statusFilter, page],
+    queryKey: ['routes', statusFilter, environmentFilter, page],
     queryFn: () =>
       routesApi.list({
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...(environmentFilter ? { environment: environmentFilter } : {}),
         page,
         size: 20,
         sortBy: 'createdAt',
@@ -62,10 +66,15 @@ export default function RouteWorkflowPage() {
         total={total}
         routes={routes}
         statusFilter={statusFilter}
+        environmentFilter={environmentFilter}
         isFetching={isFetching}
         isLive={wsStatus === 'CONNECTED'}
         onStatusFilter={(s) => {
           setStatusFilter(s)
+          setPage(0)
+        }}
+        onEnvironmentFilter={(e) => {
+          setEnvironmentFilter(e)
           setPage(0)
         }}
         onRefresh={() => refetch()}
@@ -114,6 +123,9 @@ export default function RouteWorkflowPage() {
                 onActivate={() => activateMutation.mutate(route.id)}
                 onDeactivate={() => deactivateMutation.mutate(route.id)}
                 onDelete={() => deleteMutation.mutate(route.id)}
+                onPromote={route.environment === 'STAGING' && route.status === 'ACTIVE'
+                  ? () => setPromoteRoute({ id: route.id, name: route.name })
+                  : undefined}
                 isActivating={activateMutation.isPending && activateMutation.variables === route.id}
                 isCloning={cloneMutation.isPending && cloneMutation.variables === route.id}
               />
@@ -136,6 +148,7 @@ export default function RouteWorkflowPage() {
       )}
       {selectedRouteId && <RouteDetailModal routeId={selectedRouteId} onClose={() => setSelectedRouteId(null)} />}
       {curlRouteId && curlRoute && <RouteCurlModal route={curlRoute} onClose={() => setCurlRouteId(null)} />}
+      {promoteRoute && <PromoteDiffModal stagingRoute={promoteRoute} onClose={() => setPromoteRoute(null)} />}
     </div>
   )
 }

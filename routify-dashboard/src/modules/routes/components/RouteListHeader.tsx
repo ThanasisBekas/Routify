@@ -1,16 +1,20 @@
 import { Plus, RefreshCw, Wifi } from 'lucide-react'
 import { cn } from '../../../lib/utils'
-import type { RouteSummary, RouteStatus } from '../../../types'
+import type { RouteSummary, RouteStatus, RouteEnvironment } from '../../../types'
 import { STATUS_CONFIG } from '../constants/routeStatusConfig'
 import { STATUS_FILTER_TABS, type StatusFilterTab } from '../routeConstants'
+
+export type EnvironmentFilterTab = '' | RouteEnvironment
 
 interface Props {
   total: number
   routes: RouteSummary[]
   statusFilter: StatusFilterTab
+  environmentFilter: EnvironmentFilterTab
   isFetching: boolean
   isLive: boolean
   onStatusFilter: (s: StatusFilterTab) => void
+  onEnvironmentFilter: (e: EnvironmentFilterTab) => void
   onRefresh: () => void
   onNew: () => void
 }
@@ -19,9 +23,11 @@ export default function RouteListHeader({
   total,
   routes,
   statusFilter,
+  environmentFilter,
   isFetching,
   isLive,
   onStatusFilter,
+  onEnvironmentFilter,
   onRefresh,
   onNew,
 }: Props) {
@@ -94,6 +100,28 @@ export default function RouteListHeader({
             </button>
           )
         })}
+
+        {/* Environment toggle */}
+        <div className="ml-auto flex items-center gap-1.5">
+          {(['', 'PRODUCTION', 'STAGING'] as EnvironmentFilterTab[]).map((e) => (
+            <button
+              key={e}
+              onClick={() => onEnvironmentFilter(e)}
+              className={cn(
+                'text-[10px] font-semibold px-2 py-1 rounded-md border transition-all',
+                environmentFilter === e
+                  ? e === 'STAGING'
+                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                    : e === 'PRODUCTION'
+                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                      : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                  : 'bg-white/[0.03] text-gray-500 border-white/[0.06] hover:text-gray-300 hover:border-white/20',
+              )}
+            >
+              {e === '' ? 'All Envs' : e === 'PRODUCTION' ? '🟢 Prod' : '🟡 Staging'}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

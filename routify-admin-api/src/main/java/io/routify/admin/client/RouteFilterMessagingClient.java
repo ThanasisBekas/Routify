@@ -51,11 +51,11 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     // ─── Route Queries (RabbitMQ) ─────────────────────────────────────────────
 
     @CircuitBreaker(name = "route-service", fallbackMethod = "queryRoutesFallback")
-    public QueryResponse.RoutesPage queryRoutes(UUID tenantId, String status, int page, int size,
-                                                String sortBy, String sortDir) {
+    public QueryResponse.RoutesPage queryRoutes(UUID tenantId, String status, String environment,
+                                                int page, int size, String sortBy, String sortDir) {
         try {
             return rpc(RabbitTopology.RK_ROUTES_QUERY,
-                    new QueryRequest.RoutesQuery(tenantId, status, page, size, sortBy, sortDir),
+                    new QueryRequest.RoutesQuery(tenantId, status, environment, page, size, sortBy, sortDir),
                     QueryResponse.RoutesPage.class);
         } catch (Exception e) {
             log.error("queryRoutes failed: {}", e.getMessage(), e);
@@ -64,8 +64,9 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     }
 
     @SuppressWarnings("unused")
-    private QueryResponse.RoutesPage queryRoutesFallback(UUID tenantId, String status, int page, int size,
-                                                         String sortBy, String sortDir, Throwable t) {
+    private QueryResponse.RoutesPage queryRoutesFallback(UUID tenantId, String status, String environment,
+                                                         int page, int size, String sortBy, String sortDir,
+                                                         Throwable t) {
         log.warn("queryRoutes circuit open or timed out: {}", t.getMessage());
         return new QueryResponse.RoutesPage(java.util.List.of(), 0L, 0, page, size);
     }
@@ -153,7 +154,7 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
                 req.name(), req.description(), req.pathPattern(),
                 req.methods(), req.upstreamUri(), req.stripPrefix(),
-                req.extraConfig()));
+                req.extraConfig(), req.environment()));
     }
 
     public void sendUpdateRoute(UUID id, UUID tenantId, String actor, UpdateRouteRequest req) {
@@ -178,6 +179,11 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     public void sendDeleteRoute(UUID id, UUID tenantId, String actor) {
         kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
                 new CommandEvent.DeleteRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
+    }
+
+    public void sendPromoteRoute(UUID routeId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.PromoteRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
     }
 
     public void sendAttachFilter(UUID routeId, UUID filterId, int order, String phase,

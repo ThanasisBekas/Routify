@@ -98,6 +98,17 @@ public class RouteDefinitionBuilder {
                     snapshot.routeId(), isolation.enabled());
         }
 
+        // Staging environment predicate — only match staging routes when
+        // the request carries the X-Route-Environment: STAGING header.
+        // Production routes get NO extra predicate (they match by default).
+        StagingSettings staging = resolveStagingSettings();
+        if ("STAGING".equalsIgnoreCase(snapshot.environment()) && staging.enabled()) {
+            predicates.add(new PredicateDefinition(
+                    "Header=%s, STAGING".formatted(staging.headerName())));
+            log.debug("Staging predicate added for route {}: header={}",
+                    snapshot.routeId(), staging.headerName());
+        }
+
         definition.setPredicates(predicates);
 
         // ─── Filters ─────────────────────────────────────────────────────────
@@ -148,6 +159,7 @@ public class RouteDefinitionBuilder {
         metadata.put("tenantId", snapshot.tenantId().toString());
         metadata.put("routeName", snapshot.name());
         metadata.put("routeVersion", snapshot.version());
+        metadata.put("environment", snapshot.environment() != null ? snapshot.environment() : "PRODUCTION");
         if (snapshot.extraConfig() != null) {
             metadata.putAll(snapshot.extraConfig());
         }
@@ -493,6 +505,36 @@ public class RouteDefinitionBuilder {
                                            String tenantIdHeader) {
         static final TenantIsolationSettings DEFAULTS =
                 new TenantIsolationSettings(true, DEFAULT_TENANT_HEADER);
+    }
+
+    // ─── Staging Environment Settings ─────────────────────────────────────────
+
+    /** Immutable snapshot of the staging environment settings for a single route-build call. */
+    private record StagingSettings(boolean enabled, String headerName) {
+        static final StagingSettings DEFAULTS = new StagingSettings(true, "X-Route-Environment");
+    }
+
+    /**
+     * Reads the {@code staging} section from the live gateway config.
+     * Falls back to safe defaults (staging ON, default header) if the section is missing.
+     */
+    @SuppressWarnings("unchecked")
+    private StagingSettings resolveStagingSettings() {
+        Map<String, Object> gwConfig = configLoader.getConfig();
+        if (gwConfig == null || gwConfig.isEmpty()) {
+            return StagingSettings.DEFAULTS;
+        }
+
+        Object raw = gwConfig.get("staging");
+        if (!(raw instanceof Map<?, ?> rawMap)) {
+            return StagingSettings.DEFAULTS;
+        }
+
+        Map<String, Object> s = (Map<String, Object>) rawMap;
+        boolean enabled = toBool(s.get("enabled"), true);
+        String headerName = s.get("headerName") instanceof String h && !h.isBlank()
+                ? h : "X-Route-Environment";
+        return new StagingSettings(enabled, headerName);
     }
 
     // ─── Global Filter Entries ───────────────────────────────────────────────

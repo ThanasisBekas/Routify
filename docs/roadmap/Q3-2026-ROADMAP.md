@@ -11,7 +11,7 @@
 | # | Initiative | Theme | Target Sprint | Impact |
 |---|-----------|-------|---------------|--------|
 | 1 | ✅ [API Key Lifecycle Management](#1-api-key-lifecycle-management) | Security | Weeks 1–3 | Enables programmatic API access without JWT; unblocks CI/CD and M2M integrations |
-| 2 | [Route Promotion Environments](#2-route-promotion-environments) | Reliability | Weeks 2–5 | Staging → Production promotion flow prevents misconfigured routes hitting live traffic |
+| 2 | ✅ [Route Promotion Environments](#2-route-promotion-environments) | Reliability | Weeks 2–5 | Staging → Production promotion flow prevents misconfigured routes hitting live traffic |
 | 3 | [Webhook Notification System](#3-webhook-notification-system) | Integration | Weeks 3–5 | External systems react to route, cert, and audit events in real time |
 | 4 | [Granular RBAC & Permissions](#4-granular-rbac--permissions) | Security | Weeks 4–7 | Fine-grained permissions per resource type replace the current 4-role model |
 | 5 | [Gateway Health Dashboard v2](#5-gateway-health-dashboard-v2) | Observability | Weeks 5–8 | Live latency heatmaps, per-route error budgets, and SLO tracking in the dashboard |
