@@ -1,11 +1,10 @@
 package io.routify.gateway.filter;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
+import com.networknt.schema.Error;
+import com.networknt.schema.InputFormat;
+import com.networknt.schema.Schema;
+import com.networknt.schema.SchemaRegistry;
+import com.networknt.schema.SpecificationVersion;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -23,7 +22,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Set;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -51,16 +50,13 @@ import java.util.stream.Collectors;
 public class JsonSchemaValidateGatewayFilterFactory
         extends AbstractGatewayFilterFactory<JsonSchemaValidateGatewayFilterFactory.Config> {
 
-    private final ObjectMapper objectMapper;
-
-    public JsonSchemaValidateGatewayFilterFactory(ObjectMapper objectMapper) {
+    public JsonSchemaValidateGatewayFilterFactory() {
         super(Config.class);
-        this.objectMapper = objectMapper;
     }
 
     @Override
     public GatewayFilter apply(Config config) {
-        JsonSchema schema = buildSchema(config);
+        Schema schema = buildSchema(config);
         if (schema == null) {
             log.error("JsonSchemaValidate: invalid or missing schema — filter will PASS all requests");
         }
@@ -84,18 +80,17 @@ public class JsonSchemaValidateGatewayFilterFactory
 
                         String body = new String(bytes, StandardCharsets.UTF_8);
 
-                        Set<ValidationMessage> violations;
+                        List<Error> violations;
                         try {
-                            JsonNode node = objectMapper.readTree(body);
-                            violations = schema.validate(node);
+                            violations = schema.validate(body, InputFormat.JSON);
                         } catch (Exception e) {
                             log.debug("JsonSchemaValidate: failed to parse JSON body — rejecting: {}", e.getMessage());
-                            return badRequest(exchange, "Body is not valid JSON: " + e.getMessage(), Set.of());
+                            return badRequest(exchange, "Body is not valid JSON: " + e.getMessage(), List.of());
                         }
 
                         if (!violations.isEmpty()) {
                             String violationList = violations.stream()
-                                    .map(ValidationMessage::getMessage)
+                                    .map(Error::getMessage)
                                     .collect(Collectors.joining("\", \"", "[\"", "\"]"));
                             log.debug("JsonSchemaValidate: {} violation(s) found", violations.size());
                             return badRequest(exchange, "Request body failed JSON Schema validation", violations);
@@ -122,29 +117,29 @@ public class JsonSchemaValidateGatewayFilterFactory
         };
     }
 
-    private JsonSchema buildSchema(Config config) {
+    private Schema buildSchema(Config config) {
         if (config.getSchema() == null || config.getSchema().isBlank()) {
             log.error("JsonSchemaValidate: 'schema' config is required but was not provided");
             return null;
         }
         try {
-            SpecVersion.VersionFlag version = parseSpecVersion(config.getSpecVersion());
-            JsonSchemaFactory factory = JsonSchemaFactory.getInstance(version);
-            return factory.getSchema(config.getSchema());
+            SpecificationVersion version = parseSpecVersion(config.getSpecVersion());
+            SchemaRegistry registry = SchemaRegistry.withDefaultDialect(version);
+            return registry.getSchema(config.getSchema());
         } catch (Exception e) {
             log.error("JsonSchemaValidate: failed to parse schema: {}", e.getMessage(), e);
             return null;
         }
     }
 
-    private SpecVersion.VersionFlag parseSpecVersion(String v) {
-        if (v == null) return SpecVersion.VersionFlag.V7;
+    private SpecificationVersion parseSpecVersion(String v) {
+        if (v == null) return SpecificationVersion.DRAFT_7;
         return switch (v.toUpperCase()) {
-            case "V4"      -> SpecVersion.VersionFlag.V4;
-            case "V6"      -> SpecVersion.VersionFlag.V6;
-            case "V201909" -> SpecVersion.VersionFlag.V201909;
-            case "V202012" -> SpecVersion.VersionFlag.V202012;
-            default        -> SpecVersion.VersionFlag.V7;
+            case "V4"      -> SpecificationVersion.DRAFT_4;
+            case "V6"      -> SpecificationVersion.DRAFT_6;
+            case "V201909" -> SpecificationVersion.DRAFT_2019_09;
+            case "V202012" -> SpecificationVersion.DRAFT_2020_12;
+            default        -> SpecificationVersion.DRAFT_7;
         };
     }
 
@@ -154,7 +149,7 @@ public class JsonSchemaValidateGatewayFilterFactory
                 || (contentType.getSubtype() != null && contentType.getSubtype().contains("json"));
     }
 
-    private Mono<Void> badRequest(ServerWebExchange exchange, String detail, Set<ValidationMessage> violations) {
+    private Mono<Void> badRequest(ServerWebExchange exchange, String detail, List<Error> violations) {
         ServerHttpResponse resp = exchange.getResponse();
         resp.setStatusCode(HttpStatus.BAD_REQUEST);
         resp.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");

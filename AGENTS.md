@@ -64,10 +64,10 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 
 **Java services:**
 - Java 25 with **Virtual Threads** enabled (`spring.threads.virtual.enabled: true`) on all services except the reactive gateway.
-- Spring Boot **3.5.13**, Spring Cloud **2025.0.2**, Spring AI **1.1.4**, JJWT **0.13.0**, Resilience4j **2.2.0**, MapStruct **1.6.3**.
+- Spring Boot **4.0.5**, Spring Cloud **2025.1.1**, Spring AI **1.1.4**, JJWT **0.13.0**, Resilience4j **2.2.0**, MapStruct **1.6.3**.
 - `routify-api-gateway` is **reactive** (WebFlux/Reactor/Netty) — never use blocking code there.
 - Exceptions extend the **sealed** `RoutifyException` hierarchy (`NotFound`, `Conflict`, `Validation`, `BadRequest`, `Unauthorized`, `Forbidden`, `RateLimitExceeded`, `QuotaExceeded`, `GatewayError`, `HeuristicError`) — never throw raw `RuntimeException`. Error responses are serialised by `exception.io.routify.common.GlobalExceptionHandler` as **RFC 9457 ProblemDetail** JSON (`type`, `title`, `status`, `detail`, `errorCode`).
-- Use **MapStruct** for DTO↔entity mappings (annotation processor configured in parent `pom.xml`). Lombok + MapStruct binding order matters: `lombok-mapstruct-binding` is declared explicitly. Lombok version is overridden to **1.18.38** in the parent POM for JDK 25 compatibility.
+- Use **MapStruct** for DTO↔entity mappings (annotation processor configured in parent `pom.xml`). Lombok + MapStruct binding order matters: `lombok-mapstruct-binding` is declared explicitly. Lombok version is overridden to **1.18.44** in the parent POM for JDK 25 compatibility.
 - All Kafka producers use `acks=all` + idempotent mode. Kafka writes go through the **Transactional Outbox** pattern in three services: **route-service** (`OutboxPoller`), **identity-service** (`IdentityOutboxPoller`), and **cert-vault** (`CertOutboxPoller`). All pollers share the same design: poll every 250 ms, retry failed after 30 s, max 5 attempts, graceful shutdown with `ReentrantLock` + 10 s drain timeout. Configurable via `routify.outbox.*` properties (`poll-interval-ms`, `batch-size`, `max-retries`, `retry-interval-ms`).
 - **Application-level caching** uses **Caffeine** in-process caches (`@EnableCaching` + `CacheConfig` class per service, `@Cacheable`/`@CacheEvict` annotations). Three services have caches: **route-service** (`gatewaySnapshot` — maximumSize=1, TTL=60s, evicted on outbox publish), **identity-service** (`users` — maximumSize=500, TTL=120s; `tenants` — maximumSize=100, TTL=300s; both evicted on any mutation), **admin-api** (`activeWorkspaces` — maximumSize=1, TTL=30s, evicted on tenant create/update/suspend/reactivate). Cache stats are enabled via `recordStats()` and auto-exposed as Micrometer `cache_*` metrics.
 - Database migrations use **Flyway** (`classpath:db/migration`). `ddl-auto: validate` — never `update`. Each service uses its own schema: `routify` (route-service), `routify_identity` (identity-service), `routify_audit` (audit-service), `routify_cert` (cert-vault).
@@ -129,7 +129,7 @@ mvn clean package -pl routify-route-service -am -DskipTests
 
 ### Run services locally
 Use the pre-configured IntelliJ run configurations in `.run/` (`Routify All Services`, `Routify Full Stack`, per-service configs).  
-Or from CLI: `java -jar routify-<service>/target/routify-<service>-2.0.0-SNAPSHOT.jar`
+Or from CLI: `java -jar routify-<service>/target/routify-<service>-2.0.1-SNAPSHOT.jar`
 
 ### Frontend development
 ```bash
@@ -170,7 +170,7 @@ Copies `environments/.env.<branch>` → `.env` and brings up the requested Docke
 
 **Java integration tests** use **Testcontainers** (Kafka, RabbitMQ, Redis, PostgreSQL). Convention: `*IT.java` suffix (run by maven-failsafe-plugin). Base class `AdminApiIntegrationBase` provides MockMvc, unsigned JWT generation (`generateTestJwt()`), mock RabbitMQ reply listeners (`mockRabbitReply()`), and Kafka test consumer (`drainTopic()`).
 
-> **ITs disabled by default:** `<skipITs>true</skipITs>` is set globally in the parent POM due to a Docker Engine 29.x / Testcontainers incompatibility. Re-enable with `mvn verify -DskipITs=false`. The `docker-java` client is overridden to **3.7.1** for API version negotiation with Docker Engine 29.x. Testcontainers version is managed by Boot 3.5.13 (TC 1.21.4).
+> **ITs disabled by default:** `<skipITs>true</skipITs>` is set globally in the parent POM due to a Docker Engine 29.x / Testcontainers incompatibility. Re-enable with `mvn verify -DskipITs=false`. The `docker-java` client is overridden to **3.7.1** for API version negotiation with Docker Engine 29.x. Testcontainers version is managed by Boot 4.0.5 (TC 2.0.4). TC 2.x renamed artifacts with `testcontainers-` prefix (e.g. `testcontainers-junit-jupiter`, `testcontainers-kafka`).
 
 ```bash
 mvn verify                             # unit tests only (ITs skipped by default)
@@ -204,7 +204,7 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose
 docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml up -d
 ```
 
-> **JDK 25 compatibility:** Spring Kafka sealed-class compatibility with JDK 25 is resolved in the current dependency set (Boot 3.5.13). The compiled class overrides (`org/springframework/kafka/listener/`) that previously patched Spring Kafka have been removed — they are no longer needed.
+> **JDK 25 compatibility:** Spring Kafka sealed-class compatibility with JDK 25 is resolved in the current dependency set (Boot 4.0.5). The compiled class overrides (`org/springframework/kafka/listener/`) that previously patched Spring Kafka have been removed — they are no longer needed.
 
 ## Environment / Secrets
 

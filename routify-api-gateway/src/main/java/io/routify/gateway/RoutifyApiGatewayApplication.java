@@ -3,7 +3,6 @@ package io.routify.gateway;
 import io.routify.common.config.SecretValidator;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.security.oauth2.resource.reactive.ReactiveOAuth2ResourceServerAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -31,7 +30,7 @@ import java.security.Security;
  *   <li>In-flight requests complete normally — zero disruption</li>
  * </ol>
  */
-@SpringBootApplication(exclude = ReactiveOAuth2ResourceServerAutoConfiguration.class)
+@SpringBootApplication
 @EnableScheduling
 @ConfigurationPropertiesScan
 public class RoutifyApiGatewayApplication {
