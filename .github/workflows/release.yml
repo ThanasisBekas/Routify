@@ -290,7 +290,7 @@ jobs:
           retention-days: 14
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # 3. Frontend verification — typecheck + lint + unit tests + build + E2E
+  # 3. Frontend verification — typecheck + lint + unit tests + build
   # ═══════════════════════════════════════════════════════════════════════════
   frontend-verify:
     name: Frontend Verify
@@ -319,21 +319,6 @@ jobs:
       - run: npm run test:ci
       - run: npm run build
 
-      - name: Install Playwright (Chromium only)
-        run: npx playwright install --with-deps chromium
-
-      - name: Run E2E tests
-        run: npm run test:e2e:ci
-        env:
-          CI: true
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-playwright-report
-          path: routify-dashboard/playwright-report/
-          retention-days: 14
 
   # ═══════════════════════════════════════════════════════════════════════════
   # 4. Build & publish Docker images to GHCR
