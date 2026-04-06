@@ -52,7 +52,6 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -102,6 +101,7 @@ jobs:
 
       - name: Verify Docker images exist in GHCR
         run: |
+          IMAGE_PREFIX="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
           VERSION="${{ steps.version.outputs.release_version }}"
           SERVICES=(
             routify-api-gateway
@@ -173,6 +173,7 @@ jobs:
 
       - name: Re-tag images for staging
         run: |
+          IMAGE_PREFIX="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
           VERSION="${{ needs.validate.outputs.release_version }}"
           SERVICES=(
             routify-api-gateway
@@ -266,6 +267,7 @@ jobs:
 
       - name: Re-tag images for production
         run: |
+          IMAGE_PREFIX="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
           VERSION="${{ needs.validate.outputs.release_version }}"
           SERVICES=(
             routify-api-gateway
