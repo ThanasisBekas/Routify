@@ -737,3 +737,92 @@ export interface ApiKeyCreatedResponse {
   createdAt: string
 }
 
+// ─── Webhook Notifications ────────────────────────────────────────────────────
+
+export type WebhookEventType =
+  | 'ROUTE_CREATED'
+  | 'ROUTE_ACTIVATED'
+  | 'ROUTE_DEACTIVATED'
+  | 'ROUTE_DELETED'
+  | 'ROUTE_PROMOTED'
+  | 'FILTER_CREATED'
+  | 'FILTER_UPDATED'
+  | 'FILTER_DELETED'
+  | 'CERT_UPLOADED'
+  | 'CERT_REVOKED'
+  | 'CERT_EXPIRING'
+  | 'CERT_EXPIRED'
+  | 'USER_CREATED'
+  | 'USER_DELETED'
+  | 'TENANT_SUSPENDED'
+  | 'TENANT_REACTIVATED'
+  | 'AI_FILTER_BLOCKED'
+  | 'AI_FILTER_FLAGGED'
+  | 'DLQ_OVERFLOW'
+  | 'GATEWAY_RELOAD_FAILED'
+
+export type WebhookSubscriptionStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
+
+export interface WebhookSubscriptionDto {
+  id: string
+  tenantId: string
+  name: string
+  url: string
+  eventTypes: WebhookEventType[]
+  status: WebhookSubscriptionStatus
+  failureCount: number
+  lastDeliveredAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WebhookDetailDto {
+  id: string
+  tenantId: string
+  name: string
+  url: string
+  secret: string
+  eventTypes: WebhookEventType[]
+  status: WebhookSubscriptionStatus
+  failureCount: number
+  lastDeliveredAt?: string
+  createdBy?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateWebhookRequest {
+  name: string
+  url: string
+  eventTypes: WebhookEventType[]
+}
+
+export interface UpdateWebhookRequest {
+  name?: string
+  url?: string
+  eventTypes?: WebhookEventType[]
+}
+
+export type WebhookDeliveryStatus = 'PENDING' | 'DELIVERED' | 'FAILED'
+
+export interface WebhookDeliveryDto {
+  id: string
+  subscriptionId: string
+  eventType: string
+  payload: string
+  responseStatus?: number
+  responseBody?: string
+  attempt: number
+  status: WebhookDeliveryStatus
+  deliveredAt?: string
+  nextRetryAt?: string
+  errorMessage?: string
+  createdAt: string
+}
+
+export interface WebhookTestResult {
+  success: boolean
+  responseStatus?: number
+  message: string
+}
+

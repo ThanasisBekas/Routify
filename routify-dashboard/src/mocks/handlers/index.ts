@@ -12,6 +12,7 @@ import { certHandlers } from './certs'
 import { auditHandlers } from './audit'
 import { aiHandlers } from './ai'
 import { apiKeyHandlers } from './apiKeys'
+import { webhookHandlers } from './webhooks'
 
 export const handlers = [
   ...authHandlers,
@@ -20,6 +21,7 @@ export const handlers = [
   ...filterHandlers,
   ...userHandlers,
   ...apiKeyHandlers,
+  ...webhookHandlers,
   ...gatewayHandlers,
   ...certHandlers,
   ...auditHandlers,

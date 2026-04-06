@@ -92,4 +92,22 @@ public class KafkaConsumerConfig {
         factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }
+
+    /**
+     * Listener container factory for webhook event consumers.
+     * Consumes domain events from ROUTE_EVENTS, FILTER_EVENTS, CERT_EVENTS, AI_FILTER_DECISIONS
+     * and dispatches matching webhook notifications.
+     */
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, Object> webhookKafkaListenerContainerFactory(
+            ConsumerFactory<String, Object> userCommandConsumerFactory,
+            KafkaTemplate<String, Object> identityDlqKafkaTemplate) {
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
+        factory.setConsumerFactory(userCommandConsumerFactory);
+        factory.setRecordMessageConverter(new StringJsonMessageConverter());
+        factory.setConcurrency(1);
+        factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(identityDlqKafkaTemplate));
+        factory.getContainerProperties().setObservationEnabled(true);
+        return factory;
+    }
 }

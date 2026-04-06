@@ -219,6 +219,24 @@ public final class RabbitTopology {
     public static final String QUEUE_APIKEYS_ROTATE             = "routify.identity-service.apikeys.rotate";
     public static final String RK_APIKEYS_ROTATE                = "apikeys.rotate";
 
+    // ─── routify-identity-service webhook queues & routing keys ───────────────
+
+    /** Queue: identity-service serves paginated webhook subscription list queries from admin-api */
+    public static final String QUEUE_WEBHOOKS_QUERY              = "routify.identity-service.webhooks.query";
+    public static final String RK_WEBHOOKS_QUERY                 = "webhooks.query";
+
+    /** Queue: identity-service serves single webhook subscription GET queries from admin-api */
+    public static final String QUEUE_WEBHOOKS_GET                = "routify.identity-service.webhooks.get";
+    public static final String RK_WEBHOOKS_GET                   = "webhooks.get";
+
+    /** Queue: identity-service serves paginated webhook delivery log queries from admin-api */
+    public static final String QUEUE_WEBHOOKS_DELIVERIES         = "routify.identity-service.webhooks.deliveries";
+    public static final String RK_WEBHOOKS_DELIVERIES            = "webhooks.deliveries";
+
+    /** Queue: identity-service handles webhook test-ping requests from admin-api (sync RPC) */
+    public static final String QUEUE_WEBHOOKS_TEST               = "routify.identity-service.webhooks.test";
+    public static final String RK_WEBHOOKS_TEST                  = "webhooks.test";
+
     // ─── routify-audit-service queues & routing keys ─────────────────────────
 
     /** Queue: audit-service serves paginated audit event queries from admin-api */

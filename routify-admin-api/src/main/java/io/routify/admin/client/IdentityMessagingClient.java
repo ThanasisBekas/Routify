@@ -340,6 +340,81 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
         return null;
     }
 
+    // ─── Webhook Queries (RabbitMQ sync) ───────────────────────────────────────
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "queryWebhooksFallback")
+    public QueryResponse.WebhooksPage queryWebhooks(UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_WEBHOOKS_QUERY,
+                new QueryRequest.WebhooksQuery(tenantId, page, size),
+                QueryResponse.WebhooksPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.WebhooksPage queryWebhooksFallback(UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryWebhooks circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.WebhooksPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "getWebhookFallback")
+    public QueryResponse.WebhookDetail getWebhook(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_WEBHOOKS_GET,
+                new QueryRequest.WebhookGet(id, tenantId),
+                QueryResponse.WebhookDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.WebhookDetail getWebhookFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("getWebhook circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "queryWebhookDeliveriesFallback")
+    public QueryResponse.WebhookDeliveriesPage queryWebhookDeliveries(UUID subscriptionId, UUID tenantId,
+                                                                       int page, int size) {
+        return rpc(RabbitTopology.RK_WEBHOOKS_DELIVERIES,
+                new QueryRequest.WebhookDeliveries(subscriptionId, tenantId, page, size),
+                QueryResponse.WebhookDeliveriesPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.WebhookDeliveriesPage queryWebhookDeliveriesFallback(UUID subscriptionId, UUID tenantId,
+                                                                                int page, int size, Throwable t) {
+        log.warn("queryWebhookDeliveries circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.WebhookDeliveriesPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "testWebhookFallback")
+    public QueryResponse.WebhookTestResult testWebhook(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_WEBHOOKS_TEST,
+                new QueryRequest.WebhookTest(id, tenantId),
+                QueryResponse.WebhookTestResult.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.WebhookTestResult testWebhookFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("testWebhook circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.WebhookTestResult(false, null, "Service unavailable");
+    }
+
+    // ─── Webhook Commands (Kafka) ──────────────────────────────────────────────
+
+    public void sendCreateWebhook(UUID tenantId, String actor, String name, String url,
+                                   java.util.List<String> eventTypes) {
+        kafka.publishCommand(KafkaTopics.WEBHOOK_COMMANDS, new CommandEvent.CreateWebhook(
+                UUID.randomUUID(), tenantId, actor, Instant.now(), name, url, eventTypes, actor));
+    }
+
+    public void sendUpdateWebhook(UUID webhookId, UUID tenantId, String actor, String name,
+                                   String url, java.util.List<String> eventTypes) {
+        kafka.publishCommand(KafkaTopics.WEBHOOK_COMMANDS, new CommandEvent.UpdateWebhook(
+                UUID.randomUUID(), tenantId, actor, Instant.now(), webhookId, name, url, eventTypes, actor));
+    }
+
+    public void sendDeleteWebhook(UUID webhookId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.WEBHOOK_COMMANDS, new CommandEvent.DeleteWebhook(
+                UUID.randomUUID(), tenantId, actor, Instant.now(), webhookId, actor));
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private TenantPlan parsePlan(String planStr, TenantPlan defaultPlan) {

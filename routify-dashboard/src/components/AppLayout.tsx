@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Building2,
   Key,
+  Bell,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { to: '/audit', label: 'Audit', icon: ClipboardList, desc: 'Audit log & analytics' },
   { to: '/users', label: 'Users', icon: Users, desc: 'User management' },
   { to: '/api-keys', label: 'API Keys', icon: Key, desc: 'API key management' },
+  { to: '/webhooks', label: 'Webhooks', icon: Bell, desc: 'Webhook notifications' },
   { to: '/settings', label: 'Settings', icon: Settings, desc: 'Platform settings' },
 ]
 

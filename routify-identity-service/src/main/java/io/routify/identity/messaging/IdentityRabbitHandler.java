@@ -9,11 +9,15 @@ import io.routify.common.exception.RoutifyException;
 import io.routify.identity.domain.AppUser;
 import io.routify.identity.domain.ApiKey;
 import io.routify.identity.domain.Tenant;
+import io.routify.identity.domain.WebhookDelivery;
+import io.routify.identity.domain.WebhookSubscription;
 import io.routify.identity.dto.AuthDto;
 import io.routify.identity.service.ApiKeyService;
 import io.routify.identity.service.AuthService;
 import io.routify.identity.service.TenantService;
 import io.routify.identity.service.UserService;
+import io.routify.identity.service.WebhookDispatcher;
+import io.routify.identity.service.WebhookService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -40,6 +44,8 @@ public class IdentityRabbitHandler {
     private final UserService   userService;
     private final TenantService tenantService;
     private final ApiKeyService apiKeyService;
+    private final WebhookService webhookService;
+    private final WebhookDispatcher webhookDispatcher;
 
     // ─── Auth ─────────────────────────────────────────────────────────────────
 
@@ -270,6 +276,63 @@ public class IdentityRabbitHandler {
         }
     }
 
+    // ─── Webhook Queries ────────────────────────────────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_WEBHOOKS_QUERY)
+    public QueryResponse.WebhooksPage handleWebhooksQuery(QueryRequest.WebhooksQuery req) {
+        log.debug("RabbitMQ: received webhooks.query request");
+        try {
+            var result = webhookService.findAll(req.tenantId(), PageRequest.of(req.page(), req.size()));
+            var content = result.getContent().stream().map(this::toWebhookSummary).toList();
+            return new QueryResponse.WebhooksPage(content, result.getTotalElements(),
+                    result.getTotalPages(), result.getNumber(), result.getSize());
+        } catch (RoutifyException e) {
+            log.warn("webhooks.query rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_WEBHOOKS_GET)
+    public QueryResponse.WebhookDetail handleWebhookGet(QueryRequest.WebhookGet req) {
+        log.debug("RabbitMQ: received webhooks.get request");
+        try {
+            return toWebhookDetail(webhookService.findById(req.id(), req.tenantId()));
+        } catch (RoutifyException e) {
+            log.warn("webhooks.get rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_WEBHOOKS_DELIVERIES)
+    public QueryResponse.WebhookDeliveriesPage handleWebhookDeliveries(QueryRequest.WebhookDeliveries req) {
+        log.debug("RabbitMQ: received webhooks.deliveries request");
+        try {
+            // Validate subscription belongs to tenant
+            webhookService.findById(req.subscriptionId(), req.tenantId());
+            var result = webhookService.findDeliveries(req.subscriptionId(),
+                    PageRequest.of(req.page(), req.size()));
+            var content = result.getContent().stream().map(this::toDeliveryEntry).toList();
+            return new QueryResponse.WebhookDeliveriesPage(content, result.getTotalElements(),
+                    result.getTotalPages(), result.getNumber(), result.getSize());
+        } catch (RoutifyException e) {
+            log.warn("webhooks.deliveries rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_WEBHOOKS_TEST)
+    public QueryResponse.WebhookTestResult handleWebhookTest(QueryRequest.WebhookTest req) {
+        log.debug("RabbitMQ: received webhooks.test request");
+        try {
+            WebhookSubscription sub = webhookService.findById(req.id(), req.tenantId());
+            WebhookDispatcher.TestPingResult result = webhookDispatcher.testPing(sub);
+            return new QueryResponse.WebhookTestResult(result.success(), result.responseStatus(), result.message());
+        } catch (RoutifyException e) {
+            log.warn("webhooks.test rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private QueryResponse.LoginResult toLoginResult(AuthDto.LoginResponse r) {
@@ -323,5 +386,28 @@ public class IdentityRabbitHandler {
                 k.getKeyPrefix(), k.getRole().name(), k.getEmail(),
                 k.getStatus().name(), k.getExpiresAt(), k.getLastUsedAt(),
                 k.getCreatedBy(), k.getCreatedAt(), k.getRevokedAt());
+    }
+
+    private QueryResponse.WebhooksPage.WebhookSummary toWebhookSummary(WebhookSubscription s) {
+        return new QueryResponse.WebhooksPage.WebhookSummary(
+                s.getId(), s.getTenantId(), s.getName(), s.getUrl(),
+                s.getEventTypes(), s.getStatus().name(), s.getFailureCount(),
+                s.getLastDeliveredAt(), s.getCreatedAt(), s.getUpdatedAt());
+    }
+
+    private QueryResponse.WebhookDetail toWebhookDetail(WebhookSubscription s) {
+        return new QueryResponse.WebhookDetail(
+                s.getId(), s.getTenantId(), s.getName(), s.getUrl(),
+                s.getSecret(), s.getEventTypes(), s.getStatus().name(),
+                s.getFailureCount(), s.getLastDeliveredAt(),
+                s.getCreatedBy(), s.getCreatedAt(), s.getUpdatedAt());
+    }
+
+    private QueryResponse.WebhookDeliveriesPage.DeliveryEntry toDeliveryEntry(WebhookDelivery d) {
+        return new QueryResponse.WebhookDeliveriesPage.DeliveryEntry(
+                d.getId(), d.getSubscriptionId(), d.getEventType(),
+                d.getPayload(), d.getResponseStatus(), d.getResponseBody(),
+                d.getAttempt(), d.getStatus().name(), d.getDeliveredAt(),
+                d.getNextRetryAt(), d.getErrorMessage(), d.getCreatedAt());
     }
 }

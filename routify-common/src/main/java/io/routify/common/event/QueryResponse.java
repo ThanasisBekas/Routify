@@ -62,6 +62,11 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.ApiKeysPage.class,       name = "API_KEYS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.ApiKeyDetail.class,      name = "API_KEY_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.ApiKeyCreated.class,     name = "API_KEY_CREATED"),
+    // ─── routify-identity-service webhooks ─────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.WebhooksPage.class,        name = "WEBHOOKS_PAGE"),
+    @JsonSubTypes.Type(value = QueryResponse.WebhookDetail.class,       name = "WEBHOOK_DETAIL"),
+    @JsonSubTypes.Type(value = QueryResponse.WebhookDeliveriesPage.class, name = "WEBHOOK_DELIVERIES_PAGE"),
+    @JsonSubTypes.Type(value = QueryResponse.WebhookTestResult.class,   name = "WEBHOOK_TEST_RESULT"),
     // ─── routify-audit-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.AuditEventsPage.class,      name = "AUDIT_EVENTS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.RequestLogsPage.class,      name = "REQUEST_LOGS_PAGE"),
@@ -106,6 +111,10 @@ public sealed interface QueryResponse
             QueryResponse.ApiKeysPage,
             QueryResponse.ApiKeyDetail,
             QueryResponse.ApiKeyCreated,
+            QueryResponse.WebhooksPage,
+            QueryResponse.WebhookDetail,
+            QueryResponse.WebhookDeliveriesPage,
+            QueryResponse.WebhookTestResult,
             QueryResponse.AuditEventsPage,
             QueryResponse.RequestLogsPage,
             QueryResponse.RequestStatsResult,
@@ -424,6 +433,79 @@ public sealed interface QueryResponse
             String role,
             Instant expiresAt,
             Instant createdAt
+    ) implements QueryResponse {}
+
+    // ─── Webhook responses ──────────────────────────────────────────────────
+
+    /** Paginated list of webhook subscriptions. */
+    record WebhooksPage(
+            List<WebhookSummary> content,
+            long totalElements,
+            int totalPages,
+            int page,
+            int size
+    ) implements QueryResponse {
+
+        public record WebhookSummary(
+                UUID id,
+                UUID tenantId,
+                String name,
+                String url,
+                List<String> eventTypes,
+                String status,
+                int failureCount,
+                Instant lastDeliveredAt,
+                Instant createdAt,
+                Instant updatedAt
+        ) {}
+    }
+
+    /** Full detail of a single webhook subscription. */
+    record WebhookDetail(
+            UUID id,
+            UUID tenantId,
+            String name,
+            String url,
+            String secret,
+            List<String> eventTypes,
+            String status,
+            int failureCount,
+            Instant lastDeliveredAt,
+            UUID createdBy,
+            Instant createdAt,
+            Instant updatedAt
+    ) implements QueryResponse {}
+
+    /** Paginated list of webhook delivery attempts. */
+    record WebhookDeliveriesPage(
+            List<DeliveryEntry> content,
+            long totalElements,
+            int totalPages,
+            int page,
+            int size
+    ) implements QueryResponse {
+
+        public record DeliveryEntry(
+                UUID id,
+                UUID subscriptionId,
+                String eventType,
+                String payload,
+                Integer responseStatus,
+                String responseBody,
+                int attempt,
+                String status,
+                Instant deliveredAt,
+                Instant nextRetryAt,
+                String errorMessage,
+                Instant createdAt
+        ) {}
+    }
+
+    /** Result of a webhook test-ping. */
+    record WebhookTestResult(
+            boolean success,
+            Integer responseStatus,
+            String message
     ) implements QueryResponse {}
 
     // ═══════════════════════════════════════════════════════════════════════════
