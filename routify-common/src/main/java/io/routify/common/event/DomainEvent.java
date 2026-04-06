@@ -37,6 +37,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = DomainEvent.RouteActivated.class,    name = "ROUTE_ACTIVATED"),
     @JsonSubTypes.Type(value = DomainEvent.RouteDeactivated.class,  name = "ROUTE_DEACTIVATED"),
     @JsonSubTypes.Type(value = DomainEvent.RouteDeleted.class,      name = "ROUTE_DELETED"),
+    @JsonSubTypes.Type(value = DomainEvent.RoutePromoted.class,    name = "ROUTE_PROMOTED"),
     @JsonSubTypes.Type(value = DomainEvent.FilterCreated.class,     name = "FILTER_CREATED"),
     @JsonSubTypes.Type(value = DomainEvent.FilterUpdated.class,     name = "FILTER_UPDATED"),
     @JsonSubTypes.Type(value = DomainEvent.FilterDeleted.class,     name = "FILTER_DELETED"),
@@ -74,6 +75,7 @@ public sealed interface DomainEvent
             DomainEvent.RouteActivated,
             DomainEvent.RouteDeactivated,
             DomainEvent.RouteDeleted,
+            DomainEvent.RoutePromoted,
             DomainEvent.FilterCreated,
             DomainEvent.FilterUpdated,
             DomainEvent.FilterDeleted,
@@ -172,6 +174,18 @@ public sealed interface DomainEvent
             UUID eventId,
             UUID tenantId,
             UUID routeId,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published when a STAGING route is promoted to PRODUCTION. Carries both route IDs for audit diff. */
+    record RoutePromoted(
+            UUID eventId,
+            UUID tenantId,
+            UUID stagingRouteId,
+            UUID productionRouteId,
+            String routeName,
             Instant occurredAt,
             String correlationId,
             String actor

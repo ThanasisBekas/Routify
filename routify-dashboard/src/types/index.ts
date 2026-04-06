@@ -68,6 +68,7 @@ export interface TenantDto {
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 export type RouteStatus = 'DRAFT' | 'ACTIVE' | 'DISABLED' | 'ARCHIVED'
+export type RouteEnvironment = 'STAGING' | 'PRODUCTION'
 
 export interface RouteFilterRef {
   filterId: string
@@ -88,6 +89,7 @@ export interface RouteDto {
   upstreamUri: string
   stripPrefix?: string
   status: RouteStatus
+  environment: RouteEnvironment
   version: number
   filters: RouteFilterRef[]
   extraConfig?: Record<string, unknown>
@@ -105,6 +107,7 @@ export interface RouteSummary {
   methods: string
   upstreamUri: string
   status: RouteStatus
+  environment: RouteEnvironment
   version: number
   filterCount: number
   preFilterCount: number
@@ -121,6 +124,7 @@ export interface CreateRouteRequest {
   upstreamUri: string
   stripPrefix?: string
   extraConfig?: Record<string, unknown>
+  environment?: RouteEnvironment
 }
 
 export interface UpdateRouteRequest {

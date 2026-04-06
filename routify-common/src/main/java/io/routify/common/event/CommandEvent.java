@@ -3,6 +3,7 @@ package io.routify.common.event;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.routify.common.domain.FilterType;
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.TenantPlan;
 import io.routify.common.domain.UserRole;
 
@@ -54,6 +55,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = CommandEvent.ActivateRoute.class,      name = "ACTIVATE_ROUTE"),
     @JsonSubTypes.Type(value = CommandEvent.DeactivateRoute.class,    name = "DEACTIVATE_ROUTE"),
     @JsonSubTypes.Type(value = CommandEvent.DeleteRoute.class,        name = "DELETE_ROUTE"),
+    @JsonSubTypes.Type(value = CommandEvent.PromoteRoute.class,      name = "PROMOTE_ROUTE"),
     // ─── Filter commands ──────────────────────────────────────────────────────
     @JsonSubTypes.Type(value = CommandEvent.AttachFilter.class,       name = "ATTACH_FILTER"),
     @JsonSubTypes.Type(value = CommandEvent.DetachFilter.class,       name = "DETACH_FILTER"),
@@ -100,6 +102,7 @@ public sealed interface CommandEvent
             CommandEvent.ActivateRoute,
             CommandEvent.DeactivateRoute,
             CommandEvent.DeleteRoute,
+            CommandEvent.PromoteRoute,
             CommandEvent.AttachFilter,
             CommandEvent.DetachFilter,
             CommandEvent.CreateFilter,
@@ -155,7 +158,8 @@ public sealed interface CommandEvent
             String methods,
             String upstreamUri,
             String stripPrefix,
-            Map<String, Object> extraConfig
+            Map<String, Object> extraConfig,
+            RouteEnvironment environment
     ) implements CommandEvent {}
 
     record UpdateRoute(
@@ -195,6 +199,15 @@ public sealed interface CommandEvent
             String requestedBy,
             Instant issuedAt,
             UUID   id
+    ) implements CommandEvent {}
+
+    /** Promotes a STAGING route to PRODUCTION — copies config atomically and archives staging. */
+    record PromoteRoute(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId
     ) implements CommandEvent {}
 
     // ─── Filter Commands ──────────────────────────────────────────────────────

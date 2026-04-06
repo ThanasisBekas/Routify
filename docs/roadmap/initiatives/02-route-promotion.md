@@ -51,11 +51,11 @@ public enum RouteEnvironment {
 ```
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Create `RouteEnvironment` enum in `routify-common`
-- [ ] Add `environment` field to `Route` entity
-- [ ] Update `RouteMapper` (MapStruct) to include environment
-- [ ] Update `RouteSummary` / `RouteDto` DTOs
+- [x] Create Flyway migration
+- [x] Create `RouteEnvironment` enum in `routify-common`
+- [x] Add `environment` field to `Route` entity
+- [x] Update `RouteMapper` (MapStruct) to include environment
+- [x] Update `RouteSummary` / `RouteDto` DTOs
 
 ---
 
@@ -81,9 +81,9 @@ record CreateRoute(UUID commandId, UUID tenantId, String name,
 ```
 
 **Task list:**
-- [ ] Add `PromoteRoute` command record
-- [ ] Add `environment` field to `CreateRoute` (default `PRODUCTION` for backward compat)
-- [ ] Update TypeScript types (`RouteDto`, `CreateRouteRequest`)
+- [x] Add `PromoteRoute` command record
+- [x] Add `environment` field to `CreateRoute` (default `PRODUCTION` for backward compat)
+- [x] Update TypeScript types (`RouteDto`, `CreateRouteRequest`)
 
 ---
 
@@ -103,10 +103,10 @@ record CreateRoute(UUID commandId, UUID tenantId, String name,
 7. Publish `ROUTE_EVENTS` so the gateway hot-reloads.
 
 **Task list:**
-- [ ] Implement `promoteRoute()` in `RouteService`
-- [ ] Add `PromoteRoute` case to `RouteCommandConsumer` switch
-- [ ] Create `DomainEvent.RoutePromoted` event record
-- [ ] Add promotion snapshot to outbox
+- [x] Implement `promoteRoute()` in `RouteService`
+- [x] Add `PromoteRoute` case to `RouteCommandConsumer` switch
+- [x] Create `DomainEvent.RoutePromoted` event record
+- [x] Add promotion snapshot to outbox
 
 ---
 
@@ -136,10 +136,10 @@ routify:
 ```
 
 **Task list:**
-- [ ] Add staging predicate to `RouteDefinitionBuilder`
-- [ ] Add staging config properties
-- [ ] Verify production routes remain unaffected (no extra predicate)
-- [ ] Test that staging routes are invisible to normal requests
+- [x] Add staging predicate to `RouteDefinitionBuilder`
+- [x] Add staging config properties
+- [x] Verify production routes remain unaffected (no extra predicate)
+- [x] Test that staging routes are invisible to normal requests
 
 ---
 
@@ -160,9 +160,9 @@ Response: 202 AsyncAcknowledgement
 - `POST /api/v1/admin/routes` — accept optional `environment` field in request body.
 
 **Task list:**
-- [ ] Add `promote` endpoint to `AdminRoutesController`
-- [ ] Add `environment` filter to routes list query
-- [ ] Update `RouteServiceClient` Kafka command publisher
+- [x] Add `promote` endpoint to `AdminRoutesController`
+- [x] Add `environment` filter to routes list query
+- [x] Update `RouteServiceClient` Kafka command publisher
 
 ---
 
@@ -181,25 +181,25 @@ Response: 202 AsyncAcknowledgement
 - After promotion, toast: "Route promoted to production. Gateway will reload within seconds."
 
 **Task list:**
-- [ ] Add `RouteEnvironment` type to `src/types/index.ts`
-- [ ] Add environment badge component
-- [ ] Add environment filter toggle to routes page
-- [ ] Create promotion diff modal component
-- [ ] Add promote API function
-- [ ] Wire promote action to UI
-- [ ] Add MSW mock handlers
-- [ ] Update E2E test `routes.spec.ts`
+- [x] Add `RouteEnvironment` type to `src/types/index.ts`
+- [x] Add environment badge component
+- [x] Add environment filter toggle to routes page
+- [x] Create promotion diff modal component
+- [x] Add promote API function
+- [x] Wire promote action to UI
+- [x] Add MSW mock handlers
+- [x] Update E2E test `routes.spec.ts`
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Creating a route with `environment: STAGING` makes it accessible only via `X-Route-Environment: STAGING`
-- [ ] Normal requests (no header) never match staging routes
-- [ ] Promoting a staging route updates the production route atomically and archives the staging version
-- [ ] The gateway hot-reloads within the existing Kafka event pipeline (no new topics needed)
-- [ ] Audit log captures the promotion with before/after config diff
-- [ ] Dashboard shows environment badges and the promote flow with diff preview
+- [x] Creating a route with `environment: STAGING` makes it accessible only via `X-Route-Environment: STAGING`
+- [x] Normal requests (no header) never match staging routes
+- [x] Promoting a staging route updates the production route atomically and archives the staging version
+- [x] The gateway hot-reloads within the existing Kafka event pipeline (no new topics needed)
+- [x] Audit log captures the promotion with before/after config diff
+- [x] Dashboard shows environment badges and the promote flow with diff preview
 
 ---
 
@@ -208,4 +208,3 @@ Response: 202 AsyncAcknowledgement
 The `environment` column defaults to `PRODUCTION`, so all existing routes continue to work. If the feature is problematic:
 1. Disable staging predicate in gateway config: `routify.gateway.staging.enabled: false`
 2. All staging routes remain in DB but are never matched — no traffic impact
-

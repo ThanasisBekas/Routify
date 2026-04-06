@@ -63,6 +63,7 @@ public interface RouteMapper {
                 route.getUpstreamUri(),
                 route.getStripPrefix(),
                 route.getVersion(),
+                route.getEnvironment() != null ? route.getEnvironment().name() : "PRODUCTION",
                 filterSnapshots,
                 route.getExtraConfig());
     }

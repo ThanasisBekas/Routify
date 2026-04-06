@@ -1,5 +1,6 @@
 package io.routify.route.service;
 
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.common.event.DomainEvent;
 import io.routify.common.event.KafkaTopics;
@@ -54,6 +55,20 @@ public class RouteService {
         return routeRepository.findAllByTenantId(tenantId, pageable);
     }
 
+    @Transactional(readOnly = true)
+    public Page<Route> findAll(UUID tenantId, RouteStatus status, RouteEnvironment environment, Pageable pageable) {
+        if (status != null && environment != null) {
+            return routeRepository.findAllByTenantIdAndStatusAndEnvironment(tenantId, status, environment, pageable);
+        }
+        if (environment != null) {
+            return routeRepository.findAllByTenantIdAndEnvironment(tenantId, environment, pageable);
+        }
+        if (status != null) {
+            return routeRepository.findAllByTenantIdAndStatus(tenantId, status, pageable);
+        }
+        return routeRepository.findAllByTenantId(tenantId, pageable);
+    }
+
     /**
      * Paginates routes and eagerly initialises their {@code filters} collection within
      * the same Hibernate session.  Use this whenever the caller needs to access
@@ -73,7 +88,17 @@ public class RouteService {
             return page;
         }
         List<UUID> ids = page.getContent().stream().map(Route::getId).toList();
-        // Hydrate filters — result is discarded; Hibernate merges into the 1st-level cache
+        routeRepository.findAllWithFiltersByIds(ids);
+        return page;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Route> findAllWithFilters(UUID tenantId, RouteStatus status, RouteEnvironment environment, Pageable pageable) {
+        Page<Route> page = findAll(tenantId, status, environment, pageable);
+        if (page.isEmpty()) {
+            return page;
+        }
+        List<UUID> ids = page.getContent().stream().map(Route::getId).toList();
         routeRepository.findAllWithFiltersByIds(ids);
         return page;
     }
@@ -114,9 +139,9 @@ public class RouteService {
      */
     @Transactional
     public Route create(Route route, UUID tenantId, String createdBy) {
-        if (routeRepository.existsByNameAndTenantId(route.getName(), tenantId)) {
+        if (routeRepository.existsByNameAndTenantIdAndEnvironment(route.getName(), tenantId, route.getEnvironment())) {
             throw new RoutifyException.Conflict(
-                    "Route with name '%s' already exists".formatted(route.getName()));
+                    "Route with name '%s' already exists in %s".formatted(route.getName(), route.getEnvironment()));
         }
 
         Route saved = routeRepository.save(route);
@@ -346,6 +371,106 @@ public class RouteService {
                 KafkaTopics.ROUTE_EVENTS, tenantId);
 
         log.info("Route archived: id={}", routeId);
+    }
+
+    /**
+     * Promotes a STAGING route to PRODUCTION.
+     *
+     * <p>The flow:
+     * <ol>
+     *   <li>Load the staging route — validate it is STAGING + ACTIVE</li>
+     *   <li>Find or create the matching PRODUCTION route (same name + tenantId)</li>
+     *   <li>Copy all config fields and filters from staging → production</li>
+     *   <li>Increment production route version</li>
+     *   <li>Archive the staging route</li>
+     *   <li>Publish RoutePromoted + GatewayReloadRequested events</li>
+     * </ol>
+     */
+    @Transactional
+    public Route promoteRoute(UUID routeId, UUID tenantId, String actor) {
+        Route staging = findByIdWithFilters(routeId, tenantId);
+
+        if (staging.getEnvironment() != RouteEnvironment.STAGING) {
+            throw new RoutifyException.Validation(
+                    "Route '%s' is not a STAGING route — cannot promote".formatted(staging.getName()));
+        }
+        if (staging.getStatus() != RouteStatus.ACTIVE) {
+            throw new RoutifyException.Validation(
+                    "Only ACTIVE staging routes can be promoted (current: %s)".formatted(staging.getStatus()));
+        }
+
+        // Find or create the production counterpart
+        Route production = routeRepository.findByNameAndTenantIdAndEnvironment(
+                staging.getName(), tenantId, RouteEnvironment.PRODUCTION).orElse(null);
+
+        if (production == null) {
+            // Create new production route
+            production = Route.builder()
+                    .tenantId(tenantId)
+                    .name(staging.getName())
+                    .description(staging.getDescription())
+                    .pathPattern(staging.getPathPattern())
+                    .methods(staging.getMethods())
+                    .upstreamUri(staging.getUpstreamUri())
+                    .stripPrefix(staging.getStripPrefix())
+                    .createdBy(actor)
+                    .extraConfig(staging.getExtraConfig() != null ? new java.util.HashMap<>(staging.getExtraConfig()) : null)
+                    .environment(RouteEnvironment.PRODUCTION)
+                    .build();
+        } else {
+            // Update existing production route config
+            production.setDescription(staging.getDescription());
+            production.setPathPattern(staging.getPathPattern());
+            production.setMethods(staging.getMethods());
+            production.setUpstreamUri(staging.getUpstreamUri());
+            production.setStripPrefix(staging.getStripPrefix());
+            production.setExtraConfig(staging.getExtraConfig() != null ? new java.util.HashMap<>(staging.getExtraConfig()) : null);
+
+            // Clear existing filters and re-attach from staging
+            for (var existingFilter : new java.util.ArrayList<>(production.getFilters())) {
+                production.detachFilter(existingFilter.getFilterDefinition().getId());
+            }
+        }
+
+        production = routeRepository.save(production);
+
+        // Re-attach filters from staging
+        for (var rf : staging.getFilters()) {
+            production.attachFilter(rf.getFilterDefinition(), rf.getFilterOrder(), rf.getPhase());
+        }
+
+        // Activate the production route (this increments version)
+        if (production.getStatus() != RouteStatus.ACTIVE) {
+            production.activate();
+        } else {
+            // Already active — just increment version for hot-reload
+            production = routeRepository.save(production);
+        }
+
+        Route savedProduction = routeRepository.save(production);
+
+        // Archive the staging route
+        staging.archive();
+        routeRepository.save(staging);
+
+        // Publish RoutePromoted event for audit
+        outboxStore.store(
+                new DomainEvent.RoutePromoted(
+                        UUID.randomUUID(), tenantId, staging.getId(), savedProduction.getId(),
+                        staging.getName(), Instant.now(), null, actor),
+                KafkaTopics.ROUTE_EVENTS, tenantId);
+
+        // Trigger gateway reload
+        outboxStore.store(
+                new DomainEvent.GatewayReloadRequested(
+                        UUID.randomUUID(), tenantId,
+                        "Route %s promoted from STAGING to PRODUCTION".formatted(staging.getName()),
+                        Instant.now(), null, actor),
+                KafkaTopics.GATEWAY_RELOAD, tenantId);
+
+        log.info("Route promoted: staging={} production={} name={} tenant={}",
+                staging.getId(), savedProduction.getId(), staging.getName(), tenantId);
+        return savedProduction;
     }
 
     // ─── Filter Management ────────────────────────────────────────────────────

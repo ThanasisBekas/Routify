@@ -154,10 +154,11 @@ public sealed interface QueryRequest
     /** Route count statistics, optionally scoped to a tenant. */
     record RouteStats(UUID tenantId) implements QueryRequest {}
 
-    /** Paginated route list with optional status filter. */
+    /** Paginated route list with optional status and environment filters. */
     record RoutesQuery(
             UUID   tenantId,
             String status,
+            String environment,
             int    page,
             int    size,
             String sortBy,

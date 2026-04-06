@@ -19,6 +19,7 @@ export const ROUTE_INVENTORY_ID = 'dddddddd-0000-0000-0000-000000000005'
 export const ROUTE_ANALYTICS_ID = 'dddddddd-0000-0000-0000-000000000006'
 export const ROUTE_DRAFT_ID = 'dddddddd-0000-0000-0000-000000000007'
 export const ROUTE_DISABLED_ID = 'dddddddd-0000-0000-0000-000000000008'
+export const ROUTE_STAGING_ID = 'dddddddd-0000-0000-0000-000000000009'
 
 export const seedRoutes: RouteDto[] = [
   {
@@ -31,6 +32,7 @@ export const seedRoutes: RouteDto[] = [
     upstreamUri: 'http://payments-service:8090',
     stripPrefix: '/api/v1',
     status: 'ACTIVE',
+    environment: 'PRODUCTION',
     version: 3,
     filters: [
       {
@@ -81,6 +83,7 @@ export const seedRoutes: RouteDto[] = [
     upstreamUri: 'http://user-service:8091',
     stripPrefix: '/api/v1',
     status: 'ACTIVE',
+    environment: 'PRODUCTION',
     version: 2,
     filters: [
       {
@@ -122,6 +125,7 @@ export const seedRoutes: RouteDto[] = [
     methods: 'GET,POST,PUT',
     upstreamUri: 'http://orders-service:8092',
     status: 'ACTIVE',
+    environment: 'PRODUCTION',
     version: 1,
     filters: [
       {
@@ -163,6 +167,7 @@ export const seedRoutes: RouteDto[] = [
     methods: 'GET',
     upstreamUri: 'http://catalogue-service:8093',
     status: 'ACTIVE',
+    environment: 'PRODUCTION',
     version: 1,
     filters: [
       {
@@ -187,6 +192,7 @@ export const seedRoutes: RouteDto[] = [
     methods: 'GET,POST,PUT',
     upstreamUri: 'http://inventory-service:8094',
     status: 'ACTIVE',
+    environment: 'PRODUCTION',
     version: 2,
     filters: [
       {
@@ -219,6 +225,7 @@ export const seedRoutes: RouteDto[] = [
     methods: 'GET',
     upstreamUri: 'http://analytics-service:8095',
     status: 'ACTIVE',
+    environment: 'PRODUCTION',
     version: 1,
     filters: [
       {
@@ -243,6 +250,7 @@ export const seedRoutes: RouteDto[] = [
     methods: 'POST',
     upstreamUri: 'http://notification-service:8096',
     status: 'DRAFT',
+    environment: 'PRODUCTION',
     version: 1,
     filters: [],
     createdBy: 'operator',
@@ -258,9 +266,45 @@ export const seedRoutes: RouteDto[] = [
     methods: 'GET,POST',
     upstreamUri: 'http://legacy-auth:8099',
     status: 'DISABLED',
+    environment: 'PRODUCTION',
     version: 5,
     filters: [],
     createdAt: '2024-06-01T10:00:00Z',
     updatedAt: '2025-12-01T08:00:00Z',
+  },
+  {
+    id: ROUTE_STAGING_ID,
+    tenantId: MOCK_TENANT_ID,
+    name: 'Payments API',
+    description: 'Staging version — testing new timeout and retry settings.',
+    pathPattern: '/api/v1/payments/**',
+    methods: 'GET,POST',
+    upstreamUri: 'http://payments-service-v2:8090',
+    stripPrefix: '/api/v1',
+    status: 'ACTIVE',
+    environment: 'STAGING',
+    version: 1,
+    filters: [
+      {
+        filterId: FILTER_JWT_ID,
+        filterName: 'JWT Auth (RS256)',
+        filterType: 'AUTH_JWT',
+        phase: 'PRE',
+        order: 1,
+        enabled: true,
+      },
+      {
+        filterId: FILTER_TIMEOUT_ID,
+        filterName: 'Request Timeout — 10s',
+        filterType: 'TIMEOUT',
+        phase: 'PRE',
+        order: 2,
+        enabled: true,
+      },
+    ],
+    createdBy: 'operator',
+    createdAt: '2026-04-01T09:00:00Z',
+    updatedAt: '2026-04-01T09:00:00Z',
+    activatedAt: '2026-04-01T10:00:00Z',
   },
 ]

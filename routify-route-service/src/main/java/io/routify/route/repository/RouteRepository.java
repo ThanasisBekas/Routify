@@ -1,5 +1,6 @@
 package io.routify.route.repository;
 
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.route.domain.Route;
 import io.routify.route.dto.RouteStatusCount;
@@ -37,6 +38,14 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
     Optional<Route> findByIdAndTenantIdWithFilters(@Param("id") UUID id, @Param("tenantId") UUID tenantId);
 
     boolean existsByNameAndTenantId(String name, UUID tenantId);
+
+    boolean existsByNameAndTenantIdAndEnvironment(String name, UUID tenantId, RouteEnvironment environment);
+
+    Optional<Route> findByNameAndTenantIdAndEnvironment(String name, UUID tenantId, RouteEnvironment environment);
+
+    Page<Route> findAllByTenantIdAndEnvironment(UUID tenantId, RouteEnvironment environment, Pageable pageable);
+
+    Page<Route> findAllByTenantIdAndStatusAndEnvironment(UUID tenantId, RouteStatus status, RouteEnvironment environment, Pageable pageable);
 
     /**
      * Returns true if there is already an ACTIVE route under the same tenant

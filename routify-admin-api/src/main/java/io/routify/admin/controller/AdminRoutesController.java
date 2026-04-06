@@ -44,12 +44,13 @@ public class AdminRoutesController {
     public ResponseEntity<QueryResponse.RoutesPage> listRoutes(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String environment,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir) {
         return ResponseEntity.ok(
-                messagingClient.queryRoutes(tenantId, status, page, size, sortBy, sortDir));
+                messagingClient.queryRoutes(tenantId, status, environment, page, size, sortBy, sortDir));
     }
 
     @GetMapping("/{id}")
@@ -138,6 +139,19 @@ public class AdminRoutesController {
         String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(messagingClient.cloneRoute(id, tenantId, actor));
+    }
+
+    @PostMapping("/{id}/promote")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    public ResponseEntity<AsyncAcknowledgement> promoteRoute(
+            @PathVariable UUID id,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
+            Authentication auth) {
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
+        messagingClient.sendPromoteRoute(id, tenantId, actor);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(AsyncAcknowledgement.of("Route promotion in progress"));
     }
 
     // ─── Filter chain on route ────────────────────────────────────────────────

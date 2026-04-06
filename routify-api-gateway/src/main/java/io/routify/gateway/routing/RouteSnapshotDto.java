@@ -20,6 +20,7 @@ public record RouteSnapshotDto(
         @JsonProperty("upstreamUri") String upstreamUri,
         @JsonProperty("stripPrefix") String stripPrefix,
         @JsonProperty("version")     Integer version,
+        @JsonProperty("environment") String environment,
         @JsonProperty("filters")     List<FilterSnapshotDto> filters,
         @JsonProperty("extraConfig") Map<String, Object> extraConfig
 ) {

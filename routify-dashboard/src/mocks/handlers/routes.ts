@@ -14,6 +14,7 @@ function toSummary(r: RouteDto): RouteSummary {
     methods: r.methods,
     upstreamUri: r.upstreamUri,
     status: r.status,
+    environment: r.environment ?? 'PRODUCTION',
     version: r.version,
     filterCount: r.filters.length,
     preFilterCount: pre,
@@ -40,6 +41,8 @@ export const routeHandlers = [
 
     let items = Array.from(routes.values())
     if (status) items = items.filter((r) => r.status === status)
+    const environment = url.searchParams.get('environment')
+    if (environment) items = items.filter((r) => (r.environment ?? 'PRODUCTION') === environment)
     items = items.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     return HttpResponse.json(buildPage(items.map(toSummary), page, size))
   }),
@@ -67,6 +70,7 @@ export const routeHandlers = [
       upstreamUri: body.upstreamUri,
       stripPrefix: body.stripPrefix,
       status: 'DRAFT',
+      environment: body.environment ?? 'PRODUCTION',
       version: 1,
       filters: [],
       extraConfig: body.extraConfig,
@@ -145,6 +149,53 @@ export const routeHandlers = [
     }
     routes.set(clone.id, clone)
     return HttpResponse.json(clone, { status: 201 })
+  }),
+
+  // ─── Promote ──────────────────────────────────────────────────────────────────
+  http.post(`${BASE}/:id/promote`, async ({ params }) => {
+    await delay(500)
+    const staging = routes.get(params.id as string)
+    if (!staging) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
+    if ((staging.environment ?? 'PRODUCTION') !== 'STAGING')
+      return HttpResponse.json({ status: 400, detail: 'Only STAGING routes can be promoted' }, { status: 400 })
+    if (staging.status !== 'ACTIVE')
+      return HttpResponse.json({ status: 400, detail: 'Only ACTIVE staging routes can be promoted' }, { status: 400 })
+
+    // Find or create production counterpart
+    const existingProd = Array.from(routes.values()).find(
+      (r) => r.name === staging.name && (r.environment ?? 'PRODUCTION') === 'PRODUCTION',
+    )
+    const now = new Date().toISOString()
+    const production: RouteDto = existingProd
+      ? {
+          ...existingProd,
+          pathPattern: staging.pathPattern,
+          methods: staging.methods,
+          upstreamUri: staging.upstreamUri,
+          stripPrefix: staging.stripPrefix,
+          description: staging.description,
+          filters: [...staging.filters],
+          version: existingProd.version + 1,
+          status: 'ACTIVE',
+          activatedAt: now,
+          updatedAt: now,
+        }
+      : {
+          ...staging,
+          id: genId(),
+          environment: 'PRODUCTION',
+          status: 'ACTIVE',
+          version: 1,
+          activatedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        }
+    routes.set(production.id, production)
+
+    // Archive staging
+    routes.set(staging.id, { ...staging, status: 'ARCHIVED', updatedAt: now })
+
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Route promotion in progress' }, { status: 202 })
   }),
 
   // ─── Attach filter ────────────────────────────────────────────────────────────
