@@ -1,0 +1,347 @@
+# Routify — Hotfix Workflow
+#
+# Creates a hotfix branch from a released version tag, applies a version bump,
+# and follows the same build → test → Docker publish → release pipeline.
+#
+# Hotfix versioning uses 4-segment semver: X.Y.Z.H (e.g. 2.0.123.1)
+# to preserve lineage with the original release.
+#
+# Flow:
+#   1. Validate: ensure the base version tag exists
+#   2. Create hotfix branch from the tag
+#   3. Bump version to X.Y.Z.<hotfix_number>
+#   4. Developer pushes the fix commit(s) to the hotfix branch
+#   5. Re-run this workflow with apply=true to build, test, publish, and release
+#
+# Two modes:
+#   - create (default): Creates the hotfix branch and bumps version
+#   - apply: Builds, tests, publishes Docker images, and creates a GitHub Release
+
+name: Hotfix
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_version:
+        description: 'Released version to hotfix (e.g. 2.0.123 — must have a v2.0.123 tag)'
+        required: true
+        type: string
+      hotfix_number:
+        description: 'Hotfix iteration (e.g. 1 → v2.0.123.1)'
+        required: false
+        type: string
+        default: '1'
+      mode:
+        description: 'Workflow mode'
+        required: true
+        type: choice
+        default: 'create'
+        options:
+          - create
+          - apply
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+concurrency:
+  group: hotfix-${{ inputs.base_version }}
+  cancel-in-progress: false
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Mode: CREATE — branch from tag, bump version
+  # ═══════════════════════════════════════════════════════════════════════════
+  create:
+    name: Create Hotfix Branch
+    if: inputs.mode == 'create'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate input
+        run: |
+          if ! [[ "${{ inputs.base_version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Base version must be in X.Y.Z format (e.g. 2.0.123)"
+            exit 1
+          fi
+          if ! [[ "${{ inputs.hotfix_number }}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Hotfix number must be a positive integer"
+            exit 1
+          fi
+
+      - name: Checkout from tag
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ inputs.base_version }}
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: routify-dashboard/package-lock.json
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Compute hotfix version
+        id: version
+        run: |
+          HOTFIX_VERSION="${{ inputs.base_version }}.${{ inputs.hotfix_number }}"
+          BRANCH="hotfix/${{ inputs.base_version }}"
+          echo "hotfix_version=${HOTFIX_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Hotfix version: ${HOTFIX_VERSION}"
+
+      - name: Create hotfix branch
+        run: |
+          BRANCH="${{ steps.version.outputs.branch }}"
+          # Check if branch already exists (re-running for a new hotfix iteration)
+          if git ls-remote --exit-code --heads origin "${BRANCH}" 2>/dev/null; then
+            echo "Branch ${BRANCH} already exists — checking out"
+            git fetch origin "${BRANCH}"
+            git checkout "${BRANCH}"
+          else
+            git checkout -b "${BRANCH}"
+          fi
+
+      - name: Update Maven versions
+        run: |
+          mvn versions:set \
+            -DnewVersion=${{ steps.version.outputs.hotfix_version }} \
+            -DgenerateBackupPoms=false \
+            -B -q
+
+      - name: Update dashboard version
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('routify-dashboard/package.json', 'utf8'));
+            pkg.version = '${{ steps.version.outputs.hotfix_version }}';
+            fs.writeFileSync('routify-dashboard/package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      - name: Commit version bump
+        run: |
+          git add -A
+          git commit -m "hotfix: bump version to ${{ steps.version.outputs.hotfix_version }}" --allow-empty
+
+      - name: Push hotfix branch
+        run: git push origin "${{ steps.version.outputs.branch }}"
+
+      - name: Summary
+        run: |
+          echo "### Hotfix Branch Created :wrench:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Base version | \`v${{ inputs.base_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Hotfix version | \`${{ steps.version.outputs.hotfix_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | \`${{ steps.version.outputs.branch }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Next steps:**" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 1. Push your fix commit(s) to \`${{ steps.version.outputs.branch }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 2. Re-run this workflow with \`mode=apply\` to build, test, and publish" >> "$GITHUB_STEP_SUMMARY"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Mode: APPLY — build, test, publish, release
+  # ═══════════════════════════════════════════════════════════════════════════
+  apply-prepare:
+    name: Prepare Hotfix Apply
+    if: inputs.mode == 'apply'
+    runs-on: ubuntu-latest
+    outputs:
+      hotfix_version: ${{ steps.version.outputs.hotfix_version }}
+      branch: ${{ steps.version.outputs.branch }}
+    steps:
+      - name: Validate input
+        run: |
+          if ! [[ "${{ inputs.base_version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Base version must be in X.Y.Z format (e.g. 2.0.123)"
+            exit 1
+          fi
+
+      - name: Compute refs
+        id: version
+        run: |
+          HOTFIX_VERSION="${{ inputs.base_version }}.${{ inputs.hotfix_number }}"
+          BRANCH="hotfix/${{ inputs.base_version }}"
+          echo "hotfix_version=${HOTFIX_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: hotfix/${{ inputs.base_version }}
+          fetch-depth: 0
+
+      - name: Verify hotfix branch exists
+        run: |
+          if ! git ls-remote --exit-code --heads origin "hotfix/${{ inputs.base_version }}"; then
+            echo "::error::Branch hotfix/${{ inputs.base_version }} does not exist. Run with mode=create first."
+            exit 1
+          fi
+
+  # ── Backend tests ──────────────────────────────────────────────────────────
+  apply-backend-verify:
+    name: Hotfix Backend Verify
+    needs: apply-prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout hotfix branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.apply-prepare.outputs.branch }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-
+
+      - name: Run unit tests
+        run: mvn clean verify -T 4 -B
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: hotfix-test-reports
+          path: '**/target/surefire-reports/'
+          retention-days: 14
+
+  # ── Frontend tests ─────────────────────────────────────────────────────────
+  apply-frontend-verify:
+    name: Hotfix Frontend Verify
+    needs: apply-prepare
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: routify-dashboard
+    steps:
+      - name: Checkout hotfix branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.apply-prepare.outputs.branch }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: routify-dashboard/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:ci
+      - run: npm run build
+
+  # ── Docker publish ─────────────────────────────────────────────────────────
+  apply-docker:
+    name: Hotfix Docker Publish
+    needs: [apply-prepare, apply-backend-verify, apply-frontend-verify]
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      version: ${{ needs.apply-prepare.outputs.hotfix_version }}
+      ref: ${{ needs.apply-prepare.outputs.branch }}
+      is_prerelease: false
+    permissions:
+      contents: read
+      packages: write
+
+  # ── Merge to master, tag, release ──────────────────────────────────────────
+  apply-finalize:
+    name: Finalize Hotfix
+    needs: [apply-prepare, apply-docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch hotfix branch
+        run: git fetch origin "${{ needs.apply-prepare.outputs.branch }}"
+
+      - name: Merge hotfix into master
+        run: |
+          git merge \
+            --no-ff \
+            "origin/${{ needs.apply-prepare.outputs.branch }}" \
+            -m "hotfix: merge ${{ needs.apply-prepare.outputs.branch }} (v${{ needs.apply-prepare.outputs.hotfix_version }}) into master"
+
+      - name: Push master
+        run: git push origin master
+
+      - name: Create annotated tag
+        run: |
+          git tag -a "v${{ needs.apply-prepare.outputs.hotfix_version }}" \
+            -m "Hotfix v${{ needs.apply-prepare.outputs.hotfix_version }}
+
+          Base release: v${{ inputs.base_version }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          git push origin "v${{ needs.apply-prepare.outputs.hotfix_version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.apply-prepare.outputs.hotfix_version }}
+          name: Routify v${{ needs.apply-prepare.outputs.hotfix_version }} (Hotfix)
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+      - name: Back-merge master into develop
+        run: |
+          git fetch origin develop
+          git checkout develop
+          git merge master -m "chore: back-merge master into develop after hotfix/${{ inputs.base_version }}"
+          git push origin develop
+
+      - name: Delete hotfix branch
+        run: git push origin --delete "${{ needs.apply-prepare.outputs.branch }}" || true
+
+      - name: Summary
+        run: |
+          VERSION="${{ needs.apply-prepare.outputs.hotfix_version }}"
+          echo "### Hotfix Released :ambulance:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tag | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Base | \`v${{ inputs.base_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Merged | \`${{ needs.apply-prepare.outputs.branch }}\` → \`master\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Back-merged | \`master\` → \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Cleanup | \`${{ needs.apply-prepare.outputs.branch }}\` branch deleted |" >> "$GITHUB_STEP_SUMMARY"
+

@@ -1,7 +1,16 @@
-name: Bump Major Version
+name: Bump Version
 
 on:
   workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version component to bump'
+        required: true
+        type: choice
+        default: 'major'
+        options:
+          - major
+          - minor
 
 permissions:
   contents: write
@@ -12,7 +21,7 @@ concurrency:
 
 jobs:
   bump:
-    name: Bump Major Version on Develop
+    name: Bump ${{ inputs.bump_type }} Version on Develop
     runs-on: ubuntu-latest
     steps:
       - name: Checkout develop
@@ -58,8 +67,16 @@ jobs:
           MAJOR=$(echo "$BASE" | cut -d. -f1)
           MINOR=$(echo "$BASE" | cut -d. -f2)
 
-          NEXT_MAJOR=$((MAJOR + 1))
-          NEXT_VERSION="${NEXT_MAJOR}.${MINOR}.0-SNAPSHOT"
+          BUMP_TYPE="${{ inputs.bump_type }}"
+
+          if [ "$BUMP_TYPE" = "major" ]; then
+            NEXT_MAJOR=$((MAJOR + 1))
+            NEXT_VERSION="${NEXT_MAJOR}.0.0-SNAPSHOT"
+          elif [ "$BUMP_TYPE" = "minor" ]; then
+            NEXT_MINOR=$((MINOR + 1))
+            NEXT_VERSION="${MAJOR}.${NEXT_MINOR}.0-SNAPSHOT"
+          fi
+
           echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
           echo "Next version: ${NEXT_VERSION}"
 
@@ -82,18 +99,18 @@ jobs:
       - name: Commit version bump
         run: |
           git add -A
-          git commit -m "chore: bump major version ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.next_version }}"
+          git commit -m "chore: bump ${{ inputs.bump_type }} version ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.next_version }}"
 
       - name: Push develop
         run: git push origin develop
 
       - name: Summary
         run: |
-          echo "### Major Version Bumped :arrow_up:" >> "$GITHUB_STEP_SUMMARY"
+          echo "### ${{ inputs.bump_type == 'major' && 'Major' || 'Minor' }} Version Bumped :arrow_up:" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Bump type | \`${{ inputs.bump_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Previous | \`${{ steps.version.outputs.current_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| New | \`${{ steps.version.outputs.next_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Branch | \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
-
