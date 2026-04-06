@@ -79,6 +79,33 @@ public class IdentityRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_USERS_CHANGE_PASSWORD).build();
     }
 
+    // ─── API Key Queues ───────────────────────────────────────────────────────
+
+    @Bean
+    public Queue apiKeysQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_QUERY).build();
+    }
+
+    @Bean
+    public Queue apiKeysGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_GET).build();
+    }
+
+    @Bean
+    public Queue apiKeysCreateQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_CREATE).build();
+    }
+
+    @Bean
+    public Queue apiKeysRevokeQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_REVOKE).build();
+    }
+
+    @Bean
+    public Queue apiKeysRotateQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_ROTATE).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -139,6 +166,38 @@ public class IdentityRabbitConfig {
     public Binding usersChangePasswordBinding(Queue usersChangePasswordQueue, DirectExchange identityServiceExchange) {
         return BindingBuilder.bind(usersChangePasswordQueue)
                 .to(identityServiceExchange).with(RabbitTopology.RK_USERS_CHANGE_PASSWORD);
+    }
+
+    // ─── API Key Bindings ─────────────────────────────────────────────────────
+
+    @Bean
+    public Binding apiKeysQueryBinding(Queue apiKeysQueryQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysQueryQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_QUERY);
+    }
+
+    @Bean
+    public Binding apiKeysGetBinding(Queue apiKeysGetQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysGetQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_GET);
+    }
+
+    @Bean
+    public Binding apiKeysCreateBinding(Queue apiKeysCreateQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysCreateQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_CREATE);
+    }
+
+    @Bean
+    public Binding apiKeysRevokeBinding(Queue apiKeysRevokeQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysRevokeQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_REVOKE);
+    }
+
+    @Bean
+    public Binding apiKeysRotateBinding(Queue apiKeysRotateQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysRotateQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_ROTATE);
     }
 
     // ─── Message converter & template ─────────────────────────────────────────

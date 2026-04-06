@@ -57,6 +57,10 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.TenantsPage.class,          name = "TENANTS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.TenantDetail.class,         name = "TENANT_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.ActiveWorkspacesList.class, name = "ACTIVE_WORKSPACES_LIST"),
+    // ─── routify-identity-service API keys ──────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.ApiKeysPage.class,       name = "API_KEYS_PAGE"),
+    @JsonSubTypes.Type(value = QueryResponse.ApiKeyDetail.class,      name = "API_KEY_DETAIL"),
+    @JsonSubTypes.Type(value = QueryResponse.ApiKeyCreated.class,     name = "API_KEY_CREATED"),
     // ─── routify-audit-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.AuditEventsPage.class,      name = "AUDIT_EVENTS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.RequestLogsPage.class,      name = "REQUEST_LOGS_PAGE"),
@@ -98,6 +102,9 @@ public sealed interface QueryResponse
             QueryResponse.TenantsPage,
             QueryResponse.TenantDetail,
             QueryResponse.ActiveWorkspacesList,
+            QueryResponse.ApiKeysPage,
+            QueryResponse.ApiKeyDetail,
+            QueryResponse.ApiKeyCreated,
             QueryResponse.AuditEventsPage,
             QueryResponse.RequestLogsPage,
             QueryResponse.RequestStatsResult,
@@ -361,6 +368,59 @@ public sealed interface QueryResponse
 
         public record WorkspaceInfo(String name, String slug) {}
     }
+
+    // ─── API Key responses ──────────────────────────────────────────────────
+
+    /** Paginated list of API key summaries. */
+    record ApiKeysPage(
+            List<ApiKeySummary> content,
+            long totalElements,
+            int totalPages,
+            int page,
+            int size
+    ) implements QueryResponse {
+
+        public record ApiKeySummary(
+                UUID id,
+                UUID tenantId,
+                String name,
+                String keyPrefix,
+                String role,
+                String email,
+                String status,
+                Instant expiresAt,
+                Instant lastUsedAt,
+                Instant createdAt
+        ) {}
+    }
+
+    /** Full detail of a single API key (no raw key — only prefix). */
+    record ApiKeyDetail(
+            UUID id,
+            UUID tenantId,
+            UUID userId,
+            String name,
+            String keyPrefix,
+            String role,
+            String email,
+            String status,
+            Instant expiresAt,
+            Instant lastUsedAt,
+            UUID createdBy,
+            Instant createdAt,
+            Instant revokedAt
+    ) implements QueryResponse {}
+
+    /** Result of creating or rotating an API key — includes the raw key shown once. */
+    record ApiKeyCreated(
+            UUID id,
+            String rawKey,
+            String keyPrefix,
+            String name,
+            String role,
+            Instant expiresAt,
+            Instant createdAt
+    ) implements QueryResponse {}
 
     // ═══════════════════════════════════════════════════════════════════════════
     // routify-audit-service

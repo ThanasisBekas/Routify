@@ -681,3 +681,55 @@ export interface AiModifierDecisionEntry {
   path: string
   evaluatedAt: string
 }
+
+// ─── API Key Management ───────────────────────────────────────────────────────
+
+export type ApiKeyStatus = 'ACTIVE' | 'REVOKED' | 'EXPIRED'
+
+export interface ApiKeyDto {
+  id: string
+  tenantId: string
+  name: string
+  keyPrefix: string
+  role: UserRole
+  email?: string
+  status: ApiKeyStatus
+  expiresAt?: string
+  lastUsedAt?: string
+  createdAt: string
+}
+
+export interface ApiKeyDetailDto {
+  id: string
+  tenantId: string
+  userId: string
+  name: string
+  keyPrefix: string
+  role: string
+  email?: string
+  status: ApiKeyStatus
+  expiresAt?: string
+  lastUsedAt?: string
+  createdBy?: string
+  createdAt: string
+  revokedAt?: string
+}
+
+export interface CreateApiKeyRequest {
+  name: string
+  role?: string
+  email?: string
+  expiresAt?: string
+}
+
+/** Returned by create and rotate — contains the raw key shown once. */
+export interface ApiKeyCreatedResponse {
+  id: string
+  rawKey: string
+  keyPrefix: string
+  name: string
+  role: string
+  expiresAt?: string
+  createdAt: string
+}
+

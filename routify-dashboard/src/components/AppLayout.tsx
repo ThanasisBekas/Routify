@@ -11,6 +11,7 @@ import {
   Server,
   ShieldCheck,
   Building2,
+  Key,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { to: '/certificates', label: 'Cert Vault', icon: ShieldCheck, desc: 'Inbound TLS certificates' },
   { to: '/audit', label: 'Audit', icon: ClipboardList, desc: 'Audit log & analytics' },
   { to: '/users', label: 'Users', icon: Users, desc: 'User management' },
+  { to: '/api-keys', label: 'API Keys', icon: Key, desc: 'API key management' },
   { to: '/settings', label: 'Settings', icon: Settings, desc: 'Platform settings' },
 ]
 

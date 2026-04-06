@@ -62,6 +62,9 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = DomainEvent.CertRemovedFromGroup.class,         name = "CERT_REMOVED_FROM_GROUP"),
     @JsonSubTypes.Type(value = DomainEvent.GatewayReloadRequested.class, name = "GATEWAY_RELOAD_REQUESTED"),
     @JsonSubTypes.Type(value = DomainEvent.GatewayConfigChanged.class,   name = "GATEWAY_CONFIG_CHANGED"),
+    // ─── API Key Events ────────────────────────────────────────────────────────
+    @JsonSubTypes.Type(value = DomainEvent.ApiKeyCreated.class,  name = "API_KEY_CREATED"),
+    @JsonSubTypes.Type(value = DomainEvent.ApiKeyRevoked.class,  name = "API_KEY_REVOKED"),
 })
 public sealed interface DomainEvent
         permits
@@ -96,6 +99,8 @@ public sealed interface DomainEvent
             DomainEvent.CertRemovedFromGroup,
             DomainEvent.GatewayReloadRequested,
             DomainEvent.GatewayConfigChanged,
+            DomainEvent.ApiKeyCreated,
+            DomainEvent.ApiKeyRevoked,
             DomainEvent.Unknown {
 
     UUID eventId();
@@ -484,6 +489,33 @@ public sealed interface DomainEvent
             UUID tenantId,
             String section,      // which section changed: CORS, SECURITY_HEADERS, etc.
             String changedBy,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    // ─── API Key Events ───────────────────────────────────────────────────────
+
+    /** Published by routify-identity-service when an API key is created or rotated. */
+    record ApiKeyCreated(
+            UUID eventId,
+            UUID tenantId,
+            UUID apiKeyId,
+            String name,
+            String keyPrefix,
+            String role,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-identity-service when an API key is revoked. */
+    record ApiKeyRevoked(
+            UUID eventId,
+            UUID tenantId,
+            UUID apiKeyId,
+            String name,
+            String keyPrefix,
             Instant occurredAt,
             String correlationId,
             String actor

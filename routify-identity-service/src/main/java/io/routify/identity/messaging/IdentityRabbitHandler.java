@@ -7,8 +7,10 @@ import io.routify.common.event.QueryResponse;
 import io.routify.common.event.RabbitTopology;
 import io.routify.common.exception.RoutifyException;
 import io.routify.identity.domain.AppUser;
+import io.routify.identity.domain.ApiKey;
 import io.routify.identity.domain.Tenant;
 import io.routify.identity.dto.AuthDto;
+import io.routify.identity.service.ApiKeyService;
 import io.routify.identity.service.AuthService;
 import io.routify.identity.service.TenantService;
 import io.routify.identity.service.UserService;
@@ -37,6 +39,7 @@ public class IdentityRabbitHandler {
     private final AuthService   authService;
     private final UserService   userService;
     private final TenantService tenantService;
+    private final ApiKeyService apiKeyService;
 
     // ─── Auth ─────────────────────────────────────────────────────────────────
 
@@ -195,6 +198,78 @@ public class IdentityRabbitHandler {
         }
     }
 
+    // ─── API Key Queries ─────────────────────────────────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_APIKEYS_QUERY)
+    public QueryResponse.ApiKeysPage handleApiKeysQuery(QueryRequest.ApiKeysQuery req) {
+        log.debug("RabbitMQ: received apikeys.query request");
+        try {
+            var result = apiKeyService.findAll(req.tenantId(), PageRequest.of(req.page(), req.size()));
+            var content = result.getContent().stream().map(this::toApiKeySummary).toList();
+            return new QueryResponse.ApiKeysPage(content, result.getTotalElements(),
+                    result.getTotalPages(), result.getNumber(), result.getSize());
+        } catch (RoutifyException e) {
+            log.warn("apikeys.query rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_APIKEYS_GET)
+    public QueryResponse.ApiKeyDetail handleApiKeyGet(QueryRequest.ApiKeyGet req) {
+        log.debug("RabbitMQ: received apikeys.get request");
+        try {
+            return toApiKeyDetail(apiKeyService.findById(req.id(), req.tenantId()));
+        } catch (RoutifyException e) {
+            log.warn("apikeys.get rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_APIKEYS_CREATE)
+    public QueryResponse.ApiKeyCreated handleApiKeyCreate(QueryRequest.ApiKeyCreate req) {
+        log.debug("RabbitMQ: received apikeys.create request");
+        try {
+            io.routify.common.domain.UserRole role = io.routify.common.domain.UserRole.valueOf(req.role());
+            java.time.Instant expiresAt = req.expiresAt() != null ? java.time.Instant.parse(req.expiresAt()) : null;
+            ApiKeyService.CreateResult result = apiKeyService.create(
+                    req.tenantId(), req.userId(), req.name(), role, req.email(), expiresAt, req.actor());
+            ApiKey key = result.apiKey();
+            return new QueryResponse.ApiKeyCreated(
+                    key.getId(), result.rawKey(), key.getKeyPrefix(),
+                    key.getName(), key.getRole().name(), key.getExpiresAt(), key.getCreatedAt());
+        } catch (RoutifyException e) {
+            log.warn("apikeys.create rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_APIKEYS_REVOKE)
+    public QueryResponse.ApiKeyDetail handleApiKeyRevoke(QueryRequest.ApiKeyRevoke req) {
+        log.debug("RabbitMQ: received apikeys.revoke request");
+        try {
+            apiKeyService.revoke(req.id(), req.tenantId(), req.actor());
+            return toApiKeyDetail(apiKeyService.findById(req.id(), req.tenantId()));
+        } catch (RoutifyException e) {
+            log.warn("apikeys.revoke rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_APIKEYS_ROTATE)
+    public QueryResponse.ApiKeyCreated handleApiKeyRotate(QueryRequest.ApiKeyRotate req) {
+        log.debug("RabbitMQ: received apikeys.rotate request");
+        try {
+            ApiKeyService.CreateResult result = apiKeyService.rotate(req.id(), req.tenantId(), req.actor());
+            ApiKey key = result.apiKey();
+            return new QueryResponse.ApiKeyCreated(
+                    key.getId(), result.rawKey(), key.getKeyPrefix(),
+                    key.getName(), key.getRole().name(), key.getExpiresAt(), key.getCreatedAt());
+        } catch (RoutifyException e) {
+            log.warn("apikeys.rotate rejected: {}", e.getMessage());
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private QueryResponse.LoginResult toLoginResult(AuthDto.LoginResponse r) {
@@ -233,5 +308,20 @@ public class IdentityRabbitHandler {
         return new QueryResponse.TenantDetail(
                 t.getId(), t.getName(), t.getSlug(),
                 t.getStatus().name(), t.getPlan(), t.getContactEmail(), t.getCreatedAt());
+    }
+
+    private QueryResponse.ApiKeysPage.ApiKeySummary toApiKeySummary(ApiKey k) {
+        return new QueryResponse.ApiKeysPage.ApiKeySummary(
+                k.getId(), k.getTenantId(), k.getName(), k.getKeyPrefix(),
+                k.getRole().name(), k.getEmail(), k.getStatus().name(),
+                k.getExpiresAt(), k.getLastUsedAt(), k.getCreatedAt());
+    }
+
+    private QueryResponse.ApiKeyDetail toApiKeyDetail(ApiKey k) {
+        return new QueryResponse.ApiKeyDetail(
+                k.getId(), k.getTenantId(), k.getUserId(), k.getName(),
+                k.getKeyPrefix(), k.getRole().name(), k.getEmail(),
+                k.getStatus().name(), k.getExpiresAt(), k.getLastUsedAt(),
+                k.getCreatedBy(), k.getCreatedAt(), k.getRevokedAt());
     }
 }

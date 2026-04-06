@@ -197,6 +197,28 @@ public final class RabbitTopology {
     public static final String QUEUE_USERS_CHANGE_PASSWORD      = "routify.identity-service.users.change-password";
     public static final String RK_USERS_CHANGE_PASSWORD         = "users.change-password";
 
+    // ─── routify-identity-service API key queues & routing keys ────────────────
+
+    /** Queue: identity-service serves paginated API key list queries from admin-api */
+    public static final String QUEUE_APIKEYS_QUERY              = "routify.identity-service.apikeys.query";
+    public static final String RK_APIKEYS_QUERY                 = "apikeys.query";
+
+    /** Queue: identity-service serves single API key GET queries from admin-api */
+    public static final String QUEUE_APIKEYS_GET                = "routify.identity-service.apikeys.get";
+    public static final String RK_APIKEYS_GET                   = "apikeys.get";
+
+    /** Queue: identity-service handles API key create (sync RPC — raw key must be returned) */
+    public static final String QUEUE_APIKEYS_CREATE             = "routify.identity-service.apikeys.create";
+    public static final String RK_APIKEYS_CREATE                = "apikeys.create";
+
+    /** Queue: identity-service handles API key revoke (sync RPC — immediate confirmation) */
+    public static final String QUEUE_APIKEYS_REVOKE             = "routify.identity-service.apikeys.revoke";
+    public static final String RK_APIKEYS_REVOKE                = "apikeys.revoke";
+
+    /** Queue: identity-service handles API key rotate (sync RPC — new raw key must be returned) */
+    public static final String QUEUE_APIKEYS_ROTATE             = "routify.identity-service.apikeys.rotate";
+    public static final String RK_APIKEYS_ROTATE                = "apikeys.rotate";
+
     // ─── routify-audit-service queues & routing keys ─────────────────────────
 
     /** Queue: audit-service serves paginated audit event queries from admin-api */

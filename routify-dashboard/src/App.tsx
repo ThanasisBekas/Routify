@@ -25,6 +25,7 @@ const UsersPage = lazy(() => import('./modules/users/UsersPage'))
 const GatewayPage = lazy(() => import('./modules/gateway/GatewayPage'))
 const CertVaultPage = lazy(() => import('./modules/certificates/CertVaultPage'))
 const WorkspacesPage = lazy(() => import('./modules/workspaces/WorkspacesPage'))
+const ApiKeysPage = lazy(() => import('./modules/api-keys/ApiKeysPage'))
 
 /** Minimal full-screen spinner shown while a lazy chunk is loading. */
 function PageLoader() {
@@ -166,6 +167,18 @@ function AppRoutes() {
             <ErrorBoundary label="Users">
               <Suspense fallback={<PageLoader />}>
                 <UsersPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* API Keys */}
+        <Route
+          path="api-keys"
+          element={
+            <ErrorBoundary label="API Keys">
+              <Suspense fallback={<PageLoader />}>
+                <ApiKeysPage />
               </Suspense>
             </ErrorBoundary>
           }
