@@ -19,7 +19,9 @@ import type { WsMessage, WsStatus } from '../types/ws'
 // ─── STOMP frame helpers ──────────────────────────────────────────────────────
 
 function stompFrame(command: string, headers: Record<string, string> = {}, body = ''): string {
-  const headerLines = Object.entries(headers).map(([k, v]) => `${k}:${v}`).join('\n')
+  const headerLines = Object.entries(headers)
+    .map(([k, v]) => `${k}:${v}`)
+    .join('\n')
   return `${command}\n${headerLines}\n\n${body}\0`
 }
 
@@ -29,7 +31,7 @@ function parseStompFrame(raw: string): { command: string; headers: Record<string
     const content = nullIdx >= 0 ? raw.slice(0, nullIdx) : raw
     const firstBlank = content.indexOf('\n\n')
     const headerPart = firstBlank >= 0 ? content.slice(0, firstBlank) : content
-    const body       = firstBlank >= 0 ? content.slice(firstBlank + 2) : ''
+    const body = firstBlank >= 0 ? content.slice(firstBlank + 2) : ''
     const lines = headerPart.split('\n')
     const command = lines[0].trim()
     const headers: Record<string, string> = {}
@@ -120,7 +122,11 @@ function openSocket(registryKey: string, token: string | null, conn: Connection,
   conn.ws.onopen = () => {
     if (conn.generation !== myGeneration) {
       // This socket was superseded; close it silently
-      try { conn.ws.close() } catch { /* ignore */ }
+      try {
+        conn.ws.close()
+      } catch {
+        /* ignore */
+      }
       return
     }
     conn.reconnectAttempts = 0
@@ -149,7 +155,7 @@ function openSocket(registryKey: string, token: string | null, conn: Connection,
       case 'CONNECTED': {
         setStatus(conn, 'CONNECTED')
         // Subscribe to topics
-        conn.ws.send(stompFrame('SUBSCRIBE', { id: conn.subscriptionId,       destination: '/topic/events' }))
+        conn.ws.send(stompFrame('SUBSCRIBE', { id: conn.subscriptionId, destination: '/topic/events' }))
         conn.ws.send(stompFrame('SUBSCRIBE', { id: conn.subscriptionId + '-m', destination: '/topic/metrics' }))
         conn.ws.send(stompFrame('SUBSCRIBE', { id: conn.subscriptionId + '-a', destination: '/topic/audit' }))
         startHeartbeat(registryKey, null, conn, myGeneration)
@@ -159,10 +165,16 @@ function openSocket(registryKey: string, token: string | null, conn: Connection,
         if (!frame.body) return
         try {
           const msg: WsMessage = JSON.parse(frame.body)
-          conn.subscribers.forEach(cb => {
-            try { cb(msg) } catch { /* subscriber error shouldn't crash the loop */ }
+          conn.subscribers.forEach((cb) => {
+            try {
+              cb(msg)
+            } catch {
+              /* subscriber error shouldn't crash the loop */
+            }
           })
-        } catch { /* ignore malformed JSON */ }
+        } catch {
+          /* ignore malformed JSON */
+        }
         break
       }
       case 'ERROR': {
@@ -192,8 +204,12 @@ function openSocket(registryKey: string, token: string | null, conn: Connection,
 
 function setStatus(conn: Connection, status: WsStatus) {
   conn.status = status
-  conn.statusListeners.forEach(cb => {
-    try { cb(status) } catch { /* ignore */ }
+  conn.statusListeners.forEach((cb) => {
+    try {
+      cb(status)
+    } catch {
+      /* ignore */
+    }
   })
 }
 
@@ -202,7 +218,7 @@ function scheduleReconnect(registryKey: string, _capturedToken: string | null, c
 
   const MAX_ATTEMPTS = 10
   const BASE_DELAY_MS = 500
-  const MAX_DELAY_MS  = 30_000
+  const MAX_DELAY_MS = 30_000
 
   if (conn.reconnectAttempts >= MAX_ATTEMPTS) {
     setStatus(conn, 'DISCONNECTED')
@@ -256,7 +272,11 @@ function closeConnection(url: string) {
   if (conn.reconnectTimer) clearTimeout(conn.reconnectTimer)
   conn.reconnectTimer = null
   stopHeartbeat(conn)
-  try { conn.ws?.close() } catch { /* ignore */ }
+  try {
+    conn.ws?.close()
+  } catch {
+    /* ignore */
+  }
   connections.delete(url)
 }
 
@@ -279,21 +299,23 @@ export function useWebSocket({
   url: urlOverride,
   enabled = true,
 }: UseWebSocketOptions = {}) {
-
   // Use a stable base URL (without token) as the singleton registry key so
   // the key doesn't change on every token rotation.
   const baseUrl = urlOverride ?? buildWsUrl()
 
-  const onMessageRef    = useRef(onMessage)
-  const onStatusRef     = useRef(onStatusChange)
-  onMessageRef.current  = onMessage
-  onStatusRef.current   = onStatusChange
+  const onMessageRef = useRef(onMessage)
+  const onStatusRef = useRef(onStatusChange)
+  onMessageRef.current = onMessage
+  onStatusRef.current = onStatusChange
 
-  const send = useCallback((destination: string, body: unknown) => {
-    const conn = connections.get(baseUrl)
-    if (!conn || conn.ws.readyState !== WebSocket.OPEN) return
-    conn.ws.send(stompFrame('SEND', { destination }, JSON.stringify(body)))
-  }, [baseUrl])
+  const send = useCallback(
+    (destination: string, body: unknown) => {
+      const conn = connections.get(baseUrl)
+      if (!conn || conn.ws.readyState !== WebSocket.OPEN) return
+      conn.ws.send(stompFrame('SEND', { destination }, JSON.stringify(body)))
+    },
+    [baseUrl],
+  )
 
   const ping = useCallback(() => send('/app/ping', {}), [send])
 
@@ -343,4 +365,3 @@ function buildWsUrl(token?: string | null): string {
   // request (browsers cannot set Authorization headers on native WebSocket).
   return token ? `${base}?token=${encodeURIComponent(token)}` : base
 }
-

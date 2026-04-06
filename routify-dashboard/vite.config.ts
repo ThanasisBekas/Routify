@@ -9,27 +9,26 @@ export default defineConfig(({ mode }) => {
   const isMock = env.VITE_MOCK === 'true'
 
   return {
-    plugins: [
-      react(),
-      tailwindcss(),
-    ],
+    plugins: [react(), tailwindcss()],
     server: {
       // In mock mode MSW intercepts all /api calls in the browser — no proxy needed.
-      proxy: isMock ? undefined : {
-        '/api': {
-          target: 'http://localhost:8082',
-          changeOrigin: true,
-        },
-        '/ws': {
-          target: 'ws://localhost:8082',
-          ws: true,
-          changeOrigin: true,
-        },
-        '/sse': {
-          target: 'http://localhost:8082',
-          changeOrigin: true,
-        },
-      },
+      proxy: isMock
+        ? undefined
+        : {
+            '/api': {
+              target: 'http://localhost:8082',
+              changeOrigin: true,
+            },
+            '/ws': {
+              target: 'ws://localhost:8082',
+              ws: true,
+              changeOrigin: true,
+            },
+            '/sse': {
+              target: 'http://localhost:8082',
+              changeOrigin: true,
+            },
+          },
     },
   }
 })

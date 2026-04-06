@@ -1,5 +1,11 @@
 // ─── Common types ─────────────────────────────────────────────────────────────
 
+/** Returned by all write (Kafka command) endpoints — HTTP 202 Accepted. */
+export interface AsyncAcknowledgement {
+  status: string
+  message: string
+}
+
 export interface Page<T> {
   content: T[]
   totalElements: number
@@ -48,12 +54,6 @@ export interface LoginResponse {
 
 export type TenantPlan = 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE'
 export type TenantStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
-
-/** Lightweight workspace descriptor used in the login-page dropdown. */
-export interface WorkspaceOption {
-  name: string
-  slug: string
-}
 
 export interface TenantDto {
   id: string
@@ -142,52 +142,36 @@ export interface AttachFilterRequest {
 // ─── Filters ──────────────────────────────────────────────────────────────────
 
 export type FilterType =
-  | 'AUTH_API_KEY' | 'AUTH_BASIC' | 'AUTH_JWT' | 'AUTH_MTLS' | 'AUTH_OAUTH2' | 'AUTH_CLIENT_ID' | 'AUTH_CERT_VAULT'
-  | 'DOWNSTREAM_BASIC_AUTH' | 'DOWNSTREAM_BEARER_CC'
-  | 'RATE_LIMIT_FIXED_WINDOW' | 'RATE_LIMIT_SLIDING_WINDOW'
-  | 'REQUEST_HEADER_MODIFY' | 'RESPONSE_HEADER_MODIFY'
+  | 'AUTH_API_KEY'
+  | 'AUTH_BASIC'
+  | 'AUTH_JWT'
+  | 'AUTH_MTLS'
+  | 'AUTH_OAUTH2'
+  | 'AUTH_CLIENT_ID'
+  | 'AUTH_CERT_VAULT'
+  | 'DOWNSTREAM_BASIC_AUTH'
+  | 'DOWNSTREAM_BEARER_CC'
+  | 'RATE_LIMIT_FIXED_WINDOW'
+  | 'RATE_LIMIT_SLIDING_WINDOW'
+  | 'REQUEST_HEADER_MODIFY'
+  | 'RESPONSE_HEADER_MODIFY'
   | 'BODY_JOLT_TRANSFORM'
   | 'VALIDATE_JSON_SCHEMA'
   | 'TIMEOUT'
-  | 'CONDITIONAL_ROUTE' | 'USER_ID_PAYLOAD_ROUTING'
-  | 'CERT_ROTATION' | 'CERT_VAULT_EXPIRY_CHECK'
+  | 'CONDITIONAL_ROUTE'
+  | 'USER_ID_PAYLOAD_ROUTING'
+  | 'CERT_ROTATION'
+  | 'CERT_VAULT_EXPIRY_CHECK'
   | 'API_VERSIONING'
-  | 'CORRELATION_ID' | 'REQUEST_LOGGER' | 'TENANT_CONTEXT' | 'SECURITY_HEADERS' | 'CUSTOM_METRIC'
+  | 'CORRELATION_ID'
+  | 'REQUEST_LOGGER'
+  | 'TENANT_CONTEXT'
+  | 'SECURITY_HEADERS'
+  | 'CUSTOM_METRIC'
   | 'CUSTOM_SPEL'
-
-export type FilterCategory =
-  | 'Authentication' | 'Downstream Auth' | 'Rate Limiting' | 'Request Modification'
-  | 'Body Transformation' | 'Validation' | 'Resilience'
-  | 'Routing' | 'Security' | 'Versioning' | 'Observability' | 'Custom'
-
-/**
- * A reference to a gateway configuration entry (auth provider, rate limit policy, etc.)
- * that provides the authoritative settings for a filter definition.
- */
-export interface GatewayConfigRef {
-  /** e.g. "AUTH_PROVIDER" | "RATE_LIMIT_POLICY" | "CIRCUIT_BREAKER_DEFAULTS" | "RESILIENCE_DEFAULTS" | "TLS_SOURCE" | "VAULT_CERT" (cert group) | "DOWNSTREAM_CREDENTIAL" */
-  refType: string
-  /** The id of the gateway config entry */
-  refId: string
-  /** Human-readable name (display only) */
-  refName?: string
-}
-
-/** Filter types that require or benefit from a gateway config reference */
-export const FILTER_TYPES_WITH_GATEWAY_REF: Partial<Record<FilterType, GatewayConfigRef['refType']>> = {
-  AUTH_JWT:                    'AUTH_PROVIDER',
-  AUTH_API_KEY:                'AUTH_PROVIDER',
-  AUTH_BASIC:                  'AUTH_PROVIDER',
-  AUTH_OAUTH2:                 'AUTH_PROVIDER',
-  AUTH_MTLS:                   'AUTH_PROVIDER',
-  AUTH_CERT_VAULT:             'VAULT_CERT',
-  DOWNSTREAM_BEARER_CC:        'AUTH_PROVIDER',
-  RATE_LIMIT_FIXED_WINDOW:     'RATE_LIMIT_POLICY',
-  RATE_LIMIT_SLIDING_WINDOW:   'RATE_LIMIT_POLICY',
-  TIMEOUT:                     'RESILIENCE_DEFAULTS',
-  CERT_ROTATION:               'VAULT_CERT',
-  CERT_VAULT_EXPIRY_CHECK:     'VAULT_CERT',
-}
+  // ─── AI ──────────────────────────────────────────────────────────────────
+  | 'AI_FILTER'
+  | 'AI_MODIFIER'
 
 export interface FilterDefinitionDto {
   id: string
@@ -199,7 +183,6 @@ export interface FilterDefinitionDto {
   systemManaged: boolean
   enabled: boolean
   usageCount: number
-  gatewayConfigRef?: GatewayConfigRef
   createdBy?: string
   createdAt: string
   updatedAt: string
@@ -211,7 +194,6 @@ export interface FilterSummary {
   filterType: FilterType
   enabled: boolean
   usageCount: number
-  gatewayConfigRef?: GatewayConfigRef
   createdAt: string
 }
 
@@ -220,14 +202,12 @@ export interface CreateFilterRequest {
   description?: string
   filterType: FilterType
   config: Record<string, unknown>
-  gatewayConfigRef?: GatewayConfigRef
 }
 
 export interface UpdateFilterRequest {
   name?: string
   description?: string
   config?: Record<string, unknown>
-  gatewayConfigRef?: GatewayConfigRef | null
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
@@ -359,24 +339,6 @@ export interface CreateUserRequest {
   role: UserRole
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-
-export interface DashboardStats {
-  routes?: { total: number; active: number; draft: number; disabled: number }
-  filters?: { total: number; inUse: number }
-  requests?: { last24h: number; errorRate: number; avgLatencyMs: number }
-  gateway?: { status: 'UP' | 'DOWN' | 'DEGRADED'; loadedRoutes: number }
-}
-
-// ─── SSE Events ───────────────────────────────────────────────────────────────
-
-export type DashboardEventType =
-  | 'connected' | 'route.created' | 'route.updated'
-  | 'route.activated' | 'route.deactivated' | 'route.deleted'
-  | 'filter.created' | 'filter.updated' | 'filter.deleted'
-  | 'filter.attached' | 'filter.detached'
-  | 'gateway.reloaded' | 'gateway.config.changed'
-
 // ─── Gateway Configuration ────────────────────────────────────────────────────
 
 export interface GatewayCorsConfig {
@@ -472,26 +434,6 @@ export interface GatewayAuthProvider {
   algorithm?: string
 }
 
-export interface GatewayCertificateSource {
-  logicalId: string
-  certificatePath: string
-  watchForChanges: boolean
-  expiresAt?: string
-  status?: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED'
-}
-
-export interface GatewayDirectorySource {
-  directoryPath: string
-  watchForChanges: boolean
-}
-
-export interface GatewayTlsConfig {
-  expiryWarning: string
-  fileWatchInterval: string
-  fileSources: GatewayCertificateSource[]
-  directorySources: GatewayDirectorySource[]
-}
-
 export interface GatewayProxyConfig {
   enabled: boolean
   host?: string
@@ -515,32 +457,20 @@ export interface GatewayHttpClientConfig {
   wiretapEnabled: boolean
 }
 
-export interface GatewayCorrelationIdConfig {
-  enabled: boolean
-  headerName: string
-  generateIfMissing: boolean
-  propagateToResponse: boolean
-}
-
-export interface GatewayRequestLoggerConfig {
-  enabled: boolean
-  logRequestHeaders: boolean
-  logResponseHeaders: boolean
-  logRequestBody: boolean
-  logResponseBody: boolean
-  maxBodyLogSize: number
-  excludePaths: string[]
-  maskHeaders: string[]
-}
-
-
 export interface GatewayTenantIsolationConfig {
   enabled: boolean
-  enforceHeaderPredicate: boolean
   tenantIdHeader: string
   allowCrossTenantsForSuperAdmin: boolean
 }
 
+/** A reference to a filter that has been marked as global (applied to all routes). */
+export interface GlobalFilterEntry {
+  filterId: string
+  filterName: string
+  filterType: FilterType
+  order: number
+  enabled: boolean
+}
 
 export interface GatewayConfig {
   updatedAt?: string
@@ -551,10 +481,10 @@ export interface GatewayConfig {
   circuitBreakerDefaults: GatewayCircuitBreakerDefaults
   resilienceDefaults: GatewayResilienceDefaults
   authProviders: GatewayAuthProvider[]
-  tlsConfig: GatewayTlsConfig
   proxyConfig: GatewayProxyConfig
   httpClientConfig: GatewayHttpClientConfig
   tenantIsolation: GatewayTenantIsolationConfig
+  globalFilterEntries: GlobalFilterEntry[]
 }
 
 export interface GatewayLiveStatus {
@@ -640,11 +570,6 @@ export interface UpdateCertGroupRequest {
   description?: string
 }
 
-export interface AddGroupMemberRequest {
-  certId: string
-  memberAlias?: string
-}
-
 export interface UploadCertificateRequest {
   /** Mandatory: group this certificate belongs to */
   groupId: string
@@ -664,3 +589,95 @@ export interface CertVaultStats {
   counts: Record<string, number>
 }
 
+// ─── AI Filter / Modifier types ───────────────────────────────────────────────
+
+export type AiMutationType = 'PII_SCRUB' | 'TRANSLATE' | 'HEADER_REWRITE' | 'CUSTOM' | 'PASSTHROUGH'
+
+/** Request payload for the AI Modification dry-run test endpoint. */
+export interface AiModificationTestRequest {
+  modificationPrompt: string
+  targetFields?: string
+  sampleRequest: {
+    method: string
+    path: string
+    headers?: Record<string, string>
+    body?: string
+  }
+}
+
+/** Response from the AI Modification dry-run test endpoint. */
+export interface AiModificationTestResult {
+  mutationId: string
+  mutationApplied: boolean
+  mutationType: AiMutationType
+  mutatedHeaders: Record<string, string>
+  mutatedBody: string | null
+  reason: string
+  cached: boolean
+  latencyMs: number
+}
+
+/** Aggregated AI Modification Filter stats per route from the audit service. */
+export interface AiModifierStats {
+  routeId: string
+  totalDecisions: number
+  appliedCount: number
+  passthroughCount: number
+  piiScrubCount: number
+  translateCount: number
+  headerRewriteCount: number
+  customCount: number
+  cacheHitCount: number
+  avgLatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  from: string
+  to: string
+}
+
+/** Aggregated AI Filter stats per route from the audit service. */
+export interface AiFilterStats {
+  routeId: string
+  totalDecisions: number
+  allowCount: number
+  blockCount: number
+  flagCount: number
+  fallbackCount: number
+  cacheHitCount: number
+  avgLatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  from: string
+  to: string
+}
+
+/** A single AI filter decision audit entry. */
+export interface AiFilterDecisionEntry {
+  evaluationId: string
+  routeId: string
+  routeName: string
+  action: 'ALLOW' | 'BLOCK' | 'FLAG'
+  reason: string
+  confidence: number
+  cached: boolean
+  latencyMs: number
+  method: string
+  path: string
+  evaluatedAt: string
+}
+
+/** A single AI modification decision audit entry. */
+export interface AiModifierDecisionEntry {
+  mutationId: string
+  routeId: string
+  routeName: string
+  mutationApplied: boolean
+  mutationType: AiMutationType
+  reason: string
+  headersModified: string[]
+  cached: boolean
+  latencyMs: number
+  method: string
+  path: string
+  evaluatedAt: string
+}

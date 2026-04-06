@@ -1,5 +1,5 @@
 # ─── Build stage ─────────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /build
 
 # Copy Maven wrapper and POMs for dependency caching
@@ -19,7 +19,7 @@ COPY routify-route-service/src/ routify-route-service/src/
 RUN ./mvnw package -pl routify-route-service -am -DskipTests -q
 
 # ─── Runtime stage ────────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 
 # Non-root user for security
 RUN addgroup -S routify && adduser -S routify -G routify
@@ -34,15 +34,13 @@ ENV JAVA_OPTS="\
   -XX:+UseContainerSupport \
   -XX:MaxRAMPercentage=75.0 \
   -XX:+UseZGC \
-  -XX:+ZGenerational \
-  --enable-preview \
   -Dspring.threads.virtual.enabled=true \
 "
 
-EXPOSE 8081
+EXPOSE 8081 9081
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:8081/actuator/health || exit 1
+  CMD wget -qO- http://localhost:9081/actuator/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 

@@ -11,7 +11,7 @@
   <springProfile name="!prod">
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
       <encoder>
-        <pattern>%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n</pattern>
+        <pattern>%d{ISO8601} [%thread] %-5level %replace([%X{correlationId}]){"^\[\]$", ""} %logger{36} - %msg%n</pattern>
       </encoder>
     </appender>
     <root level="INFO">

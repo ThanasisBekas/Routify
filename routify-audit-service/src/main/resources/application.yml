@@ -12,8 +12,13 @@ spring:
     # No default — must be supplied via DB_PASS environment variable.
     password: ${DB_PASS:}
     hikari:
-      maximum-pool-size: 10
+      # Sized for 3 concurrent Kafka consumer threads doing batch inserts
+      # + RabbitMQ query handlers + replay service connections.
+      # Previous value (10) could saturate under telemetry spikes.
+      maximum-pool-size: 15
       minimum-idle: 3
+      connection-timeout: 10000
+      pool-name: audit-pool
 
   jpa:
     hibernate:
@@ -72,12 +77,21 @@ management:
     export:
       prometheus:
         enabled: true
+    tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 routify:
   audit:
     retention:
       request-log-days: 30
-      audit-log-days: 365
+      audit-log-days: 7
+      dlq-log-days: 7
       cron: "0 0 2 * * *"
   replay:
     # Base URL of the API gateway — replays are sent here so the full filter chain is re-applied.
@@ -101,6 +115,6 @@ routify:
 
 logging:
   level:
-    gr.routify: DEBUG
+    io.routify: DEBUG
   pattern:
-    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] [tenant=%X{tenantId}] [user=%X{userId}] %logger{36} - %msg%n"

@@ -1,19 +1,33 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Route, Filter, ClipboardList, Users, Settings, LogOut, Zap, Activity, Server, ShieldCheck, Building2 } from 'lucide-react'
+import {
+  Route,
+  Filter,
+  ClipboardList,
+  Users,
+  Settings,
+  LogOut,
+  Zap,
+  Activity,
+  Server,
+  ShieldCheck,
+  Building2,
+} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
 import { useWsStore } from '../store/wsStore'
 import { authApi } from '../api/authApi'
+import { tenantsApi } from '../api/tenantsApi'
 import { cn } from '../lib/utils'
 import { ErrorBoundary } from './ErrorBoundary'
 
 const NAV_ITEMS = [
-  { to: '/routes',       label: 'Routes',       icon: Route,         desc: 'Manage gateway routes' },
-  { to: '/filters',      label: 'Filters',      icon: Filter,        desc: 'Reusable filter definitions' },
-  { to: '/gateway',      label: 'Gateway',      icon: Server,        desc: 'Gateway configuration' },
-  { to: '/certificates', label: 'Cert Vault',   icon: ShieldCheck,   desc: 'Inbound TLS certificates' },
-  { to: '/audit',        label: 'Audit',        icon: ClipboardList, desc: 'Audit log & analytics' },
-  { to: '/users',        label: 'Users',        icon: Users,         desc: 'User management' },
-  { to: '/settings',     label: 'Settings',     icon: Settings,      desc: 'Platform settings' },
+  { to: '/routes', label: 'Routes', icon: Route, desc: 'Manage gateway routes' },
+  { to: '/filters', label: 'Filters', icon: Filter, desc: 'Reusable filter definitions' },
+  { to: '/gateway', label: 'Gateway', icon: Server, desc: 'Gateway configuration' },
+  { to: '/certificates', label: 'Cert Vault', icon: ShieldCheck, desc: 'Inbound TLS certificates' },
+  { to: '/audit', label: 'Audit', icon: ClipboardList, desc: 'Audit log & analytics' },
+  { to: '/users', label: 'Users', icon: Users, desc: 'User management' },
+  { to: '/settings', label: 'Settings', icon: Settings, desc: 'Platform settings' },
 ]
 
 const SUPER_ADMIN_NAV_ITEMS = [
@@ -23,11 +37,19 @@ const SUPER_ADMIN_NAV_ITEMS = [
 export default function AppLayout() {
   const { user, logout } = useAuthStore()
 
-  const wsStatus     = useWsStore(s => s.status)
-  const recentEvents = useWsStore(s => s.recentEvents)
+  const wsStatus = useWsStore((s) => s.status)
+  const recentEvents = useWsStore((s) => s.recentEvents)
 
   const isConnected = wsStatus === 'CONNECTED'
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+
+  // Fetch the current workspace details to show workspace name in sidebar
+  const { data: currentTenant } = useQuery({
+    queryKey: ['current-tenant', user?.tenantId],
+    queryFn: () => tenantsApi.get(user!.tenantId),
+    enabled: !!user?.tenantId,
+    staleTime: 5 * 60_000,
+  })
 
   const handleLogout = async () => {
     await authApi.logout()
@@ -40,7 +62,6 @@ export default function AppLayout() {
     <div className="flex h-screen bg-[#080a0f] text-white overflow-hidden">
       {/* Sidebar */}
       <aside className="w-[220px] flex flex-col shrink-0 border-r border-white/[0.06] bg-[#0c0e14]">
-
         {/* Logo */}
         <div className="px-4 pt-5 pb-4">
           <div className="flex items-center gap-3">
@@ -59,60 +80,79 @@ export default function AppLayout() {
 
         {/* Connection pill */}
         <div className="px-4 pb-3">
-          <div className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium w-fit transition-all',
-            isConnected
-              ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-              : wsStatus === 'RECONNECTING'
-              ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-              : 'bg-white/5 text-gray-500 border border-white/[0.06]'
-          )}>
-            <span className={cn(
-              'w-1.5 h-1.5 rounded-full',
-              isConnected          ? 'bg-green-400 animate-pulse' :
-              wsStatus === 'RECONNECTING' ? 'bg-yellow-400 animate-pulse' :
-              'bg-gray-600'
-            )} />
+          <div
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium w-fit transition-all',
+              isConnected
+                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                : wsStatus === 'RECONNECTING'
+                  ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                  : 'bg-white/5 text-gray-500 border border-white/[0.06]',
+            )}
+          >
+            <span
+              className={cn(
+                'w-1.5 h-1.5 rounded-full',
+                isConnected
+                  ? 'bg-green-400 animate-pulse'
+                  : wsStatus === 'RECONNECTING'
+                    ? 'bg-yellow-400 animate-pulse'
+                    : 'bg-gray-600',
+              )}
+            />
             {isConnected
               ? 'Live'
               : wsStatus === 'RECONNECTING'
-              ? 'Reconnecting…'
-              : wsStatus === 'CONNECTING'
-              ? 'Connecting…'
-              : 'Offline'}
+                ? 'Reconnecting…'
+                : wsStatus === 'CONNECTING'
+                  ? 'Connecting…'
+                  : 'Offline'}
           </div>
         </div>
+
+        {/* Current workspace badge */}
+        {currentTenant && (
+          <div className="px-4 pb-3">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-indigo-500/[0.06] border border-indigo-500/15">
+              <Building2 className="w-3 h-3 text-indigo-400 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-semibold text-indigo-300 truncate">{currentTenant.name}</div>
+                <div className="text-[9px] text-indigo-400/50 font-medium">{currentTenant.slug}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="mx-4 h-px bg-white/[0.06] mb-2" />
 
         {/* Navigation */}
         <nav className="flex-1 px-2 py-1 space-y-0.5">
-          <p className="px-3 pt-1 pb-2 text-[10px] font-semibold text-gray-600 uppercase tracking-widest">
-            Navigation
-          </p>
+          <p className="px-3 pt-1 pb-2 text-[10px] font-semibold text-gray-600 uppercase tracking-widest">Navigation</p>
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) => cn(
-                'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group',
-                isActive
-                  ? 'bg-indigo-500/10 text-indigo-300'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
-              )}
+              className={({ isActive }) =>
+                cn(
+                  'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group',
+                  isActive
+                    ? 'bg-indigo-500/10 text-indigo-300'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]',
+                )
+              }
             >
               {({ isActive }) => (
                 <>
                   {isActive && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-indigo-500 rounded-full" />
                   )}
-                  <Icon className={cn(
-                    'w-4 h-4 shrink-0 transition-colors',
-                    isActive ? 'text-indigo-400' : 'text-gray-500 group-hover:text-gray-400'
-                  )} />
-                  <span className={cn('font-medium', isActive ? 'text-indigo-200' : '')}>
-                    {label}
-                  </span>
+                  <Icon
+                    className={cn(
+                      'w-4 h-4 shrink-0 transition-colors',
+                      isActive ? 'text-indigo-400' : 'text-gray-500 group-hover:text-gray-400',
+                    )}
+                  />
+                  <span className={cn('font-medium', isActive ? 'text-indigo-200' : '')}>{label}</span>
                 </>
               )}
             </NavLink>
@@ -129,25 +169,27 @@ export default function AppLayout() {
                 <NavLink
                   key={to}
                   to={to}
-                  className={({ isActive }) => cn(
-                    'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group',
-                    isActive
-                      ? 'bg-red-500/10 text-red-300'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
-                  )}
+                  className={({ isActive }) =>
+                    cn(
+                      'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group',
+                      isActive
+                        ? 'bg-red-500/10 text-red-300'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]',
+                    )
+                  }
                 >
                   {({ isActive }) => (
                     <>
                       {isActive && (
                         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-red-500 rounded-full" />
                       )}
-                      <Icon className={cn(
-                        'w-4 h-4 shrink-0 transition-colors',
-                        isActive ? 'text-red-400' : 'text-gray-500 group-hover:text-gray-400'
-                      )} />
-                      <span className={cn('font-medium', isActive ? 'text-red-200' : '')}>
-                        {label}
-                      </span>
+                      <Icon
+                        className={cn(
+                          'w-4 h-4 shrink-0 transition-colors',
+                          isActive ? 'text-red-400' : 'text-gray-500 group-hover:text-gray-400',
+                        )}
+                      />
+                      <span className={cn('font-medium', isActive ? 'text-red-200' : '')}>{label}</span>
                     </>
                   )}
                 </NavLink>
@@ -164,7 +206,7 @@ export default function AppLayout() {
               Live events
             </div>
             <div className="space-y-1.5">
-              {recentEvents.slice(0, 3).map(e => (
+              {recentEvents.slice(0, 3).map((e) => (
                 <div key={e.id} className="flex items-center gap-1.5 text-[11px] text-gray-500 truncate">
                   <span className="w-1 h-1 rounded-full bg-indigo-500 shrink-0" />
                   {e.label}

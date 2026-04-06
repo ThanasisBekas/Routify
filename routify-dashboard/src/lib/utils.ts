@@ -14,11 +14,5 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function extractApiError(error: unknown, fallback = 'An unexpected error occurred'): string {
   const axiosError = error as AxiosError<ApiError>
-  return (
-    axiosError?.response?.data?.detail ??
-    axiosError?.response?.data?.title ??
-    axiosError?.message ??
-    fallback
-  )
+  return axiosError?.response?.data?.detail ?? axiosError?.response?.data?.title ?? axiosError?.message ?? fallback
 }
-

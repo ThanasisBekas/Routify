@@ -1,0 +1,239 @@
+# Routify — Generate environments/.env.<branch>
+#
+# Generates or refreshes a branch-scoped env file under environments/ and
+# commits it to the develop branch. This keeps all secrets in one place on
+# develop, regardless of which branch they target.
+#
+# File naming:  environments/.env.<source-branch>
+#   - '/' in branch names is replaced with '-'
+#   - name is lowercased
+#   Examples:
+#     develop            → environments/.env.develop
+#     release/1          → environments/.env.release-1
+#     feature/ai-filter  → environments/.env.feature-ai-filter
+#
+# Credentials generated fresh on every run:
+#   - DB_PASS                   — 24-byte random, alphanumeric
+#   - RABBITMQ_PASS             — 24-byte random, alphanumeric
+#   - REDIS_PASS             — 24-byte random, alphanumeric
+#   - ADMIN_INITIAL_PASSWORD    — 16-byte random, hex
+#   - GRAFANA_PASSWORD          — 16-byte random, hex
+#   - CERT_VAULT_ENCRYPTION_KEY — 32-byte random AES key, base64
+#   - JWT_PRIVATE_KEY            — fresh RSA-2048 private key (PKCS8 DER, base64)
+#   - JWT_PUBLIC_KEY             — matching RSA-2048 public key (SPKI DER, base64)
+#
+# Required repository secret:
+#   OPENAI_API_KEY  — shared OpenAI key; sourced as-is, never rotated here.
+#
+# Usage:
+#   Actions → "Generate .env" → Run workflow → enter source branch name
+
+name: Generate .env
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: 'Source branch this .env targets (e.g. develop, release/1, master)'
+        required: true
+        default: 'develop'
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-env-${{ inputs.source_branch }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate & commit environments/.env.${{ inputs.source_branch }}
+    runs-on: ubuntu-latest
+
+    steps:
+      # Always commit to develop — env files live there regardless of source branch
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 1
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ── Derive the target filename ───────────────────────────────────────────
+
+      - name: Resolve env filename
+        id: filename
+        run: |
+          # Replace '/' with '-' and lowercase the branch name
+          SAFE_BRANCH=$(echo "${{ inputs.source_branch }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+          ENV_FILE="environments/.env.${SAFE_BRANCH}"
+          echo "safe_branch=${SAFE_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "env_file=${ENV_FILE}"       >> "$GITHUB_OUTPUT"
+          echo "Resolved: ${ENV_FILE}"
+
+      # ── Generate all random credentials ─────────────────────────────────────
+
+      - name: Generate credentials
+        id: creds
+        run: |
+          # ── Simple random strings ────────────────────────────────────────────
+          DB_PASS=$(openssl rand -base64 24 | tr -d '=+/' | head -c 32)
+          RABBITMQ_PASS=$(openssl rand -base64 24 | tr -d '=+/' | head -c 32)
+          REDIS_PASS=$(openssl rand -base64 24 | tr -d '=+/' | head -c 32)
+          ADMIN_INITIAL_PASSWORD=$(openssl rand -hex 16)
+          GRAFANA_PASSWORD=$(openssl rand -hex 16)
+
+          # ── AES-256 key for cert-vault (32 raw bytes → standard base64) ──────
+          CERT_VAULT_ENCRYPTION_KEY=$(openssl rand -base64 32)
+
+          # ── RSA-2048 keypair ─────────────────────────────────────────────────
+          # PKCS8 DER private key + SPKI DER public key → single-line base64.
+          # This is the exact format consumed by every service's application.yml.
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+            -out /tmp/routify_jwt.pem 2>/dev/null
+
+          JWT_PRIVATE_KEY=$(openssl pkcs8 -topk8 -nocrypt -inform PEM \
+            -in /tmp/routify_jwt.pem -outform DER | base64 -w 0)
+
+          JWT_PUBLIC_KEY=$(openssl rsa -in /tmp/routify_jwt.pem -pubout \
+            -outform DER 2>/dev/null | base64 -w 0)
+
+          rm -f /tmp/routify_jwt.pem
+
+          # ── Mask every secret immediately ────────────────────────────────────
+          echo "::add-mask::${DB_PASS}"
+          echo "::add-mask::${RABBITMQ_PASS}"
+          echo "::add-mask::${REDIS_PASS}"
+          echo "::add-mask::${ADMIN_INITIAL_PASSWORD}"
+          echo "::add-mask::${GRAFANA_PASSWORD}"
+          echo "::add-mask::${CERT_VAULT_ENCRYPTION_KEY}"
+          echo "::add-mask::${JWT_PRIVATE_KEY}"
+          echo "::add-mask::${JWT_PUBLIC_KEY}"
+
+          # ── Write to GITHUB_OUTPUT (multiline EOF syntax) ────────────────────
+          # Multiline delimiter is required for values containing '=' (base64).
+          {
+            echo "DB_PASS<<__EOF__"
+            echo "${DB_PASS}"
+            echo "__EOF__"
+
+            echo "RABBITMQ_PASS<<__EOF__"
+            echo "${RABBITMQ_PASS}"
+            echo "__EOF__"
+            
+            echo "REDIS_PASS<<__EOF__"
+            echo "${REDIS_PASS}"
+            echo "__EOF__"
+
+            echo "ADMIN_INITIAL_PASSWORD<<__EOF__"
+            echo "${ADMIN_INITIAL_PASSWORD}"
+            echo "__EOF__"
+
+            echo "GRAFANA_PASSWORD<<__EOF__"
+            echo "${GRAFANA_PASSWORD}"
+            echo "__EOF__"
+
+            echo "CERT_VAULT_ENCRYPTION_KEY<<__EOF__"
+            echo "${CERT_VAULT_ENCRYPTION_KEY}"
+            echo "__EOF__"
+
+            echo "JWT_PRIVATE_KEY<<__EOF__"
+            echo "${JWT_PRIVATE_KEY}"
+            echo "__EOF__"
+
+            echo "JWT_PUBLIC_KEY<<__EOF__"
+            echo "${JWT_PUBLIC_KEY}"
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      # ── Write the env file ───────────────────────────────────────────────────
+
+      - name: Write ${{ steps.filename.outputs.env_file }}
+        env:
+          ENV_FILE:                  ${{ steps.filename.outputs.env_file }}
+          SAFE_BRANCH:               ${{ steps.filename.outputs.safe_branch }}
+          DB_PASS:                   ${{ steps.creds.outputs.DB_PASS }}
+          RABBITMQ_PASS:             ${{ steps.creds.outputs.RABBITMQ_PASS }}
+          REDIS_PASS:                ${{ steps.creds.outputs.REDIS_PASS }}
+          ADMIN_INITIAL_PASSWORD:    ${{ steps.creds.outputs.ADMIN_INITIAL_PASSWORD }}
+          GRAFANA_PASSWORD:          ${{ steps.creds.outputs.GRAFANA_PASSWORD }}
+          CERT_VAULT_ENCRYPTION_KEY: ${{ steps.creds.outputs.CERT_VAULT_ENCRYPTION_KEY }}
+          JWT_PRIVATE_KEY:           ${{ steps.creds.outputs.JWT_PRIVATE_KEY }}
+          JWT_PUBLIC_KEY:            ${{ steps.creds.outputs.JWT_PUBLIC_KEY }}
+          OPENAI_API_KEY:            ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p environments
+
+          # Write header using printf — heredocs require zero-indented terminators
+          # which conflicts with the indented YAML run block.
+          printf '# Routify — branch-scoped secrets\n'                                       > "${ENV_FILE}"
+          printf '# Auto-generated by the "Generate .env" GitHub Actions workflow.\n'       >> "${ENV_FILE}"
+          printf '# DO NOT edit manually — re-run the workflow to rotate credentials.\n'    >> "${ENV_FILE}"
+          printf '#\n'                                                                        >> "${ENV_FILE}"
+          printf '# Source branch : %s\n'  "${SAFE_BRANCH}"                                 >> "${ENV_FILE}"
+          printf '# Workflow run  : %s\n'  "${{ github.run_id }}"                           >> "${ENV_FILE}"
+          printf '# Generated at  : %s\n'  "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"              >> "${ENV_FILE}"
+          printf '\n'                                                                         >> "${ENV_FILE}"
+
+          # Append secrets using printf — preserves special chars (=, +, /) verbatim
+          printf 'DB_PASS=%s\n'                   "${DB_PASS}"                   >> "${ENV_FILE}"
+          printf 'RABBITMQ_PASS=%s\n'             "${RABBITMQ_PASS}"             >> "${ENV_FILE}"
+          printf 'REDIS_PASS=%s\n'                "${REDIS_PASS}"                >> "${ENV_FILE}"
+          printf 'JWT_PRIVATE_KEY=%s\n'           "${JWT_PRIVATE_KEY}"           >> "${ENV_FILE}"
+          printf 'JWT_PUBLIC_KEY=%s\n'            "${JWT_PUBLIC_KEY}"            >> "${ENV_FILE}"
+          printf 'CERT_VAULT_ENCRYPTION_KEY=%s\n' "${CERT_VAULT_ENCRYPTION_KEY}" >> "${ENV_FILE}"
+          printf 'ADMIN_INITIAL_PASSWORD=%s\n'    "${ADMIN_INITIAL_PASSWORD}"    >> "${ENV_FILE}"
+          printf 'GRAFANA_PASSWORD=%s\n'          "${GRAFANA_PASSWORD}"          >> "${ENV_FILE}"
+          printf 'OPENAI_API_KEY=%s\n'            "${OPENAI_API_KEY}"            >> "${ENV_FILE}"
+
+      # ── Commit & push to develop ─────────────────────────────────────────────
+
+      - name: Commit to develop
+        id: commit
+        env:
+          ENV_FILE: ${{ steps.filename.outputs.env_file }}
+        run: |
+          # Force-add so .gitignore exclusion of environments/.env.* is bypassed
+          git add -f "${ENV_FILE}"
+
+          if git diff --cached --quiet; then
+            echo "No changes to ${ENV_FILE} — skipping commit."
+          else
+            git commit -m "chore(env): generate ${ENV_FILE} from branch ${{ inputs.source_branch }} [run ${{ github.run_id }}]"
+            git push origin develop
+            echo "env_updated=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Summary ──────────────────────────────────────────────────────────────
+
+      - name: Summary
+        env:
+          ENV_FILE: ${{ steps.filename.outputs.env_file }}
+        run: |
+          echo "### .env Generated :key:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Variable | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`DB_PASS\` | ✅ rotated |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`RABBITMQ_PASS\` | ✅ rotated |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`REDIS_PASS\` | ✅ rotated |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`JWT_PRIVATE_KEY\` | ✅ rotated (RSA-2048) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`JWT_PUBLIC_KEY\` | ✅ rotated (RSA-2048) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`CERT_VAULT_ENCRYPTION_KEY\` | ✅ rotated (AES-256) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`ADMIN_INITIAL_PASSWORD\` | ✅ rotated |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`GRAFANA_PASSWORD\` | ✅ rotated |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| \`OPENAI_API_KEY\` | 🔒 from repository secret (not rotated) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Source branch | \`${{ inputs.source_branch }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File | \`${ENV_FILE}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Target branch | \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Committed | ${{ steps.commit.outputs.env_updated == 'true' && '✅ yes' || '⏭️ skipped (no changes)' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Run | \`${{ github.run_id }}\` |" >> "$GITHUB_STEP_SUMMARY"
+

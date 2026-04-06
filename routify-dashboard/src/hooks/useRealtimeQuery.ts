@@ -2,58 +2,68 @@
  * useRealtimeQuery — React Query + WebSocket integration.
  *
  * Wraps useQuery and automatically invalidates the cache when a WebSocket
- * event arrives whose `queryKey` matches. This means:
+ * event arrives whose type or queryKey matches. This replaces polling
+ * (`refetchInterval`) with event-driven cache invalidation:
  *
  *   - Route list refetches automatically when route.activated fires
  *   - Audit page gets new events without manual refresh
  *   - Gateway overview updates circuit breakers live from /topic/metrics
+ *   - Certificate pages refresh on certificate.* events
  *
  * Usage:
  *   const { data } = useRealtimeQuery({
  *     queryKey: ['routes'],
  *     queryFn: routesApi.list,
- *     wsQueryKey: 'routes',   // invalidate when WS event has queryKey === 'routes'
+ *     wsEvents: ['route'],  // invalidate when WS event type starts with 'route.'
  *   })
  */
 import { useQueryClient, useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useWsStore } from '../store/wsStore'
 
 type RealtimeQueryOptions<T> = UseQueryOptions<T> & {
   /**
-   * The queryKey value emitted by the WS server that should trigger invalidation.
-   * Maps to `WsMessage.queryKey` from the server.
+   * WS event type prefixes or exact types that should trigger cache invalidation.
+   * E.g. ['route', 'filter'] will invalidate when events like 'route.created',
+   * 'route.activated', 'filter.updated', etc. arrive.
+   *
+   * Also matches against `WsMessage.queryKey` emitted from the server.
    */
-  wsQueryKey?: string | string[]
+  wsEvents?: string[]
 }
 
 export function useRealtimeQuery<T>(options: RealtimeQueryOptions<T>) {
   const qc = useQueryClient()
-  const { wsQueryKey, ...queryOptions } = options
+  const { wsEvents, ...queryOptions } = options
   const result = useQuery(queryOptions)
 
   // Subscribe to the ws event stream
-  const recentEvents = useWsStore(s => s.recentEvents)
+  const recentEvents = useWsStore((s) => s.recentEvents)
+  // Track last processed event id to avoid re-processing
+  const lastProcessedRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!wsQueryKey || recentEvents.length === 0) return
+    if (!wsEvents || wsEvents.length === 0 || recentEvents.length === 0) return
 
-    const keys = Array.isArray(wsQueryKey) ? wsQueryKey : [wsQueryKey]
     const latest = recentEvents[0]
+    // Avoid processing the same event twice
+    if (latest.id === lastProcessedRef.current) return
+    lastProcessedRef.current = latest.id
 
-    // Find if the most recent event targets this query's key
-    const shouldInvalidate = keys.some(k =>
-      latest.type.includes(k) ||
-      // Check by queryKey string emitted from the server
-      k === latest.type.split('.')[0]
+    // Check if the latest event matches any of the subscribed event prefixes
+    const shouldInvalidate = wsEvents.some(
+      (key) =>
+        latest.type.startsWith(key + '.') ||
+        latest.type === key ||
+        // Match the domain prefix: 'route' matches 'route.created', 'route.updated', etc.
+        key === latest.type.split('.')[0],
     )
 
     if (shouldInvalidate) {
       qc.invalidateQueries({ queryKey: Array.isArray(options.queryKey) ? options.queryKey : [options.queryKey] })
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentEvents])
 
   return result
 }
-

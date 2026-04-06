@@ -44,6 +44,8 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2000ms
+      # No default — must be supplied via REDIS_PASS environment variable.
+      password: ${REDIS_PASS:}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
@@ -95,15 +97,28 @@ management:
     export:
       prometheus:
         enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 # ─── Routify Configuration ───────────────────────────────────────────────────
 routify:
   outbox:
-    poll-interval-ms: 250
+    # Primary wake-up is via PostgreSQL LISTEN/NOTIFY (OutboxNotifyListener).
+    # This scheduled interval is a safety-net fallback only — catches any
+    # notifications missed due to connection drops or edge cases.
+    poll-interval-ms: 5000
     retry-interval-ms: 30000
     batch-size: 50
     retry-batch-size: 50   # C6/M9: configurable retry batch (was hardcoded 5)
     max-retries: 5
+    notify:
+      enabled: true   # PostgreSQL LISTEN/NOTIFY for on-demand outbox wake-up
 
   jwt:
     # RSA public key for validating inter-service JWTs (issued by routify-identity-service)
@@ -112,14 +127,15 @@ routify:
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-
     spring.datasource.password,
-    spring.rabbitmq.password
+    spring.rabbitmq.password,
+    spring.data.redis.password
 
 
 
 logging:
   level:
-    gr.routify: DEBUG
+    io.routify: DEBUG
     org.springframework.kafka: WARN
   pattern:
-    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    console: "%d{ISO8601} [%thread] %-5level [%X{correlationId}] [tenant=%X{tenantId}] [user=%X{userId}] %logger{36} - %msg%n"
 

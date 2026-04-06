@@ -64,4 +64,3 @@ export default function RoutePagination({ page, totalPages, total, onPage }: Pro
     </div>
   )
 }
-

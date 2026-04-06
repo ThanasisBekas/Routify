@@ -1,0 +1,47 @@
+name: ✨ Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: service
+    attributes:
+      label: Target Service
+      options:
+        - routify-dashboard
+        - routify-admin-api
+        - routify-api-gateway
+        - routify-route-service
+        - routify-identity-service
+        - routify-audit-service
+        - routify-cert-vault
+        - routify-ai-service
+        - routify-common
+        - Infrastructure / CI
+        - Multiple services
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Motivation
+      description: What problem does this solve? Why is this needed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature or change you'd like. Include API endpoints, data flows, or UI mockups if applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative approaches you've thought about.
+    validations:
+      required: false
+

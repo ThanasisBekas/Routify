@@ -1,10 +1,17 @@
 # ========================
 # Environment / Secrets
 # ========================
-#.env
-#.env.*
-#!.env.example
-#!.env.*.example
+# Root .env files are gitignored (copy from environments/ for local use)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# environments/ folder — secret files are tracked intentionally by the
+# "Generate .env" CI workflow (committed with git add -f).
+# They are excluded here so accidental `git add .` never leaks secrets.
+environments/.env.*
+!environments/README.md
 
 # ========================
 # Java / Maven
