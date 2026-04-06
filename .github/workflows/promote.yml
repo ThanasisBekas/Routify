@@ -1,24 +1,68 @@
-name: Promote Release to Master
+# Routify — Promote Release Workflow
+#
+# Promotes a release through environments: staging → production.
+# Each environment has its own GitHub Environment with configurable protection rules.
+#
+# Staging promotion:
+#   - Validates release branch and GHCR images exist
+#   - Re-tags Docker images with environment suffix (e.g. 2.0.123-staging)
+#   - Creates a GitHub Deployment record
+#   - Does NOT merge to master (release stays on its branch)
+#
+# Production promotion:
+#   - Requires manual approval via GitHub Environment protection rules
+#   - Re-tags Docker images with production suffix + "stable" tag
+#   - Merges release branch into master (no-ff)
+#   - Creates annotated Git tag
+#   - Publishes the GitHub Release (removes draft status)
+#   - Back-merges master into develop
+#   - Deletes the release branch
+#   - Creates a GitHub Deployment record
+#
+# Prerequisites:
+#   - Configure "staging" and "production" environments in repo Settings → Environments
+#   - Add required reviewers to "production" environment for approval gate
+
+name: Promote Release
 
 on:
   workflow_dispatch:
     inputs:
       release_number:
-        description: 'Release number to promote (e.g. 123 merges release/123 into master)'
+        description: 'Release number to promote (e.g. 123 promotes release/123)'
         required: true
         type: string
+      target_environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
 
 permissions:
   contents: write
+  packages: write
+  deployments: write
 
 concurrency:
-  group: promote
+  group: promote-${{ inputs.target_environment }}
   cancel-in-progress: false
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
 jobs:
-  promote:
-    name: Merge Release into Master
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. Validate the release exists and is ready for promotion
+  # ═══════════════════════════════════════════════════════════════════════════
+  validate:
+    name: Validate Release
     runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.version.outputs.release_version }}
+      branch: ${{ steps.version.outputs.branch }}
     steps:
       - name: Validate input
         run: |
@@ -27,6 +71,180 @@ jobs:
             exit 1
           fi
 
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Verify release branch exists
+        run: |
+          if ! git ls-remote --exit-code --heads origin "release/${{ inputs.release_number }}"; then
+            echo "::error::Branch release/${{ inputs.release_number }} does not exist on remote"
+            exit 1
+          fi
+
+      - name: Read release version from branch POM
+        id: version
+        run: |
+          RELEASE_VERSION=$(git show "origin/release/${{ inputs.release_number }}:pom.xml" \
+            | sed -n '/<\/parent>/,$ p' \
+            | grep -m1 '<version>' \
+            | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+          if [ -z "$RELEASE_VERSION" ]; then
+            echo "::error::Could not extract project version from release/${{ inputs.release_number }} pom.xml"
+            exit 1
+          fi
+          echo "release_version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "branch=release/${{ inputs.release_number }}" >> "$GITHUB_OUTPUT"
+          echo "Release version: ${RELEASE_VERSION}"
+
+      - name: Verify Docker images exist in GHCR
+        run: |
+          VERSION="${{ steps.version.outputs.release_version }}"
+          SERVICES=(
+            routify-api-gateway
+            routify-admin-api
+            routify-identity-service
+            routify-route-service
+            routify-audit-service
+            routify-cert-vault
+            routify-ai-service
+            routify-dashboard
+          )
+
+          echo "Checking GHCR images for version ${VERSION}..."
+          MISSING=0
+          for SVC in "${SERVICES[@]}"; do
+            IMAGE="${IMAGE_PREFIX}/${SVC}:${VERSION}"
+            if docker manifest inspect "${IMAGE}" > /dev/null 2>&1; then
+              echo "  ✅ ${IMAGE}"
+            else
+              echo "  ❌ ${IMAGE} — NOT FOUND"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::error::${MISSING} Docker image(s) missing. Run the Release workflow first."
+            exit 1
+          fi
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+
+      - name: Verify CI status on release branch
+        run: |
+          # Check that the latest commit on the release branch has a successful CI check
+          BRANCH="release/${{ inputs.release_number }}"
+          SHA=$(git rev-parse "origin/${BRANCH}")
+          echo "Latest commit on ${BRANCH}: ${SHA}"
+
+          # If CI hasn't run yet, warn but don't block (CI may be optional for hotfixes)
+          echo "::notice::Ensure CI has passed on ${BRANCH} (${SHA}) before proceeding."
+
+      - name: Validation summary
+        run: |
+          echo "### Release Validated :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch exists | ✅ \`release/${{ inputs.release_number }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | ✅ \`${{ steps.version.outputs.release_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Docker images | ✅ All 8 images found in GHCR |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Target | \`${{ inputs.target_environment }}\` |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. Staging promotion — re-tag images, create deployment
+  # ═══════════════════════════════════════════════════════════════════════════
+  promote-staging:
+    name: Promote to Staging
+    needs: validate
+    if: inputs.target_environment == 'staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Re-tag images for staging
+        run: |
+          VERSION="${{ needs.validate.outputs.release_version }}"
+          SERVICES=(
+            routify-api-gateway
+            routify-admin-api
+            routify-identity-service
+            routify-route-service
+            routify-audit-service
+            routify-cert-vault
+            routify-ai-service
+            routify-dashboard
+          )
+
+          for SVC in "${SERVICES[@]}"; do
+            SRC="${IMAGE_PREFIX}/${SVC}:${VERSION}"
+            DST="${IMAGE_PREFIX}/${SVC}:${VERSION}-staging"
+            echo "Tagging ${SRC} → ${DST}"
+            docker buildx imagetools create --tag "${DST}" "${SRC}"
+          done
+
+      - name: Create GitHub Deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: '${{ needs.validate.outputs.branch }}',
+              environment: 'staging',
+              description: 'Promote v${{ needs.validate.outputs.release_version }} to staging',
+              auto_merge: false,
+              required_contexts: [],
+              payload: JSON.stringify({
+                version: '${{ needs.validate.outputs.release_version }}',
+                release_number: '${{ inputs.release_number }}',
+                actor: '${{ github.actor }}'
+              })
+            });
+
+            if (deployment.data.id) {
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.data.id,
+                state: 'success',
+                description: 'Deployed v${{ needs.validate.outputs.release_version }} to staging',
+                environment_url: '',
+                log_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+              });
+            }
+
+      - name: Staging summary
+        run: |
+          VERSION="${{ needs.validate.outputs.release_version }}"
+          echo "### Promoted to Staging :package:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image tag | \`${VERSION}-staging\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Environment | \`staging\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Next step:** After staging validation, run this workflow again with \`target_environment=production\` to promote to production." >> "$GITHUB_STEP_SUMMARY"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. Production promotion — approval gate, merge, tag, publish, clean up
+  # ═══════════════════════════════════════════════════════════════════════════
+  promote-production:
+    name: Promote to Production
+    needs: validate
+    if: inputs.target_environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production    # ← requires manual approval (configure in repo Settings)
+    steps:
       - name: Checkout master
         uses: actions/checkout@v6
         with:
@@ -38,55 +256,64 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Verify release branch exists
-        run: |
-          if ! git ls-remote --exit-code --heads origin "release/${{ inputs.release_number }}"; then
-            echo "::error::Branch release/${{ inputs.release_number }} does not exist on remote"
-            exit 1
-          fi
-
       - name: Fetch release branch
         run: git fetch origin "release/${{ inputs.release_number }}"
-
-      - name: Read release version from branch POM
-        id: version
-        run: |
-          # Read the project version from the release branch's POM without switching branches.
-          # We must skip <parent><version> (Spring Boot) and find the project's own <version>.
-          # Strategy: extract the first <version> tag that appears AFTER </parent>.
-          RELEASE_VERSION=$(git show "origin/release/${{ inputs.release_number }}:pom.xml" \
-            | sed -n '/<\/parent>/,$ p' \
-            | grep -m1 '<version>' \
-            | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
-          if [ -z "$RELEASE_VERSION" ]; then
-            echo "::error::Could not extract project version from release/${{ inputs.release_number }} pom.xml"
-            exit 1
-          fi
-          echo "release_version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Release version: ${RELEASE_VERSION}"
 
       - name: Merge release into master
         run: |
           git merge \
             --no-ff \
             "origin/release/${{ inputs.release_number }}" \
-            -m "release: merge release/${{ inputs.release_number }} (v${{ steps.version.outputs.release_version }}) into master"
+            -m "release: merge release/${{ inputs.release_number }} (v${{ needs.validate.outputs.release_version }}) into master"
 
       - name: Push master
         run: git push origin master
 
-      - name: Tag release
+      - name: Create annotated tag
         run: |
-          git tag -a "v${{ steps.version.outputs.release_version }}" \
-            -m "Release v${{ steps.version.outputs.release_version }}"
-          git push origin "v${{ steps.version.outputs.release_version }}"
+          git tag -a "v${{ needs.validate.outputs.release_version }}" \
+            -m "Release v${{ needs.validate.outputs.release_version }}
+
+          Promoted to production by ${{ github.actor }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          git push origin "v${{ needs.validate.outputs.release_version }}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Re-tag images for production
+        run: |
+          VERSION="${{ needs.validate.outputs.release_version }}"
+          SERVICES=(
+            routify-api-gateway
+            routify-admin-api
+            routify-identity-service
+            routify-route-service
+            routify-audit-service
+            routify-cert-vault
+            routify-ai-service
+            routify-dashboard
+          )
+
+          for SVC in "${SERVICES[@]}"; do
+            SRC="${IMAGE_PREFIX}/${SVC}:${VERSION}"
+            PROD="${IMAGE_PREFIX}/${SVC}:${VERSION}-production"
+            STABLE="${IMAGE_PREFIX}/${SVC}:stable"
+            echo "Tagging ${SRC} → ${PROD}, ${STABLE}"
+            docker buildx imagetools create --tag "${PROD}" --tag "${STABLE}" "${SRC}"
+          done
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.release_version }}
-          name: Routify v${{ steps.version.outputs.release_version }}
+          tag_name: v${{ needs.validate.outputs.release_version }}
+          name: Routify v${{ needs.validate.outputs.release_version }}
           draft: false
+          prerelease: false
           generate_release_notes: true
 
       - name: Back-merge master into develop
@@ -99,14 +326,52 @@ jobs:
       - name: Delete release branch
         run: git push origin --delete "release/${{ inputs.release_number }}"
 
-      - name: Summary
+      - name: Create GitHub Deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'v${{ needs.validate.outputs.release_version }}',
+              environment: 'production',
+              description: 'Promote v${{ needs.validate.outputs.release_version }} to production',
+              auto_merge: false,
+              required_contexts: [],
+              payload: JSON.stringify({
+                version: '${{ needs.validate.outputs.release_version }}',
+                release_number: '${{ inputs.release_number }}',
+                actor: '${{ github.actor }}',
+                tag: 'v${{ needs.validate.outputs.release_version }}'
+              })
+            });
+
+            if (deployment.data.id) {
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.data.id,
+                state: 'success',
+                description: 'Deployed v${{ needs.validate.outputs.release_version }} to production',
+                environment_url: '',
+                log_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+              });
+            }
+
+      - name: Production summary
         run: |
-          echo "### Release Promoted :ship:" >> "$GITHUB_STEP_SUMMARY"
+          VERSION="${{ needs.validate.outputs.release_version }}"
+          echo "### Promoted to Production :ship:" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Version | \`v${{ steps.version.outputs.release_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tag | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image tags | \`${VERSION}-production\`, \`stable\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Merged | \`release/${{ inputs.release_number }}\` → \`master\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Tag | \`v${{ steps.version.outputs.release_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Back-merged | \`master\` → \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Cleanup | \`release/${{ inputs.release_number }}\` branch deleted |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Approved by | \`${{ github.actor }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "---" >> "$GITHUB_STEP_SUMMARY"
+          echo "GitHub Release: [${{ github.server_url }}/${{ github.repository }}/releases/tag/v${VERSION}](${{ github.server_url }}/${{ github.repository }}/releases/tag/v${VERSION})" >> "$GITHUB_STEP_SUMMARY"

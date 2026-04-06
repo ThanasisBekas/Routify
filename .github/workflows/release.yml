@@ -1,29 +1,85 @@
+# Routify — Release Workflow
+#
+# Creates a release branch from develop, bumps versions, runs full CI verification,
+# builds & publishes Docker images to GHCR, and creates a draft GitHub Release.
+#
+# Supports pre-releases (RC, beta) for staging validation before production promotion.
+#
+# Flow:
+#   1. Validate inputs & compute version
+#   2. Create release branch with version bump
+#   3. Run full backend + frontend test suite
+#   4. Build & push Docker images to GHCR
+#   5. Create draft GitHub Release with build manifest
+#   6. Bump develop to next SNAPSHOT
+#
+# Inputs:
+#   release_number  — patch/release number (e.g. 123 → v2.0.123)
+#   pre_release     — optional pre-release qualifier (none, rc, beta)
+#   rc_number       — RC/beta iteration (default 1)
+#   skip_tests      — bypass test suite (emergency releases only)
+
 name: Release
 
 on:
   workflow_dispatch:
     inputs:
       release_number:
-        description: 'Release number (e.g. 123 creates branch release/123 and version X.Y.123 based on the current POM major.minor)'
+        description: 'Release number (e.g. 123 → branch release/123, version X.Y.123)'
         required: true
         type: string
+      pre_release:
+        description: 'Pre-release type'
+        required: false
+        type: choice
+        default: 'none'
+        options:
+          - none
+          - rc
+          - beta
+      rc_number:
+        description: 'Pre-release iteration (e.g. 1 → rc.1 or beta.1)'
+        required: false
+        type: string
+        default: '1'
+      skip_tests:
+        description: '⚠️ Skip test suite (emergency only)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  packages: write
+  actions: read
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Create Release Branch
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. Create release branch & compute versions
+  # ═══════════════════════════════════════════════════════════════════════════
+  prepare:
+    name: Prepare Release
     runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.version.outputs.release_version }}
+      display_version: ${{ steps.version.outputs.display_version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      branch: ${{ steps.version.outputs.branch }}
+      current_version: ${{ steps.version.outputs.current_version }}
+      next_snapshot: ${{ steps.version.outputs.next_snapshot }}
     steps:
       - name: Validate input
         run: |
           if ! [[ "${{ inputs.release_number }}" =~ ^[0-9]+$ ]]; then
             echo "::error::Release number must be a positive integer (e.g. 123)"
+            exit 1
+          fi
+          if [[ "${{ inputs.pre_release }}" != "none" ]] && ! [[ "${{ inputs.rc_number }}" =~ ^[0-9]+$ ]]; then
+            echo "::error::RC/beta number must be a positive integer"
             exit 1
           fi
 
@@ -71,13 +127,40 @@ jobs:
 
           RELEASE_VERSION="${MAJOR}.${MINOR}.${{ inputs.release_number }}"
           NEXT_SNAPSHOT="${RELEASE_VERSION}-SNAPSHOT"
+          BRANCH="release/${{ inputs.release_number }}"
+
+          # Compute display version (with pre-release suffix if applicable)
+          if [[ "${{ inputs.pre_release }}" == "none" ]]; then
+            DISPLAY_VERSION="${RELEASE_VERSION}"
+            IS_PRERELEASE="false"
+          else
+            DISPLAY_VERSION="${RELEASE_VERSION}-${{ inputs.pre_release }}.${{ inputs.rc_number }}"
+            IS_PRERELEASE="true"
+          fi
 
           echo "release_version=${RELEASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "display_version=${DISPLAY_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${IS_PRERELEASE}"     >> "$GITHUB_OUTPUT"
           echo "next_snapshot=${NEXT_SNAPSHOT}"      >> "$GITHUB_OUTPUT"
-          echo "Current: ${CURRENT} → Release: ${RELEASE_VERSION} → Next develop: ${NEXT_SNAPSHOT}"
+          echo "branch=${BRANCH}"                   >> "$GITHUB_OUTPUT"
+
+          echo "### Version Plan" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Current | \`${CURRENT}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release | \`${DISPLAY_VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | \`${BRANCH}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Pre-release | \`${IS_PRERELEASE}\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check release branch does not already exist
+        run: |
+          if git ls-remote --exit-code --heads origin "${{ steps.version.outputs.branch }}" 2>/dev/null; then
+            echo "::error::Branch ${{ steps.version.outputs.branch }} already exists. Delete it first or use a different release number."
+            exit 1
+          fi
 
       - name: Create release branch
-        run: git checkout -b "release/${{ inputs.release_number }}"
+        run: git checkout -b "${{ steps.version.outputs.branch }}"
 
       - name: Update Maven versions
         run: |
@@ -98,12 +181,14 @@ jobs:
       - name: Commit version bump
         run: |
           git add -A
-          git commit -m "release: bump version to ${{ steps.version.outputs.release_version }}"
+          git commit -m "release: bump version to ${{ steps.version.outputs.display_version }}"
 
       - name: Push release branch
-        run: git push origin "release/${{ inputs.release_number }}"
+        id: push_release
+        run: git push origin "${{ steps.version.outputs.branch }}"
 
       - name: Bump develop to next SNAPSHOT
+        id: bump_develop
         run: |
           git checkout develop
 
@@ -123,22 +208,250 @@ jobs:
           git commit -m "chore: bump develop to ${{ steps.version.outputs.next_snapshot }} after release/${{ inputs.release_number }}"
           git push origin develop
 
-      - name: Create GitHub Release (draft)
+      # Rollback: if develop bump failed but release branch was pushed, clean up
+      - name: Rollback release branch on failure
+        if: failure() && steps.push_release.outcome == 'success'
+        run: |
+          echo "::warning::Rolling back release branch due to failure"
+          git push origin --delete "${{ steps.version.outputs.branch }}" || true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. Backend verification — compile + unit tests
+  # ═══════════════════════════════════════════════════════════════════════════
+  backend-verify:
+    name: Backend Verify
+    needs: prepare
+    if: inputs.skip_tests == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.branch }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-
+
+      - name: Run unit tests
+        run: mvn clean verify -T 4 -B
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-test-reports
+          path: '**/target/surefire-reports/'
+          retention-days: 14
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. Frontend verification — typecheck + lint + unit tests + build + E2E
+  # ═══════════════════════════════════════════════════════════════════════════
+  frontend-verify:
+    name: Frontend Verify
+    needs: prepare
+    if: inputs.skip_tests == false
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: routify-dashboard
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.branch }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: routify-dashboard/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:ci
+      - run: npm run build
+
+      - name: Install Playwright (Chromium only)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e:ci
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-playwright-report
+          path: routify-dashboard/playwright-report/
+          retention-days: 14
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 4. Build & publish Docker images to GHCR
+  # ═══════════════════════════════════════════════════════════════════════════
+  docker:
+    name: Docker Publish
+    needs: [prepare, backend-verify, frontend-verify]
+    # Run if tests passed OR if tests were skipped
+    if: |
+      always() &&
+      needs.prepare.result == 'success' &&
+      (needs.backend-verify.result == 'success' || needs.backend-verify.result == 'skipped') &&
+      (needs.frontend-verify.result == 'success' || needs.frontend-verify.result == 'skipped')
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      version: ${{ needs.prepare.outputs.display_version }}
+      ref: ${{ needs.prepare.outputs.branch }}
+      is_prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 5. Create draft GitHub Release
+  # ═══════════════════════════════════════════════════════════════════════════
+  github-release:
+    name: GitHub Release
+    needs: [prepare, docker]
+    if: always() && needs.prepare.result == 'success' && needs.docker.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.branch }}
+
+      - name: Write build manifest
+        run: |
+          cat > build-manifest.json << 'MANIFEST_EOF'
+          ${{ needs.docker.outputs.manifest }}
+          MANIFEST_EOF
+
+          # Pretty-print for the artifact
+          if command -v jq &> /dev/null; then
+            jq '.' build-manifest.json > build-manifest-pretty.json
+            mv build-manifest-pretty.json build-manifest.json
+          fi
+
+      - name: Generate release body
+        id: body
+        run: |
+          VERSION="${{ needs.prepare.outputs.display_version }}"
+          IS_PRE="${{ needs.prepare.outputs.is_prerelease }}"
+
+          {
+            echo "body<<RELEASE_BODY_EOF"
+            echo "## Routify v${VERSION}"
+            echo ""
+            if [ "$IS_PRE" == "true" ]; then
+              echo "> ⚠️ **Pre-release** — This version is intended for staging validation. Do not deploy to production."
+              echo ""
+            fi
+            echo "### Docker Images"
+            echo ""
+            echo "All images published to \`ghcr.io/${{ github.repository_owner }}/\`:"
+            echo ""
+            echo "| Service | Image |"
+            echo "|---------|-------|"
+            echo "| API Gateway | \`routify-api-gateway:${VERSION}\` |"
+            echo "| Admin API | \`routify-admin-api:${VERSION}\` |"
+            echo "| Identity Service | \`routify-identity-service:${VERSION}\` |"
+            echo "| Route Service | \`routify-route-service:${VERSION}\` |"
+            echo "| Audit Service | \`routify-audit-service:${VERSION}\` |"
+            echo "| Cert Vault | \`routify-cert-vault:${VERSION}\` |"
+            echo "| AI Service | \`routify-ai-service:${VERSION}\` |"
+            echo "| Dashboard | \`routify-dashboard:${VERSION}\` |"
+            echo ""
+            echo "### Pull"
+            echo ""
+            echo "\`\`\`bash"
+            echo "docker pull ghcr.io/${{ github.repository_owner }}/routify-api-gateway:${VERSION}"
+            echo "\`\`\`"
+            echo ""
+            echo "### Checksums"
+            echo ""
+            echo "See \`build-manifest.json\` attached to this release for image digests."
+            echo ""
+            echo "---"
+            echo "*Release created by GitHub Actions run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*"
+            echo "RELEASE_BODY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create draft GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.release_version }}
-          target_commitish: release/${{ inputs.release_number }}
-          name: Routify v${{ steps.version.outputs.release_version }}
+          tag_name: v${{ needs.prepare.outputs.display_version }}
+          target_commitish: ${{ needs.prepare.outputs.branch }}
+          name: Routify v${{ needs.prepare.outputs.display_version }}
+          body: ${{ steps.body.outputs.body }}
           draft: true
+          prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
+          files: build-manifest.json
 
-      - name: Summary
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 6. Summary
+  # ═══════════════════════════════════════════════════════════════════════════
+  summary:
+    name: Release Summary
+    needs: [prepare, backend-verify, frontend-verify, docker, github-release]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate summary
         run: |
+          VERSION="${{ needs.prepare.outputs.display_version }}"
+          BRANCH="${{ needs.prepare.outputs.branch }}"
+          IS_PRE="${{ needs.prepare.outputs.is_prerelease }}"
+
           echo "### Release Created :rocket:" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
+
           echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Branch | \`release/${{ inputs.release_number }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Version | \`${{ steps.version.outputs.release_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Previous | \`${{ steps.version.outputs.current_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Develop | \`${{ steps.version.outputs.next_snapshot }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | \`${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | \`${BRANCH}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Pre-release | ${IS_PRE} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Previous | \`${{ needs.prepare.outputs.current_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Develop | \`${{ needs.prepare.outputs.next_snapshot }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "### Pipeline Status" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Prepare | ${{ needs.prepare.result == 'success' && '✅' || '❌' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Backend Tests | ${{ needs.backend-verify.result == 'success' && '✅' || needs.backend-verify.result == 'skipped' && '⏭️ Skipped' || '❌' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Frontend Tests | ${{ needs.frontend-verify.result == 'success' && '✅' || needs.frontend-verify.result == 'skipped' && '⏭️ Skipped' || '❌' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Docker Publish | ${{ needs.docker.result == 'success' && '✅' || '❌' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| GitHub Release | ${{ needs.github-release.result == 'success' && '✅' || '❌' }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${IS_PRE}" == "true" ]; then
+            echo "> **Next step:** Validate in staging, then run the **Promote** workflow with \`release_number=${{ inputs.release_number }}\` and \`target_environment=staging\`." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "> **Next step:** Run the **Promote** workflow with \`release_number=${{ inputs.release_number }}\` to promote to staging and then production." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail workflow if any critical job failed
+        if: |
+          needs.docker.result == 'failure' ||
+          needs.github-release.result == 'failure' ||
+          needs.backend-verify.result == 'failure' ||
+          needs.frontend-verify.result == 'failure'
+        run: |
+          echo "::error::One or more release jobs failed. Review the pipeline above."
+          exit 1

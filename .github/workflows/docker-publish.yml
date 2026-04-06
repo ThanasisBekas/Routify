@@ -1,0 +1,230 @@
+# Routify — Reusable Docker Build & Publish to GHCR
+#
+# Builds all 8 service images + dashboard and pushes to GitHub Container Registry.
+# Called by release.yml and hotfix.yml — never triggered directly.
+#
+# Tag strategy:
+#   - Always: <version> (e.g. 2.0.123, 2.0.123-rc.1)
+#   - Stable releases: <major>.<minor> (e.g. 2.0), latest
+#   - Pre-releases: <version> only (no latest/major.minor)
+
+name: Docker Publish
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Semver version to tag images with (e.g. 2.0.123)'
+        required: true
+        type: string
+      ref:
+        description: 'Git ref to checkout (branch or tag)'
+        required: true
+        type: string
+      is_prerelease:
+        description: 'Whether this is a pre-release (skip latest/major.minor tags)'
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      manifest:
+        description: 'JSON build manifest with image digests'
+        value: ${{ jobs.manifest.outputs.manifest_json }}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  # ── Build all Java JARs ──────────────────────────────────────────────────
+  build-jars:
+    name: Build JARs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-
+
+      - name: Build all modules
+        run: mvn clean package -T 4 -B -DskipTests
+
+      - name: Upload JAR artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: service-jars
+          path: |
+            routify-api-gateway/target/*.jar
+            routify-admin-api/target/*.jar
+            routify-identity-service/target/*.jar
+            routify-route-service/target/*.jar
+            routify-audit-service/target/*.jar
+            routify-cert-vault/target/*.jar
+            routify-ai-service/target/*.jar
+          retention-days: 1
+
+  # ── Build & push Docker images (matrix) ──────────────────────────────────
+  push-images:
+    name: Push ${{ matrix.service }}
+    needs: build-jars
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: routify-api-gateway
+            context: routify-api-gateway
+            dockerfile: Dockerfile.ci
+            port: 8080
+          - service: routify-admin-api
+            context: routify-admin-api
+            dockerfile: Dockerfile.ci
+            port: 8082
+          - service: routify-identity-service
+            context: routify-identity-service
+            dockerfile: Dockerfile.ci
+            port: 8083
+          - service: routify-route-service
+            context: routify-route-service
+            dockerfile: Dockerfile.ci
+            port: 8081
+          - service: routify-audit-service
+            context: routify-audit-service
+            dockerfile: Dockerfile.ci
+            port: 8084
+          - service: routify-cert-vault
+            context: routify-cert-vault
+            dockerfile: Dockerfile.ci
+            port: 8085
+          - service: routify-ai-service
+            context: routify-ai-service
+            dockerfile: Dockerfile.ci
+            port: 8086
+          - service: routify-dashboard
+            context: routify-dashboard
+            dockerfile: Dockerfile
+            port: 80
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      # Download JARs for Java services (not needed for dashboard)
+      - name: Download JAR artifacts
+        if: matrix.service != 'routify-dashboard'
+        uses: actions/download-artifact@v7
+        with:
+          name: service-jars
+          path: .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          IMAGE="${IMAGE_PREFIX}/${{ matrix.service }}"
+          VERSION="${{ inputs.version }}"
+          MAJOR_MINOR=$(echo "$VERSION" | grep -oE '^[0-9]+\.[0-9]+')
+
+          TAGS="${IMAGE}:${VERSION}"
+
+          if [ "${{ inputs.is_prerelease }}" != "true" ]; then
+            TAGS="${TAGS},${IMAGE}:${MAJOR_MINOR},${IMAGE}:latest"
+          fi
+
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.service }}
+            org.opencontainers.image.version=${{ inputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Write digest file
+        run: |
+          mkdir -p /tmp/digests
+          echo '${{ steps.build.outputs.digest }}' > "/tmp/digests/${{ matrix.service }}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.service }}
+          path: /tmp/digests/${{ matrix.service }}
+          retention-days: 1
+
+  # ── Collect digests into a build manifest ─────────────────────────────────
+  manifest:
+    name: Build Manifest
+    needs: push-images
+    runs-on: ubuntu-latest
+    outputs:
+      manifest_json: ${{ steps.assemble.outputs.manifest }}
+    steps:
+      - name: Download all digests
+        uses: actions/download-artifact@v7
+        with:
+          pattern: digest-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - name: Assemble manifest
+        id: assemble
+        run: |
+          MANIFEST="{\"version\":\"${{ inputs.version }}\",\"ref\":\"${{ inputs.ref }}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"images\":{"
+
+          FIRST=true
+          for f in /tmp/digests/*; do
+            SERVICE=$(basename "$f")
+            DIGEST=$(cat "$f")
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              MANIFEST="${MANIFEST},"
+            fi
+            MANIFEST="${MANIFEST}\"${SERVICE}\":\"${DIGEST}\""
+          done
+
+          MANIFEST="${MANIFEST}}}"
+          echo "manifest=${MANIFEST}" >> "$GITHUB_OUTPUT"
+
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo "${MANIFEST}" | jq '.' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
