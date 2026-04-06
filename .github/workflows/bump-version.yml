@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: version-bump
@@ -96,21 +97,42 @@ jobs:
             fs.writeFileSync('routify-dashboard/package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
 
-      - name: Commit version bump
+      - name: Commit and create PR
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          BUMP_BRANCH="chore/bump-${{ inputs.bump_type }}-to-${{ steps.version.outputs.next_version }}"
+          git checkout -b "${BUMP_BRANCH}"
+
           git add -A
           git commit -m "chore: bump ${{ inputs.bump_type }} version ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.next_version }}"
+          git push origin "${BUMP_BRANCH}"
 
-      - name: Push develop
-        run: git push origin develop
+          PR_URL=$(gh pr create \
+            --base develop \
+            --head "${BUMP_BRANCH}" \
+            --title "chore: bump ${{ inputs.bump_type }} version to ${{ steps.version.outputs.next_version }}" \
+            --body "Automated ${{ inputs.bump_type }} version bump.
+
+          - Previous: \`${{ steps.version.outputs.current_version }}\`
+          - New: \`${{ steps.version.outputs.next_version }}\`
+
+          ---
+          *Triggered by bump-version workflow run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
+            --label "chore")
+
+          echo "Created PR: ${PR_URL}"
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         run: |
-          echo "### ${{ inputs.bump_type == 'major' && 'Major' || 'Minor' }} Version Bumped :arrow_up:" >> "$GITHUB_STEP_SUMMARY"
+          echo "### ${{ inputs.bump_type == 'major' && 'Major' || 'Minor' }} Version Bump PR Created :arrow_up:" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Bump type | \`${{ inputs.bump_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Previous | \`${{ steps.version.outputs.current_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| New | \`${{ steps.version.outputs.next_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Branch | \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Target | \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Next step:** Review and merge the PR to apply the version bump." >> "$GITHUB_STEP_SUMMARY"

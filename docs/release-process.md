@@ -2,23 +2,27 @@
 
 This document describes the complete release lifecycle for Routify, from cutting a release to promoting it through environments to production.
 
+> **All workflows create Pull Requests** instead of pushing directly to protected branches (`master`, `develop`). This ensures code review, CI checks, and audit trails for every change.
+
 ## Overview
 
 ```
-develop ──→ Release Workflow ──→ release/N branch ──→ Promote (staging) ──→ Promote (production) ──→ master
-                                       │                                            │
-                                  Docker images                               Tag + merge
-                                  published to GHCR                           back-merge to develop
+develop ──→ Release Workflow ──→ release/N branch ──→ Promote (staging) ──→ Promote (production)
+                 │                     │                                           │
+            PR: snapshot bump     Docker images                        PR: release → master
+            to develop            published to GHCR                    PR: back-merge → develop
+                                                                       Tag + GitHub Release
 ```
 
 ### Workflows
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| **Release** | Manual (`workflow_dispatch`) | Cut a release branch, build, test, publish Docker images |
-| **Promote** | Manual (`workflow_dispatch`) | Promote a release to staging or production |
-| **Hotfix** | Manual (`workflow_dispatch`) | Emergency fix on a released version |
-| **Bump Version** | Manual (`workflow_dispatch`) | Bump major or minor version on develop |
+| **Release** | Manual (`workflow_dispatch`) | Cut a release branch, build, test, publish Docker images, open PR to bump develop |
+| **Promote** | Manual (`workflow_dispatch`) | Promote a release to staging or production (PRs for merge + back-merge) |
+| **Hotfix** | Manual (`workflow_dispatch`) | Emergency fix on a released version (PRs for merge + back-merge) |
+| **Bump Version** | Manual (`workflow_dispatch`) | Open PR to bump major or minor version on develop |
+| **Generate .env** | Manual (`workflow_dispatch`) | Open PR to add/rotate branch-scoped env file on develop |
 | **CI** | Push / PR | Continuous integration (compile, test, lint) |
 
 ---
@@ -42,7 +46,7 @@ Go to **Actions → Release → Run workflow**:
 3. ✅ Full backend unit tests + frontend (typecheck, lint, unit, E2E) run
 4. ✅ 8 Docker images built and pushed to GHCR
 5. ✅ Draft GitHub Release created with build manifest
-6. ✅ Develop bumped to `2.0.123-SNAPSHOT`
+6. 📋 **PR opened** to bump develop to `2.0.123-SNAPSHOT` ← *requires review & merge*
 7. ✅ Automatic rollback if any step fails
 
 ### 2. Promote to Staging
@@ -71,13 +75,17 @@ Go to **Actions → Promote Release → Run workflow**:
 
 **What happens:**
 1. ⏳ **Waits for manual approval** (configured in GitHub Environment protection rules)
-2. ✅ Merges `release/123` into `master` (no-ff)
-3. ✅ Creates annotated tag `v2.0.123`
-4. ✅ Re-tags Docker images with `-production` suffix + `stable` tag
+2. ✅ Re-tags Docker images with `-production` suffix + `stable` tag
+3. 📋 **PR opened** to merge `release/123` into `master` ← *requires review & merge*
+4. ✅ Creates annotated tag `v2.0.123`
 5. ✅ Publishes the GitHub Release (removes draft status)
-6. ✅ Back-merges `master` into `develop`
-7. ✅ Deletes `release/123` branch
-8. ✅ Creates a GitHub Deployment record for `production`
+6. 📋 **PR opened** to back-merge into `develop` ← *requires review & merge*
+7. ✅ Creates a GitHub Deployment record for `production`
+
+**After the workflow completes, you need to:**
+1. Merge the release → master PR
+2. Merge the back-merge → develop PR
+3. Delete the `release/123` branch
 
 ---
 
@@ -90,10 +98,11 @@ Release (rc.1) → Staging validate → Release (rc.2) → Staging validate → 
 ```
 
 1. Run **Release** with `pre_release=rc`, `rc_number=1` → publishes `2.0.123-rc.1`
-2. Promote to staging, validate
-3. If issues found: push fixes to `release/123`, re-run Release with `rc_number=2`
-4. When ready: run Release with `pre_release=none` for the final version
-5. Promote to production
+2. Merge the develop snapshot bump PR
+3. Promote to staging, validate
+4. If issues found: push fixes to `release/123`, re-run Release with `rc_number=2`
+5. When ready: run Release with `pre_release=none` for the final version
+6. Promote to production, merge the resulting PRs
 
 ---
 
@@ -126,9 +135,11 @@ git push origin hotfix/2.0.123
 Re-run the **Hotfix** workflow with `mode=apply`:
 - Runs full test suite
 - Builds and publishes Docker images
-- Merges into master, creates tag `v2.0.123.1`
-- Creates GitHub Release
-- Back-merges into develop
+- Creates tag `v2.0.123.1` and GitHub Release
+- 📋 **PR opened** to merge hotfix into `master`
+- 📋 **PR opened** to back-merge hotfix into `develop`
+
+**After the workflow completes, merge both PRs and delete the hotfix branch.**
 
 ---
 
@@ -170,8 +181,8 @@ docker pull ghcr.io/<owner>/routify-api-gateway:2.0.123-staging
 | Develop | `MAJOR.MINOR.RELEASE-SNAPSHOT` | `2.0.123-SNAPSHOT` |
 
 **Bump version** (between release cycles):
-- **Minor**: `2.0.x` → `2.1.0-SNAPSHOT` (new features)
-- **Major**: `2.x.y` → `3.0.0-SNAPSHOT` (breaking changes)
+- **Minor**: `2.0.x` → `2.1.0-SNAPSHOT` — run **Bump Version** workflow, merge the PR
+- **Major**: `2.x.y` → `3.0.0-SNAPSHOT` — run **Bump Version** workflow, merge the PR
 
 ---
 
@@ -225,16 +236,21 @@ Delete it manually: `git push origin --delete release/123`, then re-run.
 ### Docker image verification fails during promotion
 Ensure the Release workflow completed successfully. Check the GHCR packages in the repository.
 
-### Production promotion fails during merge
-Likely a merge conflict between `release/N` and `master`. Resolve manually:
+### Production promotion PR has merge conflicts
+Resolve conflicts locally on the release branch and push:
 ```bash
-git checkout master
-git merge release/N
+git checkout release/N
+git merge origin/master
 # resolve conflicts
-git push origin master
+git push origin release/N
 ```
-Then re-run the Promote workflow.
+Then the PR will be mergeable.
 
-### Back-merge conflict
-If the `master → develop` back-merge fails, resolve manually and push.
-
+### Back-merge PR has conflicts
+Resolve locally:
+```bash
+git checkout chore/backmerge-vX.Y.Z
+git merge origin/develop
+# resolve conflicts
+git push origin chore/backmerge-vX.Y.Z
+```

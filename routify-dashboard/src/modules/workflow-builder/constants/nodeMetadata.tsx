@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 /**
  * nodeMetadata.tsx — Shared visual metadata for all node/filter types in the
  * WorkflowBuilder. Centralised here so both the canvas nodes and the NodePalette

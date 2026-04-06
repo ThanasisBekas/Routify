@@ -12,10 +12,10 @@
 # Production promotion:
 #   - Requires manual approval via GitHub Environment protection rules
 #   - Re-tags Docker images with production suffix + "stable" tag
-#   - Merges release branch into master (no-ff)
-#   - Creates annotated Git tag
+#   - Creates PR to merge release branch into master
+#   - Creates annotated Git tag (after PR is merged)
 #   - Publishes the GitHub Release (removes draft status)
-#   - Back-merges master into develop
+#   - Creates PR to back-merge master into develop
 #   - Deletes the release branch
 #   - Creates a GitHub Deployment record
 #
@@ -43,6 +43,7 @@ on:
 permissions:
   contents: write
   packages: write
+  pull-requests: write
   deployments: write
 
 concurrency:
@@ -236,7 +237,7 @@ jobs:
           echo "> **Next step:** After staging validation, run this workflow again with \`target_environment=production\` to promote to production." >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # 3. Production promotion — approval gate, merge, tag, publish, clean up
+  # 3. Production promotion — approval gate, PRs, tag, publish, clean up
   # ═══════════════════════════════════════════════════════════════════════════
   promote-production:
     name: Promote to Production
@@ -245,7 +246,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production    # ← requires manual approval (configure in repo Settings)
     steps:
-      - name: Checkout master
+      - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: master
@@ -255,28 +256,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Fetch release branch
-        run: git fetch origin "release/${{ inputs.release_number }}"
-
-      - name: Merge release into master
-        run: |
-          git merge \
-            --no-ff \
-            "origin/release/${{ inputs.release_number }}" \
-            -m "release: merge release/${{ inputs.release_number }} (v${{ needs.validate.outputs.release_version }}) into master"
-
-      - name: Push master
-        run: git push origin master
-
-      - name: Create annotated tag
-        run: |
-          git tag -a "v${{ needs.validate.outputs.release_version }}" \
-            -m "Release v${{ needs.validate.outputs.release_version }}
-
-          Promoted to production by ${{ github.actor }}
-          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          git push origin "v${{ needs.validate.outputs.release_version }}"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -307,6 +286,48 @@ jobs:
             docker buildx imagetools create --tag "${PROD}" --tag "${STABLE}" "${SRC}"
           done
 
+      - name: Create PR to merge release into master
+        id: release_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.validate.outputs.release_version }}"
+          BRANCH="release/${{ inputs.release_number }}"
+
+          PR_URL=$(gh pr create \
+            --base master \
+            --head "${BRANCH}" \
+            --title "release: merge release/${{ inputs.release_number }} (v${VERSION}) into master" \
+            --body "## Production Release v${VERSION}
+
+          Merges \`${BRANCH}\` into \`master\` for production deployment.
+
+          ### Docker Images
+          All images re-tagged with \`${VERSION}-production\` and \`stable\`.
+
+          ### Checklist
+          - [x] Staging validation passed
+          - [x] Production approval granted by \`${{ github.actor }}\`
+          - [x] Docker images re-tagged for production
+
+          ---
+          *Promoted by: \`${{ github.actor }}\` via workflow run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
+            --label "release")
+
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "Created release PR: ${PR_URL}"
+
+      - name: Create annotated tag on release branch head
+        run: |
+          git fetch origin "release/${{ inputs.release_number }}"
+          git checkout "origin/release/${{ inputs.release_number }}"
+          git tag -a "v${{ needs.validate.outputs.release_version }}" \
+            -m "Release v${{ needs.validate.outputs.release_version }}
+
+          Promoted to production by ${{ github.actor }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          git push origin "v${{ needs.validate.outputs.release_version }}"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -316,15 +337,30 @@ jobs:
           prerelease: false
           generate_release_notes: true
 
-      - name: Back-merge master into develop
+      - name: Create PR to back-merge into develop
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git fetch origin develop
-          git checkout develop
-          git merge master -m "chore: back-merge master into develop after release/${{ inputs.release_number }}"
-          git push origin develop
+          VERSION="${{ needs.validate.outputs.release_version }}"
+          BACKMERGE_BRANCH="chore/backmerge-v${VERSION}"
 
-      - name: Delete release branch
-        run: git push origin --delete "release/${{ inputs.release_number }}"
+          git fetch origin develop
+          git checkout -b "${BACKMERGE_BRANCH}" "origin/release/${{ inputs.release_number }}"
+          git push origin "${BACKMERGE_BRANCH}"
+
+          gh pr create \
+            --base develop \
+            --head "${BACKMERGE_BRANCH}" \
+            --title "chore: back-merge v${VERSION} into develop" \
+            --body "Automated back-merge after production release of v${VERSION}.
+
+          Ensures \`develop\` contains all changes from \`release/${{ inputs.release_number }}\`.
+
+          > ⚠️ Resolve any merge conflicts before merging.
+
+          ---
+          *Triggered by promote workflow run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
+            --label "release"
 
       - name: Create GitHub Deployment
         uses: actions/github-script@v7
@@ -361,17 +397,21 @@ jobs:
       - name: Production summary
         run: |
           VERSION="${{ needs.validate.outputs.release_version }}"
-          echo "### Promoted to Production :ship:" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Production Promotion Initiated :ship:" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| Detail | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Version | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Tag | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Image tags | \`${VERSION}-production\`, \`stable\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Merged | \`release/${{ inputs.release_number }}\` → \`master\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Back-merged | \`master\` → \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Cleanup | \`release/${{ inputs.release_number }}\` branch deleted |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release → master PR | ${{ steps.release_pr.outputs.pr_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Back-merge → develop PR | created |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Approved by | \`${{ github.actor }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Next steps:**" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 1. Review and merge the release → master PR" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 2. Review and merge the back-merge → develop PR" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 3. Delete the \`release/${{ inputs.release_number }}\` branch after both PRs are merged" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "---" >> "$GITHUB_STEP_SUMMARY"
           echo "GitHub Release: [${{ github.server_url }}/${{ github.repository }}/releases/tag/v${VERSION}](${{ github.server_url }}/${{ github.repository }}/releases/tag/v${VERSION})" >> "$GITHUB_STEP_SUMMARY"

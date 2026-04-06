@@ -438,12 +438,15 @@ function FilterNodeProps({
     enabled: configOpen,
   })
 
-  // Sync localConfig when definition loads
-  useEffect(() => {
-    if (filterDef?.config) {
-      setLocalConfig(filterDef.config as FilterConfig)
-    }
-  }, [filterDef])
+  // Sync localConfig when definition loads — done during render (not in an
+  // effect) to satisfy react-hooks/set-state-in-effect. Uses setState-during-
+  // render (React-endorsed pattern for adjusting state on prop/data change).
+  const [syncedFilterDefId, setSyncedFilterDefId] = useState<string | null>(null)
+  const filterDefId = filterDef?.id ?? null
+  if (filterDef?.config && syncedFilterDefId !== filterDefId) {
+    setSyncedFilterDefId(filterDefId)
+    setLocalConfig(filterDef.config as FilterConfig)
+  }
 
   const configMutation = useMutation({
     mutationFn: () => filtersApi.update(data.filter.filterId, { config: localConfig }),

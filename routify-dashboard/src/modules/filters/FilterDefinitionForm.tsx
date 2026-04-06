@@ -5,7 +5,7 @@
  * Filter type catalogue and visual metadata are sourced from filterRegistry.ts
  * so this component no longer maintains its own duplicate lists.
  */
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { X, AlertCircle, Filter, ChevronDown } from 'lucide-react'
@@ -243,16 +243,16 @@ export default function FilterDefinitionForm({
     DEFAULT_CONFIGS[(presetFilterType as FilterType) ?? 'AUTH_JWT'] ?? {},
   )
 
-  // Populate from existing when editing
-  useEffect(() => {
-    if (existing) {
-      setName(existing.name)
-      setDescription(existing.description ?? '')
-      setFilterType(existing.filterType)
-      const existingConfig = existing.config ?? {}
-      setConfig(existingConfig)
-    }
-  }, [existing])
+  // Populate from existing when editing — adjust state during render
+  // (React-endorsed pattern for syncing state from props/derived data).
+  const [syncedId, setSyncedId] = useState<string | null>(null)
+  if (existing && syncedId !== existing.id) {
+    setSyncedId(existing.id)
+    setName(existing.name)
+    setDescription(existing.description ?? '')
+    setFilterType(existing.filterType)
+    setConfig(existing.config ?? {})
+  }
 
   // Reset config to defaults when type changes (create mode)
   const handleTypeChange = (t: FilterType) => {

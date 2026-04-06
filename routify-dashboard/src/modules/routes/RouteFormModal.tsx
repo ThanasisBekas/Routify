@@ -68,6 +68,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
     register,
     handleSubmit,
     watch,
+    getValues,
     setValue,
     reset,
     formState: { errors },
@@ -99,7 +100,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
       setValue('methods', '*')
       return
     }
-    let current = watch('methods')
+    let current = getValues('methods')
       .split(',')
       .map((x) => x.trim())
       .filter((x) => x && x !== '*')

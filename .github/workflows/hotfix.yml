@@ -43,6 +43,7 @@ on:
 permissions:
   contents: write
   packages: write
+  pull-requests: write
   actions: read
 
 concurrency:
@@ -273,35 +274,22 @@ jobs:
       contents: read
       packages: write
 
-  # ── Merge to master, tag, release ──────────────────────────────────────────
+  # ── Finalize: PRs, tag, release ──────────────────────────────────────────
   apply-finalize:
     name: Finalize Hotfix
     needs: [apply-prepare, apply-docker]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout master
+      - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: master
+          ref: ${{ needs.apply-prepare.outputs.branch }}
           fetch-depth: 0
 
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Fetch hotfix branch
-        run: git fetch origin "${{ needs.apply-prepare.outputs.branch }}"
-
-      - name: Merge hotfix into master
-        run: |
-          git merge \
-            --no-ff \
-            "origin/${{ needs.apply-prepare.outputs.branch }}" \
-            -m "hotfix: merge ${{ needs.apply-prepare.outputs.branch }} (v${{ needs.apply-prepare.outputs.hotfix_version }}) into master"
-
-      - name: Push master
-        run: git push origin master
 
       - name: Create annotated tag
         run: |
@@ -321,15 +309,55 @@ jobs:
           prerelease: false
           generate_release_notes: true
 
-      - name: Back-merge master into develop
+      - name: Create PR to merge hotfix into master
+        id: master_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git fetch origin develop
-          git checkout develop
-          git merge master -m "chore: back-merge master into develop after hotfix/${{ inputs.base_version }}"
-          git push origin develop
+          VERSION="${{ needs.apply-prepare.outputs.hotfix_version }}"
+          BRANCH="${{ needs.apply-prepare.outputs.branch }}"
 
-      - name: Delete hotfix branch
-        run: git push origin --delete "${{ needs.apply-prepare.outputs.branch }}" || true
+          PR_URL=$(gh pr create \
+            --base master \
+            --head "${BRANCH}" \
+            --title "hotfix: merge ${BRANCH} (v${VERSION}) into master" \
+            --body "## Hotfix v${VERSION}
+
+          Merges \`${BRANCH}\` into \`master\`.
+
+          - Base release: \`v${{ inputs.base_version }}\`
+          - Tag: \`v${VERSION}\`
+
+          ---
+          *Triggered by hotfix workflow run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
+            --label "hotfix")
+
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "Created master PR: ${PR_URL}"
+
+      - name: Create PR to back-merge hotfix into develop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.apply-prepare.outputs.hotfix_version }}"
+          BACKMERGE_BRANCH="chore/backmerge-hotfix-v${VERSION}"
+
+          git checkout -b "${BACKMERGE_BRANCH}"
+          git push origin "${BACKMERGE_BRANCH}"
+
+          gh pr create \
+            --base develop \
+            --head "${BACKMERGE_BRANCH}" \
+            --title "chore: back-merge hotfix v${VERSION} into develop" \
+            --body "Automated back-merge after hotfix v${VERSION}.
+
+          Ensures \`develop\` contains the hotfix from \`${{ needs.apply-prepare.outputs.branch }}\`.
+
+          > ⚠️ Resolve any merge conflicts before merging.
+
+          ---
+          *Triggered by hotfix workflow run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
+            --label "hotfix"
 
       - name: Summary
         run: |
@@ -341,7 +369,11 @@ jobs:
           echo "| Version | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Tag | \`v${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Base | \`v${{ inputs.base_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Merged | \`${{ needs.apply-prepare.outputs.branch }}\` → \`master\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Back-merged | \`master\` → \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Cleanup | \`${{ needs.apply-prepare.outputs.branch }}\` branch deleted |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Hotfix → master PR | ${{ steps.master_pr.outputs.pr_url }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Back-merge → develop PR | created |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Next steps:**" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 1. Review and merge the hotfix → master PR" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 2. Review and merge the back-merge → develop PR" >> "$GITHUB_STEP_SUMMARY"
+          echo "> 3. Delete the \`${{ needs.apply-prepare.outputs.branch }}\` branch after both PRs are merged" >> "$GITHUB_STEP_SUMMARY"
 
