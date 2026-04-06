@@ -38,7 +38,7 @@
         <!-- Spring Cloud Gateway (WebFlux-based reactive gateway) -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
         </dependency>
 
         <!-- Spring Cloud LoadBalancer — lb:// scheme for service mesh routing -->

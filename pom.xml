@@ -45,7 +45,7 @@
         <!-- Integration tests (*IT.java) disabled globally (Testcontainers + Docker Engine 29.x incompatibility).
              Re-enable with: mvn verify -DskipITs=false -->
         <skipITs>true</skipITs>
-        <!-- testcontainers.version managed by Boot 3.5.13 (1.21.4) -->
+        <!-- testcontainers.version managed by Boot 4.0.5 (TC 2.0.4) — artifacts renamed with testcontainers- prefix -->
         <!-- Override docker-java for Docker Engine 29.x API compatibility (min API 1.40) -->
         <docker-java.version>3.7.1</docker-java.version>
 
@@ -139,7 +139,8 @@
             </dependency>
 
             <!--
-                Testcontainers: version-managed by Boot 3.5.13 BOM (TC 1.21.4).
+                Testcontainers: version-managed by Boot 4.0.5 BOM (TC 2.0.4).
+                TC 2.x renamed artifacts with testcontainers- prefix (e.g. testcontainers-junit-jupiter).
                 spring-boot-starter-test, spring-kafka-test, and spring-rabbit-test
                 are also version-managed by the spring-boot-starter-parent BOM.
                 Child modules declare TC modules with <scope>test</scope> only — no version needed.
