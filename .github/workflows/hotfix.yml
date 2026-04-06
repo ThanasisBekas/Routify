@@ -317,6 +317,9 @@ jobs:
           VERSION="${{ needs.apply-prepare.outputs.hotfix_version }}"
           BRANCH="${{ needs.apply-prepare.outputs.branch }}"
 
+          # Ensure the 'hotfix' label exists (no-op if already present)
+          gh label create "hotfix" --description "Hotfix PRs" --color "D93F0B" 2>/dev/null || true
+
           PR_URL=$(gh pr create \
             --base master \
             --head "${BRANCH}" \
@@ -344,6 +347,9 @@ jobs:
 
           git checkout -b "${BACKMERGE_BRANCH}"
           git push origin "${BACKMERGE_BRANCH}"
+
+          # Label already ensured in previous step, but guard again for safety
+          gh label create "hotfix" --description "Hotfix PRs" --color "D93F0B" 2>/dev/null || true
 
           gh pr create \
             --base develop \

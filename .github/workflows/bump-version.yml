@@ -108,6 +108,9 @@ jobs:
           git commit -m "chore: bump ${{ inputs.bump_type }} version ${{ steps.version.outputs.current_version }} → ${{ steps.version.outputs.next_version }}"
           git push origin "${BUMP_BRANCH}"
 
+          # Ensure the 'chore' label exists (no-op if already present)
+          gh label create "chore" --description "Chore / maintenance PRs" --color "C5DEF5" 2>/dev/null || true
+
           PR_URL=$(gh pr create \
             --base develop \
             --head "${BUMP_BRANCH}" \
