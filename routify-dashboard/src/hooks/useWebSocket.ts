@@ -305,8 +305,10 @@ export function useWebSocket({
 
   const onMessageRef = useRef(onMessage)
   const onStatusRef = useRef(onStatusChange)
-  onMessageRef.current = onMessage
-  onStatusRef.current = onStatusChange
+  useEffect(() => {
+    onMessageRef.current = onMessage
+    onStatusRef.current = onStatusChange
+  })
 
   const send = useCallback(
     (destination: string, body: unknown) => {

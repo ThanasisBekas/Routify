@@ -2,7 +2,7 @@
  * FilterConfigFields — renders type-specific form fields for each filter type.
  * Each filter section produces a strongly-typed config object so no raw JSON is needed.
  */
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { cn } from '../../lib/utils'
 import type { FilterType } from '../../types'
 import type { AiModificationTestRequest, AiModificationTestResult } from '../../types'
@@ -1298,14 +1298,13 @@ function KeyValueFields({
   // Sync inbound prop changes (e.g. reset when filter type changes) without clobbering
   // ongoing edits — compare by serialised content so that a new object reference
   // produced by the parent re-render after our own onChange call doesn't wipe the rows.
-  const prevSerializedRef = useRef(JSON.stringify(obj))
-  useEffect(() => {
-    const serialized = JSON.stringify(obj)
-    if (prevSerializedRef.current !== serialized) {
-      prevSerializedRef.current = serialized
-      setRows(Object.entries(obj))
-    }
-  }, [obj])
+  // Uses setState-during-render (React-endorsed pattern for adjusting state on prop change).
+  const [prevSerialized, setPrevSerialized] = useState(() => JSON.stringify(obj))
+  const serialized = JSON.stringify(obj)
+  if (prevSerialized !== serialized) {
+    setPrevSerialized(serialized)
+    setRows(Object.entries(obj))
+  }
 
   const flush = (next: [string, string][]) => {
     setRows(next)

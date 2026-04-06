@@ -11,7 +11,7 @@
 #   3. Run full backend + frontend test suite
 #   4. Build & push Docker images to GHCR
 #   5. Create draft GitHub Release with build manifest
-#   6. Bump develop to next SNAPSHOT
+#   6. Open PR to bump develop to next SNAPSHOT
 #
 # Inputs:
 #   release_number  — patch/release number (e.g. 123 → v2.0.123)
@@ -51,6 +51,7 @@ on:
 permissions:
   contents: write
   packages: write
+  pull-requests: write
   actions: read
 
 concurrency:
@@ -187,10 +188,15 @@ jobs:
         id: push_release
         run: git push origin "${{ steps.version.outputs.branch }}"
 
-      - name: Bump develop to next SNAPSHOT
+      - name: Create PR to bump develop to next SNAPSHOT
         id: bump_develop
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # Create a temporary branch for the develop snapshot bump
+          BUMP_BRANCH="chore/post-release-${{ inputs.release_number }}-snapshot"
           git checkout develop
+          git checkout -b "${BUMP_BRANCH}"
 
           mvn versions:set \
             -DnewVersion=${{ steps.version.outputs.next_snapshot }} \
@@ -206,9 +212,24 @@ jobs:
 
           git add -A
           git commit -m "chore: bump develop to ${{ steps.version.outputs.next_snapshot }} after release/${{ inputs.release_number }}"
-          git push origin develop
+          git push origin "${BUMP_BRANCH}"
 
-      # Rollback: if develop bump failed but release branch was pushed, clean up
+          PR_URL=$(gh pr create \
+            --base develop \
+            --head "${BUMP_BRANCH}" \
+            --title "chore: bump develop to ${{ steps.version.outputs.next_snapshot }}" \
+            --body "Automated post-release snapshot bump after \`release/${{ inputs.release_number }}\`.
+
+          - Version: \`${{ steps.version.outputs.next_snapshot }}\`
+          - Release branch: \`${{ steps.version.outputs.branch }}\`
+          - Triggered by: release workflow run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+            --label "release")
+
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "bump_branch=${BUMP_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Created PR: ${PR_URL}"
+
+      # Rollback: if PR creation failed but release branch was pushed, clean up
       - name: Rollback release branch on failure
         if: failure() && steps.push_release.outcome == 'success'
         run: |
@@ -426,7 +447,7 @@ jobs:
           echo "| Branch | \`${BRANCH}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Pre-release | ${IS_PRE} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Previous | \`${{ needs.prepare.outputs.current_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Develop | \`${{ needs.prepare.outputs.next_snapshot }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Develop bump | PR created → \`${{ needs.prepare.outputs.next_snapshot }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           echo "### Pipeline Status" >> "$GITHUB_STEP_SUMMARY"
@@ -441,9 +462,13 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
           if [ "${IS_PRE}" == "true" ]; then
-            echo "> **Next step:** Validate in staging, then run the **Promote** workflow with \`release_number=${{ inputs.release_number }}\` and \`target_environment=staging\`." >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Next steps:**" >> "$GITHUB_STEP_SUMMARY"
+            echo "> 1. Merge the develop snapshot bump PR" >> "$GITHUB_STEP_SUMMARY"
+            echo "> 2. Validate in staging, then run the **Promote** workflow with \`release_number=${{ inputs.release_number }}\` and \`target_environment=staging\`" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "> **Next step:** Run the **Promote** workflow with \`release_number=${{ inputs.release_number }}\` to promote to staging and then production." >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Next steps:**" >> "$GITHUB_STEP_SUMMARY"
+            echo "> 1. Merge the develop snapshot bump PR" >> "$GITHUB_STEP_SUMMARY"
+            echo "> 2. Run the **Promote** workflow with \`release_number=${{ inputs.release_number }}\` to promote to staging and then production" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Fail workflow if any critical job failed
