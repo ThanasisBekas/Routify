@@ -45,12 +45,13 @@ public class WebSocketController {
         log.info("WebSocket client connected: session={} total={}", sha.getSessionId(), count);
 
         // Send welcome / ping to confirm subscription is live
-        messaging.convertAndSend("/topic/events", Map.of(
+        Object welcomePayload = Map.of(
                 "type", "connected",
                 "message", "Connected to Routify WebSocket",
                 "connectedClients", count,
                 "occurredAt", Instant.now().toString()
-        ));
+        );
+        messaging.convertAndSend("/topic/events", welcomePayload);
     }
 
     @EventListener
@@ -92,7 +93,8 @@ public class WebSocketController {
             metrics.put("circuitBreakers", cbStates);
             metrics.put("health",         health);
 
-            messaging.convertAndSend("/topic/metrics", metrics);
+            Object metricsPayload = metrics;
+            messaging.convertAndSend("/topic/metrics", metricsPayload);
             log.debug("Pushed live metrics to {} WebSocket clients", connectedClients.get());
 
         } catch (Exception e) {

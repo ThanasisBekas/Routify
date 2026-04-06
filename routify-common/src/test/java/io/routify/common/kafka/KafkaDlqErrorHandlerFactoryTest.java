@@ -15,8 +15,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.MDC;
-import org.springframework.classify.BinaryExceptionClassifier;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.ExceptionMatcher;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -195,11 +195,11 @@ class KafkaDlqErrorHandlerFactoryTest {
     @DisplayName("Non-retryable exception classification")
     class NonRetryableExceptions {
 
-        private BinaryExceptionClassifier classifier;
+        private ExceptionMatcher classifier;
 
         @BeforeEach
         void extractClassifier() throws Exception {
-            classifier = extractBinaryExceptionClassifier(handler);
+            classifier = extractExceptionMatcher(handler);
         }
 
         static Stream<Arguments> nonRetryableExceptions() {
@@ -228,9 +228,9 @@ class KafkaDlqErrorHandlerFactoryTest {
         @MethodSource("nonRetryableExceptions")
         @DisplayName("Deserialization exceptions are classified as non-retryable")
         void deserializationExceptionsAreNonRetryable(Exception exception, String name) {
-            // In Spring Kafka's BinaryExceptionClassifier, classify() returns `true`
+            // In Spring Kafka's ExceptionMatcher, match() returns `true`
             // for retryable exceptions and `false` for non-retryable (fatal).
-            boolean retryable = classifier.classify(exception);
+            boolean retryable = classifier.match(exception);
             assertThat(retryable)
                     .as("%s should be non-retryable (classified as false)", name)
                     .isFalse();
@@ -239,7 +239,7 @@ class KafkaDlqErrorHandlerFactoryTest {
         @Test
         @DisplayName("Generic RuntimeException is retryable (not short-circuited)")
         void runtimeExceptionIsRetryable() {
-            boolean retryable = classifier.classify(new RuntimeException("transient failure"));
+            boolean retryable = classifier.match(new RuntimeException("transient failure"));
             assertThat(retryable)
                     .as("RuntimeException should be retryable")
                     .isTrue();
@@ -248,7 +248,7 @@ class KafkaDlqErrorHandlerFactoryTest {
         @Test
         @DisplayName("IllegalArgumentException is retryable by default")
         void illegalArgumentExceptionIsRetryable() {
-            boolean retryable = classifier.classify(new IllegalArgumentException("bad arg"));
+            boolean retryable = classifier.match(new IllegalArgumentException("bad arg"));
             assertThat(retryable)
                     .as("IllegalArgumentException should be retryable")
                     .isTrue();
@@ -257,7 +257,7 @@ class KafkaDlqErrorHandlerFactoryTest {
         @Test
         @DisplayName("NullPointerException is retryable by default")
         void nullPointerExceptionIsRetryable() {
-            boolean retryable = classifier.classify(new NullPointerException("npe"));
+            boolean retryable = classifier.match(new NullPointerException("npe"));
             assertThat(retryable)
                     .as("NullPointerException should be retryable")
                     .isTrue();
@@ -266,7 +266,7 @@ class KafkaDlqErrorHandlerFactoryTest {
         @Test
         @DisplayName("IOException is retryable (transient network issues)")
         void ioExceptionIsRetryable() {
-            boolean retryable = classifier.classify(new java.io.IOException("connection reset"));
+            boolean retryable = classifier.match(new java.io.IOException("connection reset"));
             assertThat(retryable)
                     .as("IOException should be retryable")
                     .isTrue();
@@ -406,17 +406,17 @@ class KafkaDlqErrorHandlerFactoryTest {
     }
 
     /**
-     * Extracts the {@link BinaryExceptionClassifier} from the handler's
+     * Extracts the {@link ExceptionMatcher} from the handler's
      * {@link org.springframework.kafka.listener.ExceptionClassifier} superclass.
      */
-    private static BinaryExceptionClassifier extractBinaryExceptionClassifier(
+    private static ExceptionMatcher extractExceptionMatcher(
             DefaultErrorHandler handler) throws Exception {
-        Field classifierField = findField(handler.getClass(), "classifier");
+        Field classifierField = findField(handler.getClass(), "exceptionMatcher");
         classifierField.setAccessible(true);
         Object classifier = classifierField.get(handler);
 
-        assertThat(classifier).isInstanceOf(BinaryExceptionClassifier.class);
-        return (BinaryExceptionClassifier) classifier;
+        assertThat(classifier).isInstanceOf(ExceptionMatcher.class);
+        return (ExceptionMatcher) classifier;
     }
 
     /**

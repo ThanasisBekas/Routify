@@ -153,30 +153,5 @@
 
     </dependencies>
 
-    <!--
-        Spring AI artifacts are published to Maven Central.
-        This explicit repository declaration ensures they resolve even when a
-        corporate mirror (configured in ~/.m2/settings.xml) does not proxy them.
-        Note: we use a non-"central" repository ID to avoid being intercepted by
-        mirrors that match mirrorOf=central.
-    -->
-    <repositories>
-        <repository>
-            <id>maven-central-spring-ai</id>
-            <name>Maven Central (Spring AI)</name>
-            <url>https://repo.maven.apache.org/maven2</url>
-            <releases><enabled>true</enabled></releases>
-            <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-        <!-- Spring milestones — used for pre-GA Spring AI releases if needed -->
-        <repository>
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/milestone</url>
-            <releases><enabled>true</enabled></releases>
-            <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-    </repositories>
-
 </project>
 

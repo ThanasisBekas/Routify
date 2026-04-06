@@ -108,7 +108,7 @@ public class RequestLoggerGatewayFilterFactory
             // Replayed requests carry X-Routify-Replay to prevent a second
             // request_log row from being created. Strip the header so it never
             // reaches the upstream, then pass through without logging.
-            if (req.getHeaders().containsKey(REPLAY_HEADER)) {
+            if (req.getHeaders().containsHeader(REPLAY_HEADER)) {
                 log.debug("[{}] Replay request — skipping telemetry logging", correlationId);
                 ServerHttpRequest stripped = req.mutate().headers(h -> h.remove(REPLAY_HEADER)).build();
                 return chain.filter(exchange.mutate().request(stripped).build());
@@ -330,12 +330,12 @@ public class RequestLoggerGatewayFilterFactory
         }
 
         private Map<String, String> sanitizeHeaders(HttpHeaders headers) {
-            return headers.entrySet().stream()
-                    .filter(e -> REDACTED_HEADERS.stream()
-                            .noneMatch(redacted -> redacted.equalsIgnoreCase(e.getKey())))
+            return headers.headerNames().stream()
+                    .filter(name -> REDACTED_HEADERS.stream()
+                            .noneMatch(redacted -> redacted.equalsIgnoreCase(name)))
                     .collect(Collectors.toMap(
-                            Map.Entry::getKey,
-                            e -> String.join(", ", e.getValue()),
+                            name -> name,
+                            name -> String.join(", ", headers.getOrEmpty(name)),
                             (a, b) -> a
                     ));
         }

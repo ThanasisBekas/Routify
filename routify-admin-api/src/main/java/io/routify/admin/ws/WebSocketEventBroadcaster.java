@@ -61,10 +61,11 @@ public class WebSocketEventBroadcaster {
             payload.put("occurredAt", Instant.now().toString());
             payload.put("data",       objectMapper.convertValue(event, Map.class));
 
-            messaging.convertAndSend("/topic/events", payload);
+            Object wsPayload = payload;
+            messaging.convertAndSend("/topic/events", wsPayload);
 
             if (isAuditRelevant(event)) {
-                messaging.convertAndSend("/topic/audit", payload);
+                messaging.convertAndSend("/topic/audit", wsPayload);
             }
 
             log.debug("WebSocket broadcast: type={} queryKey={}", type, queryKey);
@@ -101,8 +102,9 @@ public class WebSocketEventBroadcaster {
             payload.put("occurredAt", Instant.now().toString());
             payload.put("data",       data);
 
-            messaging.convertAndSend("/topic/events", payload);
-            messaging.convertAndSend("/topic/audit", payload);
+            Object wsPayload = payload;
+            messaging.convertAndSend("/topic/events", wsPayload);
+            messaging.convertAndSend("/topic/audit", wsPayload);
 
             log.debug("WebSocket broadcast (raw): type={} queryKey={}", type, queryKey);
 
