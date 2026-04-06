@@ -154,7 +154,7 @@
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>1.5.9</version>
+            <version>3.0.1</version>
         </dependency>
 
         <!-- JSONata expression engine for BODY_JSONATA_TRANSFORM filter -->
