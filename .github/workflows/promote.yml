@@ -288,6 +288,7 @@ jobs:
 
       - name: Create PR to merge release into master
         id: release_pr
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -315,10 +316,15 @@ jobs:
 
           ---
           *Promoted by: \`${{ github.actor }}\` via workflow run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
-            --label "release")
+            --label "release") || {
+            echo "::warning::Failed to create master PR. Create it manually:"
+            echo "::warning::${{ github.server_url }}/${{ github.repository }}/compare/master...${BRANCH}"
+          }
 
-          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
-          echo "Created release PR: ${PR_URL}"
+          if [ -n "${PR_URL:-}" ]; then
+            echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+            echo "Created release PR: ${PR_URL}"
+          fi
 
       - name: Create annotated tag on release branch head
         run: |
@@ -341,6 +347,7 @@ jobs:
           generate_release_notes: true
 
       - name: Create PR to back-merge into develop
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -366,7 +373,10 @@ jobs:
 
           ---
           *Triggered by promote workflow run [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
-            --label "release"
+            --label "release" || {
+            echo "::warning::Failed to create develop back-merge PR. Create it manually:"
+            echo "::warning::${{ github.server_url }}/${{ github.repository }}/compare/develop...${BACKMERGE_BRANCH}"
+          }
 
       - name: Create GitHub Deployment
         uses: actions/github-script@v7
