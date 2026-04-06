@@ -1,10 +1,6 @@
 package io.routify.route.config;
 
 import io.routify.common.kafka.KafkaDlqErrorHandlerFactory;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -21,8 +17,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.MicrometerConsumerListener;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.support.converter.StringJsonMessageConverter;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.converter.StringJacksonJsonMessageConverter;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -59,7 +55,7 @@ public class KafkaConfig {
         var factory = new DefaultKafkaProducerFactory<String, Object>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,          bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,       StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,     JsonSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,     JacksonJsonSerializer.class,
                 ProducerConfig.ACKS_CONFIG,                       "all",
                 ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,         "true",
                 ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5",
@@ -69,7 +65,7 @@ public class KafkaConfig {
                 // The __TypeId__ header causes StringJsonMessageConverter to attempt direct class
                 // loading of the inner record type (e.g. DomainEvent$RouteCreated), which
                 // bypasses @JsonSubTypes and fails with a ListenerExecutionFailedException.
-                JsonSerializer.ADD_TYPE_INFO_HEADERS,             false
+                JacksonJsonSerializer.ADD_TYPE_INFO_HEADERS,             false
         ));
         return factory;
     }
@@ -102,18 +98,11 @@ public class KafkaConfig {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(routeCommandConsumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setRecordMessageConverter(new StringJsonMessageConverter(kafkaObjectMapper()));
+        factory.setRecordMessageConverter(new StringJacksonJsonMessageConverter());
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
         factory.getContainerProperties().setObservationEnabled(true);
         return factory;
-    }
-
-    private ObjectMapper kafkaObjectMapper() {
-        return new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 }
