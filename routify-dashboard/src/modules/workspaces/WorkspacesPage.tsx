@@ -411,132 +411,136 @@ export default function WorkspacesPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <Building2 className="w-5 h-5 text-indigo-400" />
-            Workspaces
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Manage tenant workspaces. Each workspace has isolated routes, filters, and users.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
-        >
-          <Plus className="w-4 h-4" />
-          New Workspace
-        </button>
-      </div>
-
-      {/* Table */}
-      <div className="rounded-xl border border-white/[0.07] overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-              {['Name', 'Slug', 'Plan', 'Status', 'Created', ''].map((h) => (
-                <th
-                  key={h}
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/[0.04]">
-            {isLoading
-              ? Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i}>
-                    {Array.from({ length: 6 }).map((_, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="h-4 bg-white/[0.05] rounded animate-pulse w-24" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              : tenants.map((t) => {
-                  const isCurrent = t.id === currentTenantId
-                  return (
-                    <tr
-                      key={t.id}
-                      className={cn(
-                        'transition-colors',
-                        isCurrent ? 'bg-indigo-500/[0.04] hover:bg-indigo-500/[0.07]' : 'hover:bg-white/[0.02]',
-                      )}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-medium">{t.name}</span>
-                          {isCurrent && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
-                              <CircleDot className="w-2.5 h-2.5" />
-                              Current
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <code className="text-indigo-400 text-xs bg-indigo-500/10 px-2 py-0.5 rounded">{t.slug}</code>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge label={t.plan} cls={PLAN_COLOR[t.plan]} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge label={t.status} cls={STATUS_COLOR[t.status]} />
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{new Date(t.createdAt).toLocaleDateString()}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 justify-end">
-                          {/* Edit button */}
-                          <button
-                            onClick={() => setEditTenant(t)}
-                            title="Edit workspace"
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          {/* Suspend / Reactivate */}
-                          {t.status === 'ACTIVE' ? (
-                            <button
-                              onClick={() => suspendMut.mutate(t.id)}
-                              disabled={suspendMut.isPending}
-                              title="Suspend workspace"
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 transition-colors"
-                            >
-                              <ShieldOff className="w-4 h-4" />
-                            </button>
-                          ) : t.status === 'SUSPENDED' ? (
-                            <button
-                              onClick={() => reactivateMut.mutate(t.id)}
-                              disabled={reactivateMut.isPending}
-                              title="Reactivate workspace"
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-green-400 hover:bg-green-500/10 transition-colors"
-                            >
-                              <RefreshCcw className="w-4 h-4" />
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-          </tbody>
-        </table>
-
-        {!isLoading && tenants.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-500 gap-3">
-            <Building2 className="w-8 h-8 opacity-40" />
-            <p className="text-sm">No workspaces yet.</p>
+    <div className="flex flex-col h-full overflow-auto">
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
+              <Building2 className="w-5 h-5 text-indigo-400" />
+              Workspaces
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Manage tenant workspaces. Each workspace has isolated routes, filters, and users.
+            </p>
           </div>
-        )}
-      </div>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
+          >
+            <Plus className="w-4 h-4" />
+            New Workspace
+          </button>
+        </div>
 
-      {showCreate && <CreateWorkspaceModal onClose={() => setShowCreate(false)} />}
-      {editTenant && <EditWorkspaceModal tenant={editTenant} onClose={() => setEditTenant(null)} />}
+        {/* Table */}
+        <div className="rounded-xl border border-white/[0.07] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                {['Name', 'Slug', 'Plan', 'Status', 'Created', ''].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04]">
+              {isLoading
+                ? Array.from({ length: 3 }).map((_, i) => (
+                    <tr key={i}>
+                      {Array.from({ length: 6 }).map((_, j) => (
+                        <td key={j} className="px-4 py-3">
+                          <div className="h-4 bg-white/[0.05] rounded animate-pulse w-24" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : tenants.map((t) => {
+                    const isCurrent = t.id === currentTenantId
+                    return (
+                      <tr
+                        key={t.id}
+                        className={cn(
+                          'transition-colors',
+                          isCurrent ? 'bg-indigo-500/[0.04] hover:bg-indigo-500/[0.07]' : 'hover:bg-white/[0.02]',
+                        )}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-medium">{t.name}</span>
+                            {isCurrent && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
+                                <CircleDot className="w-2.5 h-2.5" />
+                                Current
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <code className="text-indigo-400 text-xs bg-indigo-500/10 px-2 py-0.5 rounded">{t.slug}</code>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge label={t.plan} cls={PLAN_COLOR[t.plan]} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge label={t.status} cls={STATUS_COLOR[t.status]} />
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 text-xs">
+                          {new Date(t.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 justify-end">
+                            {/* Edit button */}
+                            <button
+                              onClick={() => setEditTenant(t)}
+                              title="Edit workspace"
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            {/* Suspend / Reactivate */}
+                            {t.status === 'ACTIVE' ? (
+                              <button
+                                onClick={() => suspendMut.mutate(t.id)}
+                                disabled={suspendMut.isPending}
+                                title="Suspend workspace"
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 transition-colors"
+                              >
+                                <ShieldOff className="w-4 h-4" />
+                              </button>
+                            ) : t.status === 'SUSPENDED' ? (
+                              <button
+                                onClick={() => reactivateMut.mutate(t.id)}
+                                disabled={reactivateMut.isPending}
+                                title="Reactivate workspace"
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+                              >
+                                <RefreshCcw className="w-4 h-4" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+            </tbody>
+          </table>
+
+          {!isLoading && tenants.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500 gap-3">
+              <Building2 className="w-8 h-8 opacity-40" />
+              <p className="text-sm">No workspaces yet.</p>
+            </div>
+          )}
+        </div>
+
+        {showCreate && <CreateWorkspaceModal onClose={() => setShowCreate(false)} />}
+        {editTenant && <EditWorkspaceModal tenant={editTenant} onClose={() => setEditTenant(null)} />}
+      </div>
     </div>
   )
 }

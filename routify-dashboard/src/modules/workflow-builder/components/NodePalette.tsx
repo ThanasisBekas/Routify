@@ -77,7 +77,7 @@ export default function NodePalette({ className }: NodePaletteProps) {
   return (
     <div
       className={cn(
-        'flex flex-col w-56 shrink-0 bg-[#0d0f14] border-r border-white/[0.06] h-full overflow-hidden',
+        'flex flex-col w-56 shrink-0 bg-[#0d0f14] border-r border-white/[0.06] h-full min-h-0 overflow-hidden',
         isLocked && 'pointer-events-none',
         className,
       )}

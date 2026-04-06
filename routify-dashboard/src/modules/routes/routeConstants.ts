@@ -24,19 +24,22 @@ export const METHOD_COLORS_MODAL: Record<string, string> = {
 export const METHOD_OPTIONS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', '*'] as const
 
 // ─── Flow canvas layout ────────────────────────────────────────────────────────
+// Column X positions are spaced so every node has ≥80 px of clear air to its
+// neighbours, even at the widest min-width (RouteTriggerNode = 230 px).
+// Row gap is the vertical spacing between stacked filter nodes.
 
 export const FLOW_COL = {
   client: 0,
-  preLabel: 220,
-  pre: 220,
-  route: 480,
-  upstream: 860,
-  post: 1120,
-  postLabel: 1120,
-  response: 1380,
+  preLabel: 280,
+  pre: 280,
+  route: 600,
+  upstream: 1020,
+  post: 1400,
+  postLabel: 1400,
+  response: 1720,
 } as const
 
-export const FLOW_ROW_GAP = 100
+export const FLOW_ROW_GAP = 140
 export const FLOW_START_Y = 160
 
 // ─── Filter status tabs ────────────────────────────────────────────────────────

@@ -101,7 +101,15 @@ export class ErrorBoundary extends Component<Props, State> {
       )
     }
 
-    // Key on retryCount to force a full remount of children after a retry
-    return <div key={this.state.retryCount}>{this.props.children}</div>
+    // Key on retryCount to force a full remount of children after a retry.
+    // flex-1 + flex-col + min-h-0 propagates the parent's height constraint so
+    // pages like WorkflowBuilderPage resolve h-full to a definite height for
+    // React Flow. Each page manages its own scrolling internally (e.g.
+    // flex-1 overflow-auto), so <main> uses overflow-hidden.
+    return (
+      <div key={this.state.retryCount} className="flex-1 flex flex-col min-h-0">
+        {this.props.children}
+      </div>
+    )
   }
 }
