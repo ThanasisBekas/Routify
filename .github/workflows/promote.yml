@@ -294,6 +294,9 @@ jobs:
           VERSION="${{ needs.validate.outputs.release_version }}"
           BRANCH="release/${{ inputs.release_number }}"
 
+          # Ensure the 'release' label exists (no-op if already present)
+          gh label create "release" --description "Release-related PRs" --color "0E8A16" 2>/dev/null || true
+
           PR_URL=$(gh pr create \
             --base master \
             --head "${BRANCH}" \
@@ -347,6 +350,9 @@ jobs:
           git fetch origin develop
           git checkout -b "${BACKMERGE_BRANCH}" "origin/release/${{ inputs.release_number }}"
           git push origin "${BACKMERGE_BRANCH}"
+
+          # Label already ensured in previous step, but guard again for safety
+          gh label create "release" --description "Release-related PRs" --color "0E8A16" 2>/dev/null || true
 
           gh pr create \
             --base develop \

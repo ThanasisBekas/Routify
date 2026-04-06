@@ -213,6 +213,9 @@ jobs:
             git commit -m "chore(env): generate ${ENV_FILE} from branch ${{ inputs.source_branch }} [run ${{ github.run_id }}]"
             git push origin "${PR_BRANCH}"
 
+            # Ensure the 'chore' label exists (no-op if already present)
+            gh label create "chore" --description "Chore / maintenance PRs" --color "C5DEF5" 2>/dev/null || true
+
             PR_URL=$(gh pr create \
               --base develop \
               --head "${PR_BRANCH}" \

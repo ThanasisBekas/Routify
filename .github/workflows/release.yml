@@ -214,6 +214,9 @@ jobs:
           git commit -m "chore: bump develop to ${{ steps.version.outputs.next_snapshot }} after release/${{ inputs.release_number }}"
           git push origin "${BUMP_BRANCH}"
 
+          # Ensure the 'release' label exists (no-op if already present)
+          gh label create "release" --description "Release-related PRs" --color "0E8A16" 2>/dev/null || true
+
           PR_URL=$(gh pr create \
             --base develop \
             --head "${BUMP_BRANCH}" \
