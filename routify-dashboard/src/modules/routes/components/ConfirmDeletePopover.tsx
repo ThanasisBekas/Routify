@@ -30,10 +30,11 @@ export default function ConfirmDeletePopover({ routeName, onConfirm, onCancel }:
   }, [onCancel])
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       ref={ref}
       className="absolute right-0 bottom-full mb-2 z-50 w-64 bg-[#111318] border border-red-500/25 rounded-xl shadow-2xl p-4 animate-fade-in"
-      onClick={e => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-start gap-2.5 mb-3">
         <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
@@ -63,4 +64,3 @@ export default function ConfirmDeletePopover({ routeName, onConfirm, onCancel }:
     </div>
   )
 }
-

@@ -1,6 +1,6 @@
 # Routify
 
-> **Zero-downtime API Gateway Platform** — v2.0.0-SNAPSHOT
+> **Zero-downtime API Gateway Platform** — v1.0.2-SNAPSHOT
 
 Routify is a self-hosted API gateway platform built on Spring Boot 3 / Spring Cloud Gateway. It provides a dynamic, hot-reloadable routing layer with a rich management dashboard, without requiring any service restarts to add, modify, or remove routes.
 
@@ -36,14 +36,15 @@ Routify is a self-hosted API gateway platform built on Spring Boot 3 / Spring Cl
 
 | Module | Type | Description |
 |---|---|---|
-| [`routify-common`](routify-common/README.md) | Library | Shared domain events, types, exceptions, and observability utilities |
-| [`routify-identity-service`](routify-identity-service/README.md) | Spring Boot | JWT issuance, user & tenant management |
-| [`routify-route-service`](routify-route-service/README.md) | Spring Boot | Route & filter persistence; Kafka Outbox event publishing |
-| [`routify-api-gateway`](routify-api-gateway/README.md) | Spring Cloud Gateway | Reactive, zero-downtime dynamic routing with hot-reload |
-| [`routify-admin-api`](routify-admin-api/README.md) | Spring Boot (BFF) | Backend-for-Frontend for the dashboard; aggregates all services |
-| [`routify-audit-service`](routify-audit-service/README.md) | Spring Boot | Immutable audit log; Kafka consumer, RabbitMQ query responder |
-| [`routify-cert-vault`](routify-cert-vault/README.md) | Spring Boot | Encrypted TLS certificate storage; mTLS integration with the gateway |
-| [`routify-dashboard`](routify-dashboard/README.md) | React / Vite | Management UI — routes, filters, users, certificates, audit log |
+| [`routify-common`](routify-common/README.md) | Library | Shared domain events, types, exceptions, `CommandEvent` sealed interface, `RabbitTopology`, and observability utilities |
+| [`routify-identity-service`](routify-identity-service/README.md) | Spring Boot | JWT issuance, user & tenant management; auth proxied via RabbitMQ from admin-api |
+| [`routify-route-service`](routify-route-service/README.md) | Spring Boot | Route & filter persistence; Transactional Outbox event publishing; gateway config storage |
+| [`routify-api-gateway`](routify-api-gateway/README.md) | Spring Cloud Gateway | Reactive, zero-downtime dynamic routing with hot-reload and 28 filter factory implementations |
+| [`routify-admin-api`](routify-admin-api/README.md) | Spring Boot (BFF) | Sole backend for the dashboard; aggregates all services via Kafka commands + RabbitMQ queries |
+| [`routify-audit-service`](routify-audit-service/README.md) | Spring Boot | Immutable audit log; Kafka consumer, request replay, AI decision analytics |
+| [`routify-cert-vault`](routify-cert-vault/README.md) | Spring Boot | AES-encrypted TLS certificate storage; cert groups; mTLS integration with the gateway |
+| [`routify-ai-service`](routify-ai-service/README.md) | Spring Boot | LLM-powered AI_FILTER / AI_MODIFIER evaluation via RabbitMQ RPC (no REST endpoints) |
+| [`routify-dashboard`](routify-dashboard/README.md) | React / Vite | Management UI — routes, filters, users, certificates, audit log, AI stats, gateway config |
 
 ---
 
@@ -52,7 +53,7 @@ Routify is a self-hosted API gateway platform built on Spring Boot 3 / Spring Cl
 | Layer | Technology |
 |---|---|
 | Language | Java 21 (Virtual Threads), TypeScript |
-| Framework | Spring Boot 3.4, Spring Cloud 2024.0 |
+| Framework | Spring Boot 3.4, Spring Cloud 2024.0.1 |
 | Gateway | Spring Cloud Gateway (WebFlux / Reactor) |
 | Messaging | Apache Kafka 3.9 (events), RabbitMQ 3.13 (request/reply) |
 | Database | PostgreSQL 17 |
@@ -77,7 +78,7 @@ Routify is a self-hosted API gateway platform built on Spring Boot 3 / Spring Cl
 ### 1. Start Infrastructure
 
 ```bash
-docker compose up -d
+docker compose --env-file .env up -d
 ```
 
 This starts **PostgreSQL**, **Redis**, **Kafka**, and **RabbitMQ** with health checks.
@@ -94,22 +95,25 @@ Start each Spring Boot service (in separate terminals or as background processes
 
 ```bash
 # Identity service (JWT auth)
-java -jar routify-identity-service/target/routify-identity-service-2.0.0-SNAPSHOT.jar
+java -jar routify-identity-service/target/routify-identity-service-1.0.2-SNAPSHOT.jar
 
 # Route service
-java -jar routify-route-service/target/routify-route-service-2.0.0-SNAPSHOT.jar
+java -jar routify-route-service/target/routify-route-service-1.0.2-SNAPSHOT.jar
 
 # Audit service
-java -jar routify-audit-service/target/routify-audit-service-2.0.0-SNAPSHOT.jar
+java -jar routify-audit-service/target/routify-audit-service-1.0.2-SNAPSHOT.jar
 
 # Certificate vault
-java -jar routify-cert-vault/target/routify-cert-vault-2.0.0-SNAPSHOT.jar
+java -jar routify-cert-vault/target/routify-cert-vault-1.0.2-SNAPSHOT.jar
+
+# AI service
+java -jar routify-ai-service/target/routify-ai-service-1.0.2-SNAPSHOT.jar
 
 # Admin API (BFF)
-java -jar routify-admin-api/target/routify-admin-api-2.0.0-SNAPSHOT.jar
+java -jar routify-admin-api/target/routify-admin-api-1.0.2-SNAPSHOT.jar
 
 # API Gateway
-java -jar routify-api-gateway/target/routify-api-gateway-2.0.0-SNAPSHOT.jar
+java -jar routify-api-gateway/target/routify-api-gateway-1.0.2-SNAPSHOT.jar
 ```
 
 ### 4. Run the Dashboard
@@ -142,6 +146,7 @@ Dashboard is available at [http://localhost:5173](http://localhost:5173).
 ```
 Routify/
 ├── docker-compose.yml          # Infrastructure (Postgres, Redis, Kafka, RabbitMQ)
+├── docker-compose.app.yml      # Application services (containerised stack)
 ├── docker/postgres/init.sql    # Database initialisation script
 ├── pom.xml                     # Parent BOM (dependency management)
 ├── routify-common/             # Shared library
@@ -151,6 +156,7 @@ Routify/
 ├── routify-admin-api/          # BFF for dashboard
 ├── routify-audit-service/      # Audit log service
 ├── routify-cert-vault/         # Certificate vault
+├── routify-ai-service/         # LLM filter/modifier evaluation
 └── routify-dashboard/          # React management UI
 ```
 

@@ -2,7 +2,7 @@
  * Select — a fully-styled custom dropdown component for Routify Dashboard.
  *
  * Features:
- *  - Dark-theme consistent styling (matches FilterTypePicker / GatewayConfigRefPicker)
+ *  - Dark-theme consistent styling (matches FilterTypePicker)
  *  - Optional grouped options via `group` property
  *  - Optional inline search (enabled when `searchable` prop is true or option count ≥ 6)
  *  - Chevron rotate animation on open
@@ -50,12 +50,12 @@ export function Select({
 
   const showSearch = searchable !== undefined ? searchable : options.length >= 6
 
-  const selected = options.find(o => o.value === value)
+  const selected = options.find((o) => o.value === value)
 
   // Filter options by search
   const filtered = search
     ? options.filter(
-        o =>
+        (o) =>
           o.label.toLowerCase().includes(search.toLowerCase()) ||
           o.description?.toLowerCase().includes(search.toLowerCase()) ||
           o.group?.toLowerCase().includes(search.toLowerCase()),
@@ -63,7 +63,7 @@ export function Select({
     : options
 
   // Group the filtered options
-  const hasGroups = filtered.some(o => o.group)
+  const hasGroups = filtered.some((o) => o.group)
   const groups: { label: string | null; items: SelectOption[] }[] = hasGroups
     ? Object.entries(
         filtered.reduce<Record<string, SelectOption[]>>((acc, o) => {
@@ -100,7 +100,7 @@ export function Select({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         className={cn(
           'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm transition-all',
           open
@@ -114,10 +114,7 @@ export function Select({
           <span className="truncate">{selected ? selected.label : placeholder}</span>
         </span>
         <ChevronDown
-          className={cn(
-            'w-4 h-4 shrink-0 text-gray-500 transition-transform duration-200',
-            open && 'rotate-180',
-          )}
+          className={cn('w-4 h-4 shrink-0 text-gray-500 transition-transform duration-200', open && 'rotate-180')}
         />
       </button>
 
@@ -136,7 +133,7 @@ export function Select({
                 <input
                   autoFocus
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search…"
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg pl-8 pr-3 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-all"
                 />
@@ -158,7 +155,7 @@ export function Select({
                     {group.label}
                   </div>
                 )}
-                {group.items.map(opt => {
+                {group.items.map((opt) => {
                   const isSelected = opt.value === value
                   return (
                     <button
@@ -171,13 +168,11 @@ export function Select({
                         isSelected
                           ? 'bg-indigo-500/10 text-indigo-200'
                           : opt.disabled
-                          ? 'opacity-40 cursor-not-allowed text-gray-400'
-                          : 'text-gray-200 hover:bg-white/[0.05]',
+                            ? 'opacity-40 cursor-not-allowed text-gray-400'
+                            : 'text-gray-200 hover:bg-white/[0.05]',
                       )}
                     >
-                      {opt.icon && (
-                        <span className="shrink-0 text-gray-400">{opt.icon}</span>
-                      )}
+                      {opt.icon && <span className="shrink-0 text-gray-400">{opt.icon}</span>}
                       <span className="flex-1 min-w-0">
                         <span className="block truncate font-medium">{opt.label}</span>
                         {opt.description && (
@@ -186,9 +181,7 @@ export function Select({
                           </span>
                         )}
                       </span>
-                      {isSelected && (
-                        <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      )}
+                      {isSelected && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
                     </button>
                   )
                 })}
@@ -200,4 +193,3 @@ export function Select({
     </div>
   )
 }
-

@@ -1,64 +1,77 @@
 # routify-route-service
 
-Internal service responsible for persisting and managing API route and filter definitions within the Routify platform.
+Internal service responsible for persisting API route and filter definitions, publishing domain events via the Transactional Outbox pattern, and serving gateway snapshots.
 
 ## Responsibilities
 
 - **Route CRUD** — create, update, activate, deactivate, and delete route definitions
-- **Filter management** — associate pre/post filters with individual routes
-- **Outbox pattern** — publishes domain events to Kafka using the Transactional Outbox pattern to guarantee at-least-once delivery
-- **Route snapshot** — exposes a cached snapshot of all active routes via RabbitMQ for `routify-api-gateway` on startup
-- **Zero-downtime activation** — activating or modifying a route emits a Kafka event that triggers immediate hot-reload in `routify-api-gateway`
+- **Filter management** — create, update, delete, attach/detach filters on routes
+- **Transactional Outbox** — guarantees at-least-once Kafka event delivery (`OutboxPoller` polls every 250 ms, retries failed after 30 s, max 5 attempts)
+- **Route snapshot** — serves a cached snapshot of all active routes to `routify-api-gateway` at startup via RabbitMQ
+- **Gateway config** — persists and serves CORS / security-headers / rate-limit / circuit-breaker config via RabbitMQ
+
+> No public REST API — all write operations arrive as `CommandEvent` records over Kafka from `routify-admin-api`.
 
 ## Module Info
 
 | Property | Value |
 |---|---|
-| Artifact | `gr.routify:routify-route-service` |
-| Version | `2.0.0-SNAPSHOT` |
-| Default port | `8082` |
+| Artifact | `io.routify:routify-route-service` |
+| Version | `1.0.2-SNAPSHOT` |
+| Default port | `8081` |
+| Actuator port | `9081` |
 | Java | 21 (Virtual Threads) |
+| DB schema | `routify` |
 
 ## Key Dependencies
 
 | Dependency | Purpose |
 |---|---|
-| `spring-boot-starter-web` | Internal HTTP (health, actuator only) |
-| `spring-boot-starter-data-jpa` | Route/filter persistence |
-| `postgresql` | Database driver |
-| `flyway-core` | Database migrations |
-| `spring-boot-starter-data-redis` | Route snapshot cache |
-| `spring-kafka` | Kafka Outbox event publishing & command consumption |
-| `spring-boot-starter-amqp` | RabbitMQ request/reply — snapshot + status queries |
-| `resilience4j` | Circuit breaker / retry for downstream resilience |
+| `spring-boot-starter-data-jpa` | Route/filter/outbox persistence |
+| `flyway-core` | Schema migrations (`classpath:db/migration`) |
+| `spring-boot-starter-data-redis` | Active-route snapshot cache |
+| `spring-kafka` | Outbox event publishing; command consumption |
+| `spring-boot-starter-amqp` | RabbitMQ request/reply — snapshot + query responder |
 
 ## Messaging
 
-### Kafka — Command Topics (consumed)
+### Kafka — consumed (commands)
 
-| Topic | Description |
+| Topic | Commands |
 |---|---|
-| `routify.route.commands` | Create / update / activate / deactivate / delete routes |
-| `routify.filter.commands` | Create / update / delete filters on routes |
+| `routify.route.commands` | `CreateRoute`, `UpdateRoute`, `ActivateRoute`, `DeactivateRoute`, `DeleteRoute` |
+| `routify.filter.commands` | `CreateFilter`, `UpdateFilter`, `DeleteFilter`, `AttachFilter`, `DetachFilter` |
 
-### Kafka — Event Topics (published)
+### Kafka — published (events, via Outbox)
 
-| Topic | Description |
+| Topic | Events |
 |---|---|
 | `routify.route.events` | `RouteCreated`, `RouteUpdated`, `RouteActivated`, `RouteDeactivated`, `RouteDeleted` |
+| `routify.filter.events` | `FilterCreated`, `FilterUpdated`, `FilterDeleted`, `FilterAttached`, `FilterDetached` |
+| `routify.gateway.reload` | Published when a filter type requires a full gateway reload |
+| `routify.gateway.config` | Published when gateway-wide config is saved |
 
-### RabbitMQ — Request/Reply (responded)
+### RabbitMQ — request/reply (responded)
 
-| Queue | Description |
-|---|---|
-| Route snapshot queue | Full active-route snapshot consumed by `routify-api-gateway` at startup |
-| Route query queue | Paged route list and single route lookup for `routify-admin-api` |
+Exchange: `routify.route-service` (direct)
+
+| Queue | Routing Key | Requester |
+|---|---|---|
+| `routify.route-service.gateway-snapshot` | `route.gateway.snapshot` | `routify-api-gateway` (startup) |
+| `routify.route-service.routes.query` | `routes.query` | `routify-admin-api` |
+| `routify.route-service.routes.get` | `routes.get` | `routify-admin-api` |
+| `routify.route-service.routes.clone` | `routes.clone` | `routify-admin-api` |
+| `routify.route-service.filters.query` | `filters.query` | `routify-admin-api` |
+| `routify.route-service.filters.get` | `filters.get` | `routify-admin-api` |
+| `routify.route-service.route-stats` | `route.stats` | `routify-admin-api` |
+| `routify.route-service.gateway-config.get` | `gateway.config.get` | `routify-admin-api` |
+| `routify.route-service.gateway-config.save` | `gateway.config.save` | `routify-admin-api` |
 
 ## Database
 
 - **Engine**: PostgreSQL 17
-- **Migrations**: Flyway (`classpath:db/migration`)
-- **Schema**: `routes`, `filters`, `outbox_events`
+- **Migrations**: Flyway (`classpath:db/migration`), `ddl-auto: validate`
+- **Schema**: `routify` — tables: `routes`, `filters`, `outbox_events`
 
 ## Building & Running
 
@@ -67,7 +80,7 @@ Internal service responsible for persisting and managing API route and filter de
 mvn clean package -pl routify-route-service -am -DskipTests
 
 # Run
-java -jar target/routify-route-service-2.0.0-SNAPSHOT.jar
+java -jar target/routify-route-service-1.0.2-SNAPSHOT.jar
 ```
 
 ### Required Infrastructure
@@ -77,5 +90,4 @@ java -jar target/routify-route-service-2.0.0-SNAPSHOT.jar
 - Kafka (`localhost:9092`)
 - RabbitMQ (`localhost:5672`)
 
-> Start all infrastructure with `docker compose up -d` from the project root.
-
+> Start all infrastructure with `docker compose --env-file .env up -d` from the project root.

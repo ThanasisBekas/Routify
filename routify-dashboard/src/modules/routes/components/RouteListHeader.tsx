@@ -1,7 +1,8 @@
 import { Plus, RefreshCw, Wifi } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary, RouteStatus } from '../../../types'
-import { STATUS_CONFIG, STATUS_FILTER_TABS, type StatusFilterTab } from '../routeConstants'
+import { STATUS_CONFIG } from '../constants/routeStatusConfig'
+import { STATUS_FILTER_TABS, type StatusFilterTab } from '../routeConstants'
 
 interface Props {
   total: number
@@ -15,10 +16,16 @@ interface Props {
 }
 
 export default function RouteListHeader({
-  total, routes, statusFilter, isFetching, isLive,
-  onStatusFilter, onRefresh, onNew,
+  total,
+  routes,
+  statusFilter,
+  isFetching,
+  isLive,
+  onStatusFilter,
+  onRefresh,
+  onNew,
 }: Props) {
-  const activeCount = routes.filter(r => r.status === 'ACTIVE').length
+  const activeCount = routes.filter((r) => r.status === 'ACTIVE').length
 
   return (
     <div className="px-6 py-5 border-b border-white/[0.06] bg-[#0c0e14] shrink-0">
@@ -60,9 +67,9 @@ export default function RouteListHeader({
 
       {/* Status filter tabs */}
       <div className="flex items-center gap-6 mt-4">
-        {STATUS_FILTER_TABS.map(s => {
-          const cfg   = s !== '' ? STATUS_CONFIG[s as RouteStatus] : null
-          const count = s === '' ? total : routes.filter(r => r.status === s).length
+        {STATUS_FILTER_TABS.map((s) => {
+          const cfg = s !== '' ? STATUS_CONFIG[s as RouteStatus] : null
+          const count = s === '' ? total : routes.filter((r) => r.status === s).length
           return (
             <button
               key={s}
@@ -76,10 +83,12 @@ export default function RouteListHeader({
             >
               {cfg && <span className={cn('w-1.5 h-1.5 rounded-full', cfg.dot)} />}
               <span className="font-medium">{s === '' ? 'All' : cfg!.label}</span>
-              <span className={cn(
-                'text-xs px-1.5 py-0.5 rounded-full',
-                statusFilter === s ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/[0.05] text-gray-500',
-              )}>
+              <span
+                className={cn(
+                  'text-xs px-1.5 py-0.5 rounded-full',
+                  statusFilter === s ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/[0.05] text-gray-500',
+                )}
+              >
                 {count}
               </span>
             </button>

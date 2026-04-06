@@ -63,4 +63,3 @@ export function useRouteActions(routeId?: string) {
 
   return { activateMutation, deactivateMutation, deleteMutation, cloneMutation }
 }
-
