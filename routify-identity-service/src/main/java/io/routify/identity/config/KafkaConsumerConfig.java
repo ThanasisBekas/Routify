@@ -18,7 +18,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.MicrometerConsumerListener;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.support.converter.StringJsonMessageConverter;
+import org.springframework.kafka.support.converter.StringJacksonJsonMessageConverter;
 
 import java.util.Map;
 
@@ -85,7 +85,7 @@ public class KafkaConsumerConfig {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(userCommandConsumerFactory);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setRecordMessageConverter(new StringJsonMessageConverter());
+        factory.setRecordMessageConverter(new StringJacksonJsonMessageConverter());
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(identityDlqKafkaTemplate));
@@ -104,7 +104,7 @@ public class KafkaConsumerConfig {
             KafkaTemplate<String, Object> identityDlqKafkaTemplate) {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(userCommandConsumerFactory);
-        factory.setRecordMessageConverter(new StringJsonMessageConverter());
+        factory.setRecordMessageConverter(new StringJacksonJsonMessageConverter());
         factory.setConcurrency(1);
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(identityDlqKafkaTemplate));
         factory.getContainerProperties().setObservationEnabled(true);

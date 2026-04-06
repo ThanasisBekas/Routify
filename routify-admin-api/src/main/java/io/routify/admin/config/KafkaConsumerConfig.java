@@ -1,9 +1,5 @@
 package io.routify.admin.config;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.routify.common.kafka.KafkaDlqErrorHandlerFactory;
 import io.routify.admin.sse.DashboardEventBroadcaster;
 import io.routify.admin.ws.WebSocketEventBroadcaster;
@@ -18,7 +14,7 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.MicrometerConsumerListener;
-import org.springframework.kafka.support.converter.StringJsonMessageConverter;
+import org.springframework.kafka.support.converter.StringJacksonJsonMessageConverter;
 import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.Map;
@@ -70,18 +66,11 @@ public class KafkaConsumerConfig {
             KafkaTemplate<String, Object> kafkaTemplate) {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(adminConsumerFactory());
-        factory.setRecordMessageConverter(new StringJsonMessageConverter(kafkaObjectMapper()));
+        factory.setRecordMessageConverter(new StringJacksonJsonMessageConverter());
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
         factory.getContainerProperties().setObservationEnabled(true);
         return factory;
-    }
-
-    private ObjectMapper kafkaObjectMapper() {
-        return new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 }

@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>Reads each outbox entry, deserializes the stored JSON payload back to a
  * typed {@link DomainEvent}, and publishes it via {@link KafkaTemplate} backed
- * by {@link org.springframework.kafka.support.serializer.JsonSerializer}.
+ * by {@link org.springframework.kafka.support.serializer.JacksonJsonSerializer}.
  * This guarantees that Kafka wire messages are always typed domain events —
  * never raw strings or maps.
  *
