@@ -158,6 +158,14 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
 ./scripts/reset-data.sh --skip-grafana # keep Grafana dashboards
 ```
 
+### Setup Docker (branch-aware)
+```bash
+./scripts/setup-docker.sh                         # interactive branch picker, infra only
+./scripts/setup-docker.sh develop                  # infra for develop branch
+./scripts/setup-docker.sh develop app              # infra + all application services
+```
+Copies `environments/.env.<branch>` → `.env` and brings up the requested Docker Compose stack. Modes: `infra` (default), `app`/`full` (infra + all services).
+
 ### Testing
 
 **Java integration tests** use **Testcontainers** (Kafka, RabbitMQ, Redis, PostgreSQL). Convention: `*IT.java` suffix (run by maven-failsafe-plugin). Base class `AdminApiIntegrationBase` provides MockMvc, unsigned JWT generation (`generateTestJwt()`), mock RabbitMQ reply listeners (`mockRabbitReply()`), and Kafka test consumer (`drainTopic()`).
@@ -185,6 +193,7 @@ npm run test:ci                        # single run (CI)
 cd routify-dashboard
 npm run test:e2e                       # headless
 npm run test:e2e:ui                    # interactive UI mode
+npm run test:e2e:ci                    # headless with GitHub reporter (CI)
 ```
 
 **CI containerised build** uses `docker-compose.ci.yml` overlay with `Dockerfile.ci` (copies pre-built JARs, no in-Docker Maven build):
@@ -194,6 +203,8 @@ mvn clean package -DskipTests
 docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml build
 docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml up -d
 ```
+
+> **JDK 25 compatibility shim:** The project root contains compiled class overrides at `org/springframework/kafka/listener/` (`DefaultErrorHandler.class`, `ExceptionClassifier.class`, `FailedRecordProcessor.class`). These patch Spring Kafka for JDK 25 sealed-class compatibility. Do not delete these files — the classpath loads them before the JAR-packaged originals.
 
 ## Environment / Secrets
 
