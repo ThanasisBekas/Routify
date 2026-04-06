@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.routify.common.domain.FilterType;
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.common.domain.TenantPlan;
 import io.routify.common.domain.UserRole;
@@ -59,7 +60,7 @@ class QueryMessageSerializationTest {
             Arguments.of(new QueryRequest.GatewayConfigGet(), "GATEWAY_CONFIG_GET"),
             Arguments.of(new QueryRequest.GatewayConfigSave("cors", "admin", Map.of("allowedOrigins", "*")), "GATEWAY_CONFIG_SAVE"),
             Arguments.of(new QueryRequest.RouteStats(TENANT), "ROUTE_STATS"),
-            Arguments.of(new QueryRequest.RoutesQuery(TENANT, "ACTIVE", 0, 20, "name", "ASC"), "ROUTES_QUERY"),
+            Arguments.of(new QueryRequest.RoutesQuery(TENANT, "ACTIVE", null, 0, 20, "name", "ASC"), "ROUTES_QUERY"),
             Arguments.of(new QueryRequest.RouteGet(ID, TENANT), "ROUTE_GET"),
             Arguments.of(new QueryRequest.RouteClone(ID, TENANT, "admin@routify.io"), "ROUTE_CLONE"),
             Arguments.of(new QueryRequest.FiltersQuery(TENANT, 0, 20, "name", "ASC"), "FILTERS_QUERY"),
@@ -141,7 +142,7 @@ class QueryMessageSerializationTest {
             Arguments.of(new QueryResponse.GatewaySnapshotList(List.of(
                 new QueryResponse.GatewaySnapshotList.RouteSnapshot(
                     ROUTE_ID, TENANT, "users-api", "/api/users/**", "GET,POST",
-                    "http://user-service:8080", "1", 3,
+                    "http://user-service:8080", "1", 3, "PRODUCTION",
                     List.of(new QueryResponse.GatewaySnapshotList.RouteSnapshot.FilterSnapshot(
                         OTHER_ID, "RATE_LIMIT_FIXED_WINDOW", 1, "PRE", Map.of("limit", 10), Map.of()
                     )), Map.of("timeout", 5000))
@@ -154,13 +155,13 @@ class QueryMessageSerializationTest {
             Arguments.of(new QueryResponse.RoutesPage(
                 List.of(new QueryResponse.RoutesPage.RouteSummary(
                     ID, "users-api", "User routes", "/api/users/**", "GET,POST",
-                    "http://user:8080", RouteStatus.ACTIVE, 2, 3, NOW, NOW
+                    "http://user:8080", RouteStatus.ACTIVE, RouteEnvironment.PRODUCTION, 2, 3, NOW, NOW
                 )), 1, 1, 0, 20
             ), "ROUTES_PAGE"),
 
             Arguments.of(new QueryResponse.RouteDetail(
                 ID, TENANT, "users-api", "User routes", "/api/users/**", "GET,POST",
-                "http://user:8080", "1", RouteStatus.ACTIVE, 2,
+                "http://user:8080", "1", RouteStatus.ACTIVE, RouteEnvironment.PRODUCTION, 2,
                 List.of(new QueryResponse.RouteDetail.FilterRef(OTHER_ID, "rate-limiter", "RATE_LIMIT_FIXED_WINDOW", 1, "PRE", true)),
                 Map.of("timeout", 5000), "admin", NOW, NOW, NOW
             ), "ROUTE_DETAIL"),
@@ -182,7 +183,7 @@ class QueryMessageSerializationTest {
             // identity-service
             Arguments.of(new QueryResponse.LoginResult(
                 "eyJhbGciOiJSUzI1NiJ9...", "refresh-token", "Bearer", 3600, false,
-                new QueryResponse.LoginResult.UserInfo(ID, TENANT, "admin", "admin@acme.com", UserRole.SUPER_ADMIN, false)
+                new QueryResponse.LoginResult.UserInfo(ID, TENANT, "admin", "admin@acme.com", UserRole.SUPER_ADMIN, false, List.of())
             ), "LOGIN_RESULT"),
 
             Arguments.of(new QueryResponse.PasswordChangeResult(true), "PASSWORD_CHANGE_RESULT"),
@@ -190,13 +191,13 @@ class QueryMessageSerializationTest {
             Arguments.of(new QueryResponse.UsersPage(
                 List.of(new QueryResponse.UsersPage.UserSummary(
                     ID, TENANT, "jane.doe", "jane@acme.com", UserRole.TENANT_ADMIN,
-                    "ACTIVE", false, NOW, NOW
+                    "ACTIVE", false, NOW, NOW, OTHER_ID, "Tenant Admin", List.of("ROUTES_READ", "ROUTES_WRITE")
                 )), 1, 1, 0, 20
             ), "USERS_PAGE"),
 
             Arguments.of(new QueryResponse.UserDetail(
                 ID, TENANT, "jane.doe", "jane@acme.com", UserRole.TENANT_ADMIN,
-                "ACTIVE", false, NOW, NOW
+                "ACTIVE", false, NOW, NOW, OTHER_ID, "Tenant Admin", List.of("ROUTES_READ", "ROUTES_WRITE")
             ), "USER_DETAIL"),
 
             Arguments.of(new QueryResponse.TenantsPage(

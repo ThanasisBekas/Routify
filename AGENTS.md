@@ -68,7 +68,7 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 ## Project Conventions
 
 **Java services:**
-- Java 25 with **Virtual Threads** enabled (`spring.threads.virtual.enabled: true`) on all services except the reactive gateway.
+- Java 25 with **Virtual Threads** enabled (`spring.threads.virtual.enabled: true`) on all services. The reactive gateway also sets this property, but it runs on Netty/Reactor so the setting only affects ancillary blocking tasks (Kafka consumers, RabbitMQ listeners) — **never use blocking code in gateway filter chains**.
 - Spring Boot **4.0.5**, Spring Cloud **2025.1.1**, Spring AI **1.1.4**, JJWT **0.13.0**, Resilience4j **2.2.0**, MapStruct **1.6.3**.
 - `routify-api-gateway` is **reactive** (WebFlux/Reactor/Netty) — never use blocking code there.
 - Exceptions extend the **sealed** `RoutifyException` hierarchy (`NotFound`, `Conflict`, `Validation`, `BadRequest`, `Unauthorized`, `Forbidden`, `RateLimitExceeded`, `QuotaExceeded`, `GatewayError`, `HeuristicError`) — never throw raw `RuntimeException`. Error responses are serialised by `exception.io.routify.common.GlobalExceptionHandler` as **RFC 9457 ProblemDetail** JSON (`type`, `title`, `status`, `detail`, `errorCode`).
