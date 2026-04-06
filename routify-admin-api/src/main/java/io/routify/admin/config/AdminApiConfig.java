@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.routify.common.event.RabbitTopology;
+import io.routify.common.observability.RoutifyMetrics;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.MessageConverter;
@@ -15,6 +17,16 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
 public class AdminApiConfig {
+
+    /**
+     * Provides the shared {@link RoutifyMetrics} bean for RPC latency tracking.
+     * {@code RoutifyMetrics} lives in {@code routify-common} (outside the admin-api
+     * component-scan base package) so it must be explicitly registered here.
+     */
+    @Bean
+    public RoutifyMetrics routifyMetrics(MeterRegistry meterRegistry) {
+        return new RoutifyMetrics(meterRegistry);
+    }
 
     @Bean
     public ObjectMapper objectMapper() {
