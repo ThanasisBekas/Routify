@@ -1,0 +1,14 @@
+{{- if and .Values.certVault.enabled (.Values.certVault.pdb).enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "routify.certVault.fullname" . }}
+  labels:
+    {{- include "routify.certVault.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.certVault.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "routify.certVault.selectorLabels" . | nindent 6 }}
+{{- end }}
+

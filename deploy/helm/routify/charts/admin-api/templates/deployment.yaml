@@ -1,0 +1,60 @@
+{{- if .Values.adminApi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "routify.adminApi.fullname" . }}
+  labels:
+    {{- include "routify.adminApi.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.adminApi.replicas }}
+  selector:
+    matchLabels:
+      {{- include "routify.adminApi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "routify.adminApi.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: admin-api
+          image: {{ include "routify.image" (dict "global" .Values.global "image" .Values.adminApi.image) }}
+          imagePullPolicy: {{ .Values.adminApi.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8082
+              protocol: TCP
+            - name: management
+              containerPort: 9082
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.adminApi.resources | nindent 12 }}
+          env:
+            {{- include "routify.commonEnv" . | nindent 12 }}
+            {{- include "routify.redisEnv" . | nindent 12 }}
+            {{- include "routify.jwtPublicKeyEnv" . | nindent 12 }}
+            {{- range $key, $value := .Values.adminApi.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+{{- end }}
+

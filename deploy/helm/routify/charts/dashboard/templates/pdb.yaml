@@ -1,0 +1,14 @@
+{{- if and .Values.dashboard.enabled (.Values.dashboard.pdb).enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "routify.dashboard.fullname" . }}
+  labels:
+    {{- include "routify.dashboard.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.dashboard.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "routify.dashboard.selectorLabels" . | nindent 6 }}
+{{- end }}
+

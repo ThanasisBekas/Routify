@@ -1,0 +1,22 @@
+{{- if .Values.adminApi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "routify.adminApi.fullname" . }}
+  labels:
+    {{- include "routify.adminApi.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.adminApi.service.type }}
+  ports:
+    - port: {{ .Values.adminApi.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9082
+      targetPort: management
+      protocol: TCP
+      name: management
+  selector:
+    {{- include "routify.adminApi.selectorLabels" . | nindent 4 }}
+{{- end }}
+
