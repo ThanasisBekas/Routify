@@ -221,6 +221,7 @@ public class RouteDefinitionBuilder {
             // ─── Downstream Auth Injection ────────────────────────────────────
             case "DOWNSTREAM_BASIC_AUTH" -> customFilter("DownstreamBasicAuth", cfg);
             case "DOWNSTREAM_BEARER_CC"  -> customFilter("DownstreamOAuth2Bearer", cfg);
+            case "OAUTH2_TOKEN_RELAY"    -> customFilter("OAuth2TokenRelay", cfg);
 
             // ─── Rate Limiting ────────────────────────────────────────────────
             case "RATE_LIMIT_TOKEN_BUCKET" -> {

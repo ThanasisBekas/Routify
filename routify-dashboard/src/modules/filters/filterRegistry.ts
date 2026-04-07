@@ -157,6 +157,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-purple-400/10',
     border: 'border-purple-400/20',
   },
+  {
+    value: 'OAUTH2_TOKEN_RELAY',
+    label: 'OAuth2 Token Relay',
+    category: 'Downstream Auth',
+    description:
+      'RFC 8693 Token Exchange — exchanges the incoming bearer token for a downstream-specific token via a configured OAuth2 token endpoint. Supports token caching and configurable fallback (REJECT / PASS_THROUGH / STRIP).',
+    color: 'text-amber-400',
+    bg: 'bg-amber-400/10',
+    border: 'border-amber-400/20',
+  },
 
   // ── Rate Limiting ─────────────────────────────────────────────────────────────
   {

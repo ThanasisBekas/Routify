@@ -40,6 +40,13 @@ public enum FilterType {
     DOWNSTREAM_BASIC_AUTH,
     /** Acquire an OAuth2 client-credentials token and inject as Bearer downstream — DownstreamOAuth2BearerGatewayFilterFactory */
     DOWNSTREAM_BEARER_CC,
+    /**
+     * RFC 8693 Token Exchange — exchanges the incoming bearer token for a downstream-specific
+     * token via a configured OAuth2 token endpoint. Supports Caffeine token caching,
+     * configurable fallback (REJECT / PASS_THROUGH / STRIP), and fully non-blocking WebClient calls.
+     * — OAuth2TokenRelayGatewayFilterFactory
+     */
+    OAUTH2_TOKEN_RELAY,
 
     // ─── Rate Limiting ────────────────────────────────────────────────────────
 

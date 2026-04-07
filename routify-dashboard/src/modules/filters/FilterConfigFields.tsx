@@ -1583,6 +1583,123 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    case 'OAUTH2_TOKEN_RELAY':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            <strong className="text-amber-300">RFC 8693 Token Exchange</strong> — exchanges the incoming bearer token
+            for a downstream-specific token via the configured OAuth2 token endpoint. The exchanged token is injected as{' '}
+            <code className="font-mono text-amber-300">Authorization: Bearer …</code> for upstream.
+          </p>
+
+          <SectionTitle>Token Endpoint</SectionTitle>
+          <Field label="Token Endpoint URL" hint="OAuth2 token endpoint for the token exchange grant (required)">
+            <input
+              value={str('tokenEndpoint')}
+              onChange={(e) => set('tokenEndpoint', e.target.value)}
+              className={monoInputCls}
+              placeholder="https://auth.example.com/oauth/token"
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Client ID" hint="OAuth2 client ID for the exchange request (required)">
+              <input
+                value={str('clientId')}
+                onChange={(e) => set('clientId', e.target.value)}
+                className={inputCls}
+                placeholder="my-gateway-client"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Client Secret" hint="OAuth2 client secret (sensitive — masked in API responses)">
+              <input
+                type="password"
+                value={str('clientSecret')}
+                onChange={(e) => set('clientSecret', e.target.value)}
+                className={inputCls}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Token Types</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Subject Token Type" hint="Token type of the incoming bearer token">
+              <input
+                value={str('subjectTokenType', 'urn:ietf:params:oauth:token-type:access_token')}
+                onChange={(e) => set('subjectTokenType', e.target.value)}
+                className={monoInputCls}
+                placeholder="urn:ietf:params:oauth:token-type:access_token"
+              />
+            </Field>
+            <Field label="Requested Token Type" hint="Token type to request from the token endpoint">
+              <input
+                value={str('requestedTokenType', 'urn:ietf:params:oauth:token-type:access_token')}
+                onChange={(e) => set('requestedTokenType', e.target.value)}
+                className={monoInputCls}
+                placeholder="urn:ietf:params:oauth:token-type:access_token"
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Scopes &amp; Audience</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Scope" hint="Space-separated scopes to request for the exchanged token" optional>
+              <input
+                value={str('scope')}
+                onChange={(e) => set('scope', e.target.value)}
+                className={inputCls}
+                placeholder="read write"
+              />
+            </Field>
+            <Field label="Audience" hint="Target audience for the exchanged token" optional>
+              <input
+                value={str('audience')}
+                onChange={(e) => set('audience', e.target.value)}
+                className={inputCls}
+                placeholder="https://api.downstream.com"
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Caching &amp; Fallback</SectionTitle>
+          <Field label="Cache TTL (seconds)" hint="Exchanged tokens are cached in-process. TTL = min(this value, token.expires_in - 30s). Default: 300.">
+            <input
+              type="number"
+              min={0}
+              value={num('cacheTtlSeconds', 300)}
+              onChange={(e) => set('cacheTtlSeconds', +e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <Field label="Fallback Mode" hint="What to do when the token exchange call fails">
+            <Select
+              value={str('fallbackMode', 'REJECT')}
+              onChange={(v) => set('fallbackMode', v)}
+              options={[
+                { value: 'REJECT', label: 'Reject (401)', description: 'Return 401 Unauthorized to the caller' },
+                { value: 'PASS_THROUGH', label: 'Pass Through', description: 'Forward the original bearer token unchanged' },
+                { value: 'STRIP', label: 'Strip', description: 'Remove the Authorization header entirely' },
+              ]}
+            />
+          </Field>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Tokens are cached in a Caffeine in-process cache keyed by{' '}
+              <code className="font-mono text-blue-300">SHA-256(incoming_token + audience)</code>. Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.token_relay.exchange_success</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.token_relay.exchange_failure</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.token_relay.cache_hit</code>.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Routing — User ID Payload ─────────────────────────────────────────────
     case 'USER_ID_PAYLOAD_ROUTING':
       return (

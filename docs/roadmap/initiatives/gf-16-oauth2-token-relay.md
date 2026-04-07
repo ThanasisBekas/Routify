@@ -2,7 +2,8 @@
 
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 5 (Extensions) · **Owner:** Gateway + Identity teams  
 > **Category:** Authentication · **Priority:** Medium  
-> **Filter type:** `OAUTH2_TOKEN_RELAY`
+> **Filter type:** `OAUTH2_TOKEN_RELAY`  
+> **Status:** ✅ **COMPLETED**
 
 ---
 
@@ -58,10 +59,10 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 **Task list:**
-- [ ] Create filter factory
-- [ ] Implement RFC 8693 token exchange via `WebClient`
-- [ ] Replace `Authorization` header with exchanged token
-- [ ] Fully non-blocking (reactive `WebClient`)
+- [x] Create filter factory
+- [x] Implement RFC 8693 token exchange via `WebClient`
+- [x] Replace `Authorization` header with exchanged token
+- [x] Fully non-blocking (reactive `WebClient`)
 
 ---
 
@@ -73,10 +74,10 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 - Cache size limited to 10,000 entries (configurable).
 
 **Task list:**
-- [ ] Implement Caffeine token cache
-- [ ] Key by hash of incoming token + audience
-- [ ] Respect token expiry for cache TTL
-- [ ] Configurable max cache size
+- [x] Implement Caffeine token cache
+- [x] Key by hash of incoming token + audience
+- [x] Respect token expiry for cache TTL
+- [x] Configurable max cache size
 
 ---
 
@@ -93,10 +94,10 @@ fallbackMode: REJECT  # REJECT | PASS_THROUGH | STRIP
 ```
 
 **Task list:**
-- [ ] Add `fallbackMode` config parameter
-- [ ] Implement `REJECT` fallback (401 response)
-- [ ] Implement `PASS_THROUGH` fallback
-- [ ] Implement `STRIP` fallback
+- [x] Add `fallbackMode` config parameter
+- [x] Implement `REJECT` fallback (401 response)
+- [x] Implement `PASS_THROUGH` fallback
+- [x] Implement `STRIP` fallback
 
 ---
 
@@ -105,8 +106,8 @@ fallbackMode: REJECT  # REJECT | PASS_THROUGH | STRIP
 The `clientSecret` field must use the `@SensitiveField` annotation for masking when returned via admin-api. On filter config save, check `Sensitive.isMasked(clientSecret)` before overwriting.
 
 **Task list:**
-- [ ] Mark `clientSecret` as `@SensitiveField`
-- [ ] Handle masked values on update
+- [x] Mark `clientSecret` as `@SensitiveField`
+- [x] Handle masked values on update
 
 ---
 
@@ -117,9 +118,9 @@ The `clientSecret` field must use the `@SensitiveField` annotation for masking w
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `OAUTH2_TOKEN_RELAY` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard (with secret input)
+- [x] Add `OAUTH2_TOKEN_RELAY` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard (with secret input)
 
 ---
 
@@ -138,17 +139,16 @@ The `clientSecret` field must use the `@SensitiveField` annotation for masking w
 - `clientSecret` masked in API responses
 
 **Task list:**
-- [ ] Write token exchange success/failure tests (mock token endpoint)
-- [ ] Write cache behavior tests
-- [ ] Write fallback mode tests
+- [x] Write token exchange success/failure tests (mock token endpoint)
+- [x] Write cache behavior tests
+- [x] Write fallback mode tests
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Incoming bearer token exchanged for downstream-specific token via RFC 8693
-- [ ] Token cache avoids per-request exchange calls
-- [ ] Fully non-blocking `WebClient` calls
-- [ ] Configurable fallback on exchange failure (REJECT, PASS_THROUGH, STRIP)
-- [ ] `clientSecret` masked via `@SensitiveField`
-
+- [x] Incoming bearer token exchanged for downstream-specific token via RFC 8693
+- [x] Token cache avoids per-request exchange calls
+- [x] Fully non-blocking `WebClient` calls
+- [x] Configurable fallback on exchange failure (REJECT, PASS_THROUGH, STRIP)
+- [x] `clientSecret` masked via `@SensitiveField`

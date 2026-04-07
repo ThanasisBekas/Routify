@@ -270,7 +270,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 | 13 | [Circuit Breaker v2 Filter](#13-circuit-breaker-v2-filter) | Resilience | High | Custom Resilience4j circuit breaker with per-route config, half-open probing, and dashboard status |
 | 14 | ✅ [Retry v2 Filter](#14-retry-v2-filter) | Resilience | High | Custom retry filter with exponential backoff, jitter, idempotency awareness, and per-route config |
 | 15 | ✅ [Request/Response Body Size Logging Filter](#15-requestresponse-body-size-logging-filter) | Observability | Low | Lightweight filter that emits Micrometer metrics for body sizes without capturing content |
-| 16 | [OAuth2 Token Relay Filter](#16-oauth2-token-relay-filter) | Authentication | Medium | Exchange incoming token for a downstream-specific token via token exchange (RFC 8693) |
+| 16 | ✅ [OAuth2 Token Relay Filter](#16-oauth2-token-relay-filter) | Authentication | Medium | Exchange incoming token for a downstream-specific token via token exchange (RFC 8693) |
 | 17 | [GraphQL Depth Limit Filter](#17-graphql-depth-limit-filter) | Validation | Medium | Parses GraphQL queries and rejects those exceeding configurable depth/complexity limits |
 | 18 | [Response Header Rewrite Filter](#18-response-header-rewrite-filter) | Modification | Medium | Regex-based response header value rewriting (e.g., rewrite `Location` headers for proxy URLs) |
 | 19 | [Idempotency Key Filter](#19-idempotency-key-filter) | Reliability | High | Deduplicates write requests using a client-provided idempotency key stored in Redis |
@@ -488,12 +488,13 @@ A lightweight, zero-copy filter that records request and response body sizes as 
 
 ---
 
-### 16. OAuth2 Token Relay Filter
+### 16. OAuth2 Token Relay Filter ✅
 
 **Design doc:** [`initiatives/gf-16-oauth2-token-relay.md`](./initiatives/gf-16-oauth2-token-relay.md)  
 **Filter type:** `OAUTH2_TOKEN_RELAY`  
 **Category:** Authentication  
-**Priority:** Medium
+**Priority:** Medium  
+**Status:** ✅ **COMPLETED**
 
 #### Description
 Implements RFC 8693 Token Exchange — exchanges the incoming bearer token for a downstream-specific token before forwarding the request. Enables the gateway to act as a token translation layer between different identity providers or token scopes.
