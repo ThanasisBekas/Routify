@@ -10,14 +10,10 @@ export const apiKeysApi = {
   get: (id: string) => apiClient.get<ApiKeyDetailDto>(`${BASE}/${id}`).then((r) => r.data),
 
   /** Create a new API key — response includes the raw key shown once. */
-  create: (data: CreateApiKeyRequest) =>
-    apiClient.post<ApiKeyCreatedResponse>(BASE, data).then((r) => r.data),
+  create: (data: CreateApiKeyRequest) => apiClient.post<ApiKeyCreatedResponse>(BASE, data).then((r) => r.data),
 
-  revoke: (id: string) =>
-    apiClient.post<ApiKeyDetailDto>(`${BASE}/${id}/revoke`).then((r) => r.data),
+  revoke: (id: string) => apiClient.post<ApiKeyDetailDto>(`${BASE}/${id}/revoke`).then((r) => r.data),
 
   /** Rotate a key — revokes the old key and returns a new raw key. */
-  rotate: (id: string) =>
-    apiClient.post<ApiKeyCreatedResponse>(`${BASE}/${id}/rotate`).then((r) => r.data),
+  rotate: (id: string) => apiClient.post<ApiKeyCreatedResponse>(`${BASE}/${id}/rotate`).then((r) => r.data),
 }
-

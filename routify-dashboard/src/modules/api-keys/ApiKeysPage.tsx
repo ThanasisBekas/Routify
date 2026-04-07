@@ -15,6 +15,14 @@ const STATUS_STYLES: Record<ApiKeyStatus, { label: string; className: string }> 
   EXPIRED: { label: 'Expired', className: 'bg-gray-500/10 text-gray-400 border-gray-500/20' },
 }
 
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+
+function isExpiringSoon(expiresAt?: string): boolean {
+  if (!expiresAt) return false
+  const diff = new Date(expiresAt).getTime() - Date.now()
+  return diff > 0 && diff < SEVEN_DAYS_MS
+}
+
 export default function ApiKeysPage() {
   useDocumentTitle('API Keys')
   const user = useAuthStore((s) => s.user)
@@ -59,15 +67,10 @@ export default function ApiKeysPage() {
   const formatDate = (iso?: string) => {
     if (!iso) return '—'
     return new Date(iso).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     })
-  }
-
-  const now = Date.now()
-  const isExpiringSoon = (expiresAt?: string) => {
-    if (!expiresAt) return false
-    const diff = new Date(expiresAt).getTime() - now
-    return diff > 0 && diff < 7 * 24 * 60 * 60 * 1000 // 7 days
   }
 
   const keys = data?.content ?? []
@@ -81,9 +84,7 @@ export default function ApiKeysPage() {
             <Key className="w-5 h-5 text-indigo-400" />
             API Keys
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage API keys for machine-to-machine authentication
-          </p>
+          <p className="text-sm text-gray-500 mt-1">Manage API keys for machine-to-machine authentication</p>
         </div>
         {isAdmin && (
           <button
@@ -130,13 +131,21 @@ export default function ApiKeysPage() {
           <thead>
             <tr className="border-b border-white/[0.06]">
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Key Prefix</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Key Prefix
+              </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Expires
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Created
+              </th>
               {isAdmin && (
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               )}
             </tr>
           </thead>
@@ -169,15 +178,18 @@ export default function ApiKeysPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-400">{key.role}</td>
                     <td className="px-4 py-3">
-                      <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border', status.className)}>
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border',
+                          status.className,
+                        )}
+                      >
                         {status.label}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-400">
                       <div className="flex items-center gap-1.5">
-                        {isExpiringSoon(key.expiresAt) && (
-                          <Clock className="w-3.5 h-3.5 text-amber-400" />
-                        )}
+                        {isExpiringSoon(key.expiresAt) && <Clock className="w-3.5 h-3.5 text-amber-400" />}
                         {formatDate(key.expiresAt)}
                       </div>
                     </td>
@@ -255,4 +267,3 @@ export default function ApiKeysPage() {
     </div>
   )
 }
-

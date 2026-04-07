@@ -134,7 +134,10 @@ export const webhookHandlers = [
       updatedAt: new Date().toISOString(),
     }
     webhooks.set(id, newSub)
-    return HttpResponse.json({ status: 'accepted', message: 'Webhook subscription creation in progress' }, { status: 202 })
+    return HttpResponse.json(
+      { status: 'accepted', message: 'Webhook subscription creation in progress' },
+      { status: 202 },
+    )
   }),
 
   // ─── Update ────────────────────────────────────────────────────────────────
@@ -147,7 +150,10 @@ export const webhookHandlers = [
     if (body.url) sub.url = body.url
     if (body.eventTypes) sub.eventTypes = body.eventTypes
     sub.updatedAt = new Date().toISOString()
-    return HttpResponse.json({ status: 'accepted', message: 'Webhook subscription update in progress' }, { status: 202 })
+    return HttpResponse.json(
+      { status: 'accepted', message: 'Webhook subscription update in progress' },
+      { status: 202 },
+    )
   }),
 
   // ─── Delete ────────────────────────────────────────────────────────────────
@@ -157,7 +163,10 @@ export const webhookHandlers = [
     if (!sub) return HttpResponse.json({ status: 404, detail: 'Webhook not found' }, { status: 404 })
     sub.status = 'DELETED'
     webhooks.delete(params.id as string)
-    return HttpResponse.json({ status: 'accepted', message: 'Webhook subscription deletion in progress' }, { status: 202 })
+    return HttpResponse.json(
+      { status: 'accepted', message: 'Webhook subscription deletion in progress' },
+      { status: 202 },
+    )
   }),
 
   // ─── Test Ping ─────────────────────────────────────────────────────────────
@@ -194,4 +203,3 @@ export const webhookHandlers = [
     })
   }),
 ]
-

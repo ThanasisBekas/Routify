@@ -123,9 +123,11 @@ export default function RouteWorkflowPage() {
                 onActivate={() => activateMutation.mutate(route.id)}
                 onDeactivate={() => deactivateMutation.mutate(route.id)}
                 onDelete={() => deleteMutation.mutate(route.id)}
-                onPromote={route.environment === 'STAGING' && route.status === 'ACTIVE'
-                  ? () => setPromoteRoute({ id: route.id, name: route.name })
-                  : undefined}
+                onPromote={
+                  route.environment === 'STAGING' && route.status === 'ACTIVE'
+                    ? () => setPromoteRoute({ id: route.id, name: route.name })
+                    : undefined
+                }
                 isActivating={activateMutation.isPending && activateMutation.variables === route.id}
                 isCloning={cloneMutation.isPending && cloneMutation.variables === route.id}
               />

@@ -43,9 +43,7 @@ export default function RolesPage() {
             <Shield className="w-5 h-5 text-indigo-400" />
             Roles & Permissions
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage role definitions and their permission sets
-          </p>
+          <p className="text-sm text-gray-500 mt-1">Manage role definitions and their permission sets</p>
         </div>
         {canWrite && (
           <button
@@ -77,16 +75,11 @@ export default function RolesPage() {
             </thead>
             <tbody>
               {roles.map((role) => (
-                <tr
-                  key={role.id}
-                  className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
-                >
+                <tr key={role.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
                   <td className="px-4 py-3">
                     <span className="text-white font-medium">{role.name}</span>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 max-w-xs truncate">
-                    {role.description || '—'}
-                  </td>
+                  <td className="px-4 py-3 text-gray-400 max-w-xs truncate">{role.description || '—'}</td>
                   <td className="px-4 py-3">
                     {role.builtIn ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-xs font-medium border border-amber-500/20">
@@ -145,15 +138,10 @@ export default function RolesPage() {
       )}
 
       {/* Create modal */}
-      {showCreate && (
-        <RoleFormModal onClose={() => setShowCreate(false)} />
-      )}
+      {showCreate && <RoleFormModal onClose={() => setShowCreate(false)} />}
 
       {/* Edit modal */}
-      {editingRole && (
-        <RoleFormModal role={editingRole} onClose={() => setEditingRole(null)} />
-      )}
+      {editingRole && <RoleFormModal role={editingRole} onClose={() => setEditingRole(null)} />}
     </div>
   )
 }
-

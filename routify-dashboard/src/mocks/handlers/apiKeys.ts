@@ -84,7 +84,9 @@ export const apiKeyHandlers = [
     await delay(300)
     const body = (await request.json()) as CreateApiKeyRequest
     const id = genId()
-    const rawKey = 'rtfy_' + Array.from({ length: 35 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')
+    const rawKey =
+      'rtfy_' +
+      Array.from({ length: 35 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')
     const newKey: ApiKeyDto = {
       id,
       tenantId: MOCK_TENANT,
@@ -127,7 +129,9 @@ export const apiKeyHandlers = [
     old.status = 'REVOKED'
     // Create new
     const id = genId()
-    const rawKey = 'rtfy_' + Array.from({ length: 35 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')
+    const rawKey =
+      'rtfy_' +
+      Array.from({ length: 35 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('')
     const newKey: ApiKeyDto = {
       ...old,
       id,
@@ -148,4 +152,3 @@ export const apiKeyHandlers = [
     return HttpResponse.json(resp)
   }),
 ]
-

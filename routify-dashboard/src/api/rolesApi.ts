@@ -1,11 +1,5 @@
 import apiClient from './client'
-import type {
-  Page,
-  RoleDefinitionDto,
-  CreateRoleRequest,
-  UpdateRoleRequest,
-  Permission,
-} from '../types'
+import type { Page, RoleDefinitionDto, CreateRoleRequest, UpdateRoleRequest, Permission } from '../types'
 
 const BASE = '/api/v1/admin/roles'
 
@@ -15,8 +9,7 @@ export const rolesApi = {
 
   get: (id: string) => apiClient.get<RoleDefinitionDto>(`${BASE}/${id}`).then((r) => r.data),
 
-  create: (data: CreateRoleRequest) =>
-    apiClient.post<RoleDefinitionDto>(BASE, data).then((r) => r.data),
+  create: (data: CreateRoleRequest) => apiClient.post<RoleDefinitionDto>(BASE, data).then((r) => r.data),
 
   update: (id: string, data: UpdateRoleRequest) =>
     apiClient.put<RoleDefinitionDto>(`${BASE}/${id}`, data).then((r) => r.data),
@@ -24,7 +17,5 @@ export const rolesApi = {
   delete: (id: string) => apiClient.delete<void>(`${BASE}/${id}`).then((r) => r.data),
 
   /** Returns the full list of available permission codes. */
-  listPermissions: () =>
-    apiClient.get<Permission[]>(`${BASE}/permissions`).then((r) => r.data),
+  listPermissions: () => apiClient.get<Permission[]>(`${BASE}/permissions`).then((r) => r.data),
 }
-

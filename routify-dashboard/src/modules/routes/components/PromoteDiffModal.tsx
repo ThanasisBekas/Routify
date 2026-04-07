@@ -111,15 +111,33 @@ export default function PromoteDiffModal({ stagingRoute, onClose }: Props) {
                       <th className="px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Field</th>
                       <th className="px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Production</th>
                       <th className="px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase">Staging</th>
-                      <th className="px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase text-center">Status</th>
+                      <th className="px-3 py-2 text-[10px] font-semibold text-gray-500 uppercase text-center">
+                        Status
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
-                    <DiffRow label="Path Pattern" staging={stagingData?.pathPattern} production={productionRoute?.pathPattern} />
+                    <DiffRow
+                      label="Path Pattern"
+                      staging={stagingData?.pathPattern}
+                      production={productionRoute?.pathPattern}
+                    />
                     <DiffRow label="Methods" staging={stagingData?.methods} production={productionRoute?.methods} />
-                    <DiffRow label="Upstream URI" staging={stagingData?.upstreamUri} production={productionRoute?.upstreamUri} />
-                    <DiffRow label="Strip Prefix" staging={stagingData?.stripPrefix} production={productionRoute?.stripPrefix} />
-                    <DiffRow label="Description" staging={stagingData?.description} production={productionRoute?.description} />
+                    <DiffRow
+                      label="Upstream URI"
+                      staging={stagingData?.upstreamUri}
+                      production={productionRoute?.upstreamUri}
+                    />
+                    <DiffRow
+                      label="Strip Prefix"
+                      staging={stagingData?.stripPrefix}
+                      production={productionRoute?.stripPrefix}
+                    />
+                    <DiffRow
+                      label="Description"
+                      staging={stagingData?.description}
+                      production={productionRoute?.description}
+                    />
                     <DiffRow
                       label="Filters"
                       staging={`${stagingData?.filters?.length ?? 0} attached`}
@@ -153,4 +171,3 @@ export default function PromoteDiffModal({ stagingRoute, onClose }: Props) {
     </div>
   )
 }
-
