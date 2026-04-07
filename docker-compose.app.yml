@@ -256,6 +256,44 @@ services:
     networks: [routify]
 
 
+  gitops-agent:
+    build:
+      context: ./routify-gitops-agent
+      dockerfile: Dockerfile
+    container_name: routify-gitops-agent
+    ports:
+      - "8087:8087"
+      - "9087:9087"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PASS: ${REDIS_PASS}
+      GITOPS_REPOSITORY_URL: ${GITOPS_REPOSITORY_URL:-}
+      GITOPS_BRANCH: ${GITOPS_BRANCH:-main}
+      GITOPS_CONFIG_PATH: ${GITOPS_CONFIG_PATH:-routify-export.yaml}
+      GITOPS_POLL_INTERVAL_SECONDS: ${GITOPS_POLL_INTERVAL_SECONDS:-60}
+      GITOPS_SSH_KEY_PATH: ${GITOPS_SSH_KEY_PATH:-}
+      GITOPS_HTTPS_USERNAME: ${GITOPS_HTTPS_USERNAME:-}
+      GITOPS_HTTPS_PASSWORD: ${GITOPS_HTTPS_PASSWORD:-}
+      GITOPS_ADMIN_API_URL: http://admin-api:8082
+      GITOPS_API_KEY: ${GITOPS_API_KEY:-}
+      GITOPS_TENANT_ID: ${GITOPS_TENANT_ID:-}
+      GITOPS_DRY_RUN: ${GITOPS_DRY_RUN:-false}
+      GITOPS_WEBHOOK_URL: ${GITOPS_WEBHOOK_URL:-}
+      GITOPS_WEBHOOK_SECRET: ${GITOPS_WEBHOOK_SECRET:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
+    depends_on:
+      admin-api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9087/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks: [routify]
+
   dashboard:
     build:
       context: ./routify-dashboard

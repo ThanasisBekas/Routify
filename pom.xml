@@ -27,6 +27,7 @@
         <module>routify-audit-service</module>
         <module>routify-cert-vault</module>
         <module>routify-ai-service</module>
+        <module>routify-gitops-agent</module>
     </modules>
 
     <properties>

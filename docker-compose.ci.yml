@@ -29,4 +29,7 @@ services:
   ai-service:
     build:
       dockerfile: Dockerfile.ci
+  gitops-agent:
+    build:
+      dockerfile: Dockerfile.ci
 

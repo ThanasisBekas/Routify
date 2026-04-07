@@ -28,6 +28,7 @@ const WorkspacesPage = lazy(() => import('./modules/workspaces/WorkspacesPage'))
 const ApiKeysPage = lazy(() => import('./modules/api-keys/ApiKeysPage'))
 const WebhooksPage = lazy(() => import('./modules/webhooks/WebhooksPage'))
 const RolesPage = lazy(() => import('./modules/roles/RolesPage'))
+const GitOpsPage = lazy(() => import('./modules/gitops/GitOpsPage'))
 
 /** Minimal full-screen spinner shown while a lazy chunk is loading. */
 function PageLoader() {
@@ -205,6 +206,18 @@ function AppRoutes() {
             <ErrorBoundary label="Roles">
               <Suspense fallback={<PageLoader />}>
                 <RolesPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* GitOps — reconciliation agent dashboard */}
+        <Route
+          path="gitops"
+          element={
+            <ErrorBoundary label="GitOps">
+              <Suspense fallback={<PageLoader />}>
+                <GitOpsPage />
               </Suspense>
             </ErrorBoundary>
           }

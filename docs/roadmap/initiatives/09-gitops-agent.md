@@ -71,12 +71,12 @@ routify:
 ```
 
 **Task list:**
-- [ ] Create module with POM (parent: routify-parent)
-- [ ] Add to parent POM `<modules>` list
-- [ ] Create application class
-- [ ] Create Dockerfile
-- [ ] Add to `docker-compose.app.yml`
-- [ ] Add IntelliJ run configuration in `.run/`
+- [x] Create module with POM (parent: routify-parent)
+- [x] Add to parent POM `<modules>` list
+- [x] Create application class
+- [x] Create Dockerfile
+- [x] Add to `docker-compose.app.yml`
+- [x] Add IntelliJ run configuration in `.run/`
 
 ---
 
@@ -95,11 +95,11 @@ routify:
 - If different → trigger reconciliation.
 
 **Task list:**
-- [ ] Implement JGit clone/fetch/checkout
-- [ ] Support HTTPS username/password and SSH key auth
-- [ ] Implement SHA-256 hash comparison
-- [ ] Store last-applied hash in Redis
-- [ ] Handle Git errors gracefully (network, auth, missing file)
+- [x] Implement JGit clone/fetch/checkout
+- [x] Support HTTPS username/password and SSH key auth
+- [x] Implement SHA-256 hash comparison
+- [x] Store last-applied hash in Redis
+- [x] Handle Git errors gracefully (network, auth, missing file)
 
 ---
 
@@ -134,10 +134,10 @@ public record ReconciliationResult(
 ```
 
 **Task list:**
-- [ ] Implement reconciliation flow
-- [ ] Implement admin-api HTTP client (RestClient with API key header)
-- [ ] Implement result tracking (last 50 results in Redis list)
-- [ ] Add Micrometer metrics: `routify.gitops.reconciliations` counter (tagged by outcome), `routify.gitops.latency` timer
+- [x] Implement reconciliation flow
+- [x] Implement admin-api HTTP client (RestClient with API key header)
+- [x] Implement result tracking (last 50 results in Redis list)
+- [x] Add Micrometer metrics: `routify.gitops.reconciliations` counter (tagged by outcome), `routify.gitops.latency` timer
 
 ---
 
@@ -156,10 +156,10 @@ X-Hub-Signature-256: sha256=<hmac>   # GitHub webhook signature
 When a push event is received for the configured branch, immediately trigger a reconciliation cycle instead of waiting for the next poll.
 
 **Task list:**
-- [ ] Create webhook endpoint
-- [ ] Validate GitHub/GitLab webhook signature (HMAC-SHA256)
-- [ ] Trigger reconciliation on valid push event
-- [ ] Ignore events for non-configured branches
+- [x] Create webhook endpoint
+- [x] Validate GitHub/GitLab webhook signature (HMAC-SHA256)
+- [x] Trigger reconciliation on valid push event
+- [x] Ignore events for non-configured branches
 
 ---
 
@@ -183,21 +183,21 @@ When a push event is received for the configured branch, immediately trigger a r
 - Drift detection banner (when dry-run mode detects changes).
 
 **Task list:**
-- [ ] Create dashboard page and API module
-- [ ] Add TypeScript types for reconciliation results
-- [ ] Add route in React Router
-- [ ] Add sidebar navigation entry
-- [ ] Add MSW mock handlers
+- [x] Create dashboard page and API module
+- [x] Add TypeScript types for reconciliation results
+- [x] Add route in React Router
+- [x] Add sidebar navigation entry
+- [x] Add MSW mock handlers
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Agent detects YAML changes in Git and applies them within 90 seconds of commit
-- [ ] SHA-256 short-circuit prevents unnecessary import calls when config is unchanged
-- [ ] Dry-run mode detects drift and fires webhook without applying changes
-- [ ] Failed reconciliations do not update the last-applied hash (retry on next cycle)
-- [ ] Agent authenticates to admin-api using an API key (not JWT)
-- [ ] Dashboard shows reconciliation history with outcome and diff summary
-- [ ] GitHub webhook push events trigger immediate reconciliation
+- [x] Agent detects YAML changes in Git and applies them within 90 seconds of commit
+- [x] SHA-256 short-circuit prevents unnecessary import calls when config is unchanged
+- [x] Dry-run mode detects drift and fires webhook without applying changes
+- [x] Failed reconciliations do not update the last-applied hash (retry on next cycle)
+- [x] Agent authenticates to admin-api using an API key (not JWT)
+- [x] Dashboard shows reconciliation history with outcome and diff summary
+- [x] GitHub webhook push events trigger immediate reconciliation
 

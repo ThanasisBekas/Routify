@@ -1059,3 +1059,35 @@ export interface DiffUpdateEntry {
   name: string
   changes: string[]
 }
+
+// ─── GitOps ───────────────────────────────────────────────────────────────────
+
+export type ReconciliationOutcome = 'APPLIED' | 'DRIFT_DETECTED' | 'FAILED' | 'NO_CHANGE'
+
+export interface ReconciliationResult {
+  timestamp: string
+  commitHash: string | null
+  configHash: string | null
+  outcome: ReconciliationOutcome
+  routesCreated: number
+  routesUpdated: number
+  filtersCreated: number
+  filtersUpdated: number
+  warnings: string[]
+  errorMessage: string | null
+}
+
+export interface GitOpsStatus {
+  enabled: boolean
+  repositoryUrl: string
+  branch: string
+  configPath: string
+  pollIntervalSeconds: number
+  dryRun: boolean
+  tenantId: string
+  lastAppliedHash: string | null
+  lastCommitHash: string | null
+  lastSyncTime: string | null
+  lastOutcome: ReconciliationOutcome | null
+}
+
