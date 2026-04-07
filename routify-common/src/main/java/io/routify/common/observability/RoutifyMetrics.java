@@ -68,6 +68,11 @@ public class RoutifyMetrics {
 
     private final Map<String, AtomicLong> certExpiryDays = new ConcurrentHashMap<>();
 
+    // ─── ACME counters (lazy) ────────────────────────────────────────────────
+
+    private final Map<String, Counter> acmeRenewals = new ConcurrentHashMap<>();
+    private final Map<String, Counter> acmeFailures = new ConcurrentHashMap<>();
+
     public RoutifyMetrics(MeterRegistry registry) {
         this.registry = registry;
 
@@ -186,6 +191,26 @@ public class RoutifyMetrics {
                     .register(registry);
             return holder;
         }).set(daysLeft);
+    }
+
+    // ─── ACME Certificate Lifecycle ─────────────────────────────────────────────
+
+    /** Increment the ACME renewal success counter. */
+    public void recordAcmeRenewal() {
+        acmeRenewals.computeIfAbsent("renewals", k ->
+                Counter.builder("routify.cert.acme.renewals")
+                        .description("Successful ACME certificate renewals")
+                        .register(registry)
+        ).increment();
+    }
+
+    /** Increment the ACME failure counter. */
+    public void recordAcmeFailure() {
+        acmeFailures.computeIfAbsent("failures", k ->
+                Counter.builder("routify.cert.acme.failures")
+                        .description("Failed ACME certificate operations (issuance or renewal)")
+                        .register(registry)
+        ).increment();
     }
 }
 

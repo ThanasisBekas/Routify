@@ -35,6 +35,7 @@ public class CertVaultSecurityConfig {
                 .addFilterBefore(preAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/.well-known/acme-challenge/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .build();

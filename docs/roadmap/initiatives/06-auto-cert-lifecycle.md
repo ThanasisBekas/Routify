@@ -48,8 +48,8 @@ AcmeRenewalScheduler ──→ ACME Server (Let's Encrypt)
 ```
 
 **Task list:**
-- [ ] Add `acme4j-client` and `acme4j-utils` dependencies
-- [ ] Verify no conflicts with existing BouncyCastle version
+- [x] Add `acme4j-client` and `acme4j-utils` dependencies
+- [x] Verify no conflicts with existing BouncyCastle version
 
 ---
 
@@ -100,10 +100,10 @@ CREATE INDEX idx_acme_order_renewal ON routify_cert.acme_order(auto_renew, next_
 ```
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Create `AcmeAccount` entity (encrypt key pair with existing `CertEncryptionService`)
-- [ ] Create `AcmeOrder` entity
-- [ ] Create repositories
+- [x] Create Flyway migration
+- [x] Create `AcmeAccount` entity (encrypt key pair with existing `CertEncryptionService`)
+- [x] Create `AcmeOrder` entity
+- [x] Create repositories
 
 ---
 
@@ -139,10 +139,10 @@ CREATE INDEX idx_acme_order_renewal ON routify_cert.acme_order(auto_renew, next_
 **`AcmeChallengeStore`** — in-memory `ConcurrentHashMap<String, String>` (token → content), entries expire after 5 minutes.
 
 **Task list:**
-- [ ] Create `AcmeService` with register/request/renew methods
-- [ ] Create `AcmeChallengeStore`
-- [ ] Integrate with existing `CertificateService` for cert storage
-- [ ] Add metrics: `routify.cert.acme.renewals` counter, `routify.cert.acme.failures` counter
+- [x] Create `AcmeService` with register/request/renew methods
+- [x] Create `AcmeChallengeStore`
+- [x] Integrate with existing `CertificateService` for cert storage
+- [x] Add metrics: `routify.cert.acme.renewals` counter, `routify.cert.acme.failures` counter
 
 ---
 
@@ -168,9 +168,9 @@ public class AcmeChallengeController {
 > **Deployment note:** This endpoint must be reachable from the internet on port 80/443 for ACME validation. In Docker environments, map cert-vault port 8085 to the challenge path via the reverse proxy or gateway.
 
 **Task list:**
-- [ ] Create challenge endpoint
-- [ ] Document firewall/proxy requirements
-- [ ] Add security config exception (no JWT required for ACME path)
+- [x] Create challenge endpoint
+- [x] Document firewall/proxy requirements
+- [x] Add security config exception (no JWT required for ACME path)
 
 ---
 
@@ -208,10 +208,10 @@ public class AcmeRenewalScheduler {
 ```
 
 **Task list:**
-- [ ] Create scheduler
-- [ ] Add config property `routify.cert.acme.renewal-cron`
-- [ ] Add config property `routify.cert.acme.renewal-days-before: 30`
-- [ ] Audit event on renewal success/failure
+- [x] Create scheduler
+- [x] Add config property `routify.cert.acme.renewal-cron`
+- [x] Add config property `routify.cert.acme.renewal-days-before: 30`
+- [x] Audit event on renewal success/failure
 
 ---
 
@@ -229,10 +229,10 @@ public class AcmeRenewalScheduler {
 | `POST` | `/api/v1/admin/certs/acme/orders/{id}/renew` | Manual renewal trigger |
 
 **Task list:**
-- [ ] Create controller
-- [ ] Add Kafka commands for ACME operations
-- [ ] Add RabbitMQ query handlers in cert-vault
-- [ ] Wire Resilience4j circuit breaker
+- [x] Create controller
+- [x] Add Kafka commands for ACME operations
+- [x] Add RabbitMQ query handlers in cert-vault
+- [x] Wire Resilience4j circuit breaker
 
 ---
 
@@ -252,23 +252,23 @@ public class AcmeRenewalScheduler {
 - Renewal timeline visualization (Recharts).
 
 **Task list:**
-- [ ] Create ACME tab component
-- [ ] Create setup modal
-- [ ] Create order list with status badges
-- [ ] Add API functions to `certVaultApi.ts`
-- [ ] Add TypeScript types
-- [ ] Add MSW mock handlers
+- [x] Create ACME tab component
+- [x] Create setup modal
+- [x] Create order list with status badges
+- [x] Add API functions to `certVaultApi.ts`
+- [x] Add TypeScript types
+- [x] Add MSW mock handlers
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Operator can register an ACME account and request a cert for a domain from the dashboard
-- [ ] HTTP-01 challenge is served correctly and cert is issued automatically
-- [ ] Issued cert is AES-encrypted in cert-vault and hot-reloaded to gateway
-- [ ] Auto-renewal triggers 30 days before expiry without operator intervention
-- [ ] Failed renewals generate audit events and increment `routify.cert.acme.failures` metric
-- [ ] Manual "Renew Now" works as a fallback
+- [x] Operator can register an ACME account and request a cert for a domain from the dashboard
+- [x] HTTP-01 challenge is served correctly and cert is issued automatically
+- [x] Issued cert is AES-encrypted in cert-vault and hot-reloaded to gateway
+- [x] Auto-renewal triggers 30 days before expiry without operator intervention
+- [x] Failed renewals generate audit events and increment `routify.cert.acme.failures` metric
+- [x] Manual "Renew Now" works as a fallback
 
 ---
 

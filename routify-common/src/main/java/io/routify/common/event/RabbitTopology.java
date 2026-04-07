@@ -344,6 +344,28 @@ public final class RabbitTopology {
     public static final String QUEUE_CERT_GROUPS_MEMBERS        = "routify.cert-vault.cert-groups.members";
     public static final String RK_CERT_GROUPS_MEMBERS           = "cert-groups.members";
 
+    // ─── routify-cert-vault ACME queues & routing keys ────────────────────────
+
+    /** Queue: cert-vault handles ACME account registration (sync RPC) */
+    public static final String QUEUE_ACME_REGISTER              = "routify.cert-vault.acme.register";
+    public static final String RK_ACME_REGISTER                 = "acme.register";
+
+    /** Queue: cert-vault handles ACME certificate issuance (sync RPC) */
+    public static final String QUEUE_ACME_ISSUE                 = "routify.cert-vault.acme.issue";
+    public static final String RK_ACME_ISSUE                    = "acme.issue";
+
+    /** Queue: cert-vault serves paginated ACME order list queries from admin-api */
+    public static final String QUEUE_ACME_ORDERS_QUERY          = "routify.cert-vault.acme.orders.query";
+    public static final String RK_ACME_ORDERS_QUERY             = "acme.orders.query";
+
+    /** Queue: cert-vault serves single ACME order GET queries from admin-api */
+    public static final String QUEUE_ACME_ORDER_GET             = "routify.cert-vault.acme.orders.get";
+    public static final String RK_ACME_ORDER_GET                = "acme.orders.get";
+
+    /** Queue: cert-vault handles ACME certificate renewal (sync RPC) */
+    public static final String QUEUE_ACME_RENEW                 = "routify.cert-vault.acme.renew";
+    public static final String RK_ACME_RENEW                    = "acme.renew";
+
     // ─── Message header keys ──────────────────────────────────────────────────
 
     /** Header carrying the requesting service name (for observability) */

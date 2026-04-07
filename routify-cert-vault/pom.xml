@@ -108,6 +108,13 @@
             <artifactId>opentelemetry-exporter-otlp</artifactId>
         </dependency>
 
+        <!-- ACME protocol support (Let's Encrypt, ZeroSSL) -->
+        <dependency>
+            <groupId>org.shredzone.acme4j</groupId>
+            <artifactId>acme4j-client</artifactId>
+            <version>3.5.0</version>
+        </dependency>
+
         <!-- Utilities -->
         <dependency>
             <groupId>org.projectlombok</groupId>

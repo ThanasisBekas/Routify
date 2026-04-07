@@ -8,10 +8,16 @@ import type {
   UpdateCertGroupRequest,
   UploadCertificateRequest,
   Page,
+  AcmeAccountDto,
+  AcmeOrderDto,
+  AcmeOrdersPage,
+  RegisterAcmeAccountRequest,
+  IssueAcmeCertificateRequest,
 } from '../types'
 
 const BASE = '/api/v1/admin/certificates'
 const GROUP_BASE = '/api/v1/admin/cert-groups'
+const ACME_BASE = '/api/v1/admin/certs/acme'
 
 export const certVaultApi = {
   // ─── List certificates (paginated) ──────────────────────────────────────────
@@ -154,5 +160,52 @@ export const certVaultApi = {
       .get<CertificateDto[]>(`${GROUP_BASE}/${groupId}/members`, {
         headers: { 'X-Tenant-Id': tenantId },
       })
+      .then((r) => r.data),
+
+  // ─── ACME (Automated Certificate Lifecycle) ──────────────────────────────
+
+  /** Register an ACME account with a CA provider */
+  registerAcmeAccount: (tenantId: string, request: RegisterAcmeAccountRequest) =>
+    apiClient
+      .post<AcmeAccountDto>(`${ACME_BASE}/register`, request, {
+        headers: { 'X-Tenant-Id': tenantId },
+      })
+      .then((r) => r.data),
+
+  /** Request a certificate for a domain via ACME */
+  issueAcmeCertificate: (tenantId: string, request: IssueAcmeCertificateRequest) =>
+    apiClient
+      .post<AcmeOrderDto>(`${ACME_BASE}/issue`, request, {
+        headers: { 'X-Tenant-Id': tenantId },
+      })
+      .then((r) => r.data),
+
+  /** List ACME orders (paginated) */
+  listAcmeOrders: (params: { tenantId: string; page?: number; size?: number }) =>
+    apiClient
+      .get<AcmeOrdersPage>(`${ACME_BASE}/orders`, {
+        params: { page: params.page ?? 0, size: params.size ?? 20 },
+        headers: { 'X-Tenant-Id': params.tenantId },
+      })
+      .then((r) => r.data),
+
+  /** Get a single ACME order */
+  getAcmeOrder: (id: string, tenantId: string) =>
+    apiClient
+      .get<AcmeOrderDto>(`${ACME_BASE}/orders/${id}`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      })
+      .then((r) => r.data),
+
+  /** Trigger manual renewal of an ACME order */
+  renewAcmeCertificate: (id: string, tenantId: string) =>
+    apiClient
+      .post<AcmeOrderDto>(
+        `${ACME_BASE}/orders/${id}/renew`,
+        {},
+        {
+          headers: { 'X-Tenant-Id': tenantId },
+        },
+      )
       .then((r) => r.data),
 }

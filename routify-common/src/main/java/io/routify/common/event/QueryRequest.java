@@ -89,6 +89,12 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.CertGroupsQuery.class,   name = "CERT_GROUPS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.CertGroupGet.class,      name = "CERT_GROUP_GET"),
     @JsonSubTypes.Type(value = QueryRequest.CertGroupMembers.class,  name = "CERT_GROUP_MEMBERS"),
+    // ─── routify-cert-vault ACME ───────────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.AcmeRegister.class,       name = "ACME_REGISTER"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeIssue.class,          name = "ACME_ISSUE"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeOrdersQuery.class,    name = "ACME_ORDERS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeOrderGet.class,       name = "ACME_ORDER_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeRenew.class,          name = "ACME_RENEW"),
     // ─── routify-ai-service ───────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AiFilterEvaluate.class,      name = "AI_FILTER_EVALUATE"),
     @JsonSubTypes.Type(value = QueryRequest.AiModifierEvaluate.class,    name = "AI_MODIFIER_EVALUATE"),
@@ -149,6 +155,11 @@ public sealed interface QueryRequest
             QueryRequest.CertGroupsQuery,
             QueryRequest.CertGroupGet,
             QueryRequest.CertGroupMembers,
+            QueryRequest.AcmeRegister,
+            QueryRequest.AcmeIssue,
+            QueryRequest.AcmeOrdersQuery,
+            QueryRequest.AcmeOrderGet,
+            QueryRequest.AcmeRenew,
             QueryRequest.AiFilterEvaluate,
             QueryRequest.AiModifierEvaluate,
             QueryRequest.AiFilterStatsQuery,
@@ -376,6 +387,23 @@ public sealed interface QueryRequest
 
     /** List all certificate members of a group. */
     record CertGroupMembers(UUID groupId, UUID tenantId) implements QueryRequest {}
+
+    // ─── routify-cert-vault ACME ───────────────────────────────────────────────
+
+    /** Register an ACME account with a CA provider. */
+    record AcmeRegister(UUID tenantId, String email, String provider) implements QueryRequest {}
+
+    /** Request a certificate for a domain via ACME HTTP-01 challenge. */
+    record AcmeIssue(UUID tenantId, UUID accountId, String domain, UUID certGroupId) implements QueryRequest {}
+
+    /** Paginated ACME order list. */
+    record AcmeOrdersQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single ACME order by ID. */
+    record AcmeOrderGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Trigger manual renewal of an ACME certificate order. */
+    record AcmeRenew(UUID orderId, UUID tenantId) implements QueryRequest {}
 
     // ─── routify-ai-service ───────────────────────────────────────────────────
 

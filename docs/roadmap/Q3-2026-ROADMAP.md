@@ -15,7 +15,7 @@
 | 3 | ✅ [Webhook Notification System](#3-webhook-notification-system) | Integration | Weeks 3–5 | External systems react to route, cert, and audit events in real time |
 | 4 | ✅ [Granular RBAC & Permissions](#4-granular-rbac--permissions) | Security | Weeks 4–7 | Fine-grained permissions per resource type replace the current 4-role model |
 | 5 | ✅ [Gateway Health Dashboard v2](#5-gateway-health-dashboard-v2) | Observability | Weeks 5–8 | Live latency heatmaps, per-route error budgets, and SLO tracking in the dashboard |
-| 6 | [Automated Certificate Lifecycle](#6-automated-certificate-lifecycle) | Operations | Weeks 7–9 | ACME/Let's Encrypt auto-renewal eliminates manual cert rotation |
+| 6 | ✅ [Automated Certificate Lifecycle](#6-automated-certificate-lifecycle) | Operations | Weeks 7–9 | ACME/Let's Encrypt auto-renewal eliminates manual cert rotation |
 | 7 | [Route Import / Export & GitOps](#7-route-import--export--gitops) | Developer Experience | Weeks 8–11 | Declarative YAML route definitions enable version-controlled gateway configuration |
 | 8 | [Integration Test Coverage Expansion](#8-integration-test-coverage-expansion) | Quality | Ongoing | Systematic IT coverage across all admin-api endpoints and gateway filter factories |
 
