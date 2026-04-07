@@ -7,6 +7,7 @@
     <toRun name="Routify Cert Vault" type="SpringBootApplicationConfigurationType" />
     <toRun name="Routify Identity Service" type="SpringBootApplicationConfigurationType" />
     <toRun name="Routify Route Service" type="SpringBootApplicationConfigurationType" />
+    <toRun name="Routify GitOps Agent" type="SpringBootApplicationConfigurationType" />
     <method v="2" />
   </configuration>
 </component>
