@@ -26,7 +26,13 @@ export default function RoleFormModal({ role, onClose }: Props) {
   const queryClient = useQueryClient()
   const isEdit = !!role
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<RoleFormValues>({
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<RoleFormValues>({
     resolver: zodResolver(roleSchema),
     defaultValues: {
       name: role?.name ?? '',
@@ -48,8 +54,7 @@ export default function RoleFormModal({ role, onClose }: Props) {
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: RoleFormValues) =>
-      rolesApi.update(role!.id, data as { permissions: Permission[] }),
+    mutationFn: (data: RoleFormValues) => rolesApi.update(role!.id, data as { permissions: Permission[] }),
     onSuccess: () => {
       toast.success('Role updated')
       queryClient.invalidateQueries({ queryKey: ['roles'] })
@@ -69,7 +74,11 @@ export default function RoleFormModal({ role, onClose }: Props) {
   const togglePermission = (perm: Permission) => {
     const current = selectedPermissions
     if (current.includes(perm)) {
-      setValue('permissions', current.filter((p) => p !== perm), { shouldValidate: true })
+      setValue(
+        'permissions',
+        current.filter((p) => p !== perm),
+        { shouldValidate: true },
+      )
     } else {
       setValue('permissions', [...current, perm], { shouldValidate: true })
     }
@@ -134,9 +143,7 @@ export default function RoleFormModal({ role, onClose }: Props) {
             <label className="block text-sm font-medium text-gray-300 mb-3">
               Permissions ({selectedPermissions.length} selected)
             </label>
-            {errors.permissions && (
-              <p className="text-red-400 text-xs mb-2">{errors.permissions.message}</p>
-            )}
+            {errors.permissions && <p className="text-red-400 text-xs mb-2">{errors.permissions.message}</p>}
 
             <div className="space-y-4">
               {Object.entries(PERMISSION_GROUPS).map(([group, perms]) => {
@@ -202,4 +209,3 @@ export default function RoleFormModal({ role, onClose }: Props) {
     </div>
   )
 }
-

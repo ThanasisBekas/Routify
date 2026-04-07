@@ -13,7 +13,11 @@ interface Props {
 
 export default function CreateApiKeyModal({ onClose, onCreated }: Props) {
   const qc = useQueryClient()
-  const { register, handleSubmit, formState: { errors } } = useForm<CreateApiKeyRequest>()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CreateApiKeyRequest>()
 
   const mutation = useMutation({
     mutationFn: (data: CreateApiKeyRequest) => apiKeysApi.create(data),
@@ -100,4 +104,3 @@ export default function CreateApiKeyModal({ onClose, onCreated }: Props) {
     </div>
   )
 }
-

@@ -25,10 +25,8 @@ export default function WebhookDeliveryLog({ subscriptionId, onClose }: Props) {
   }
 
   const statusLabel = (d: WebhookDeliveryDto) => {
-    if (d.status === 'DELIVERED')
-      return <span className="text-emerald-400 font-medium">Delivered</span>
-    if (d.status === 'FAILED')
-      return <span className="text-red-400 font-medium">Failed</span>
+    if (d.status === 'DELIVERED') return <span className="text-emerald-400 font-medium">Delivered</span>
+    if (d.status === 'FAILED') return <span className="text-red-400 font-medium">Failed</span>
     return <span className="text-amber-400 font-medium">Pending retry</span>
   }
 
@@ -63,9 +61,7 @@ export default function WebhookDeliveryLog({ subscriptionId, onClose }: Props) {
                         {statusLabel(d)}
                         <span className="text-[10px] text-gray-600 font-mono">#{d.attempt}</span>
                       </div>
-                      <span className="text-[10px] text-gray-600">
-                        {new Date(d.createdAt).toLocaleString()}
-                      </span>
+                      <span className="text-[10px] text-gray-600">{new Date(d.createdAt).toLocaleString()}</span>
                     </div>
 
                     <div className="flex items-center gap-3 text-xs text-gray-500 mb-1">
@@ -76,9 +72,7 @@ export default function WebhookDeliveryLog({ subscriptionId, onClose }: Props) {
                         <span
                           className={cn(
                             'font-mono',
-                            d.responseStatus >= 200 && d.responseStatus < 300
-                              ? 'text-emerald-400'
-                              : 'text-red-400',
+                            d.responseStatus >= 200 && d.responseStatus < 300 ? 'text-emerald-400' : 'text-red-400',
                           )}
                         >
                           HTTP {d.responseStatus}
@@ -117,10 +111,7 @@ export default function WebhookDeliveryLog({ subscriptionId, onClose }: Props) {
                     <button
                       onClick={() => setPage((p) => Math.max(0, p - 1))}
                       disabled={page === 0}
-                      className={cn(
-                        'p-1 rounded',
-                        page === 0 ? 'opacity-30' : 'hover:bg-white/[0.05]',
-                      )}
+                      className={cn('p-1 rounded', page === 0 ? 'opacity-30' : 'hover:bg-white/[0.05]')}
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -144,4 +135,3 @@ export default function WebhookDeliveryLog({ subscriptionId, onClose }: Props) {
     </div>
   )
 }
-

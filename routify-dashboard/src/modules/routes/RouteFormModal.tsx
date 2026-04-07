@@ -300,7 +300,8 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
                   })}
                 </div>
                 <p className="text-[11px] text-gray-600 pl-0.5">
-                  Staging routes are only visible with the <code className="font-mono">X-Route-Environment: STAGING</code> header.
+                  Staging routes are only visible with the{' '}
+                  <code className="font-mono">X-Route-Environment: STAGING</code> header.
                 </p>
               </div>
             )}

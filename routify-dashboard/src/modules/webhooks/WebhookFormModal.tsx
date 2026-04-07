@@ -8,7 +8,6 @@ import { webhooksApi } from '../../api/webhooksApi'
 import { extractApiError } from '../../lib/utils'
 import type { WebhookEventType } from '../../types'
 
-
 const EVENT_GROUPS = {
   Routes: ['ROUTE_CREATED', 'ROUTE_ACTIVATED', 'ROUTE_DEACTIVATED', 'ROUTE_DELETED', 'ROUTE_PROMOTED'],
   Filters: ['FILTER_CREATED', 'FILTER_UPDATED', 'FILTER_DELETED'],
@@ -33,7 +32,13 @@ interface Props {
 
 export default function WebhookFormModal({ onClose }: Props) {
   const qc = useQueryClient()
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: '', url: '', eventTypes: [] },
   })
@@ -58,7 +63,11 @@ export default function WebhookFormModal({ onClose }: Props) {
   const toggleEvent = (eventType: string) => {
     const current = selectedEvents || []
     if (current.includes(eventType)) {
-      setValue('eventTypes', current.filter((e) => e !== eventType), { shouldValidate: true })
+      setValue(
+        'eventTypes',
+        current.filter((e) => e !== eventType),
+        { shouldValidate: true },
+      )
     } else {
       setValue('eventTypes', [...current, eventType], { shouldValidate: true })
     }
@@ -68,7 +77,11 @@ export default function WebhookFormModal({ onClose }: Props) {
     const current = selectedEvents || []
     const allSelected = events.every((e) => current.includes(e))
     if (allSelected) {
-      setValue('eventTypes', current.filter((e) => !events.includes(e)), { shouldValidate: true })
+      setValue(
+        'eventTypes',
+        current.filter((e) => !events.includes(e)),
+        { shouldValidate: true },
+      )
     } else {
       const merged = [...new Set([...current, ...events])]
       setValue('eventTypes', merged, { shouldValidate: true })
@@ -111,9 +124,7 @@ export default function WebhookFormModal({ onClose }: Props) {
           {/* Event Types */}
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-2">Event Types</label>
-            {errors.eventTypes && (
-              <p className="mb-2 text-xs text-red-400">{errors.eventTypes.message}</p>
-            )}
+            {errors.eventTypes && <p className="mb-2 text-xs text-red-400">{errors.eventTypes.message}</p>}
             <div className="space-y-3">
               {Object.entries(EVENT_GROUPS).map(([group, events]) => (
                 <div key={group}>
@@ -174,4 +185,3 @@ export default function WebhookFormModal({ onClose }: Props) {
     </div>
   )
 }
-

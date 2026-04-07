@@ -14,8 +14,14 @@ import type {
 const BASE = '/api/v1/admin/routes'
 
 export const routesApi = {
-  list: (params?: { status?: string; environment?: string; page?: number; size?: number; sortBy?: string; sortDir?: string }) =>
-    apiClient.get<Page<RouteSummary>>(BASE, { params }).then((r) => r.data),
+  list: (params?: {
+    status?: string
+    environment?: string
+    page?: number
+    size?: number
+    sortBy?: string
+    sortDir?: string
+  }) => apiClient.get<Page<RouteSummary>>(BASE, { params }).then((r) => r.data),
 
   get: (id: string) => apiClient.get<RouteDto>(`${BASE}/${id}`).then((r) => r.data),
 

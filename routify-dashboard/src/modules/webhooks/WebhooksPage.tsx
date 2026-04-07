@@ -140,9 +140,7 @@ export default function WebhooksPage() {
                     onClick={() => setShowDeliveries(sub.id)}
                   >
                     <td className="px-4 py-3 font-medium text-white">{sub.name}</td>
-                    <td className="px-4 py-3 text-gray-400 max-w-[200px] truncate font-mono text-xs">
-                      {sub.url}
-                    </td>
+                    <td className="px-4 py-3 text-gray-400 max-w-[200px] truncate font-mono text-xs">{sub.url}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {sub.eventTypes.slice(0, 3).map((et) => (
@@ -211,20 +209,14 @@ export default function WebhooksPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className={cn(
-                    'p-1 rounded',
-                    page === 0 ? 'opacity-30' : 'hover:bg-white/[0.05]',
-                  )}
+                  className={cn('p-1 rounded', page === 0 ? 'opacity-30' : 'hover:bg-white/[0.05]')}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setPage((p) => p + 1)}
                   disabled={page + 1 >= data.totalPages}
-                  className={cn(
-                    'p-1 rounded',
-                    page + 1 >= data.totalPages ? 'opacity-30' : 'hover:bg-white/[0.05]',
-                  )}
+                  className={cn('p-1 rounded', page + 1 >= data.totalPages ? 'opacity-30' : 'hover:bg-white/[0.05]')}
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -238,13 +230,7 @@ export default function WebhooksPage() {
       {showCreate && <WebhookFormModal onClose={() => setShowCreate(false)} />}
 
       {/* Delivery log drawer */}
-      {showDeliveries && (
-        <WebhookDeliveryLog
-          subscriptionId={showDeliveries}
-          onClose={() => setShowDeliveries(null)}
-        />
-      )}
+      {showDeliveries && <WebhookDeliveryLog subscriptionId={showDeliveries} onClose={() => setShowDeliveries(null)} />}
     </div>
   )
 }
-

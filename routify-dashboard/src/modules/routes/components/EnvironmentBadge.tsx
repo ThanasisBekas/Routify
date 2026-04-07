@@ -34,4 +34,3 @@ export default function EnvironmentBadge({ environment, className }: Props) {
     </span>
   )
 }
-
