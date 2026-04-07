@@ -192,6 +192,21 @@ public class AdminRoutesController {
                 .body(AsyncAcknowledgement.of("Filter detach in progress"));
     }
 
+    // ─── Cache Management ─────────────────────────────────────────────────────
+
+    @PostMapping("/{id}/cache/purge")
+    @PreAuthorize("hasAuthority('ROUTES_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    public ResponseEntity<AsyncAcknowledgement> purgeCache(
+            @PathVariable UUID id,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
+            Authentication auth) {
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
+        messagingClient.sendPurgeCacheRoute(id, tenantId, actor);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(AsyncAcknowledgement.of("Cache purge in progress"));
+    }
+
     // ─── Canary Routing ───────────────────────────────────────────────────────
 
     @PostMapping("/{id}/canary")

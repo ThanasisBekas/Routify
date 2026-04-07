@@ -43,6 +43,17 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Validation
   VALIDATE_JSON_SCHEMA: { schema: '{}', specVersion: 'V7' },
   REQUEST_SIZE_LIMIT: { maxSize: '5MB', checkContentLength: true, checkActualSize: true, tenantAware: false },
+  // Performance
+  RESPONSE_CACHE: {
+    ttlSeconds: 60,
+    maxCachedBodySize: 65536,
+    methods: 'GET',
+    statusCodes: '200,206,301',
+    keyStrategy: 'PATH_QUERY',
+    varyHeaders: [],
+    respectCacheControl: true,
+    addCacheHeaders: true,
+  },
   // Resilience
   TIMEOUT: { timeoutMs: 30000 },
   // Observability

@@ -67,6 +67,11 @@ public enum FilterType {
     /** Enforce per-route maximum request body size (413 on exceed) — RequestSizeLimitGatewayFilterFactory */
     REQUEST_SIZE_LIMIT,
 
+    // ─── Performance ──────────────────────────────────────────────────────────
+
+    /** Per-route Redis-backed response cache with configurable TTL — ResponseCacheGatewayFilterFactory */
+    RESPONSE_CACHE,
+
     // ─── Resilience ──────────────────────────────────────────────────────────
 
     /** Per-route request timeout (504 on exceed) — RequestTimeoutGatewayFilterFactory */

@@ -48,6 +48,11 @@ export const routesApi = {
   detachFilter: (routeId: string, filterId: string) =>
     apiClient.delete<RouteDto>(`${BASE}/${routeId}/filters/${filterId}`).then((r) => r.data),
 
+  // ─── Cache Management ─────────────────────────────────────────────────
+
+  purgeCache: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/cache/purge`).then((r) => r.data),
+
   // ─── Canary Routing ──────────────────────────────────────────────────────
 
   deployCanary: (routeId: string, req: DeployCanaryRequest) =>

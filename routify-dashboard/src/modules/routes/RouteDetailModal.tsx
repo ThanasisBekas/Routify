@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { X, Play, Pause, Zap, Terminal, Pencil, Network, List, RefreshCw } from 'lucide-react'
+import { X, Play, Pause, Zap, Terminal, Pencil, Network, List, RefreshCw, Trash2 } from 'lucide-react'
 import { routesApi } from '../../api/routesApi'
 import { cn } from '../../lib/utils'
+import { toast } from 'sonner'
 import RouteFlowCanvas from './RouteFlowCanvas'
 import RouteCurlModal from './RouteCurlModal'
 import RouteFormModal from './RouteFormModal'
@@ -24,6 +25,14 @@ export default function RouteDetailModal({ routeId, onClose }: { routeId: string
   })
 
   const { activateMutation, deactivateMutation } = useRouteActions(routeId)
+
+  const hasCacheFilter = route?.filters?.some((f) => f.filterType === 'RESPONSE_CACHE') ?? false
+
+  const purgeCacheMutation = useMutation({
+    mutationFn: () => routesApi.purgeCache(routeId),
+    onSuccess: () => toast.success('Cache purge initiated'),
+    onError: () => toast.error('Failed to purge cache'),
+  })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
@@ -96,6 +105,21 @@ export default function RouteDetailModal({ routeId, onClose }: { routeId: string
                 >
                   <Terminal className="w-3 h-3" /> cURL
                 </button>
+
+                {hasCacheFilter && (
+                  <button
+                    onClick={() => purgeCacheMutation.mutate()}
+                    disabled={purgeCacheMutation.isPending}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-lime-300 bg-lime-500/10 border border-lime-500/20 hover:bg-lime-500/20 disabled:opacity-50 transition-all"
+                  >
+                    {purgeCacheMutation.isPending ? (
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3 h-3" />
+                    )}
+                    {purgeCacheMutation.isPending ? 'Purging…' : 'Purge Cache'}
+                  </button>
+                )}
 
                 {/* Flow ↔ Config toggle */}
                 <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg p-0.5">

@@ -225,6 +225,13 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
                         routeId, filterId));
     }
 
+    // ─── Cache Commands (Kafka) ────────────────────────────────────────────────
+
+    public void sendPurgeCacheRoute(UUID routeId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.PurgeCacheRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
+    }
+
     // ─── Filter Commands (Kafka) ──────────────────────────────────────────────
 
     public void sendCreateFilter(UUID tenantId, String actor, CreateFilterRequest req) {

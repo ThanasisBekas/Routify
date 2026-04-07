@@ -266,7 +266,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 | 9 | ✅ [IP Allowlist / Denylist Filter](#9-ip-allowlist--denylist-filter) | Security | High | Blocks/allows requests by client IP or CIDR range before any other filter executes |
 | 10 | ✅ [Geographic Routing Filter](#10-geographic-routing-filter) | Routing | Medium | Routes requests to geographically closest upstream based on MaxMind GeoIP |
 | 11 | ✅ [Request Size Limit Filter](#11-request-size-limit-filter) | Validation | High | Enforces per-route request body size limits with early rejection |
-| 12 | [Response Cache Filter](#12-response-cache-filter) | Performance | High | Per-route Redis-backed response caching with configurable TTL and cache-control semantics |
+| 12 | ✅ [Response Cache Filter](#12-response-cache-filter) | Performance | High | Per-route Redis-backed response caching with configurable TTL and cache-control semantics |
 | 13 | [Circuit Breaker v2 Filter](#13-circuit-breaker-v2-filter) | Resilience | High | Custom Resilience4j circuit breaker with per-route config, half-open probing, and dashboard status |
 | 14 | [Retry v2 Filter](#14-retry-v2-filter) | Resilience | High | Custom retry filter with exponential backoff, jitter, idempotency awareness, and per-route config |
 | 15 | [Request/Response Body Size Logging Filter](#15-requestresponse-body-size-logging-filter) | Observability | Low | Lightweight filter that emits Micrometer metrics for body sizes without capturing content |
