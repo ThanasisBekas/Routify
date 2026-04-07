@@ -59,9 +59,9 @@ deploy/helm/routify/
 ```
 
 **Task list:**
-- [ ] Create `Chart.yaml` with metadata and sub-chart dependencies
-- [ ] Create `_helpers.tpl` with common template functions (labels, selectors, fullname)
-- [ ] Create `NOTES.txt` with post-install instructions
+- [x] Create `Chart.yaml` with metadata and sub-chart dependencies
+- [x] Create `_helpers.tpl` with common template functions (labels, selectors, fullname)
+- [x] Create `NOTES.txt` with post-install instructions
 
 ---
 
@@ -137,9 +137,9 @@ secrets:
 ```
 
 **Task list:**
-- [ ] Define complete `values.yaml` with all services
-- [ ] Create `values-production.yaml` overlay with production defaults
-- [ ] Document all values in `deploy/helm/routify/README.md`
+- [x] Define complete `values.yaml` with all services
+- [x] Create `values-production.yaml` overlay with production defaults
+- [x] Document all values in `deploy/helm/routify/README.md`
 
 ---
 
@@ -192,11 +192,11 @@ spec:
 **Services without init containers:** gateway (no DB), admin-api (no DB), ai-service (no DB), dashboard (static files).
 
 **Task list:**
-- [ ] Create deployment template for each service (8 services + dashboard)
-- [ ] Create service template for each
-- [ ] Create init containers for Flyway services
-- [ ] Create environment variable helper templates
-- [ ] Create secret references in env templates
+- [x] Create deployment template for each service (8 services + dashboard)
+- [x] Create service template for each
+- [x] Create init containers for Flyway services
+- [x] Create environment variable helper templates
+- [x] Create secret references in env templates
 
 ---
 
@@ -237,9 +237,9 @@ spec:
 ```
 
 **Task list:**
-- [ ] Create HPA template for gateway (conditional on `gateway.autoscaling.enabled`)
-- [ ] Create PDB templates for all services
-- [ ] Default PDB: `minAvailable: 1` (gateway: 2)
+- [x] Create HPA template for gateway (conditional on `gateway.autoscaling.enabled`)
+- [x] Create PDB templates for all services
+- [x] Default PDB: `minAvailable: 1` (gateway: 2)
 
 ---
 
@@ -251,9 +251,9 @@ spec:
 - Gateway uses its own `Service` (LoadBalancer type) — it is NOT behind the cluster Ingress.
 
 **Task list:**
-- [ ] Create ingress templates (conditional on `ingress.enabled`)
-- [ ] Support both `networking.k8s.io/v1` Ingress and Gateway API (future)
-- [ ] Add TLS configuration from Let's Encrypt via cert-manager annotations
+- [x] Create ingress templates (conditional on `ingress.enabled`)
+- [x] Support both `networking.k8s.io/v1` Ingress and Gateway API (future)
+- [x] Add TLS configuration from Let's Encrypt via cert-manager annotations
 
 ---
 
@@ -277,9 +277,9 @@ spec:
 ```
 
 **Task list:**
-- [ ] Create ServiceMonitor template for each service
-- [ ] Conditional on `monitoring.serviceMonitor.enabled`
-- [ ] Document Prometheus Operator integration
+- [x] Create ServiceMonitor template for each service
+- [x] Conditional on `monitoring.serviceMonitor.enabled`
+- [x] Document Prometheus Operator integration
 
 ---
 
@@ -311,10 +311,10 @@ spec:
 ```
 
 **Task list:**
-- [ ] Add `helm lint` to CI
-- [ ] Add template validation to CI
-- [ ] Create Kind-based smoke test
-- [ ] Document quick-start: `helm install routify deploy/helm/routify/`
+- [x] Add `helm lint` to CI
+- [x] Add template validation to CI
+- [x] Create Kind-based smoke test
+- [x] Document quick-start: `helm install routify deploy/helm/routify/`
 
 ---
 
@@ -325,21 +325,21 @@ spec:
 - `docs/kubernetes-deployment.md` — full deployment guide with external DB/Redis/Kafka/RabbitMQ configuration
 
 **Task list:**
-- [ ] Write Helm chart README with values table
-- [ ] Write Kubernetes deployment guide
-- [ ] Document External Secrets Operator integration
-- [ ] Document cert-manager integration for TLS
+- [x] Write Helm chart README with values table
+- [x] Write Kubernetes deployment guide
+- [x] Document External Secrets Operator integration
+- [x] Document cert-manager integration for TLS
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `helm install routify deploy/helm/routify/` deploys all services successfully
-- [ ] All pods reach Ready state within 5 minutes
-- [ ] Flyway init containers run migrations before main containers start
-- [ ] Gateway HPA scales from 2 to 10 pods under CPU load
-- [ ] PDBs prevent total service disruption during node drain
-- [ ] ServiceMonitors are discovered by Prometheus Operator
-- [ ] External secrets can be referenced instead of inline values
-- [ ] `helm lint` and template validation pass in CI
+- [x] `helm install routify deploy/helm/routify/` deploys all services successfully
+- [x] All pods reach Ready state within 5 minutes
+- [x] Flyway init containers run migrations before main containers start
+- [x] Gateway HPA scales from 2 to 10 pods under CPU load
+- [x] PDBs prevent total service disruption during node drain
+- [x] ServiceMonitors are discovered by Prometheus Operator
+- [x] External secrets can be referenced instead of inline values
+- [x] `helm lint` and template validation pass in CI
 

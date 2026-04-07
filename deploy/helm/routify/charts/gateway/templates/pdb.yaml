@@ -1,0 +1,14 @@
+{{- if and .Values.gateway.enabled (.Values.gateway.pdb).enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "routify.gateway.fullname" . }}
+  labels:
+    {{- include "routify.gateway.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.gateway.pdb.minAvailable | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "routify.gateway.selectorLabels" . | nindent 6 }}
+{{- end }}
+

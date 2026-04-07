@@ -185,6 +185,14 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
 ```
 Copies `environments/.env.<branch>` → `.env` and brings up the requested Docker Compose stack. Modes: `infra` (default), `app`/`full` (infra + all services).
 
+### Kubernetes deployment (Helm)
+```bash
+helm install routify deploy/helm/routify/                         # default values (built-in infra)
+helm install routify deploy/helm/routify/ \
+  -f deploy/helm/routify/values-production.yaml                   # production overlay (external infra)
+```
+Chart structure: `deploy/helm/routify/` — umbrella chart with sub-charts per service in `charts/`. Sub-charts: `gateway`, `admin-api`, `identity-service`, `route-service`, `audit-service`, `cert-vault`, `ai-service`, `dashboard`, `gitops-agent` (disabled by default). Infrastructure sub-chart dependencies (Bitnami): `postgresql`, `redis`, `kafka`, `rabbitmq` — all toggleable via `<name>.enabled`. External service endpoints configurable via `external<Name>.host`. Secrets via `secrets.existingSecret` (K8s Secret name) or inline `secrets.*` values. Gateway has HPA (2–10 pods, CPU target 70%). All services have PDBs (`minAvailable: 1`, gateway: `2`). Flyway services (identity, route, audit, cert-vault) run init containers. ServiceMonitors for Prometheus Operator enabled via `monitoring.serviceMonitor.enabled`. Ingress for dashboard + admin-api enabled via `ingress.enabled` (supports cert-manager TLS). Gateway exposed as LoadBalancer. Validation: `./scripts/helm-validate.sh`. Smoke test: `./scripts/helm-smoke-test.sh`. Full docs: `deploy/helm/routify/README.md`, `docs/kubernetes-deployment.md`.
+
 ### Testing
 
 **Java integration tests** use **Testcontainers** (Kafka, RabbitMQ, Redis, PostgreSQL). Convention: `*IT.java` suffix (run by maven-failsafe-plugin). Each service with ITs has its own base class:

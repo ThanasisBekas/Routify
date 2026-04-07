@@ -1,0 +1,7 @@
+apiVersion: v2
+name: audit-service
+description: Routify Audit Service sub-chart
+type: application
+version: 1.0.0
+appVersion: "2.1.0"
+

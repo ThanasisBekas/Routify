@@ -1,0 +1,14 @@
+{{- if and .Values.auditService.enabled (.Values.auditService.pdb).enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "routify.auditService.fullname" . }}
+  labels:
+    {{- include "routify.auditService.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.auditService.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "routify.auditService.selectorLabels" . | nindent 6 }}
+{{- end }}
+

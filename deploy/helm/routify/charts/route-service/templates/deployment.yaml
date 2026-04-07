@@ -1,0 +1,84 @@
+{{- if .Values.routeService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "routify.routeService.fullname" . }}
+  labels:
+    {{- include "routify.routeService.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.routeService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "routify.routeService.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "routify.routeService.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: flyway-migrate
+          image: {{ include "routify.image" (dict "global" .Values.global "image" .Values.routeService.image) }}
+          imagePullPolicy: {{ .Values.routeService.image.pullPolicy }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              java $JAVA_OPTS -jar /app/app.jar \
+                --spring.main.web-application-type=none \
+                --spring.flyway.enabled=true \
+                --spring.jpa.hibernate.ddl-auto=validate \
+                --spring.main.banner-mode=off
+          env:
+            {{- include "routify.dbEnv" . | nindent 12 }}
+            {{- include "routify.commonEnv" . | nindent 12 }}
+            {{- include "routify.jwtPublicKeyEnv" . | nindent 12 }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      containers:
+        - name: route-service
+          image: {{ include "routify.image" (dict "global" .Values.global "image" .Values.routeService.image) }}
+          imagePullPolicy: {{ .Values.routeService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+            - name: management
+              containerPort: 9081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.routeService.resources | nindent 12 }}
+          env:
+            {{- include "routify.dbEnv" . | nindent 12 }}
+            {{- include "routify.commonEnv" . | nindent 12 }}
+            {{- include "routify.redisEnv" . | nindent 12 }}
+            {{- include "routify.jwtPublicKeyEnv" . | nindent 12 }}
+            {{- range $key, $value := .Values.routeService.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+{{- end }}
+

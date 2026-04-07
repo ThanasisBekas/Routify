@@ -1,0 +1,7 @@
+apiVersion: v2
+name: gitops-agent
+description: Routify GitOps Agent sub-chart (optional)
+type: application
+version: 1.0.0
+appVersion: "2.1.0"
+

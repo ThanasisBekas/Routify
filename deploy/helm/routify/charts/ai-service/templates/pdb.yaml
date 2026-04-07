@@ -1,0 +1,14 @@
+{{- if and .Values.aiService.enabled (.Values.aiService.pdb).enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "routify.aiService.fullname" . }}
+  labels:
+    {{- include "routify.aiService.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.aiService.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "routify.aiService.selectorLabels" . | nindent 6 }}
+{{- end }}
+
