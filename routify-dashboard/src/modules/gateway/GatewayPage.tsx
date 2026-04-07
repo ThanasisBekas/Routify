@@ -35,6 +35,7 @@ import {
   HeartPulse,
   Target,
   Zap,
+  Server,
 } from 'lucide-react'
 import { gatewayApi } from '../../api/gatewayApi'
 import { useWsStore } from '../../store/wsStore'
@@ -55,6 +56,7 @@ import GlobalFiltersTab from './tabs/GlobalFiltersTab'
 import RoutesHealthTab from './tabs/RoutesHealthTab'
 import SloTab from './tabs/SloTab'
 import CircuitBreakersTab from './tabs/CircuitBreakersTab'
+import FleetTab from './tabs/FleetTab'
 
 // ─── Tab catalogue ────────────────────────────────────────────────────────────
 
@@ -63,6 +65,7 @@ type GatewayTab =
   | 'routes-health'
   | 'slos'
   | 'circuit-breakers'
+  | 'fleet'
   | 'cors'
   | 'security'
   | 'rate-limit'
@@ -82,6 +85,7 @@ const TABS: {
   { id: 'routes-health', label: 'Routes Health', icon: HeartPulse, description: 'Per-route latency heatmap and error rates' },
   { id: 'slos', label: 'SLOs', icon: Target, description: 'SLO targets and error budget tracking' },
   { id: 'circuit-breakers', label: 'Circuit Breakers', icon: Zap, description: 'Live circuit breaker state and history' },
+  { id: 'fleet', label: 'Fleet', icon: Server, description: 'Multi-gateway cluster instances and config versions' },
   { id: 'cors', label: 'CORS', icon: Globe, description: 'Cross-origin request policies' },
   { id: 'security', label: 'Security Headers', icon: Shield, description: 'OWASP response headers' },
   { id: 'rate-limit', label: 'Rate Limiting', icon: Gauge, description: 'Global token-bucket policies' },
@@ -211,6 +215,8 @@ export default function GatewayPage() {
         {activeTab === 'routes-health' && <RoutesHealthTab />}
         {activeTab === 'slos' && <SloTab />}
         {activeTab === 'circuit-breakers' && <CircuitBreakersTab config={config} />}
+
+        {activeTab === 'fleet' && <FleetTab />}
 
         {activeTab === 'cors' && (
           <CorsTab

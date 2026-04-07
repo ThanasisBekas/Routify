@@ -1,6 +1,7 @@
 package io.routify.admin.controller;
 
 import io.routify.admin.client.RouteServiceClient;
+import io.routify.admin.dto.FleetStatusResponse;
 import io.routify.admin.sse.DashboardEventBroadcaster;
 import io.routify.admin.service.DashboardStatsService;
 import lombok.RequiredArgsConstructor;
@@ -102,5 +103,16 @@ public class AdminDashboardController {
         var result = routeServiceClient.saveRouteSlo(id, tenantId,
                 availabilityTarget, latencyP99TargetMs, evaluationWindowHours);
         return ResponseEntity.ok(result);
+    }
+
+    // ─── Multi-Gateway Fleet Status ──────────────────────────────────────────
+
+    /**
+     * Returns cluster-wide fleet status for all registered gateway instances.
+     * Includes per-instance config version, route count, health, and uptime.
+     */
+    @GetMapping("/gateway/fleet")
+    public ResponseEntity<FleetStatusResponse> getFleetStatus() {
+        return ResponseEntity.ok(statsService.getFleetStatus());
     }
 }

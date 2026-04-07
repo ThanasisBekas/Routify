@@ -16,6 +16,7 @@ import type {
   HealthTimeWindow,
   SloStatus,
   RouteSloConfig,
+  FleetStatusResponse,
 } from '../types'
 
 const BASE = '/api/v1/admin/gateway'
@@ -115,4 +116,8 @@ export const gatewayApi = {
 
   saveRouteSlo: (routeId: string, slo: RouteSloConfig) =>
     apiClient.put(`/api/v1/admin/routes/${routeId}/slo`, slo).then((r) => r.data),
+
+  // ─── Multi-Gateway Fleet Status ─────────────────────────────────────────
+  getFleetStatus: () =>
+    apiClient.get<FleetStatusResponse>('/api/v1/admin/gateway/fleet').then((r) => r.data),
 }

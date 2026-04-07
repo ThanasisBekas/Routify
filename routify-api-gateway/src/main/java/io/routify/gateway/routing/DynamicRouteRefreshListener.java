@@ -2,6 +2,8 @@ package io.routify.gateway.routing;
 
 import io.routify.common.event.DomainEvent;
 import io.routify.common.event.KafkaTopics;
+import io.routify.common.observability.RoutifyMetrics;
+import io.routify.gateway.cluster.GatewayInstanceRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -17,6 +19,10 @@ import org.springframework.stereotype.Component;
  * event is received, it triggers an immediate reload of all route definitions
  * without any gateway restart.
  *
+ * <p>After each successful reload, the {@link GatewayInstanceRegistry} is
+ * notified so that the local and global config versions are incremented
+ * and heartbeat data stays up-to-date.
+ *
  * <h3>Startup Sequence:</h3>
  * <ol>
  *   <li>Gateway starts, WebFlux context initializes</li>
@@ -31,6 +37,8 @@ import org.springframework.stereotype.Component;
 public class DynamicRouteRefreshListener {
 
     private final DynamicRouteDefinitionLocator routeLocator;
+    private final GatewayInstanceRegistry instanceRegistry;
+    private final RoutifyMetrics metrics;
 
     /**
      * Pre-warm route table on application startup.
@@ -41,8 +49,10 @@ public class DynamicRouteRefreshListener {
     public void onApplicationReady() {
         log.info("Application ready — loading initial route definitions");
         routeLocator.refresh();
-        log.info("Initial route load complete: {} routes active",
-                routeLocator.getLoadedRouteCount());
+        int routeCount = routeLocator.getLoadedRouteCount();
+        log.info("Initial route load complete: {} routes active", routeCount);
+        instanceRegistry.incrementConfigVersion(routeCount);
+        metrics.setGatewayConfigVersion(instanceRegistry.getConfigVersion().get());
     }
 
     /**
@@ -69,11 +79,13 @@ public class DynamicRouteRefreshListener {
                 log.info("Gateway reload requested: reason='{}' tenant={}",
                         reload.reason(), reload.tenantId());
                 routeLocator.forceRefresh();
+                updateRegistryAfterReload();
             }
         } catch (Exception e) {
             log.error("Failed to process gateway reload event: {}", e.getMessage(), e);
             // Force refresh anyway on parse error to stay consistent
             routeLocator.forceRefresh();
+            updateRegistryAfterReload();
         }
     }
 
@@ -100,9 +112,20 @@ public class DynamicRouteRefreshListener {
                 log.debug("Route lifecycle event — triggering gateway reload: {}",
                         event.getClass().getSimpleName());
                 routeLocator.refresh();
+                updateRegistryAfterReload();
             }
         } catch (Exception e) {
             log.warn("Failed to process route event: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Updates the instance registry with the latest route count and config version
+     * after a successful route reload.
+     */
+    private void updateRegistryAfterReload() {
+        int routeCount = routeLocator.getLoadedRouteCount();
+        instanceRegistry.incrementConfigVersion(routeCount);
+        metrics.setGatewayConfigVersion(instanceRegistry.getConfigVersion().get());
     }
 }

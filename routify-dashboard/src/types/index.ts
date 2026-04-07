@@ -948,6 +948,7 @@ export type WebhookEventType =
   | 'AI_FILTER_FLAGGED'
   | 'DLQ_OVERFLOW'
   | 'GATEWAY_RELOAD_FAILED'
+  | 'GATEWAY_CONFIG_DRIFT'
   | 'QUOTA_WARNING'
   | 'QUOTA_EXCEEDED'
 
@@ -1122,5 +1123,30 @@ export interface GitOpsStatus {
   lastCommitHash: string | null
   lastSyncTime: string | null
   lastOutcome: ReconciliationOutcome | null
+}
+
+// ─── Multi-Gateway Fleet Status ───────────────────────────────────────────────
+
+export type GatewayInstanceStatus = 'HEALTHY' | 'STALE' | 'UNRESPONSIVE'
+
+export interface GatewayInstanceInfo {
+  instanceId: string
+  hostname: string
+  configVersion: number
+  routeCount: number
+  filterCount: number
+  status: GatewayInstanceStatus
+  startedAt: string
+  lastReloadAt: string
+  lastHeartbeatAt: string
+  uptimeHours: number
+}
+
+export interface FleetStatusResponse {
+  globalConfigVersion: number
+  instanceCount: number
+  healthyCount: number
+  staleCount: number
+  instances: GatewayInstanceInfo[]
 }
 
