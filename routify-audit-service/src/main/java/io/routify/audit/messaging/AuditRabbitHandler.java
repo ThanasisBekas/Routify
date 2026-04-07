@@ -2,13 +2,16 @@ package io.routify.audit.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.routify.audit.domain.AiFilterDecision;
+import io.routify.audit.domain.AiPromptVersion;
 import io.routify.audit.domain.AuditLogEntry;
 import io.routify.audit.domain.RequestLog;
 import io.routify.audit.replay.FailedRequestReplayService;
 import io.routify.audit.repository.AiFilterDecisionRepository;
+import io.routify.audit.repository.AiPromptVersionRepository;
 import io.routify.audit.repository.AuditLogRepository;
 import io.routify.audit.repository.RequestLogRepository;
 import io.routify.audit.repository.TenantUsageDailyRepository;
+import io.routify.common.event.CommandEvent;
 import io.routify.common.event.KafkaTopics;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
@@ -22,6 +25,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -44,6 +49,7 @@ public class AuditRabbitHandler {
     private final AuditLogRepository         auditLogRepository;
     private final RequestLogRepository       requestLogRepository;
     private final AiFilterDecisionRepository aiFilterDecisionRepository;
+    private final AiPromptVersionRepository  aiPromptVersionRepository;
     private final TenantUsageDailyRepository tenantUsageDailyRepository;
     private final FailedRequestReplayService replayService;
     private final ObjectMapper               objectMapper;
@@ -264,8 +270,11 @@ public class AuditRabbitHandler {
         Object[] row = req.routeId() != null
                 ? aiFilterDecisionRepository.getStatsByTenantAndRouteAndTimeRange(
                         req.tenantId(), req.routeId(), from, to)
-                : aiFilterDecisionRepository.getStatsByTenantAndTimeRange(
-                        req.tenantId(), from, to);
+                : req.promptVersionId() != null
+                        ? aiFilterDecisionRepository.getStatsByTenantAndVersionAndTimeRange(
+                                req.tenantId(), req.promptVersionId(), from, to)
+                        : aiFilterDecisionRepository.getStatsByTenantAndTimeRange(
+                                req.tenantId(), from, to);
 
         long   total      = 0L;
         long   allowCount = 0L;
@@ -403,5 +412,162 @@ public class AuditRabbitHandler {
                 .toList();
 
         return new QueryResponse.UsageHistoryResult(req.tenantId(), entries);
+    }
+
+    // ─── AI Prompt Version Management ─────────────────────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_QUERY)
+    public QueryResponse.PromptVersionsPage handlePromptVersionsQuery(QueryRequest.PromptVersionsQuery req) {
+        log.debug("RabbitMQ: received ai-prompt.versions.query: filterId={}", req.filterId());
+        var pageable = PageRequest.of(req.page(), req.size());
+        var result = aiPromptVersionRepository.findByFilterIdAndTenantIdOrderByVersionDesc(
+                req.filterId(), req.tenantId(), pageable);
+        var content = result.getContent().stream().map(this::toVersionSummary).toList();
+        return new QueryResponse.PromptVersionsPage(content, result.getTotalElements(),
+                result.getTotalPages(), result.getNumber(), result.getSize());
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_GET)
+    public QueryResponse.PromptVersionDetail handlePromptVersionGet(QueryRequest.PromptVersionGet req) {
+        log.debug("RabbitMQ: received ai-prompt.versions.get: id={}", req.id());
+        var version = aiPromptVersionRepository.findByIdAndTenantId(req.id(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "PromptVersion", req.id().toString()));
+        return toVersionDetail(version);
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_SAVE)
+    public QueryResponse.PromptVersionDetail handlePromptVersionSave(QueryRequest.PromptVersionSave req) {
+        log.debug("RabbitMQ: received ai-prompt.versions.save: action={} filterId={}", req.action(), req.filterId());
+        return switch (req.action()) {
+            case "CREATE_DRAFT" -> createDraftVersion(req);
+            case "ACTIVATE"     -> activateVersion(req);
+            case "ARCHIVE"      -> archiveVersion(req);
+            default -> throw new io.routify.common.exception.RoutifyException.BadRequest(
+                    "Unknown prompt version action: " + req.action());
+        };
+    }
+
+    private QueryResponse.PromptVersionDetail createDraftVersion(QueryRequest.PromptVersionSave req) {
+        int nextVersion = aiPromptVersionRepository.findMaxVersionByFilterIdAndTenantId(
+                req.filterId(), req.tenantId()) + 1;
+        var version = AiPromptVersion.builder()
+                .filterId(req.filterId())
+                .tenantId(req.tenantId())
+                .version(nextVersion)
+                .promptText(req.promptText())
+                .description(req.description())
+                .status("DRAFT")
+                .totalDecisions(0)
+                .correctCount(0)
+                .createdBy(req.requestedBy())
+                .build();
+        return toVersionDetail(aiPromptVersionRepository.save(version));
+    }
+
+    private QueryResponse.PromptVersionDetail activateVersion(QueryRequest.PromptVersionSave req) {
+        var version = aiPromptVersionRepository.findByIdAndTenantId(req.versionId(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "PromptVersion", req.versionId().toString()));
+        if ("ARCHIVED".equals(version.getStatus())) {
+            throw new io.routify.common.exception.RoutifyException.Validation(
+                    "Cannot activate an archived version");
+        }
+        // Archive the currently active version (if any)
+        aiPromptVersionRepository.findByFilterIdAndTenantIdAndStatus(
+                req.filterId(), req.tenantId(), "ACTIVE")
+                .ifPresent(active -> {
+                    active.setStatus("ARCHIVED");
+                    active.setArchivedAt(Instant.now());
+                    aiPromptVersionRepository.save(active);
+                });
+        // Activate the requested version
+        version.setStatus("ACTIVE");
+        version.setActivatedAt(Instant.now());
+        var saved = aiPromptVersionRepository.save(version);
+
+        // Publish UpdateFilter Kafka command to update the filter's config.policy
+        publishFilterConfigUpdate(req.filterId(), req.tenantId(), saved.getPromptText(), req.requestedBy());
+
+        return toVersionDetail(saved);
+    }
+
+    private QueryResponse.PromptVersionDetail archiveVersion(QueryRequest.PromptVersionSave req) {
+        var version = aiPromptVersionRepository.findByIdAndTenantId(req.versionId(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "PromptVersion", req.versionId().toString()));
+        version.setStatus("ARCHIVED");
+        version.setArchivedAt(Instant.now());
+        return toVersionDetail(aiPromptVersionRepository.save(version));
+    }
+
+    private void publishFilterConfigUpdate(UUID filterId, UUID tenantId, String promptText, String requestedBy) {
+        try {
+            var config = Map.<String, Object>of("policy", promptText);
+            var command = new CommandEvent.UpdateFilter(
+                    UUID.randomUUID(), tenantId, requestedBy, Instant.now(),
+                    filterId, null, null, config, null);
+            kafkaTemplate.send(KafkaTopics.FILTER_COMMANDS,
+                    tenantId.toString(), objectMapper.writeValueAsString(command));
+            log.info("Published UpdateFilter command for filter={} after prompt activation", filterId);
+        } catch (Exception e) {
+            log.error("Failed to publish UpdateFilter for prompt activation: {}", e.getMessage(), e);
+        }
+    }
+
+    // ─── AI Decision Labelling ────────────────────────────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_AI_DECISION_LABEL)
+    @org.springframework.transaction.annotation.Transactional
+    public QueryResponse.AiDecisionLabelResult handleAiDecisionLabel(QueryRequest.AiDecisionLabel req) {
+        log.debug("RabbitMQ: received ai-decision.label: evaluationId={} label={}", req.evaluationId(), req.label());
+        var decision = aiFilterDecisionRepository.findByEvaluationIdAndTenantId(
+                req.evaluationId(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "AiFilterDecision", req.evaluationId()));
+
+        // Set the operator label
+        decision.setOperatorLabel(req.label());
+        aiFilterDecisionRepository.save(decision);
+
+        // Recalculate accuracy for the associated prompt version (if any)
+        UUID promptVersionId = decision.getPromptVersionId();
+        BigDecimal newAccuracy = null;
+        if (promptVersionId != null) {
+            var versionOpt = aiPromptVersionRepository.findById(promptVersionId);
+            if (versionOpt.isPresent()) {
+                var version = versionOpt.get();
+                version.setTotalDecisions(version.getTotalDecisions() + 1);
+                if ("CORRECT".equals(req.label())) {
+                    version.setCorrectCount(version.getCorrectCount() + 1);
+                }
+                if (version.getTotalDecisions() > 0) {
+                    newAccuracy = BigDecimal.valueOf(version.getCorrectCount())
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(BigDecimal.valueOf(version.getTotalDecisions()), 2, RoundingMode.HALF_UP);
+                    version.setAccuracyScore(newAccuracy);
+                }
+                aiPromptVersionRepository.save(version);
+            }
+        }
+
+        return new QueryResponse.AiDecisionLabelResult(true, promptVersionId, newAccuracy);
+    }
+
+    // ─── Prompt Version Mapping Helpers ────────────────────────────────────────
+
+    private QueryResponse.PromptVersionsPage.PromptVersionSummary toVersionSummary(AiPromptVersion v) {
+        return new QueryResponse.PromptVersionsPage.PromptVersionSummary(
+                v.getId(), v.getFilterId(), v.getVersion(), v.getStatus(),
+                v.getDescription(), v.getAccuracyScore(), v.getTotalDecisions(),
+                v.getCreatedAt(), v.getActivatedAt());
+    }
+
+    private QueryResponse.PromptVersionDetail toVersionDetail(AiPromptVersion v) {
+        return new QueryResponse.PromptVersionDetail(
+                v.getId(), v.getFilterId(), v.getTenantId(), v.getVersion(),
+                v.getPromptText(), v.getDescription(), v.getStatus(),
+                v.getAccuracyScore(), v.getTotalDecisions(), v.getCorrectCount(),
+                v.getCreatedBy(), v.getCreatedAt(), v.getActivatedAt(), v.getArchivedAt());
     }
 }

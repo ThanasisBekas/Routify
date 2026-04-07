@@ -109,6 +109,11 @@ import java.util.UUID;
     // ─── routify-audit-service tenant usage ────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.UsageCurrent.class,          name = "USAGE_CURRENT"),
     @JsonSubTypes.Type(value = QueryRequest.UsageHistory.class,          name = "USAGE_HISTORY"),
+    // ─── routify-audit-service AI prompt versions ────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.PromptVersionsQuery.class,   name = "PROMPT_VERSIONS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.PromptVersionGet.class,      name = "PROMPT_VERSION_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.PromptVersionSave.class,     name = "PROMPT_VERSION_SAVE"),
+    @JsonSubTypes.Type(value = QueryRequest.AiDecisionLabel.class,       name = "AI_DECISION_LABEL"),
 })
 public sealed interface QueryRequest
         permits
@@ -172,6 +177,10 @@ public sealed interface QueryRequest
             QueryRequest.RouteSloSave,
             QueryRequest.UsageCurrent,
             QueryRequest.UsageHistory,
+            QueryRequest.PromptVersionsQuery,
+            QueryRequest.PromptVersionGet,
+            QueryRequest.PromptVersionSave,
+            QueryRequest.AiDecisionLabel,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -438,6 +447,7 @@ public sealed interface QueryRequest
      * @param userId              Authenticated user ID (null for unauthenticated requests).
      * @param userRole            Authenticated user role (null for unauthenticated requests).
      * @param correlationId       X-Correlation-Id propagated from the original request.
+     * @param promptVersionId     UUID of the selected prompt version (null if no A/B split).
      */
     record AiFilterEvaluate(
             String              routeId,
@@ -461,8 +471,23 @@ public sealed interface QueryRequest
             String              bodyExcerpt,
             String              userId,
             String              userRole,
-            String              correlationId
-    ) implements QueryRequest {}
+            String              correlationId,
+            String              promptVersionId
+    ) implements QueryRequest {
+        /** Backward-compatible constructor without promptVersionId. */
+        public AiFilterEvaluate(
+                String routeId, String routeName, String tenantId,
+                String policyDescription, String evaluationMode, boolean includeBody, int maxBodyBytes,
+                String fallbackAction, double confidenceThreshold, boolean cacheEnabled, int cacheTtlSeconds,
+                String method, String path, String queryString, String clientIp,
+                java.util.Map<String, String> headers, String bodyExcerpt,
+                String userId, String userRole, String correlationId) {
+            this(routeId, routeName, tenantId, policyDescription, evaluationMode, includeBody, maxBodyBytes,
+                    fallbackAction, confidenceThreshold, cacheEnabled, cacheTtlSeconds,
+                    method, path, queryString, clientIp, headers, bodyExcerpt,
+                    userId, userRole, correlationId, null);
+        }
+    }
 
     /**
      * AI modification request — sent by the gateway to routify-ai-service via RabbitMQ RPC.
@@ -530,13 +555,20 @@ public sealed interface QueryRequest
      * @param routeId   Optional — if null returns stats aggregated across all routes for the tenant.
      * @param from      ISO-8601 start timestamp (inclusive). Null = last 24 hours.
      * @param to        ISO-8601 end timestamp (exclusive). Null = now.
+     * @param promptVersionId Optional — if set, scopes stats to a single prompt version (for A/B comparison).
      */
     record AiFilterStatsQuery(
             UUID   tenantId,
             UUID   routeId,
             String from,
-            String to
-    ) implements QueryRequest {}
+            String to,
+            UUID   promptVersionId
+    ) implements QueryRequest {
+        /** Backward-compatible constructor without promptVersionId. */
+        public AiFilterStatsQuery(UUID tenantId, UUID routeId, String from, String to) {
+            this(tenantId, routeId, from, to, null);
+        }
+    }
 
     /**
      * Paginated AI filter decision log with optional filters.
@@ -591,6 +623,44 @@ public sealed interface QueryRequest
 
     /** Fetch daily usage history for a tenant over the last N days. */
     record UsageHistory(UUID tenantId, int days) implements QueryRequest {}
+
+    // ─── routify-audit-service AI prompt versions ──────────────────────────
+
+    /** Paginated prompt version list for a filter. */
+    record PromptVersionsQuery(UUID filterId, UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single prompt version by ID. */
+    record PromptVersionGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /**
+     * Create, activate, or archive a prompt version.
+     *
+     * @param filterId    Filter to version.
+     * @param tenantId    Owning tenant.
+     * @param versionId   Version UUID (null for CREATE_DRAFT, required for ACTIVATE/ARCHIVE).
+     * @param promptText  Prompt text (required for CREATE_DRAFT, ignored otherwise).
+     * @param description Human-readable description (optional).
+     * @param action      CREATE_DRAFT | ACTIVATE | ARCHIVE.
+     * @param requestedBy Actor performing the action.
+     */
+    record PromptVersionSave(
+            UUID   filterId,
+            UUID   tenantId,
+            UUID   versionId,
+            String promptText,
+            String description,
+            String action,
+            String requestedBy
+    ) implements QueryRequest {}
+
+    /**
+     * Label an AI filter decision as correct/incorrect/unclear for ground-truth feedback.
+     *
+     * @param evaluationId Evaluation trace ID.
+     * @param tenantId     Owning tenant.
+     * @param label        CORRECT | INCORRECT | UNCLEAR.
+     */
+    record AiDecisionLabel(String evaluationId, UUID tenantId, String label) implements QueryRequest {}
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

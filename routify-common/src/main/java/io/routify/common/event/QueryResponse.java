@@ -102,6 +102,10 @@ import java.util.UUID;
     // ─── routify-audit-service tenant usage ────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.UsageCurrentResult.class,     name = "USAGE_CURRENT_RESULT"),
     @JsonSubTypes.Type(value = QueryResponse.UsageHistoryResult.class,     name = "USAGE_HISTORY_RESULT"),
+    // ─── routify-audit-service AI prompt versions ────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.PromptVersionsPage.class,     name = "PROMPT_VERSIONS_PAGE"),
+    @JsonSubTypes.Type(value = QueryResponse.PromptVersionDetail.class,    name = "PROMPT_VERSION_DETAIL"),
+    @JsonSubTypes.Type(value = QueryResponse.AiDecisionLabelResult.class,  name = "AI_DECISION_LABEL_RESULT"),
     // ─── routify-api-gateway ─────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.GatewayStatus.class,        name = "GATEWAY_STATUS"),
     @JsonSubTypes.Type(value = QueryResponse.CertRegistrySnapshot.class, name = "CERT_REGISTRY_SNAPSHOT"),
@@ -157,6 +161,9 @@ public sealed interface QueryResponse
             QueryResponse.RouteSloResult,
             QueryResponse.UsageCurrentResult,
             QueryResponse.UsageHistoryResult,
+            QueryResponse.PromptVersionsPage,
+            QueryResponse.PromptVersionDetail,
+            QueryResponse.AiDecisionLabelResult,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1128,6 +1135,56 @@ public sealed interface QueryResponse
         public record DailyUsage(String date, int routeCount, int filterCount,
                                   long requestCount, long errorCount) {}
     }
+
+    // ─── routify-audit-service AI prompt versions ──────────────────────────
+
+    /** Paginated list of prompt version summaries for a filter. */
+    record PromptVersionsPage(
+            List<PromptVersionSummary> content,
+            long totalElements,
+            int  totalPages,
+            int  page,
+            int  size
+    ) implements QueryResponse {
+
+        /** Summary view of a prompt version. */
+        public record PromptVersionSummary(
+                UUID                id,
+                UUID                filterId,
+                int                 version,
+                String              status,
+                String              description,
+                java.math.BigDecimal accuracyScore,
+                int                 totalDecisions,
+                Instant             createdAt,
+                Instant             activatedAt
+        ) {}
+    }
+
+    /** Full detail of a single prompt version. */
+    record PromptVersionDetail(
+            UUID                id,
+            UUID                filterId,
+            UUID                tenantId,
+            int                 version,
+            String              promptText,
+            String              description,
+            String              status,
+            java.math.BigDecimal accuracyScore,
+            int                 totalDecisions,
+            int                 correctCount,
+            String              createdBy,
+            Instant             createdAt,
+            Instant             activatedAt,
+            Instant             archivedAt
+    ) implements QueryResponse {}
+
+    /** Result of labelling an AI filter decision. */
+    record AiDecisionLabelResult(
+            boolean             success,
+            UUID                promptVersionId,
+            java.math.BigDecimal newAccuracy
+    ) implements QueryResponse {}
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

@@ -15,6 +15,7 @@ import {
   Bell,
   Shield,
   GitBranch,
+  Brain,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { to: '/webhooks', label: 'Webhooks', icon: Bell, desc: 'Webhook notifications' },
   { to: '/roles', label: 'Roles', icon: Shield, desc: 'Roles & permissions' },
   { to: '/gitops', label: 'GitOps', icon: GitBranch, desc: 'Git reconciliation agent' },
+  { to: '/ai-playground', label: 'AI Playground', icon: Brain, desc: 'Test & version AI policies' },
   { to: '/settings', label: 'Settings', icon: Settings, desc: 'Platform settings' },
 ]
 

@@ -15,10 +15,13 @@ import java.util.Map;
  *
  * @param policyDescription The natural-language rule to test.
  * @param sampleRequest     A synthetic request to evaluate the policy against.
+ * @param promptOverride    Optional — if set, this prompt text is used instead of policyDescription.
+ *                          Used by the AI Playground to test draft prompt versions.
  */
 public record TestPolicyRequest(
         @NotBlank String policyDescription,
-        @NotNull  SampleRequest sampleRequest
+        @NotNull  SampleRequest sampleRequest,
+        String    promptOverride
 ) {
 
     /**

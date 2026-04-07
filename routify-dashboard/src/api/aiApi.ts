@@ -7,6 +7,9 @@ import type {
   AiFilterStats,
   AiFilterDecisionEntry,
   AiModifierDecisionEntry,
+  AiPromptVersion,
+  AiPromptVersionSummary,
+  AiDecisionLabelResult,
   Page,
 } from '../types'
 
@@ -19,9 +22,16 @@ export const aiApi = {
    * Tests a natural-language policy against a synthetic sample request (dry-run).
    * No filter is activated on any live route — for dashboard "Test Policy" use only.
    */
-  testPolicy: (req: { policyDescription: string; sampleRequest: AiModificationTestRequest['sampleRequest'] }) =>
+  testPolicy: (req: {
+    policyDescription: string
+    sampleRequest: AiModificationTestRequest['sampleRequest']
+    promptOverride?: string
+  }) =>
     apiClient
-      .post<{ action: string; reason: string; confidence: number }>(`${AI_BASE}-filter/test-policy`, req)
+      .post<{ action: string; reason: string; confidence: number; latencyMs?: number; cached?: boolean }>(
+        `${AI_BASE}-filter/test-policy`,
+        req,
+      )
       .then((r) => r.data),
 
   // ─── AI Modifier (mutation/test) ──────────────────────────────────────────
@@ -61,5 +71,37 @@ export const aiApi = {
       .get<Page<AiModifierDecisionEntry>>('/api/v1/admin/audit/ai-modifier/decisions', {
         params: { routeId, ...params },
       })
+      .then((r) => r.data),
+
+  // ─── Prompt Version Management ────────────────────────────────────────────
+
+  /** List prompt versions for a filter (newest first). */
+  listPromptVersions: (filterId: string, page = 0, size = 20) =>
+    apiClient
+      .get<Page<AiPromptVersionSummary>>(`${AI_BASE}-filter/${filterId}/versions`, { params: { page, size } })
+      .then((r) => r.data),
+
+  /** Get a single prompt version detail. */
+  getPromptVersion: (filterId: string, versionId: string) =>
+    apiClient.get<AiPromptVersion>(`${AI_BASE}-filter/${filterId}/versions/${versionId}`).then((r) => r.data),
+
+  /** Create a new draft prompt version. */
+  createDraftVersion: (filterId: string, body: { promptText: string; description?: string }) =>
+    apiClient.post<AiPromptVersion>(`${AI_BASE}-filter/${filterId}/versions`, body).then((r) => r.data),
+
+  /** Activate a prompt version (archives the currently active one). */
+  activateVersion: (filterId: string, versionId: string) =>
+    apiClient.post<AiPromptVersion>(`${AI_BASE}-filter/${filterId}/versions/${versionId}/activate`).then((r) => r.data),
+
+  /** Archive a prompt version. */
+  archiveVersion: (filterId: string, versionId: string) =>
+    apiClient.post<AiPromptVersion>(`${AI_BASE}-filter/${filterId}/versions/${versionId}/archive`).then((r) => r.data),
+
+  // ─── Decision Labelling ───────────────────────────────────────────────────
+
+  /** Label an AI filter decision as correct/incorrect/unclear. */
+  labelDecision: (evaluationId: string, label: string) =>
+    apiClient
+      .post<AiDecisionLabelResult>(`${AI_BASE}-filter/decisions/${evaluationId}/label`, { label })
       .then((r) => r.data),
 }

@@ -102,6 +102,14 @@ public class AiFilterDecision {
     @Column(name = "recorded_at", nullable = false, updatable = false)
     private Instant recordedAt;
 
+    /** Ground-truth operator label: CORRECT | INCORRECT | UNCLEAR. Mutable. */
+    @Column(name = "operator_label", length = 20)
+    private String operatorLabel;
+
+    /** FK to ai_prompt_version — identifies which prompt version produced this decision. */
+    @Column(name = "prompt_version_id", updatable = false)
+    private UUID promptVersionId;
+
     protected AiFilterDecision() {}
 
     public static Builder builder() { return new Builder(); }
@@ -124,6 +132,10 @@ public class AiFilterDecision {
     public String  getClientIp()       { return clientIp; }
     public Instant getEvaluatedAt()    { return evaluatedAt; }
     public Instant getRecordedAt()     { return recordedAt; }
+    public String  getOperatorLabel()  { return operatorLabel; }
+    public UUID    getPromptVersionId(){ return promptVersionId; }
+
+    public void setOperatorLabel(String label) { this.operatorLabel = label; }
 
     // ─── Builder ──────────────────────────────────────────────────────────────
 
@@ -144,6 +156,8 @@ public class AiFilterDecision {
         public Builder path(String v)           { d.path           = v; return this; }
         public Builder clientIp(String v)       { d.clientIp       = v; return this; }
         public Builder evaluatedAt(Instant v)   { d.evaluatedAt    = v; return this; }
+        public Builder operatorLabel(String v)  { d.operatorLabel  = v; return this; }
+        public Builder promptVersionId(UUID v)  { d.promptVersionId = v; return this; }
         public AiFilterDecision build()         { return d; }
     }
 }
