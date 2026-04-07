@@ -456,6 +456,7 @@ public sealed interface QueryRequest
      * @param clientIp            Originating client IP.
      * @param headers             Sanitised headers (sensitive values stripped by gateway).
      * @param bodyExcerpt         Base64-encoded request body prefix (null when includeBody=false).
+     * @param bodyHash            SHA-256 hex hash of the body excerpt bytes (null when body not included).
      * @param userId              Authenticated user ID (null for unauthenticated requests).
      * @param userRole            Authenticated user role (null for unauthenticated requests).
      * @param correlationId       X-Correlation-Id propagated from the original request.
@@ -481,12 +482,13 @@ public sealed interface QueryRequest
             String              clientIp,
             java.util.Map<String, String> headers,
             String              bodyExcerpt,
+            String              bodyHash,
             String              userId,
             String              userRole,
             String              correlationId,
             String              promptVersionId
     ) implements QueryRequest {
-        /** Backward-compatible constructor without promptVersionId. */
+        /** Backward-compatible constructor without bodyHash and promptVersionId. */
         public AiFilterEvaluate(
                 String routeId, String routeName, String tenantId,
                 String policyDescription, String evaluationMode, boolean includeBody, int maxBodyBytes,
@@ -496,7 +498,21 @@ public sealed interface QueryRequest
                 String userId, String userRole, String correlationId) {
             this(routeId, routeName, tenantId, policyDescription, evaluationMode, includeBody, maxBodyBytes,
                     fallbackAction, confidenceThreshold, cacheEnabled, cacheTtlSeconds,
-                    method, path, queryString, clientIp, headers, bodyExcerpt,
+                    method, path, queryString, clientIp, headers, bodyExcerpt, null,
+                    userId, userRole, correlationId, null);
+        }
+
+        /** Backward-compatible constructor without promptVersionId (but with bodyHash). */
+        public AiFilterEvaluate(
+                String routeId, String routeName, String tenantId,
+                String policyDescription, String evaluationMode, boolean includeBody, int maxBodyBytes,
+                String fallbackAction, double confidenceThreshold, boolean cacheEnabled, int cacheTtlSeconds,
+                String method, String path, String queryString, String clientIp,
+                java.util.Map<String, String> headers, String bodyExcerpt, String bodyHash,
+                String userId, String userRole, String correlationId) {
+            this(routeId, routeName, tenantId, policyDescription, evaluationMode, includeBody, maxBodyBytes,
+                    fallbackAction, confidenceThreshold, cacheEnabled, cacheTtlSeconds,
+                    method, path, queryString, clientIp, headers, bodyExcerpt, bodyHash,
                     userId, userRole, correlationId, null);
         }
     }
@@ -530,6 +546,7 @@ public sealed interface QueryRequest
      * @param clientIp            Originating client IP.
      * @param headers             Sanitised request headers.
      * @param bodyBase64          Base64-encoded request body (null when includeBody=false).
+     * @param bodyHash            SHA-256 hex hash of the body excerpt bytes (null when body not included).
      * @param correlationId       X-Correlation-Id propagated from the original request.
      */
     record AiModifierEvaluate(
@@ -555,8 +572,23 @@ public sealed interface QueryRequest
             String              clientIp,
             java.util.Map<String, String> headers,
             String              bodyBase64,
+            String              bodyHash,
             String              correlationId
-    ) implements QueryRequest {}
+    ) implements QueryRequest {
+        /** Backward-compatible constructor without bodyHash. */
+        public AiModifierEvaluate(
+                String routeId, String routeName, String tenantId,
+                String modificationPrompt, String targetFields, String modelId,
+                double temperature, int maxTokens, String fallbackBehavior,
+                boolean includeBody, int maxBodyBytes, boolean cacheEnabled, int cacheTtlSeconds,
+                int timeoutMs, String method, String path, String queryString, String clientIp,
+                java.util.Map<String, String> headers, String bodyBase64, String correlationId) {
+            this(routeId, routeName, tenantId, modificationPrompt, targetFields, modelId,
+                    temperature, maxTokens, fallbackBehavior, includeBody, maxBodyBytes,
+                    cacheEnabled, cacheTtlSeconds, timeoutMs, method, path, queryString,
+                    clientIp, headers, bodyBase64, null, correlationId);
+        }
+    }
 
     // ─── routify-audit-service AI filter stats ────────────────────────────────
 

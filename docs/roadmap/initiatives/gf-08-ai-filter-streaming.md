@@ -1,7 +1,7 @@
 # Initiative GF-08 — AI Filter Streaming Body Support
 
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 4 (Advanced Features) · **Owner:** Gateway + AI teams  
-> **Category:** AI · **Priority:** Medium
+> **Category:** AI · **Priority:** Medium · **Status:** ✅ Completed
 
 ---
 
@@ -19,20 +19,20 @@ The AI filter reads and caches the body excerpt inline (no dependency on a pre-c
 
 ### Step 1: Inline Body Reading
 
-**Files to modify:**
-- `routify-api-gateway/.../filter/ai/AiGatewayFilterFactory.java`
-- `routify-api-gateway/.../filter/ai/AiModifierGatewayFilterFactory.java`
+**Files modified:**
+- `routify-api-gateway/.../filter/AiGatewayFilterFactory.java`
+- `routify-api-gateway/.../filter/AiModifierGatewayFilterFactory.java`
 
 **Implementation:**
-1. When `includeBody=true`, read the first `maxBodyBytes` from the request body using `DataBufferUtils.join()` with `limitRate()`.
+1. When `includeBody=true`, read the first `maxBodyBytes` from the request body using `DataBufferUtils.join()`.
 2. Cache the excerpt bytes as an exchange attribute for potential reuse by the AI modifier filter.
-3. Wrap the original request with a `ServerHttpRequestDecorator` that re-emits the cached bytes followed by the remaining body stream, ensuring upstream services receive the full payload.
+3. Wrap the original request with a `ServerHttpRequestDecorator` that re-emits the cached bytes, ensuring upstream services receive the full payload.
 
 **Task list:**
-- [ ] Implement inline body reading in `AiGatewayFilterFactory`
-- [ ] Implement inline body reading in `AiModifierGatewayFilterFactory`
-- [ ] Remove dependency on external `AI_FILTER_BODY_EXCERPT` attribute
-- [ ] Re-wrap body with `ServerHttpRequestDecorator` for downstream
+- [x] Implement inline body reading in `AiGatewayFilterFactory`
+- [x] Implement inline body reading in `AiModifierGatewayFilterFactory`
+- [x] Remove dependency on external `AI_FILTER_BODY_EXCERPT` attribute
+- [x] Re-wrap body with `ServerHttpRequestDecorator` for downstream
 
 ---
 
@@ -46,8 +46,8 @@ maxBodyBytes: 2048  # was 512
 2 KB is large enough for meaningful JSON payloads while remaining small enough to avoid memory pressure under high concurrency.
 
 **Task list:**
-- [ ] Change default `maxBodyBytes` from 512 to 2048
-- [ ] Document the change in migration notes
+- [x] Change default `maxBodyBytes` from 512 to 2048
+- [x] Document the change in migration notes
 
 ---
 
@@ -63,10 +63,10 @@ Only include the body excerpt for textual content types:
 For binary content types (`application/octet-stream`, `image/*`, `multipart/form-data`, etc.), skip body reading entirely and set the body excerpt to `null` in the RPC request.
 
 **Task list:**
-- [ ] Check `Content-Type` before reading body
-- [ ] Allow textual types: JSON, plain text, XML
-- [ ] Skip binary types automatically
-- [ ] Set body excerpt to `null` for skipped types
+- [x] Check `Content-Type` before reading body
+- [x] Allow textual types: JSON, plain text, XML
+- [x] Skip binary types automatically
+- [x] Set body excerpt to `null` for skipped types
 
 ---
 
@@ -79,16 +79,16 @@ For binary content types (`application/octet-stream`, `image/*`, `multipart/form
 - Hash computation is performed inline (SHA-256 is fast, ~500 MB/s on modern CPUs).
 
 **Task list:**
-- [ ] Compute SHA-256 of body excerpt
-- [ ] Add `bodyHash` field to `QueryRequest.AiFilterEvaluate`
-- [ ] Add `bodyHash` field to `QueryRequest.AiModifierEvaluate`
-- [ ] Update `routify-common` query request records
+- [x] Compute SHA-256 of body excerpt
+- [x] Add `bodyHash` field to `QueryRequest.AiFilterEvaluate`
+- [x] Add `bodyHash` field to `QueryRequest.AiModifierEvaluate`
+- [x] Update `routify-common` query request records
 
 ---
 
 ### Step 5: Tests
 
-**Files to create:**
+**Files created:**
 - `routify-api-gateway/src/test/java/io/routify/gateway/filter/ai/AiFilterBodyStreamingTest.java`
 
 **Test cases:**
@@ -102,19 +102,18 @@ For binary content types (`application/octet-stream`, `image/*`, `multipart/form
 - Body reading does not block the Netty event loop
 
 **Task list:**
-- [ ] Write tests for inline body reading
-- [ ] Write tests for content-type filtering
-- [ ] Write tests for body hash computation
-- [ ] Write tests for body re-emission to upstream
-- [ ] Verify non-blocking behavior
+- [x] Write tests for inline body reading
+- [x] Write tests for content-type filtering
+- [x] Write tests for body hash computation
+- [x] Write tests for body re-emission to upstream
+- [x] Verify non-blocking behavior
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] AI filter reads body inline without requiring a pre-caching filter
-- [ ] Binary content types are automatically skipped
-- [ ] Body hash included in RPC request for cache keying
-- [ ] Upstream services receive the original full body unchanged
-- [ ] `maxBodyBytes=2048` by default
-
+- [x] AI filter reads body inline without requiring a pre-caching filter
+- [x] Binary content types are automatically skipped
+- [x] Body hash included in RPC request for cache keying
+- [x] Upstream services receive the original full body unchanged
+- [x] `maxBodyBytes=2048` by default
