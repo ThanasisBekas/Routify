@@ -153,6 +153,17 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
     geoDbPath: 'classpath:GeoLite2-Country.mmdb',
     cacheSize: 10000,
   },
+  // Integration
+  WEBHOOK_NOTIFY: {
+    webhookUrl: '',
+    secret: '',
+    triggerOn: '5xx',
+    headerMatch: '',
+    includeRequestHeaders: false,
+    includeResponseStatus: true,
+    maxPayloadSize: 4096,
+    cooldownSeconds: 10,
+  },
   // Developer Experience
   MOCK_RESPONSE: {
     status: 200,

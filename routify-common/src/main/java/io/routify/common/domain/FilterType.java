@@ -184,6 +184,19 @@ public enum FilterType {
      */
     BODY_SIZE_METRIC,
 
+    // ─── Integration ──────────────────────────────────────────────────────────
+
+    /**
+     * Webhook Notification filter — fires a non-blocking webhook HTTP POST when a
+     * request matches configurable conditions (status codes, header values). Useful
+     * for real-time alerting on specific traffic patterns (e.g. 5xx errors, AI filter
+     * flags). Features HMAC-SHA256 signing ({@code X-Routify-Signature}), per-route
+     * cooldown to prevent notification storms, and fire-and-forget dispatch that never
+     * blocks the client response.
+     * — WebhookNotifyGatewayFilterFactory
+     */
+    WEBHOOK_NOTIFY,
+
     // ─── Developer Experience ───────────────────────────────────────────────
 
     /**

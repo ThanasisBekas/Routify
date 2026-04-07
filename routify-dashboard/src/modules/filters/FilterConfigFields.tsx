@@ -1715,6 +1715,140 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── Integration ──────────────────────────────────────────────────────────
+    case 'WEBHOOK_NOTIFY':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Fires a <strong className="text-yellow-300">non-blocking webhook POST</strong> when a request
+            matches configurable conditions (status codes, header values). The webhook is dispatched
+            asynchronously and <strong className="text-yellow-300">never blocks</strong> the client response.
+            Supports HMAC-SHA256 signing and per-route cooldown to prevent notification storms.
+          </p>
+
+          <Field label="Webhook URL" hint="URL to POST the notification to. Required.">
+            <input
+              value={str('webhookUrl')}
+              onChange={(e) => set('webhookUrl', e.target.value)}
+              className={inputCls}
+              placeholder="https://hooks.example.com/alert"
+            />
+          </Field>
+
+          <Field
+            label="Signing Secret"
+            hint="HMAC-SHA256 key for X-Routify-Signature header. Leave empty to skip signing."
+            optional
+          >
+            <input
+              type="password"
+              value={str('secret')}
+              onChange={(e) => set('secret', e.target.value)}
+              className={inputCls}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+          </Field>
+
+          <SectionTitle>Trigger Conditions</SectionTitle>
+
+          <Field
+            label="Trigger On"
+            hint="When to fire the webhook: 5xx (server errors), 4xx (client errors), ALL (any status), or comma-separated codes (e.g. 503,504)."
+          >
+            <Select
+              value={str('triggerOn', '5xx')}
+              onChange={(v) => set('triggerOn', v)}
+              options={[
+                { value: '5xx', label: '5xx — Server Errors', description: 'Status codes 500–599' },
+                { value: '4xx', label: '4xx — Client Errors', description: 'Status codes 400–499' },
+                { value: 'ALL', label: 'ALL — Any Status', description: 'Fire on every request' },
+                { value: 'custom', label: 'Custom Codes', description: 'Comma-separated specific codes' },
+              ]}
+            />
+          </Field>
+
+          {str('triggerOn', '5xx') === 'custom' && (
+            <Field label="Custom Status Codes" hint="Comma-separated status codes, e.g. 503,504,429">
+              <input
+                value={str('triggerOn', '')}
+                onChange={(e) => set('triggerOn', e.target.value)}
+                className={monoInputCls}
+                placeholder="503,504,429"
+              />
+            </Field>
+          )}
+
+          <Field
+            label="Header Match"
+            hint="Only fire when a specific header matches a value. Format: Header-Name=value (e.g. X-AI-Filter-Flag=true). Leave empty to skip."
+            optional
+          >
+            <input
+              value={str('headerMatch')}
+              onChange={(e) => set('headerMatch', e.target.value)}
+              className={monoInputCls}
+              placeholder="X-AI-Filter-Flag=true"
+            />
+          </Field>
+
+          <SectionTitle>Payload &amp; Rate Limiting</SectionTitle>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Max Payload Size" hint="Maximum webhook payload size in bytes. Default: 4096.">
+              <input
+                type="number"
+                min={256}
+                max={65536}
+                value={num('maxPayloadSize', 4096)}
+                onChange={(e) => set('maxPayloadSize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field
+              label="Cooldown (seconds)"
+              hint="Minimum seconds between consecutive webhooks for the same route. Prevents notification storms. Default: 10."
+            >
+              <input
+                type="number"
+                min={0}
+                max={3600}
+                value={num('cooldownSeconds', 10)}
+                onChange={(e) => set('cooldownSeconds', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <Toggle
+            label="Include Request Headers"
+            description="Include sanitized request headers in the webhook payload. Sensitive headers (Authorization, Cookie, X-Api-Key) are always redacted."
+            checked={bool('includeRequestHeaders', false)}
+            onChange={(v) => set('includeRequestHeaders', v)}
+          />
+          <Toggle
+            label="Include Response Status"
+            description="Include the response status code in the webhook payload."
+            checked={bool('includeResponseStatus', true)}
+            onChange={(v) => set('includeResponseStatus', v)}
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Payload format:{' '}
+              <code className="font-mono text-blue-300">
+                {'{'}&quot;routeId&quot;, &quot;correlationId&quot;, &quot;method&quot;, &quot;path&quot;, &quot;status&quot;, &quot;timestamp&quot;, &quot;headers&quot;{'}'}
+              </code>.
+              The webhook is signed with{' '}
+              <code className="font-mono text-blue-300">X-Routify-Signature: sha256=&lt;hmac&gt;</code>{' '}
+              when a secret is configured. Dispatch timeout: 5 seconds. Failures are logged but never
+              affect the client response.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Developer Experience ──────────────────────────────────────────────────
     case 'MOCK_RESPONSE':
       return (
