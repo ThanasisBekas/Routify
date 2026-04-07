@@ -49,6 +49,7 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Modification
   REQUEST_HEADER_MODIFY: { add: {}, set: {}, remove: {} },
   RESPONSE_HEADER_MODIFY: { add: {}, set: {}, remove: {} },
+  RESPONSE_HEADER_REWRITE: { headerName: '', pattern: '', replacement: '', replaceAll: false },
   // Transformation
   BODY_JOLT_TRANSFORM: { spec: '[]', phase: 'REQUEST', responseSpec: '[]', maxBodySize: 1048576 },
   // Validation

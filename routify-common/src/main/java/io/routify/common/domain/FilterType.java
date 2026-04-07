@@ -61,6 +61,15 @@ public enum FilterType {
     REQUEST_HEADER_MODIFY,
     /** Add, set or remove response headers — ResponseHeaderModifyGatewayFilterFactory */
     RESPONSE_HEADER_MODIFY,
+    /**
+     * Regex-based response header value rewriting — rewrites header values using
+     * pre-compiled Java regex patterns with capture group references ({@code $1}, {@code $2}).
+     * Primary use cases: rewriting {@code Location} redirect headers from internal to external URLs,
+     * rewriting {@code Set-Cookie} domain attributes.
+     * Includes catastrophic backtracking protection.
+     * — ResponseHeaderRewriteGatewayFilterFactory
+     */
+    RESPONSE_HEADER_REWRITE,
 
     // ─── Body Transformation ─────────────────────────────────────────────────
 

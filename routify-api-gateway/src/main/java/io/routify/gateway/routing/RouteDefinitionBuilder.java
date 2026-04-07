@@ -257,6 +257,7 @@ public class RouteDefinitionBuilder {
             // ─── Request/Response Modification ───────────────────────────────
             case "REQUEST_HEADER_MODIFY" -> customFilter("RequestHeaderModify", cfg);
             case "RESPONSE_HEADER_MODIFY" -> customFilter("ResponseHeaderModify", cfg);
+            case "RESPONSE_HEADER_REWRITE" -> customFilter("ResponseHeaderRewrite", cfg);
             case "PATH_REWRITE" -> {
                 var f = new FilterDefinition();
                 f.setName("RewritePath");
