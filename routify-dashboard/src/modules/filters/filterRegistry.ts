@@ -309,6 +309,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-pink-400/10',
     border: 'border-pink-400/20',
   },
+  {
+    value: 'BODY_SIZE_METRIC',
+    label: 'Body Size Metric',
+    category: 'Observability',
+    description:
+      'Lightweight, zero-copy filter that records request and response body sizes as Micrometer distribution summaries. Uses Content-Length fast path or non-buffering byte counter for chunked transfers.',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-400/10',
+    border: 'border-indigo-400/20',
+  },
 
   // ── Security ─────────────────────────────────────────────────────────────────
   {

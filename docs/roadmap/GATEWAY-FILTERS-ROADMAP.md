@@ -269,7 +269,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 | 12 | ✅ [Response Cache Filter](#12-response-cache-filter) | Performance | High | Per-route Redis-backed response caching with configurable TTL and cache-control semantics |
 | 13 | [Circuit Breaker v2 Filter](#13-circuit-breaker-v2-filter) | Resilience | High | Custom Resilience4j circuit breaker with per-route config, half-open probing, and dashboard status |
 | 14 | ✅ [Retry v2 Filter](#14-retry-v2-filter) | Resilience | High | Custom retry filter with exponential backoff, jitter, idempotency awareness, and per-route config |
-| 15 | [Request/Response Body Size Logging Filter](#15-requestresponse-body-size-logging-filter) | Observability | Low | Lightweight filter that emits Micrometer metrics for body sizes without capturing content |
+| 15 | ✅ [Request/Response Body Size Logging Filter](#15-requestresponse-body-size-logging-filter) | Observability | Low | Lightweight filter that emits Micrometer metrics for body sizes without capturing content |
 | 16 | [OAuth2 Token Relay Filter](#16-oauth2-token-relay-filter) | Authentication | Medium | Exchange incoming token for a downstream-specific token via token exchange (RFC 8693) |
 | 17 | [GraphQL Depth Limit Filter](#17-graphql-depth-limit-filter) | Validation | Medium | Parses GraphQL queries and rejects those exceeding configurable depth/complexity limits |
 | 18 | [Response Header Rewrite Filter](#18-response-header-rewrite-filter) | Modification | Medium | Regex-based response header value rewriting (e.g., rewrite `Location` headers for proxy URLs) |
@@ -463,12 +463,13 @@ A custom retry filter replacing the deprecated `RETRY` type. Adds exponential ba
 
 ---
 
-### 15. Request/Response Body Size Logging Filter
+### 15. Request/Response Body Size Logging Filter ✅
 
 **Design doc:** [`initiatives/gf-15-body-size-metric.md`](./initiatives/gf-15-body-size-metric.md)  
 **Filter type:** `BODY_SIZE_METRIC`  
 **Category:** Observability  
-**Priority:** Low
+**Priority:** Low  
+**Status:** ✅ **COMPLETED**
 
 #### Description
 A lightweight, zero-copy filter that records request and response body sizes as Micrometer distribution summaries without reading or buffering the body content. Useful for monitoring payload size trends and detecting anomalies.

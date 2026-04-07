@@ -2,7 +2,8 @@
 
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 5 (Extensions) · **Owner:** Gateway team  
 > **Category:** Observability · **Priority:** Low  
-> **Filter type:** `BODY_SIZE_METRIC`
+> **Filter type:** `BODY_SIZE_METRIC`  
+> **Status:** ✅ **COMPLETED**
 
 ---
 
@@ -41,12 +42,12 @@ A zero-copy filter that records request and response body sizes as Micrometer di
 2. If absent: wrap response body with `ServerHttpResponseDecorator.writeWith()` that counts bytes without buffering.
 
 **Task list:**
-- [ ] Create filter factory
-- [ ] Implement request body size recording
-- [ ] Implement response body size recording
-- [ ] Support `Content-Length` fast path
-- [ ] Support chunked transfer byte counting
-- [ ] Zero-copy: never buffer body content
+- [x] Create filter factory
+- [x] Implement request body size recording
+- [x] Implement response body size recording
+- [x] Support `Content-Length` fast path
+- [x] Support chunked transfer byte counting
+- [x] Zero-copy: never buffer body content
 
 ---
 
@@ -57,9 +58,9 @@ A zero-copy filter that records request and response body sizes as Micrometer di
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `BODY_SIZE_METRIC` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `BODY_SIZE_METRIC` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -70,9 +71,9 @@ A zero-copy filter that records request and response body sizes as Micrometer di
 - `routify.response.body.size` — distribution summary, tagged by `routeId`, `method`, `status`
 
 **Task list:**
-- [ ] Register Micrometer distribution summaries
-- [ ] Tag with `routeId`, `method`, `status`
-- [ ] Include custom tags from config
+- [x] Register Micrometer distribution summaries
+- [x] Tag with `routeId`, `method`, `status`
+- [x] Include custom tags from config
 
 ---
 
@@ -89,17 +90,16 @@ A zero-copy filter that records request and response body sizes as Micrometer di
 - Custom tags appear in metric
 
 **Task list:**
-- [ ] Write tests for `Content-Length` fast path
-- [ ] Write tests for chunked transfer counting
-- [ ] Write tests for config flags
+- [x] Write tests for `Content-Length` fast path
+- [x] Write tests for chunked transfer counting
+- [x] Write tests for config flags
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Request and response body sizes recorded as Micrometer distribution summaries
-- [ ] `Content-Length` header used as fast path (no body reading)
-- [ ] Chunked transfers counted via non-buffering byte counter
-- [ ] Zero-copy: body content never buffered or read
-- [ ] Custom tags configurable per filter instance
-
+- [x] Request and response body sizes recorded as Micrometer distribution summaries
+- [x] `Content-Length` header used as fast path (no body reading)
+- [x] Chunked transfers counted via non-buffering byte counter
+- [x] Zero-copy: body content never buffered or read
+- [x] Custom tags configurable per filter instance

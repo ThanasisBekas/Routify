@@ -341,6 +341,7 @@ export type FilterType =
   | 'TENANT_CONTEXT'
   | 'SECURITY_HEADERS'
   | 'CUSTOM_METRIC'
+  | 'BODY_SIZE_METRIC'
   | 'CUSTOM_SPEL'
   // ─── Security ─────────────────────────────────────────────────────────────
   | 'IP_ACCESS_CONTROL'
