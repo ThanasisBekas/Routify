@@ -190,4 +190,24 @@ public class AuditMessagingClient extends AmqpServiceClientSupport {
         log.warn("replayBulk circuit open or timed out: {}", t.getMessage());
         return new QueryResponse.ReplayBulkResult(0, 0, 0, 0);
     }
+
+    // ─── Route Health (Gateway Health Dashboard v2) ────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryRouteHealthFallback")
+    public QueryResponse.RouteHealthResponse queryRouteHealth(UUID tenantId, String window) {
+        try {
+            return rpc(RabbitTopology.RK_AUDIT_ROUTE_HEALTH,
+                    new QueryRequest.RouteHealthQuery(tenantId, window),
+                    QueryResponse.RouteHealthResponse.class);
+        } catch (Exception e) {
+            log.error("queryRouteHealth failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.RouteHealthResponse queryRouteHealthFallback(UUID tenantId, String window, Throwable t) {
+        log.warn("queryRouteHealth circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.RouteHealthResponse(List.of());
+    }
 }

@@ -417,5 +417,24 @@ public final class RabbitTopology {
      */
     public static final String QUEUE_AUDIT_AI_FILTER_QUERY  = "routify.audit-service.ai-filter.query";
     public static final String RK_AUDIT_AI_FILTER_QUERY     = "audit.ai-filter.query";
+
+    // ─── routify-audit-service route health stats ──────────────────────────────
+
+    /**
+     * Queue: audit-service serves per-route health stats (latency percentiles, error rates,
+     * status code distribution) for the Gateway Health Dashboard v2.
+     */
+    public static final String QUEUE_AUDIT_ROUTE_HEALTH     = "routify.audit-service.route.health";
+    public static final String RK_AUDIT_ROUTE_HEALTH        = "audit.route.health";
+
+    // ─── routify-route-service SLO queues & routing keys ──────────────────────
+
+    /** Queue: route-service serves route SLO config GET queries from admin-api */
+    public static final String QUEUE_ROUTE_SLO_GET           = "routify.route-service.route-slo.get";
+    public static final String RK_ROUTE_SLO_GET              = "route-slo.get";
+
+    /** Queue: route-service serves route SLO config SAVE (upsert) from admin-api */
+    public static final String QUEUE_ROUTE_SLO_SAVE          = "routify.route-service.route-slo.save";
+    public static final String RK_ROUTE_SLO_SAVE             = "route-slo.save";
 }
 

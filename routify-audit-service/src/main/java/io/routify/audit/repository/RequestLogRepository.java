@@ -129,6 +129,48 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, UUID> {
     @Modifying
     @Query(value = "DELETE FROM routify_audit.request_log WHERE requested_at < :cutoff", nativeQuery = true)
     int deleteByRequestedAtBefore(@Param("cutoff") Instant cutoff);
+
+    // ─── Route Health Dashboard v2 ────────────────────────────────────────────
+
+    /**
+     * Per-route aggregated health stats: total, errors, avg/p50/p95/p99 latency.
+     * Uses native SQL for percentile_cont (PostgreSQL).
+     */
+    @Query(value = """
+            SELECT r.route_id,
+                   r.route_name,
+                   COUNT(*)                                                                AS total,
+                   SUM(CASE WHEN r.response_status >= 400 THEN 1 ELSE 0 END)              AS errors,
+                   AVG(r.duration_ms)                                                      AS avg_latency,
+                   percentile_cont(0.50) WITHIN GROUP (ORDER BY r.duration_ms)             AS p50,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY r.duration_ms)             AS p95,
+                   percentile_cont(0.99) WITHIN GROUP (ORDER BY r.duration_ms)             AS p99
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND r.route_id IS NOT NULL
+            GROUP BY r.route_id, r.route_name
+            ORDER BY total DESC
+            """, nativeQuery = true)
+    List<Object[]> getRouteHealthStats(
+            @Param("tenantId") UUID tenantId,
+            @Param("since") Instant since);
+
+    /** Status code distribution for a single route within a time window. */
+    @Query(value = """
+            SELECT r.response_status, COUNT(*)
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.route_id = :routeId
+              AND r.requested_at >= :since
+              AND r.response_status IS NOT NULL
+            GROUP BY r.response_status
+            ORDER BY r.response_status
+            """, nativeQuery = true)
+    List<Object[]> getStatusCodeDistribution(
+            @Param("tenantId") UUID tenantId,
+            @Param("routeId") UUID routeId,
+            @Param("since") Instant since);
 }
 
 

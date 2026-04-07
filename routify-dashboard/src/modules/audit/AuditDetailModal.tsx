@@ -15,6 +15,7 @@ import {
 import { cn } from '../../lib/utils'
 import type { AuditEntry, RequestLogDto, FailedRequestDto, ReplayStatus } from '../../types'
 import { useState } from 'react'
+import TraceLink from '../gateway/components/TraceLink'
 
 /* ── helpers ────────────────────────────────────────────────────────────────── */
 
@@ -286,7 +287,10 @@ function AuditEntryModal({ entry, onClose }: { entry: AuditEntry; onClose: () =>
           {entry.eventId}
         </Field>
         <Field label="Correlation ID" mono>
-          {entry.correlationId ?? '—'}
+          <span className="flex items-center gap-2">
+            {entry.correlationId ?? '—'}
+            <TraceLink correlationId={entry.correlationId} compact />
+          </span>
         </Field>
       </Section>
 
@@ -379,7 +383,10 @@ function RequestLogModal({ log, onClose }: { log: RequestLogDto; onClose: () => 
           {log.clientIp ?? '—'}
         </Field>
         <Field label="Correlation ID" mono>
-          {log.correlationId ?? '—'}
+          <span className="flex items-center gap-2">
+            {log.correlationId ?? '—'}
+            <TraceLink correlationId={log.correlationId} compact />
+          </span>
         </Field>
         <Field label="Duration">
           <span className={cn('font-mono text-sm font-semibold', durationColor)}>
@@ -539,7 +546,10 @@ function FailedRequestModal({ req, onClose }: { req: FailedRequestDto; onClose: 
           {req.routeId ?? '—'}
         </Field>
         <Field label="Correlation ID" mono>
-          {req.correlationId ?? '—'}
+          <span className="flex items-center gap-2">
+            {req.correlationId ?? '—'}
+            <TraceLink correlationId={req.correlationId} compact />
+          </span>
         </Field>
         <Field label="Duration">
           <span className={cn('font-mono text-sm font-semibold', durationColor)}>

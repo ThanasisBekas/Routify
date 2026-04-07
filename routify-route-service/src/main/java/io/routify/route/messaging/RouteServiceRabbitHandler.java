@@ -6,6 +6,7 @@ import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.event.RabbitTopology;
 import io.routify.route.mapper.RouteMapper;
+import io.routify.route.repository.RouteSloRepository;
 import io.routify.route.service.FilterDefinitionService;
 import io.routify.route.service.GatewayConfigService;
 import io.routify.route.service.RouteService;
@@ -35,6 +36,7 @@ public class RouteServiceRabbitHandler {
     private final FilterDefinitionService  filterService;
     private final GatewayConfigService     gatewayConfigService;
     private final RouteMapper              routeMapper;
+    private final RouteSloRepository       routeSloRepository;
 
     @RabbitListener(queues = RabbitTopology.QUEUE_ROUTE_GATEWAY_SNAPSHOT)
     public QueryResponse.GatewaySnapshotList handleGatewaySnapshotRequest(@SuppressWarnings("unused") QueryRequest.GatewaySnapshot request) {
@@ -190,5 +192,43 @@ public class RouteServiceRabbitHandler {
                 f.id(), f.tenantId(), f.name(), f.description(), f.filterType(),
                 f.config(), f.systemManaged(), f.enabled(), f.usageCount(),
                 gcr, f.createdBy(), f.createdAt(), f.updatedAt());
+    }
+
+    // ─── Admin-API: Route SLO Queries (Gateway Health Dashboard v2) ───────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ROUTE_SLO_GET)
+    public QueryResponse.RouteSloResult handleRouteSloGet(QueryRequest.RouteSloGet req) {
+        log.debug("RabbitMQ: received route-slo.get request: routeId={}", req.routeId());
+        return routeSloRepository.findByRouteId(req.routeId())
+                .map(slo -> new QueryResponse.RouteSloResult(
+                        slo.getRouteId(),
+                        slo.getAvailabilityTarget().doubleValue(),
+                        slo.getLatencyP99TargetMs(),
+                        slo.getEvaluationWindowHours(),
+                        true))
+                .orElse(new QueryResponse.RouteSloResult(
+                        req.routeId(), 99.9, 1000, 168, false));
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ROUTE_SLO_SAVE)
+    public QueryResponse.RouteSloResult handleRouteSloSave(QueryRequest.RouteSloSave req) {
+        log.debug("RabbitMQ: received route-slo.save request: routeId={}", req.routeId());
+        var slo = routeSloRepository.findByRouteId(req.routeId())
+                .orElse(new io.routify.route.domain.RouteSlo(
+                        req.routeId(),
+                        java.math.BigDecimal.valueOf(req.availabilityTarget()),
+                        req.latencyP99TargetMs(),
+                        req.evaluationWindowHours()));
+        slo.setAvailabilityTarget(java.math.BigDecimal.valueOf(req.availabilityTarget()));
+        slo.setLatencyP99TargetMs(req.latencyP99TargetMs());
+        slo.setEvaluationWindowHours(req.evaluationWindowHours());
+        routeSloRepository.save(slo);
+        log.info("RabbitMQ: route SLO saved for routeId={}", req.routeId());
+        return new QueryResponse.RouteSloResult(
+                slo.getRouteId(),
+                slo.getAvailabilityTarget().doubleValue(),
+                slo.getLatencyP99TargetMs(),
+                slo.getEvaluationWindowHours(),
+                true);
     }
 }

@@ -197,6 +197,52 @@ public class AuditRabbitHandler {
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
+    // ─── Route Health Stats (Gateway Health Dashboard v2) ─────────────────────
+
+    /**
+     * Returns per-route health stats (latency percentiles, error rate, status code distribution)
+     * for the Gateway Health Dashboard v2 heatmap.
+     */
+    @RabbitListener(queues = RabbitTopology.QUEUE_AUDIT_ROUTE_HEALTH)
+    public QueryResponse.RouteHealthResponse handleRouteHealth(QueryRequest.RouteHealthQuery req) {
+        log.debug("RabbitMQ: received audit.route.health request: tenantId={} window={}",
+                req.tenantId(), req.window());
+
+        Instant since = switch (req.window() != null ? req.window() : "24h") {
+            case "1h" -> Instant.now().minusSeconds(3600);
+            case "7d" -> Instant.now().minusSeconds(7 * 86400);
+            default   -> Instant.now().minusSeconds(86400);
+        };
+
+        List<Object[]> rows = requestLogRepository.getRouteHealthStats(req.tenantId(), since);
+
+        var entries = rows.stream().map(row -> {
+            UUID   routeId       = row[0] != null ? UUID.fromString(row[0].toString()) : null;
+            String routeName     = row[1] != null ? row[1].toString() : "unknown";
+            long   totalRequests = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            long   errorCount    = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+            double errorRate     = totalRequests > 0 ? (double) errorCount / totalRequests : 0.0;
+            double avgLatencyMs  = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
+            double p50LatencyMs  = row[5] != null ? ((Number) row[5]).doubleValue() : 0.0;
+            double p95LatencyMs  = row[6] != null ? ((Number) row[6]).doubleValue() : 0.0;
+            double p99LatencyMs  = row[7] != null ? ((Number) row[7]).doubleValue() : 0.0;
+
+            // Status code distribution for this route
+            List<Object[]> statusRows = requestLogRepository
+                    .getStatusCodeDistribution(req.tenantId(), routeId, since);
+            Map<Integer, Long> statusDist = new HashMap<>();
+            for (Object[] s : statusRows) {
+                statusDist.put(((Number) s[0]).intValue(), ((Number) s[1]).longValue());
+            }
+
+            return new QueryResponse.RouteHealthResponse.RouteHealthEntry(
+                    routeId, routeName, totalRequests, errorCount, errorRate,
+                    p50LatencyMs, p95LatencyMs, p99LatencyMs, avgLatencyMs, statusDist);
+        }).toList();
+
+        return new QueryResponse.RouteHealthResponse(entries);
+    }
+
     // ─── AI Filter Stats & Decision Log ───────────────────────────────────────
 
     /**
