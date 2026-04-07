@@ -26,6 +26,8 @@ public interface RouteMapper {
     @Mapping(target = "filterCount", expression = "java(route.getFilters().size())")
     RouteDto.Summary toSummary(Route route);
 
+    @Mapping(target = "tenantId", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
     Route fromCreateRequest(RouteDto.CreateRequest req);
 
     @Named("toFilterRefs")
@@ -77,6 +79,9 @@ public interface RouteMapper {
     FilterDefinitionDto.Summary toFilterSummary(FilterDefinition filter);
 
     @Mapping(target = "gatewayConfigRef", ignore = true)
+    @Mapping(target = "tenantId", ignore = true)
+    @Mapping(target = "systemManaged", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
     FilterDefinition fromFilterCreateRequest(FilterDefinitionDto.CreateRequest req);
 
     @Named("toGatewayConfigRef")
