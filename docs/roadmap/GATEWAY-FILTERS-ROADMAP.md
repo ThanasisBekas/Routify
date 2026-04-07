@@ -265,7 +265,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 |---|-----------|----------|----------|--------|
 | 9 | ✅ [IP Allowlist / Denylist Filter](#9-ip-allowlist--denylist-filter) | Security | High | Blocks/allows requests by client IP or CIDR range before any other filter executes |
 | 10 | ✅ [Geographic Routing Filter](#10-geographic-routing-filter) | Routing | Medium | Routes requests to geographically closest upstream based on MaxMind GeoIP |
-| 11 | [Request Size Limit Filter](#11-request-size-limit-filter) | Validation | High | Enforces per-route request body size limits with early rejection |
+| 11 | ✅ [Request Size Limit Filter](#11-request-size-limit-filter) | Validation | High | Enforces per-route request body size limits with early rejection |
 | 12 | [Response Cache Filter](#12-response-cache-filter) | Performance | High | Per-route Redis-backed response caching with configurable TTL and cache-control semantics |
 | 13 | [Circuit Breaker v2 Filter](#13-circuit-breaker-v2-filter) | Resilience | High | Custom Resilience4j circuit breaker with per-route config, half-open probing, and dashboard status |
 | 14 | [Retry v2 Filter](#14-retry-v2-filter) | Resilience | High | Custom retry filter with exponential backoff, jitter, idempotency awareness, and per-route config |
@@ -864,7 +864,8 @@ For reference, the complete list of active (non-deprecated) gateway filters as o
 | 13 | `RESPONSE_HEADER_MODIFY` | `ResponseHeaderModifyGatewayFilterFactory` | Modification |
 | 14 | `BODY_JOLT_TRANSFORM` | `JoltTransformGatewayFilterFactory` | Body Transform |
 | 15 | `VALIDATE_JSON_SCHEMA` | `JsonSchemaValidateGatewayFilterFactory` | Validation |
-| 16 | `TIMEOUT` | `RequestTimeoutGatewayFilterFactory` | Resilience |
+| 16 | `REQUEST_SIZE_LIMIT` | `RequestSizeLimitGatewayFilterFactory` | Validation |
+| 17 | `TIMEOUT` | `RequestTimeoutGatewayFilterFactory` | Resilience |
 | 17 | `CONDITIONAL_ROUTE` | `ConditionalRouteGatewayFilterFactory` | Routing |
 | 18 | `USER_ID_PAYLOAD_ROUTING` | `UserIdPayloadRoutingGatewayFilterFactory` | Routing |
 | 19 | `CERT_ROTATION` | `CertRotationGatewayFilterFactory` | Certificate |

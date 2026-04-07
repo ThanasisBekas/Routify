@@ -64,6 +64,8 @@ public enum FilterType {
 
     /** Validate request body against a JSON Schema — JsonSchemaValidateGatewayFilterFactory */
     VALIDATE_JSON_SCHEMA,
+    /** Enforce per-route maximum request body size (413 on exceed) — RequestSizeLimitGatewayFilterFactory */
+    REQUEST_SIZE_LIMIT,
 
     // ─── Resilience ──────────────────────────────────────────────────────────
 

@@ -216,6 +216,15 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-cyan-300/10',
     border: 'border-cyan-300/20',
   },
+  {
+    value: 'REQUEST_SIZE_LIMIT',
+    label: 'Request Size Limit',
+    category: 'Validation',
+    description: 'Enforce per-route maximum request body size; rejects with HTTP 413 when exceeded',
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-300/10',
+    border: 'border-cyan-300/20',
+  },
 
   // ── Resilience ────────────────────────────────────────────────────────────────
   {

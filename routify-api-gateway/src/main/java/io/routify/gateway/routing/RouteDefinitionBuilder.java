@@ -295,6 +295,7 @@ public class RouteDefinitionBuilder {
 
             // ─── Validation ───────────────────────────────────────────────────
             case "VALIDATE_JSON_SCHEMA" -> customFilter("JsonSchemaValidate", cfg);
+            case "REQUEST_SIZE_LIMIT"   -> customFilter("RequestSizeLimit", cfg);
             case "VALIDATE_REGEX" -> {
                 log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation)");
                 yield null;

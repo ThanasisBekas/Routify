@@ -522,6 +522,44 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    case 'REQUEST_SIZE_LIMIT':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Enforces a maximum request body size per route. Uses a two-stage approach: fast rejection
+            via <code className="font-mono text-cyan-300">Content-Length</code> header check, and
+            streaming byte counting for chunked transfers. Oversized requests receive{' '}
+            <strong>HTTP 413 Payload Too Large</strong> with an RFC 9457 ProblemDetail body.
+          </p>
+          <Field label="Max Size" hint="Maximum allowed request body size (e.g. 5MB, 512KB, 1GB)">
+            <input
+              value={str('maxSize', '5MB')}
+              onChange={(e) => set('maxSize', e.target.value)}
+              className={inputCls}
+              placeholder="5MB"
+            />
+          </Field>
+          <Toggle
+            label="Check Content-Length header"
+            description="Fast-reject requests whose Content-Length header exceeds maxSize before reading the body"
+            checked={bool('checkContentLength', true)}
+            onChange={(v) => set('checkContentLength', v)}
+          />
+          <Toggle
+            label="Check actual body size"
+            description="Count streamed bytes for chunked transfers without Content-Length header"
+            checked={bool('checkActualSize', true)}
+            onChange={(v) => set('checkActualSize', v)}
+          />
+          <Toggle
+            label="Tenant-aware limits"
+            description="Resolve per-tenant size limits from the tenant plan instead of using the static maxSize"
+            checked={bool('tenantAware', false)}
+            onChange={(v) => set('tenantAware', v)}
+          />
+        </div>
+      )
+
     // ── Resilience ────────────────────────────────────────────────────────────
     case 'TIMEOUT':
       return (
