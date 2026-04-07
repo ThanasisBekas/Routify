@@ -299,8 +299,6 @@ Usage: {{ include "routify.redisEnv" . | nindent 12 }}
 {{- define "routify.redisEnv" -}}
 - name: REDIS_HOST
   value: {{ include "routify.redisHost" . | quote }}
-- name: SPRING_DATA_REDIS_HOST
-  value: {{ include "routify.redisHost" . | quote }}
 - name: REDIS_PASS
   valueFrom:
     secretKeyRef:

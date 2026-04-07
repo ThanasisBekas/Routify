@@ -196,10 +196,9 @@ services:
       KAFKA_BOOTSTRAP: kafka:29092
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PASS: ${RABBITMQ_PASS}
-      SPRING_DATA_REDIS_HOST: redis
+      REDIS_HOST: redis
       REDIS_PASS: ${REDIS_PASS}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
-      AI_SERVICE_URL: http://ai-service:8086
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
     depends_on:
       route-service:

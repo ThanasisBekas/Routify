@@ -27,7 +27,6 @@ management:
     port: 9087
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus
   endpoint:
