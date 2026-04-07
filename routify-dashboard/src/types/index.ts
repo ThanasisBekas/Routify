@@ -1030,3 +1030,32 @@ export interface SloStatus {
   availabilitySloMet: boolean
 }
 
+// ─── Route Import / Export (GitOps) ───────────────────────────────────────────
+
+export interface ImportPreviewResponse {
+  valid: boolean
+  changes: DiffSections
+  warnings: string[]
+}
+
+export interface DiffSections {
+  filters: DiffSection
+  routes: DiffSection
+}
+
+export interface DiffSection {
+  create: DiffCreateEntry[]
+  update: DiffUpdateEntry[]
+  unchanged: string[]
+  delete: string[]
+}
+
+export interface DiffCreateEntry {
+  name: string
+  type: string
+}
+
+export interface DiffUpdateEntry {
+  name: string
+  changes: string[]
+}

@@ -1,0 +1,97 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Routify Export Schema — v1
+# ─────────────────────────────────────────────────────────────────────────────
+# This document defines the YAML structure produced by:
+#   GET /api/v1/admin/routes/export?format=yaml
+# and consumed by:
+#   POST /api/v1/admin/routes/import
+#   POST /api/v1/admin/routes/import/preview
+#
+# apiVersion: routify/v1   — enables future schema evolution
+# kind: GatewayConfiguration
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: routify/v1                    # required — schema version
+kind: GatewayConfiguration                # required — document type
+
+metadata:
+  exportedAt: "2026-06-15T10:30:00Z"      # ISO-8601 timestamp of export
+  exportedBy: "admin@routify.io"           # actor who triggered the export
+  tenantId: "550e8400-e29b-41d4-a716-446655440000"  # tenant scope
+  environment: PRODUCTION                  # optional — PRODUCTION | STAGING
+
+filters:                                   # list of filter definitions
+  - name: "jwt-auth-global"                # natural key — used for matching on import
+    filterType: AUTH_JWT                    # must be a valid FilterType enum value
+    description: "Global JWT authentication"
+    enabled: true
+    config:                                # filter-specific configuration map
+      issuer: "https://auth.example.com"
+      audience: "routify-api"
+      publicKey: "***MASKED***"            # sensitive fields are masked on export
+
+  - name: "rate-limit-100rpm"
+    filterType: RATE_LIMIT_FIXED_WINDOW
+    description: "100 requests per minute"
+    enabled: true
+    config:
+      maxRequests: 100
+      windowSeconds: 60
+
+routes:                                    # list of route definitions
+  - name: "orders-api"                     # natural key — used for matching on import
+    pathPattern: "/api/orders/**"
+    methods: "GET,POST,PUT,DELETE"
+    upstreamUri: "http://orders-service:8080"
+    stripPrefix: "/api"
+    status: ACTIVE                         # DRAFT | ACTIVE | DISABLED | ARCHIVED
+    description: "Order management API"
+    filters:                               # ordered list of attached filter references
+      - filterName: "jwt-auth-global"      # references a filter by name (not ID)
+        order: 1
+        phase: PRE                         # PRE | POST
+        enabled: true
+      - filterName: "rate-limit-100rpm"
+        order: 2
+        phase: PRE
+        enabled: true
+    extraConfig:                           # optional route-specific overrides
+      timeout: 30000
+
+  - name: "health-check"
+    pathPattern: "/health"
+    methods: "GET"
+    upstreamUri: "http://health-service:8080"
+    status: ACTIVE
+    description: "Health endpoint"
+    filters: []
+
+gatewayConfig:                             # optional — gateway-wide configuration
+  cors:
+    enabled: true
+    allowedOriginPatterns:
+      - "https://*.example.com"
+    allowedMethods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+    allowedHeaders:
+      - "*"
+    allowCredentials: true
+  securityHeaders:
+    enabled: true
+    xFrameOptions: "DENY"
+    xContentTypeOptions: "nosniff"
+    strictTransportSecurity: "max-age=31536000; includeSubDomains"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Design decisions:
+#   - Filters are referenced by NAME (natural key), not UUID.
+#   - Routes reference filters by filter NAME, not ID.
+#   - Sensitive config values are masked on export (@SensitiveField → "***MASKED***").
+#   - Import skips masked values (does not overwrite stored secrets).
+#   - Import is additive — resources in DB but not in the YAML are NOT deleted.
+#   - apiVersion enables future schema evolution.
+# ─────────────────────────────────────────────────────────────────────────────
+

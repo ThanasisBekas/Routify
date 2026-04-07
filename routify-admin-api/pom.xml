@@ -100,6 +100,14 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- SnakeYAML — explicit declaration for route import/export (GitOps Initiative 07).
+             Transitively available via spring-boot-starter-web, declared explicitly
+             because we use DumperOptions and Yaml directly for block-style YAML formatting. -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

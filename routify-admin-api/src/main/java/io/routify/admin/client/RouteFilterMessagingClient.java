@@ -223,4 +223,24 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
         kafka.publishCommand(KafkaTopics.FILTER_COMMANDS,
                 new CommandEvent.DeleteFilter(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
     }
+
+    // ─── Generic command publishing (used by import/export) ────────────────────
+
+    /**
+     * Publish an arbitrary route command to the route commands topic.
+     * Used by {@link io.routify.admin.service.ImportService} to dispatch
+     * commands with pre-generated idempotent commandIds.
+     */
+    public void publishRouteCommand(CommandEvent command) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS, command);
+    }
+
+    /**
+     * Publish an arbitrary filter command to the filter commands topic.
+     * Used by {@link io.routify.admin.service.ImportService} to dispatch
+     * commands with pre-generated idempotent commandIds.
+     */
+    public void publishFilterCommand(CommandEvent command) {
+        kafka.publishCommand(KafkaTopics.FILTER_COMMANDS, command);
+    }
 }

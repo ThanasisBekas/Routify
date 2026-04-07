@@ -3,6 +3,7 @@ import { cn } from '../../../lib/utils'
 import type { RouteSummary, RouteStatus, RouteEnvironment } from '../../../types'
 import { STATUS_CONFIG } from '../constants/routeStatusConfig'
 import { STATUS_FILTER_TABS, type StatusFilterTab } from '../routeConstants'
+import ImportExportButtons from '../ImportExportButtons'
 
 export type EnvironmentFilterTab = '' | RouteEnvironment
 
@@ -17,6 +18,9 @@ interface Props {
   onEnvironmentFilter: (e: EnvironmentFilterTab) => void
   onRefresh: () => void
   onNew: () => void
+  onExport: (format: 'yaml' | 'json') => void
+  onImportFile: (file: File) => void
+  isExporting?: boolean
 }
 
 export default function RouteListHeader({
@@ -30,6 +34,9 @@ export default function RouteListHeader({
   onEnvironmentFilter,
   onRefresh,
   onNew,
+  onExport,
+  onImportFile,
+  isExporting,
 }: Props) {
   const activeCount = routes.filter((r) => r.status === 'ACTIVE').length
 
@@ -53,6 +60,12 @@ export default function RouteListHeader({
         </div>
 
         <div className="flex items-center gap-2">
+          <ImportExportButtons
+            onExport={onExport}
+            onImportFile={onImportFile}
+            isExporting={isExporting}
+          />
+
           <button
             onClick={onRefresh}
             className="p-2 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.05] transition-all border border-white/[0.06]"
