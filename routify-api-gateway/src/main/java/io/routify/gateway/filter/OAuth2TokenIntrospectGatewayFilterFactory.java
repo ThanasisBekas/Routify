@@ -2,6 +2,7 @@ package io.routify.gateway.filter;
 
 import io.routify.gateway.auth.properties.AuthProperties;
 import io.routify.gateway.downstream.oauth2.Oauth2BearerTokenVerifier;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -11,7 +12,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
@@ -51,14 +51,18 @@ public class OAuth2TokenIntrospectGatewayFilterFactory
 
             if (isNull(verificationConfig)) {
                 log.error("Missing Oauth2 verification configuration for provider {}", provider);
-                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "Missing Oauth2 verification configuration for provider %s".formatted(provider)));
+                return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
+                        .errorCode("OAUTH2_MISCONFIGURED")
+                        .detail("Missing Oauth2 verification configuration for provider %s", provider)
+                        .write(exchange);
             }
 
             String token = extractBearerToken(exchange.getRequest());
             if (isNull(token)) {
-                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Missing or invalid Bearer Authorization header"));
+                return GatewayProblemResponse.status(HttpStatus.BAD_REQUEST)
+                        .errorCode("MISSING_BEARER_TOKEN")
+                        .detail("Missing or invalid Bearer Authorization header")
+                        .write(exchange);
             }
 
             log.debug("Verifying Bearer Authorization token against provider {}", provider);
@@ -67,7 +71,10 @@ public class OAuth2TokenIntrospectGatewayFilterFactory
                     .flatMap(response -> {
                         HttpStatus responseStatus = HttpStatus.valueOf(response.statusCode());
                         if (!HttpStatus.OK.equals(responseStatus)) {
-                            return Mono.error(new ResponseStatusException(responseStatus, response.body()));
+                            return GatewayProblemResponse.status(responseStatus)
+                                    .errorCode("OAUTH2_INTROSPECT_FAILED")
+                                    .detail(response.body())
+                                    .write(exchange);
                         }
 
                         ServerHttpRequest request = exchange.getRequest()

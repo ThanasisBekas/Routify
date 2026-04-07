@@ -4,17 +4,16 @@ import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.client.AiServiceClient;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import io.routify.gateway.routing.RouteDefinitionBuilder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
@@ -250,14 +249,10 @@ public class AiModifierGatewayFilterFactory
     }
 
     private Mono<Void> serviceUnavailable(ServerWebExchange exchange, String message) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.SERVICE_UNAVAILABLE);
-        response.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Service Unavailable","status":503,\
-                "errorCode":"AI_MODIFIER_UNAVAILABLE","detail":"%s"}""".formatted(message);
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayProblemResponse.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .errorCode("AI_MODIFIER_UNAVAILABLE")
+                .detail(message)
+                .write(exchange);
     }
 
     // ─── Request building ─────────────────────────────────────────────────────

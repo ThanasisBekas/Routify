@@ -5,23 +5,20 @@ import io.routify.common.event.QueryResponse;
 import io.routify.common.event.RabbitTopology;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.client.AiServiceClient;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import io.routify.gateway.routing.RouteDefinitionBuilder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -205,28 +202,18 @@ public class AiGatewayFilterFactory
 
     /**
      * Writes an HTTP 403 Forbidden response with RFC 9457 Problem JSON body.
-     * Mirrors the {@code tooManyRequests()} pattern in {@link FixedWindowRateLimitGatewayFilterFactory}.
+     * Uses {@link GatewayProblemResponse} for consistent, injection-safe serialization.
      */
     private Mono<Void> blocked(ServerWebExchange exchange, QueryResponse.AiFilterVerdict verdict) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.FORBIDDEN);
-        response.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");
-
-        // Sanitize the reason to prevent JSON injection
-        String safeReason = verdict.reason() != null
-                ? verdict.reason().replace("\"", "'").replace("\n", " ")
+        String reason = verdict.reason() != null
+                ? verdict.reason()
                 : "Request blocked by AI filter policy";
 
-        String body = """
-                {"type":"about:blank","title":"Forbidden","status":403,\
-                "errorCode":"AI_FILTER_BLOCKED",\
-                "detail":"%s",\
-                "evaluationId":"%s"}""".formatted(
-                safeReason,
-                verdict.evaluationId() != null ? verdict.evaluationId() : "");
-
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
+        return GatewayProblemResponse.status(HttpStatus.FORBIDDEN)
+                .errorCode("AI_FILTER_BLOCKED")
+                .detail(reason)
+                .extension("evaluationId", verdict.evaluationId() != null ? verdict.evaluationId() : "")
+                .write(exchange);
     }
 
     // ─── Request building ─────────────────────────────────────────────────────

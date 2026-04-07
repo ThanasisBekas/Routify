@@ -1,5 +1,6 @@
 package io.routify.gateway.filter;
 
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -12,7 +13,6 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -128,14 +128,10 @@ public class SpelCustomGatewayFilterFactory
     }
 
     private Mono<Void> forbidden(ServerWebExchange exchange, String detail) {
-        ServerHttpResponse resp = exchange.getResponse();
-        resp.setStatusCode(HttpStatus.FORBIDDEN);
-        resp.getHeaders().set("Content-Type", "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Forbidden","status":403,\
-                "errorCode":"CUSTOM_SPEL_REJECTED","detail":"%s"}""".formatted(
-                detail.replace("\"", "\\\""));
-        return resp.writeWith(Mono.just(resp.bufferFactory().wrap(body.getBytes())));
+        return GatewayProblemResponse.status(HttpStatus.FORBIDDEN)
+                .errorCode("CUSTOM_SPEL_REJECTED")
+                .detail(detail)
+                .write(exchange);
     }
 
     @Data
