@@ -1225,3 +1225,87 @@ export interface AiDecisionLabelResult {
   promptVersionId?: string
   newAccuracy?: number
 }
+
+// ─── Alerting Engine (Initiative 15) ────────────────────────────────────────
+
+export type AlertMetric =
+  | 'ERROR_RATE'
+  | 'P99_LATENCY'
+  | 'DLQ_DEPTH'
+  | 'CERT_EXPIRY_DAYS'
+  | 'QUOTA_USAGE'
+  | 'SLO_BUDGET'
+  | 'REQUEST_VOLUME'
+  | 'AUTH_FAILURE_RATE'
+
+export type AlertOperator = 'GT' | 'LT' | 'GTE' | 'LTE' | 'EQ'
+
+export type AlertSeverity = 'INFO' | 'WARNING' | 'CRITICAL'
+
+export type AlertState = 'OK' | 'PENDING' | 'FIRING'
+
+export interface AlertRule {
+  id: string
+  tenantId: string
+  name: string
+  description?: string
+  metric: AlertMetric
+  routeId?: string
+  operator: AlertOperator
+  threshold: number
+  windowMinutes: number
+  cooldownMinutes: number
+  severity: AlertSeverity
+  enabled: boolean
+  currentState: AlertState
+  stateChangedAt?: string
+  consecutiveBreaches: number
+  lastEvaluatedAt?: string
+  lastFiredAt?: string
+  mutedUntil?: string
+  createdBy?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface AlertEvent {
+  id: string
+  ruleId: string
+  tenantId: string
+  transition: string
+  metricValue?: number
+  threshold?: number
+  message?: string
+  occurredAt: string
+}
+
+export interface CreateAlertRuleRequest {
+  name: string
+  description?: string
+  metric: AlertMetric
+  routeId?: string
+  operator: AlertOperator
+  threshold: number
+  windowMinutes?: number
+  cooldownMinutes?: number
+  severity?: AlertSeverity
+  enabled?: boolean
+}
+
+export interface UpdateAlertRuleRequest {
+  name?: string
+  description?: string
+  metric?: AlertMetric
+  routeId?: string
+  operator?: AlertOperator
+  threshold?: number
+  windowMinutes?: number
+  cooldownMinutes?: number
+  severity?: AlertSeverity
+  enabled?: boolean
+}
+
+export interface MuteAlertRequest {
+  durationMinutes: number
+}
+

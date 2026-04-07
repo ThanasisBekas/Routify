@@ -226,6 +226,65 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, UUID> {
             @Param("from") String from,
             @Param("to") String to,
             @Param("granularity") String granularity);
+
+    // ─── Alert metric queries ──────────────────────────────────────────────────
+
+    /** Error rate (%) for a tenant, optionally scoped to a route. */
+    @Query(value = """
+            SELECT CASE WHEN COUNT(*) = 0 THEN 0
+                        ELSE CAST(SUM(CASE WHEN r.response_status >= 500 THEN 1 ELSE 0 END) AS DOUBLE PRECISION)
+                             / COUNT(*) * 100
+                   END AS error_rate
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            """, nativeQuery = true)
+    double getErrorRate(@Param("tenantId") UUID tenantId,
+                        @Param("routeId") UUID routeId,
+                        @Param("since") Instant since);
+
+    /** P99 latency in ms for a tenant, optionally scoped to a route. */
+    @Query(value = """
+            SELECT COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY r.duration_ms), 0)
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            """, nativeQuery = true)
+    double getP99Latency(@Param("tenantId") UUID tenantId,
+                         @Param("routeId") UUID routeId,
+                         @Param("since") Instant since);
+
+    /** Requests per minute for a tenant, optionally scoped to a route. Window must be &gt; 0 min. */
+    @Query(value = """
+            SELECT CASE WHEN :windowMinutes = 0 THEN 0
+                        ELSE CAST(COUNT(*) AS DOUBLE PRECISION) / :windowMinutes
+                   END
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            """, nativeQuery = true)
+    double getRequestVolume(@Param("tenantId") UUID tenantId,
+                            @Param("routeId") UUID routeId,
+                            @Param("since") Instant since,
+                            @Param("windowMinutes") int windowMinutes);
+
+    /** Auth failure rate (%) — 401/403 responses as a percentage of all requests. */
+    @Query(value = """
+            SELECT CASE WHEN COUNT(*) = 0 THEN 0
+                        ELSE CAST(SUM(CASE WHEN r.response_status IN (401, 403) THEN 1 ELSE 0 END) AS DOUBLE PRECISION)
+                             / COUNT(*) * 100
+                   END
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            """, nativeQuery = true)
+    double getAuthFailureRate(@Param("tenantId") UUID tenantId,
+                              @Param("routeId") UUID routeId,
+                              @Param("since") Instant since);
 }
 
 

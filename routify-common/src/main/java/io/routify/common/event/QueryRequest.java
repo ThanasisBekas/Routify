@@ -116,6 +116,11 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.AiDecisionLabel.class,       name = "AI_DECISION_LABEL"),
     // ─── routify-audit-service time-series analytics (GraphQL Initiative 13) ──
     @JsonSubTypes.Type(value = QueryRequest.TimeSeriesQuery.class,      name = "TIME_SERIES_QUERY"),
+    // ─── routify-audit-service alerting engine (Initiative 15) ──────────────
+    @JsonSubTypes.Type(value = QueryRequest.AlertRulesQuery.class,      name = "ALERT_RULES_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.AlertRuleGet.class,         name = "ALERT_RULE_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.AlertEventsQuery.class,     name = "ALERT_EVENTS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.AlertRuleCommand.class,     name = "ALERT_RULE_COMMAND"),
 })
 public sealed interface QueryRequest
         permits
@@ -184,6 +189,10 @@ public sealed interface QueryRequest
             QueryRequest.PromptVersionSave,
             QueryRequest.AiDecisionLabel,
             QueryRequest.TimeSeriesQuery,
+            QueryRequest.AlertRulesQuery,
+            QueryRequest.AlertRuleGet,
+            QueryRequest.AlertEventsQuery,
+            QueryRequest.AlertRuleCommand,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -685,6 +694,40 @@ public sealed interface QueryRequest
             String to,
             String granularity,
             java.util.List<String> metrics
+    ) implements QueryRequest {}
+
+    // ─── routify-audit-service alerting engine (Initiative 15) ────────────────
+
+    /** Paginated alert rule list for a tenant. */
+    record AlertRulesQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Single alert rule GET by id and tenant. */
+    record AlertRuleGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Paginated alert event history for a specific rule. */
+    record AlertEventsQuery(UUID ruleId, UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /**
+     * Alert rule command — create, update, delete, mute, unmute.
+     *
+     * @param action CREATE | UPDATE | DELETE | MUTE | UNMUTE
+     */
+    record AlertRuleCommand(
+            String action,
+            UUID   tenantId,
+            UUID   ruleId,
+            String name,
+            String description,
+            String metric,
+            UUID   routeId,
+            String operator,
+            java.math.BigDecimal threshold,
+            Integer windowMinutes,
+            Integer cooldownMinutes,
+            String  severity,
+            Boolean enabled,
+            Integer muteDurationMinutes,
+            String  requestedBy
     ) implements QueryRequest {}
 
     /**

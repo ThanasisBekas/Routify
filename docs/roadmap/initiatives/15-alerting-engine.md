@@ -81,11 +81,11 @@ public enum AlertMetric {
 ```
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Create `AlertRule` entity
-- [ ] Create `AlertEvent` entity
-- [ ] Create repositories
-- [ ] Create `AlertMetric` enum in `routify-common`
+- [x] Create Flyway migration
+- [x] Create `AlertRule` entity
+- [x] Create `AlertEvent` entity
+- [x] Create repositories
+- [x] Create `AlertMetric` enum in `routify-common`
 
 ---
 
@@ -135,10 +135,10 @@ public void evaluate() {
 2. Publish `ALERT_RESOLVED` event.
 
 **Task list:**
-- [ ] Create evaluation scheduler
-- [ ] Implement state machine logic
-- [ ] Implement cooldown tracking
-- [ ] Publish alert events to Kafka
+- [x] Create evaluation scheduler
+- [x] Implement state machine logic
+- [x] Implement cooldown tracking
+- [x] Publish alert events to Kafka
 
 ---
 
@@ -161,10 +161,10 @@ public void evaluate() {
 | `AUTH_FAILURE_RATE` | `request_log` | `COUNT(status = 401 OR status = 403) / COUNT(*) * 100` in window |
 
 **Task list:**
-- [ ] Implement resolver for each metric type
-- [ ] Add route-scoped filtering (when `routeId` is set on the rule)
-- [ ] Cache cert expiry data to avoid RPC on every evaluation cycle
-- [ ] Add `routify.alerts.evaluation` timer to `RoutifyMetrics`
+- [x] Implement resolver for each metric type
+- [x] Add route-scoped filtering (when `routeId` is set on the rule)
+- [x] Cache cert expiry data to avoid RPC on every evaluation cycle
+- [x] Add `routify.alerts.evaluation` timer to `RoutifyMetrics`
 
 ---
 
@@ -190,10 +190,10 @@ QUEUE_ALERT_EVENTS_QUERY = "routify.audit-service.alert-events.query";
 | `GET` | `/api/v1/admin/alerts/{id}/history` | State transition history |
 
 **Task list:**
-- [ ] Add RabbitMQ topology constants
-- [ ] Implement query handlers in audit-service
-- [ ] Create admin-api controller
-- [ ] Add Kafka command types for alert CRUD
+- [x] Add RabbitMQ topology constants
+- [x] Implement query handlers in audit-service
+- [x] Create admin-api controller
+- [x] Add Kafka command types for alert CRUD
 
 ---
 
@@ -214,13 +214,13 @@ QUEUE_ALERT_EVENTS_QUERY = "routify.audit-service.alert-events.query";
 - Pre-built template buttons: "SLO budget alert", "Cert expiry alert", "DLQ depth alert".
 
 **Task list:**
-- [ ] Create alerts list page
-- [ ] Create rule form modal
-- [ ] Create history timeline component
-- [ ] Add template buttons for common alert patterns
-- [ ] Add TypeScript types and API functions
-- [ ] Add route in React Router and sidebar entry
-- [ ] Add MSW mock handlers
+- [x] Create alerts list page
+- [x] Create rule form modal
+- [x] Create history timeline component
+- [x] Add template buttons for common alert patterns
+- [x] Add TypeScript types and API functions
+- [x] Add route in React Router and sidebar entry
+- [x] Add MSW mock handlers
 
 ---
 
@@ -252,19 +252,18 @@ ALERT_RESOLVED    // alert transitioned back to OK
 ```
 
 **Task list:**
-- [ ] Add event types to `WebhookEventType`
-- [ ] Format alert webhook payload
-- [ ] Test webhook delivery on alert state transitions
+- [x] Add event types to `WebhookEventType`
+- [x] Format alert webhook payload
+- [x] Test webhook delivery on alert state transitions
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] An alert rule for "ERROR_RATE > 5% for 5 minutes on route X" fires correctly
-- [ ] Alert transitions through OK → PENDING → FIRING → OK with correct state machine behavior
-- [ ] Webhook notification delivered within 60s of alert firing
-- [ ] Muted alerts do not fire notifications during mute window
-- [ ] Cooldown prevents alert from immediately re-firing after resolution
-- [ ] Dashboard shows alert state in real-time with history timeline
-- [ ] Pre-built templates create rules with sensible defaults
-
+- [x] An alert rule for "ERROR_RATE > 5% for 5 minutes on route X" fires correctly
+- [x] Alert transitions through OK → PENDING → FIRING → OK with correct state machine behavior
+- [x] Webhook notification delivered within 60s of alert firing
+- [x] Muted alerts do not fire notifications during mute window
+- [x] Cooldown prevents alert from immediately re-firing after resolution
+- [x] Dashboard shows alert state in real-time with history timeline
+- [x] Pre-built templates create rules with sensible defaults
