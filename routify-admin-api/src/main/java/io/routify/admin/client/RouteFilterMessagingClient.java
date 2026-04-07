@@ -232,6 +232,21 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.PurgeCacheRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
     }
 
+    // ─── Circuit Breaker Commands (Kafka) ──────────────────────────────────────
+
+    /**
+     * Force a circuit breaker state transition on all gateway instances.
+     *
+     * @param routeId  the route whose circuit breaker to affect
+     * @param tenantId tenant scope
+     * @param actor    requesting user
+     * @param action   one of "FORCE_OPEN", "FORCE_CLOSED", "RESET"
+     */
+    public void sendForceCircuitBreaker(UUID routeId, UUID tenantId, String actor, String action) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.ForceCircuitBreaker(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId, action));
+    }
+
     // ─── Filter Commands (Kafka) ──────────────────────────────────────────────
 
     public void sendCreateFilter(UUID tenantId, String actor, CreateFilterRequest req) {

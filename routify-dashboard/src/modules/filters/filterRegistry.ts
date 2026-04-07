@@ -251,6 +251,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-rose-400/10',
     border: 'border-rose-400/20',
   },
+  {
+    value: 'CIRCUIT_BREAKER_V2',
+    label: 'Circuit Breaker v2',
+    category: 'Resilience',
+    description:
+      'Per-route Resilience4j circuit breaker with configurable failure/slow-call thresholds, half-open probing, WebSocket state broadcast, and manual override',
+    color: 'text-orange-400',
+    bg: 'bg-orange-400/10',
+    border: 'border-orange-400/20',
+  },
 
   // ── Observability ─────────────────────────────────────────────────────────────
   {

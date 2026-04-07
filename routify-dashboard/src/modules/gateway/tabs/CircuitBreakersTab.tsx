@@ -3,13 +3,15 @@
  *
  * Shows per-route/service circuit breaker cards that update in real-time
  * via WebSocket (`wsStore`). Tracks the last 10 state transitions per CB
- * in Zustand client state.
+ * in Zustand client state. Supports manual force-open/close/reset via admin-api.
  */
 import { useEffect, useRef, useState } from 'react'
-import { RefreshCw, Wifi, Clock } from 'lucide-react'
+import { RefreshCw, Wifi, Clock, ShieldOff, ShieldCheck, RotateCcw } from 'lucide-react'
+import { toast } from 'sonner'
 import { useWsStore } from '../../../store/wsStore'
 import { useRealtimeQuery } from '../../../hooks/useRealtimeQuery'
 import { gatewayApi } from '../../../api/gatewayApi'
+import { routesApi } from '../../../api/routesApi'
 import { cn } from '../../../lib/utils'
 import type { GatewayConfig } from '../../../types'
 import { Card, StatusBadge } from '../components/GatewayPrimitives'
@@ -39,6 +41,7 @@ function CbDetailCard({
       CLOSED: 'border-emerald-500/30 bg-emerald-500/5',
       OPEN: 'border-red-500/40 bg-red-500/[0.07]',
       HALF_OPEN: 'border-amber-500/30 bg-amber-500/[0.06]',
+      FORCED_OPEN: 'border-red-600/50 bg-red-600/[0.08]',
     }[norm] ?? 'border-white/[0.06] bg-white/[0.02]'
 
   const stateColor =
@@ -46,14 +49,44 @@ function CbDetailCard({
       CLOSED: 'text-emerald-400',
       OPEN: 'text-red-400',
       HALF_OPEN: 'text-amber-400',
+      FORCED_OPEN: 'text-red-500',
     }[norm] ?? 'text-gray-400'
+
+  const handleForceOpen = async () => {
+    try {
+      await routesApi.forceCircuitBreakerOpen(name)
+      toast.success(`Circuit breaker for ${name} forced OPEN`)
+    } catch {
+      toast.error('Failed to force circuit breaker open')
+    }
+  }
+
+  const handleForceClosed = async () => {
+    try {
+      await routesApi.forceCircuitBreakerClosed(name)
+      toast.success(`Circuit breaker for ${name} forced CLOSED`)
+    } catch {
+      toast.error('Failed to force circuit breaker closed')
+    }
+  }
+
+  const handleReset = async () => {
+    try {
+      await routesApi.resetCircuitBreaker(name)
+      toast.success(`Circuit breaker for ${name} reset`)
+    } catch {
+      toast.error('Failed to reset circuit breaker')
+    }
+  }
 
   return (
     <div className={cn('rounded-xl border p-4 space-y-4', ring)}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-sm font-medium text-white font-mono truncate">{name}</div>
-          <div className={cn('text-xs font-semibold mt-1', stateColor)}>{norm}</div>
+          <div className={cn('text-xs font-semibold mt-1', stateColor)}>
+            {norm === 'FORCED_OPEN' ? 'FORCED OPEN' : norm}
+          </div>
         </div>
         <StatusBadge state={state.state} />
       </div>
@@ -77,6 +110,37 @@ function CbDetailCard({
         </div>
       </div>
 
+      {/* Manual override buttons */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleForceOpen}
+          title="Force circuit OPEN — block all traffic"
+          className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+        >
+          <ShieldOff className="w-3 h-3" />
+          Force Open
+        </button>
+        <button
+          type="button"
+          onClick={handleForceClosed}
+          title="Force circuit CLOSED — allow all traffic"
+          className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+        >
+          <ShieldCheck className="w-3 h-3" />
+          Force Closed
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          title="Reset circuit breaker to initial state"
+          className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md bg-gray-500/10 text-gray-400 border border-gray-500/20 hover:bg-gray-500/20 transition-colors"
+        >
+          <RotateCcw className="w-3 h-3" />
+          Reset
+        </button>
+      </div>
+
       {/* Transition timeline */}
       {history.length > 0 && (
         <div className="space-y-1.5">
@@ -93,7 +157,11 @@ function CbDetailCard({
                 <span
                   className={cn(
                     'font-semibold',
-                    t.to === 'CLOSED' ? 'text-emerald-400' : t.to === 'OPEN' ? 'text-red-400' : 'text-amber-400',
+                    t.to === 'CLOSED'
+                      ? 'text-emerald-400'
+                      : t.to === 'OPEN' || t.to === 'FORCED_OPEN'
+                        ? 'text-red-400'
+                        : 'text-amber-400',
                   )}
                 >
                   {t.to}
@@ -165,7 +233,9 @@ export default function CircuitBreakersTab({ config: _config }: Props) {
   }, [cbStates])
 
   const cbCount = Object.keys(cbStates).length
-  const openCbs = Object.values(cbStates).filter((s) => s.state?.toUpperCase() === 'OPEN').length
+  const openCbs = Object.values(cbStates).filter(
+    (s) => s.state?.toUpperCase() === 'OPEN' || s.state?.toUpperCase() === 'FORCED_OPEN',
+  ).length
   const halfOpenCbs = Object.values(cbStates).filter((s) => s.state?.toUpperCase() === 'HALF_OPEN').length
 
   return (

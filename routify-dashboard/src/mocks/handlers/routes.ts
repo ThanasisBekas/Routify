@@ -374,4 +374,24 @@ export const routeHandlers = [
     await delay(300)
     return HttpResponse.json({ status: 'ACCEPTED', message: 'Cache purge in progress' }, { status: 202 })
   }),
+
+  // ─── Circuit Breaker Manual Override ────────────────────────────────────
+
+  http.post(`${BASE}/:id/circuit-breaker/force-open`, async () => {
+    await delay(300)
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Circuit breaker force-open in progress' }, { status: 202 })
+  }),
+
+  http.post(`${BASE}/:id/circuit-breaker/force-closed`, async () => {
+    await delay(300)
+    return HttpResponse.json(
+      { status: 'ACCEPTED', message: 'Circuit breaker force-closed in progress' },
+      { status: 202 },
+    )
+  }),
+
+  http.post(`${BASE}/:id/circuit-breaker/reset`, async () => {
+    await delay(300)
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Circuit breaker reset in progress' }, { status: 202 })
+  }),
 ]

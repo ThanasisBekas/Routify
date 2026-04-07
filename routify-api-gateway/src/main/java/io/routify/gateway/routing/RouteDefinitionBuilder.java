@@ -336,6 +336,7 @@ public class RouteDefinitionBuilder {
                 yield f;
             }
             case "TIMEOUT" -> customFilter("RequestTimeout", cfg);
+            case "CIRCUIT_BREAKER_V2" -> customFilter("CircuitBreakerV2", cfg);
 
             // ─── Performance ──────────────────────────────────────────────────
             case "RESPONSE_CACHE"           -> customFilter("ResponseCache", cfg);

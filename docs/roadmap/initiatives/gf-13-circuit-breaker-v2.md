@@ -3,7 +3,8 @@
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 2 (High-Priority Filters) · **Owner:** Gateway team  
 > **Category:** Resilience · **Priority:** High  
 > **Filter type:** `CIRCUIT_BREAKER_V2`  
-> **Dependencies:** GF-02 (Unified Error Response Builder), Q3-05 (Gateway Health Dashboard v2 for CB visualization)
+> **Dependencies:** GF-02 (Unified Error Response Builder), Q3-05 (Gateway Health Dashboard v2 for CB visualization)  
+> **Status:** ✅ **COMPLETED**
 
 ---
 
@@ -45,10 +46,10 @@ A custom circuit breaker filter powered by Resilience4j with per-route instances
 4. Register event listeners for state transitions.
 
 **Task list:**
-- [ ] Create filter factory with Resilience4j `CircuitBreaker` per route
-- [ ] Implement reactive wrapping with `ReactorResilience4j.decorateMono()`
-- [ ] Handle OPEN state with `GatewayProblemResponse` fallback
-- [ ] Support all 10 config parameters
+- [x] Create filter factory with Resilience4j `CircuitBreaker` per route
+- [x] Implement reactive wrapping with `ReactorResilience4j.decorateMono()`
+- [x] Handle OPEN state with `GatewayProblemResponse` fallback
+- [x] Support all 10 config parameters
 
 ---
 
@@ -61,9 +62,9 @@ On state transitions (`CLOSED → OPEN`, `OPEN → HALF_OPEN`, `HALF_OPEN → CL
 3. The dashboard's `wsStore` updates the circuit breaker visualization in real time.
 
 **Task list:**
-- [ ] Register `CircuitBreaker.EventPublisher` event listener
-- [ ] Publish state transition events via WebSocket STOMP
-- [ ] Include failure rate and slow call rate in event payload
+- [x] Register `CircuitBreaker.EventPublisher` event listener
+- [x] Publish state transition events via WebSocket STOMP
+- [x] Include failure rate and slow call rate in event payload
 
 ---
 
@@ -79,10 +80,10 @@ POST /api/v1/admin/routes/{id}/circuit-breaker/reset
 Each dispatches a Kafka command that the gateway consumes to call `circuitBreaker.transitionToForcedOpenState()` / `transitionToClosedState()` / `reset()`.
 
 **Task list:**
-- [ ] Add `CommandEvent.ForceCircuitBreaker` to `routify-common`
-- [ ] Add 3 admin-api endpoints
-- [ ] Gateway consumer applies state transitions
-- [ ] Dashboard buttons for force-open/close/reset
+- [x] Add `CommandEvent.ForceCircuitBreaker` to `routify-common`
+- [x] Add 3 admin-api endpoints
+- [x] Gateway consumer applies state transitions
+- [x] Dashboard buttons for force-open/close/reset
 
 ---
 
@@ -93,9 +94,9 @@ Each dispatches a Kafka command that the gateway consumes to call `circuitBreake
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `CIRCUIT_BREAKER_V2` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `CIRCUIT_BREAKER_V2` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -107,8 +108,8 @@ Resilience4j auto-registers Micrometer metrics under `resilience4j.circuitbreake
 - `routify.filter.circuit_breaker.state` — gauge (0=CLOSED, 1=OPEN, 2=HALF_OPEN, 3=FORCED_OPEN)
 
 **Task list:**
-- [ ] Ensure Resilience4j metrics are tagged with `routeId`
-- [ ] Register custom state gauge
+- [x] Ensure Resilience4j metrics are tagged with `routeId`
+- [x] Register custom state gauge
 
 ---
 
@@ -127,19 +128,18 @@ Resilience4j auto-registers Micrometer metrics under `resilience4j.circuitbreake
 - Per-route isolation (route A's circuit doesn't affect route B)
 
 **Task list:**
-- [ ] Write state transition tests
-- [ ] Write slow call detection tests
-- [ ] Write manual override tests
-- [ ] Write per-route isolation tests
+- [x] Write state transition tests
+- [x] Write slow call detection tests
+- [x] Write manual override tests
+- [x] Write per-route isolation tests
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Per-route Resilience4j circuit breaker instances
-- [ ] Failure rate and slow call rate thresholds trigger circuit open
-- [ ] Half-open probing with configurable permitted calls
-- [ ] State transitions broadcast via WebSocket for dashboard visualization
-- [ ] Manual force-open/close/reset via admin-api endpoints
-- [ ] Resilience4j Micrometer metrics tagged by `routeId`
-
+- [x] Per-route Resilience4j circuit breaker instances
+- [x] Failure rate and slow call rate thresholds trigger circuit open
+- [x] Half-open probing with configurable permitted calls
+- [x] State transitions broadcast via WebSocket for dashboard visualization
+- [x] Manual force-open/close/reset via admin-api endpoints
+- [x] Resilience4j Micrometer metrics tagged by `routeId`

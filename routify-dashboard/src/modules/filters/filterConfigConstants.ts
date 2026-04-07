@@ -56,6 +56,18 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   },
   // Resilience
   TIMEOUT: { timeoutMs: 30000 },
+  CIRCUIT_BREAKER_V2: {
+    failureRateThreshold: 50.0,
+    slowCallRateThreshold: 80.0,
+    slowCallDurationMs: 3000,
+    slidingWindowSize: 10,
+    slidingWindowType: 'COUNT_BASED',
+    minimumNumberOfCalls: 5,
+    waitDurationInOpenStateMs: 60000,
+    permittedNumberOfCallsInHalfOpenState: 3,
+    fallbackStatus: 503,
+    fallbackBody: '',
+  },
   // Observability
   CORRELATION_ID: {},
   REQUEST_LOGGER: {

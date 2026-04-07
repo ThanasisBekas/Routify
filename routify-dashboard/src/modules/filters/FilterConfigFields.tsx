@@ -691,6 +691,136 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    case 'CIRCUIT_BREAKER_V2':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Per-route Resilience4j circuit breaker. When the failure or slow-call rate exceeds the configured threshold
+            the circuit <strong className="text-orange-300">opens</strong> and all requests receive a fallback response.
+            After a wait period it transitions to <strong className="text-amber-300">half-open</strong> to probe upstream
+            health.
+          </p>
+
+          <SectionTitle>Thresholds</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Failure Rate Threshold (%)" hint="Failure rate percentage to trip the circuit (0–100). Default: 50.">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={num('failureRateThreshold', 50)}
+                onChange={(e) => set('failureRateThreshold', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Slow Call Rate Threshold (%)" hint="Slow call rate percentage to trip the circuit. Default: 80.">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={num('slowCallRateThreshold', 80)}
+                onChange={(e) => set('slowCallRateThreshold', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <Field label="Slow Call Duration (ms)" hint="Calls exceeding this duration are considered slow. Default: 3000 ms.">
+            <input
+              type="number"
+              min={100}
+              value={num('slowCallDurationMs', 3000)}
+              onChange={(e) => set('slowCallDurationMs', +e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <SectionTitle>Sliding Window</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Sliding Window Size" hint="Number of calls (or seconds for TIME_BASED) in the window. Default: 10.">
+              <input
+                type="number"
+                min={1}
+                value={num('slidingWindowSize', 10)}
+                onChange={(e) => set('slidingWindowSize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Sliding Window Type" hint="COUNT_BASED or TIME_BASED. Default: COUNT_BASED.">
+              <Select
+                value={str('slidingWindowType', 'COUNT_BASED')}
+                onValueChange={(v) => set('slidingWindowType', v)}
+                options={[
+                  { value: 'COUNT_BASED', label: 'Count-Based' },
+                  { value: 'TIME_BASED', label: 'Time-Based' },
+                ]}
+              />
+            </Field>
+          </div>
+
+          <Field label="Minimum Number of Calls" hint="Minimum calls before evaluating failure rate. Default: 5.">
+            <input
+              type="number"
+              min={1}
+              value={num('minimumNumberOfCalls', 5)}
+              onChange={(e) => set('minimumNumberOfCalls', +e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <SectionTitle>Half-Open &amp; Recovery</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Wait Duration in Open State (ms)" hint="Time to wait before transitioning to half-open. Default: 60000 ms.">
+              <input
+                type="number"
+                min={1000}
+                value={num('waitDurationInOpenStateMs', 60000)}
+                onChange={(e) => set('waitDurationInOpenStateMs', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Permitted Calls in Half-Open" hint="Number of probe calls allowed in half-open state. Default: 3.">
+              <input
+                type="number"
+                min={1}
+                value={num('permittedNumberOfCallsInHalfOpenState', 3)}
+                onChange={(e) => set('permittedNumberOfCallsInHalfOpenState', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Fallback Response</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Fallback Status Code" hint="HTTP status code when circuit is open. Default: 503.">
+              <input
+                type="number"
+                min={400}
+                max={599}
+                value={num('fallbackStatus', 503)}
+                onChange={(e) => set('fallbackStatus', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Fallback Body" hint="Custom response body (JSON). Leave blank for ProblemDetail default." optional>
+              <input
+                type="text"
+                value={str('fallbackBody', '')}
+                onChange={(e) => set('fallbackBody', e.target.value)}
+                placeholder='{"error":"service unavailable"}'
+                className={monoInputCls}
+              />
+            </Field>
+          </div>
+        </div>
+      )
+
     // ── Observability ─────────────────────────────────────────────────────────
     case 'CORRELATION_ID':
       return (
