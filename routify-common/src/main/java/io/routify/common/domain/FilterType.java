@@ -95,6 +95,17 @@ public enum FilterType {
     /** Per-route Redis-backed response cache with configurable TTL — ResponseCacheGatewayFilterFactory */
     RESPONSE_CACHE,
 
+    // ─── Reliability ─────────────────────────────────────────────────────────
+
+    /**
+     * Idempotency Key filter — deduplicates write requests using a client-provided
+     * idempotency key (per the emerging IETF standard). First request executes and
+     * caches the response in Redis. Replay returns the cached response without
+     * forwarding to upstream. Concurrent duplicates are rejected with 409 Conflict.
+     * — IdempotencyKeyGatewayFilterFactory
+     */
+    IDEMPOTENCY_KEY,
+
     // ─── Resilience ──────────────────────────────────────────────────────────
 
     /** Per-route request timeout (504 on exceed) — RequestTimeoutGatewayFilterFactory */

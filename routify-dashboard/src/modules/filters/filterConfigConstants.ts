@@ -92,6 +92,14 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
     retryOnTimeout: true,
     idempotencyHeader: 'Idempotency-Key',
   },
+  // Reliability
+  IDEMPOTENCY_KEY: {
+    headerName: 'Idempotency-Key',
+    ttlSeconds: 86400,
+    methods: 'POST,PUT,PATCH',
+    requireHeader: false,
+    maxCachedBodySize: 65536,
+  },
   // Observability
   CORRELATION_ID: {},
   REQUEST_LOGGER: {

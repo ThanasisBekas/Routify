@@ -331,6 +331,7 @@ export type FilterType =
   // ─── Resilience ─────────────────────────────────────────────────────────
   | 'CIRCUIT_BREAKER_V2'
   | 'RETRY_V2'
+  | 'IDEMPOTENCY_KEY'
   // ─── Performance ───────────────────────────────────────────────────────
   | 'RESPONSE_CACHE'
   | 'CONDITIONAL_ROUTE'

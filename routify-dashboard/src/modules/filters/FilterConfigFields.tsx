@@ -1114,6 +1114,82 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── Reliability ──────────────────────────────────────────────────────────
+    case 'IDEMPOTENCY_KEY':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Deduplicates write requests using a client-provided{' '}
+            <strong className="text-yellow-300">idempotency key</strong> (per the emerging IETF standard).
+            On first request: execute and cache the response in{' '}
+            <strong className="text-yellow-300">Redis</strong>. On replay: return the cached response
+            without forwarding to upstream. Concurrent duplicates are rejected with{' '}
+            <code className="font-mono text-yellow-300">409 Conflict</code>.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Header Name" hint="Request header carrying the idempotency key. Default: Idempotency-Key.">
+              <input
+                value={str('headerName', 'Idempotency-Key')}
+                onChange={(e) => set('headerName', e.target.value)}
+                className={inputCls}
+                placeholder="Idempotency-Key"
+              />
+            </Field>
+            <Field label="TTL (seconds)" hint="How long to remember processed keys. Default: 86400 (24 hours).">
+              <input
+                type="number"
+                min={1}
+                value={num('ttlSeconds', 86400)}
+                onChange={(e) => set('ttlSeconds', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Enforced Methods" hint="Comma-separated HTTP methods to enforce idempotency on. Default: POST,PUT,PATCH.">
+              <input
+                value={str('methods', 'POST,PUT,PATCH')}
+                onChange={(e) => set('methods', e.target.value)}
+                className={inputCls}
+                placeholder="POST,PUT,PATCH"
+              />
+            </Field>
+            <Field label="Max Cached Body Size" hint="Max response body bytes to cache. Default: 65536 (64 KB).">
+              <input
+                type="number"
+                min={1024}
+                value={num('maxCachedBodySize', 65536)}
+                onChange={(e) => set('maxCachedBodySize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <Toggle
+            label="Require Idempotency Header"
+            description="When enabled, requests without the idempotency header are rejected with 400 Bad Request. When disabled, they pass through without idempotency logic."
+            checked={bool('requireHeader', false)}
+            onChange={(v) => set('requireHeader', v)}
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Redis key format:{' '}
+              <code className="font-mono text-blue-300">routify:idempotency:{'{'}&lt;routeId&gt;{'}'}:{'{'}&lt;key&gt;{'}'}</code>.
+              Injects <code className="font-mono text-blue-300">Idempotency-Key-Status: HIT</code> or{' '}
+              <code className="font-mono text-blue-300">MISS</code> on every processed response.
+              Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.idempotency.hit</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.idempotency.miss</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.idempotency.conflict</code>.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Observability ─────────────────────────────────────────────────────────
     case 'CORRELATION_ID':
       return (

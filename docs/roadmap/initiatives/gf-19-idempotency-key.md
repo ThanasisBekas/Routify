@@ -39,9 +39,9 @@ routify:idempotency:{routeId}:{idempotencyKey}
 ```
 
 **Task list:**
-- [ ] Create filter factory with config binding
-- [ ] Parse `methods` to a set of `HttpMethod`
-- [ ] Check for idempotency header on matching methods
+- [x] Create filter factory with config binding
+- [x] Parse `methods` to a set of `HttpMethod`
+- [x] Check for idempotency header on matching methods
 
 ---
 
@@ -57,11 +57,11 @@ routify:idempotency:{routeId}:{idempotencyKey}
 7. Return response to client with `Idempotency-Key-Status: MISS` header.
 
 **Task list:**
-- [ ] Implement Redis `NX` lock for first execution
-- [ ] Implement `ServerHttpResponseDecorator` for response capture
-- [ ] Store response in Redis Hash (status + headers + body)
-- [ ] Respect `maxCachedBodySize` — skip caching if response body exceeds limit
-- [ ] Inject `Idempotency-Key-Status: MISS` response header
+- [x] Implement Redis `NX` lock for first execution
+- [x] Implement `ServerHttpResponseDecorator` for response capture
+- [x] Store response in Redis Hash (status + headers + body)
+- [x] Respect `maxCachedBodySize` — skip caching if response body exceeds limit
+- [x] Inject `Idempotency-Key-Status: MISS` response header
 
 ---
 
@@ -77,10 +77,10 @@ routify:idempotency:{routeId}:{idempotencyKey}
 If Redis key exists with status `PROCESSING` → return `409 Conflict` via `GatewayProblemResponse`. This means another request with the same key is still being processed.
 
 **Task list:**
-- [ ] Implement cache read for replay
-- [ ] Return cached response on `COMPLETE`
-- [ ] Return 409 Conflict on `PROCESSING`
-- [ ] Inject `Idempotency-Key-Status: HIT` header
+- [x] Implement cache read for replay
+- [x] Return cached response on `COMPLETE`
+- [x] Return 409 Conflict on `PROCESSING`
+- [x] Inject `Idempotency-Key-Status: HIT` header
 
 ---
 
@@ -93,8 +93,8 @@ When `requireHeader=true` and the idempotency header is absent on a matching met
 When `requireHeader=false` (default): pass through to upstream without idempotency logic.
 
 **Task list:**
-- [ ] Implement `requireHeader` enforcement
-- [ ] Return 400 with clear error message
+- [x] Implement `requireHeader` enforcement
+- [x] Return 400 with clear error message
 
 ---
 
@@ -105,9 +105,9 @@ When `requireHeader=false` (default): pass through to upstream without idempoten
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `IDEMPOTENCY_KEY` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `IDEMPOTENCY_KEY` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -129,20 +129,19 @@ When `requireHeader=false` (default): pass through to upstream without idempoten
 - `Idempotency-Key-Status` header present on all processed responses
 
 **Task list:**
-- [ ] Write first-request/replay lifecycle tests
-- [ ] Write concurrent duplicate tests
-- [ ] Write TTL expiry tests
-- [ ] Write `requireHeader` enforcement tests
+- [x] Write first-request/replay lifecycle tests
+- [x] Write concurrent duplicate tests
+- [x] Write TTL expiry tests
+- [x] Write `requireHeader` enforcement tests
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] First request executes and caches response in Redis
-- [ ] Replay request returns cached response without upstream call
-- [ ] Concurrent duplicates rejected with 409 Conflict
-- [ ] `Idempotency-Key-Status` header on every processed response
-- [ ] TTL-based key expiry (default 24 hours)
-- [ ] Configurable header name and enforced methods
-- [ ] `requireHeader=true` rejects requests without the key
-
+- [x] First request executes and caches response in Redis
+- [x] Replay request returns cached response without upstream call
+- [x] Concurrent duplicates rejected with 409 Conflict
+- [x] `Idempotency-Key-Status` header on every processed response
+- [x] TTL-based key expiry (default 24 hours)
+- [x] Configurable header name and enforced methods
+- [x] `requireHeader=true` rejects requests without the key

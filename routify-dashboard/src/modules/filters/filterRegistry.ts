@@ -300,6 +300,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-amber-400/10',
     border: 'border-amber-400/20',
   },
+  {
+    value: 'IDEMPOTENCY_KEY',
+    label: 'Idempotency Key',
+    category: 'Resilience',
+    description:
+      'Deduplicates write requests using a client-provided idempotency key stored in Redis. First request executes and caches the response; replays return the cached response without forwarding upstream. Concurrent duplicates are rejected with 409 Conflict.',
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-400/10',
+    border: 'border-yellow-400/20',
+  },
 
   // ── Observability ─────────────────────────────────────────────────────────────
   {
