@@ -696,6 +696,60 @@ export interface CertVaultStats {
   counts: Record<string, number>
 }
 
+// ─── ACME (Automated Certificate Lifecycle) ──────────────────────────────────
+
+export type AcmeProvider = 'LETSENCRYPT' | 'ZEROSSSL'
+export type AcmeOrderStatus = 'PENDING' | 'VALIDATING' | 'COMPLETED' | 'FAILED' | 'RENEWAL_FAILED'
+
+export interface AcmeAccountDto {
+  id: string
+  tenantId: string
+  email: string
+  accountUrl?: string
+  provider: AcmeProvider
+  status: string
+  createdAt: string
+}
+
+export interface AcmeOrderDto {
+  id: string
+  tenantId: string
+  domain: string
+  certGroupId?: string
+  challengeType: string
+  status: AcmeOrderStatus
+  orderUrl?: string
+  challengeToken?: string
+  certId?: string
+  autoRenew: boolean
+  lastRenewedAt?: string
+  nextRenewalAt?: string
+  errorMessage?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface AcmeOrdersPage {
+  content: AcmeOrderDto[]
+  totalElements: number
+  totalPages: number
+  page: number
+  size: number
+  first: boolean
+  last: boolean
+}
+
+export interface RegisterAcmeAccountRequest {
+  email: string
+  provider: AcmeProvider
+}
+
+export interface IssueAcmeCertificateRequest {
+  accountId: string
+  domain: string
+  certGroupId?: string
+}
+
 // ─── AI Filter / Modifier types ───────────────────────────────────────────────
 
 export type AiMutationType = 'PII_SCRUB' | 'TRANSLATE' | 'HEADER_REWRITE' | 'CUSTOM' | 'PASSTHROUGH'

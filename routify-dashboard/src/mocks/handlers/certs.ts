@@ -196,4 +196,129 @@ export const certHandlers = [
     const members = Array.from(certs.values()).filter((c) => c.groupId === params.groupId)
     return HttpResponse.json(members)
   }),
+
+  // ─── ACME Endpoints ──────────────────────────────────────────────────────────
+
+  http.post('/api/v1/admin/certs/acme/register', async () => {
+    await delay(300)
+    return HttpResponse.json({
+      id: crypto.randomUUID(),
+      tenantId: MOCK_TENANT_ID,
+      email: 'admin@example.com',
+      accountUrl: 'https://acme-v02.api.letsencrypt.org/acme/acct/123456',
+      provider: 'LETSENCRYPT',
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+    })
+  }),
+
+  http.post('/api/v1/admin/certs/acme/issue', async ({ request }) => {
+    await delay(500)
+    const body = (await request.json()) as { domain?: string }
+    return HttpResponse.json({
+      id: crypto.randomUUID(),
+      tenantId: MOCK_TENANT_ID,
+      domain: body.domain ?? 'api.example.com',
+      certGroupId: null,
+      challengeType: 'HTTP_01',
+      status: 'COMPLETED',
+      orderUrl: 'https://acme-v02.api.letsencrypt.org/acme/order/123',
+      challengeToken: 'mock-token',
+      certId: crypto.randomUUID(),
+      autoRenew: true,
+      lastRenewedAt: new Date().toISOString(),
+      nextRenewalAt: new Date(Date.now() + 60 * 86_400_000).toISOString(),
+      errorMessage: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+  }),
+
+  http.get('/api/v1/admin/certs/acme/orders', async ({ request }) => {
+    await delay(200)
+    const url = new URL(request.url)
+    const page = parseInt(url.searchParams.get('page') ?? '0', 10)
+    const size = parseInt(url.searchParams.get('size') ?? '20', 10)
+    const mockOrders = [
+      {
+        id: 'acme-order-1',
+        tenantId: MOCK_TENANT_ID,
+        domain: 'api.example.com',
+        certGroupId: null,
+        challengeType: 'HTTP_01',
+        status: 'COMPLETED',
+        orderUrl: 'https://acme-v02.api.letsencrypt.org/acme/order/1',
+        challengeToken: null,
+        certId: 'cert-mock-1',
+        autoRenew: true,
+        lastRenewedAt: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+        nextRenewalAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+        errorMessage: null,
+        createdAt: new Date(Date.now() - 60 * 86_400_000).toISOString(),
+        updatedAt: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+      },
+      {
+        id: 'acme-order-2',
+        tenantId: MOCK_TENANT_ID,
+        domain: 'dashboard.example.com',
+        certGroupId: null,
+        challengeType: 'HTTP_01',
+        status: 'COMPLETED',
+        orderUrl: 'https://acme-v02.api.letsencrypt.org/acme/order/2',
+        challengeToken: null,
+        certId: 'cert-mock-2',
+        autoRenew: true,
+        lastRenewedAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+        nextRenewalAt: new Date(Date.now() + 50 * 86_400_000).toISOString(),
+        errorMessage: null,
+        createdAt: new Date(Date.now() - 40 * 86_400_000).toISOString(),
+        updatedAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+      },
+    ]
+    return HttpResponse.json(
+      buildPage(mockOrders, page, size),
+    )
+  }),
+
+  http.get('/api/v1/admin/certs/acme/orders/:id', async ({ params }) => {
+    await delay(150)
+    return HttpResponse.json({
+      id: params.id,
+      tenantId: MOCK_TENANT_ID,
+      domain: 'api.example.com',
+      certGroupId: null,
+      challengeType: 'HTTP_01',
+      status: 'COMPLETED',
+      orderUrl: 'https://acme-v02.api.letsencrypt.org/acme/order/1',
+      challengeToken: null,
+      certId: 'cert-mock-1',
+      autoRenew: true,
+      lastRenewedAt: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+      nextRenewalAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      errorMessage: null,
+      createdAt: new Date(Date.now() - 60 * 86_400_000).toISOString(),
+      updatedAt: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+    })
+  }),
+
+  http.post('/api/v1/admin/certs/acme/orders/:id/renew', async ({ params }) => {
+    await delay(400)
+    return HttpResponse.json({
+      id: params.id,
+      tenantId: MOCK_TENANT_ID,
+      domain: 'api.example.com',
+      certGroupId: null,
+      challengeType: 'HTTP_01',
+      status: 'COMPLETED',
+      orderUrl: 'https://acme-v02.api.letsencrypt.org/acme/order/1',
+      challengeToken: null,
+      certId: crypto.randomUUID(),
+      autoRenew: true,
+      lastRenewedAt: new Date().toISOString(),
+      nextRenewalAt: new Date(Date.now() + 60 * 86_400_000).toISOString(),
+      errorMessage: null,
+      createdAt: new Date(Date.now() - 60 * 86_400_000).toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+  }),
 ]

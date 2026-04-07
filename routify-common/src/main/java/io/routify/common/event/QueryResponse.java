@@ -85,6 +85,10 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.CertGroupsPage.class,       name = "CERT_GROUPS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.CertGroupDetail.class,      name = "CERT_GROUP_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.CertGroupMembersList.class, name = "CERT_GROUP_MEMBERS_LIST"),
+    // ─── routify-cert-vault ACME ───────────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.AcmeAccountResult.class,    name = "ACME_ACCOUNT_RESULT"),
+    @JsonSubTypes.Type(value = QueryResponse.AcmeOrderDetail.class,      name = "ACME_ORDER_DETAIL"),
+    @JsonSubTypes.Type(value = QueryResponse.AcmeOrdersPage.class,       name = "ACME_ORDERS_PAGE"),
     // ─── routify-ai-service ───────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.AiFilterVerdict.class,         name = "AI_FILTER_VERDICT"),
     @JsonSubTypes.Type(value = QueryResponse.AiModifierVerdict.class,       name = "AI_MODIFIER_VERDICT"),
@@ -137,6 +141,9 @@ public sealed interface QueryResponse
             QueryResponse.CertGroupsPage,
             QueryResponse.CertGroupDetail,
             QueryResponse.CertGroupMembersList,
+            QueryResponse.AcmeAccountResult,
+            QueryResponse.AcmeOrderDetail,
+            QueryResponse.AcmeOrdersPage,
             QueryResponse.GatewayStatus,
             QueryResponse.CertRegistrySnapshot,
             QueryResponse.AiFilterVerdict,
@@ -800,6 +807,49 @@ public sealed interface QueryResponse
 
     /** List of certificate members of a group. */
     record CertGroupMembersList(List<CertSummary> members) implements QueryResponse {}
+
+    // ─── ACME responses ──────────────────────────────────────────────────────
+
+    /** ACME account registration result. */
+    record AcmeAccountResult(
+            UUID   id,
+            UUID   tenantId,
+            String email,
+            String accountUrl,
+            String provider,
+            String status,
+            Instant createdAt
+    ) implements QueryResponse {}
+
+    /** ACME order detail. */
+    record AcmeOrderDetail(
+            UUID    id,
+            UUID    tenantId,
+            String  domain,
+            UUID    certGroupId,
+            String  challengeType,
+            String  status,
+            String  orderUrl,
+            String  challengeToken,
+            UUID    certId,
+            boolean autoRenew,
+            Instant lastRenewedAt,
+            Instant nextRenewalAt,
+            String  errorMessage,
+            Instant createdAt,
+            Instant updatedAt
+    ) implements QueryResponse {}
+
+    /** Paginated ACME orders list. */
+    record AcmeOrdersPage(
+            List<AcmeOrderDetail> content,
+            long totalElements,
+            int  totalPages,
+            int  page,
+            int  size,
+            boolean first,
+            boolean last
+    ) implements QueryResponse {}
 
     // ═══════════════════════════════════════════════════════════════════════════
     // routify-api-gateway

@@ -119,6 +119,13 @@ routify:
     # Maximum certificate file size (bytes) — default 128 KB
     max-cert-size-bytes: 131072
 
+  cert:
+    acme:
+      # Cron expression for the auto-renewal scheduler (default: daily at 03:00 UTC)
+      renewal-cron: "0 0 3 * * *"
+      # Days before certificate expiry to trigger auto-renewal (default: 30)
+      renewal-days-before: 30
+
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-
     spring.datasource.password,
