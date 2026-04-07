@@ -3,7 +3,9 @@ package io.routify.identity.config;
 import io.routify.common.domain.TenantPlan;
 import io.routify.common.domain.UserRole;
 import io.routify.identity.domain.AppUser;
+import io.routify.identity.domain.RoleDefinition;
 import io.routify.identity.domain.Tenant;
+import io.routify.identity.repository.RoleDefinitionRepository;
 import io.routify.identity.repository.TenantRepository;
 import io.routify.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -44,9 +46,10 @@ public class DataSeeder implements ApplicationRunner {
     @Value("${routify.seed.admin-password:}")
     private String adminInitialPassword;
 
-    private final TenantRepository tenantRepository;
-    private final UserRepository   userRepository;
-    private final PasswordEncoder  passwordEncoder;
+    private final TenantRepository         tenantRepository;
+    private final UserRepository           userRepository;
+    private final RoleDefinitionRepository roleDefinitionRepository;
+    private final PasswordEncoder          passwordEncoder;
 
     @Override
     @Transactional
@@ -107,12 +110,19 @@ public class DataSeeder implements ApplicationRunner {
         log.info("Creating default admin user (username={}, tenant={})",
                 DEFAULT_ADMIN_USERNAME, DEFAULT_TENANT_SLUG);
 
+        RoleDefinition superAdminRole = roleDefinitionRepository
+                .findByNameAndBuiltInTrue(UserRole.SUPER_ADMIN.name())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Built-in SUPER_ADMIN role definition not found — " +
+                        "ensure V8__role_permissions.sql migration has been applied"));
+
         AppUser admin = AppUser.builder()
                 .tenantId(tenant.getId())
                 .username(DEFAULT_ADMIN_USERNAME)
                 .email(DEFAULT_ADMIN_EMAIL)
                 .passwordHash(passwordEncoder.encode(password))
                 .role(UserRole.SUPER_ADMIN)
+                .roleDefinition(superAdminRole)
                 .mustChangePassword(true)   // Force password reset on first login
                 .build();
 

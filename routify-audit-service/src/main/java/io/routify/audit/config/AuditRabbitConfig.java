@@ -48,6 +48,22 @@ public class AuditRabbitConfig {
     @Bean public Queue auditReplaySingleQueue()       { return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_REPLAY_SINGLE).build(); }
     @Bean public Queue auditReplayBulkQueue()         { return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_REPLAY_BULK).build(); }
 
+    // ─── Route health queue (Gateway Health Dashboard v2) ──────────────────────
+
+    @Bean public Queue auditRouteHealthQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_ROUTE_HEALTH).build();
+    }
+
+    // ─── Tenant usage queues ─────────────────────────────────────────────────
+
+    @Bean public Queue auditUsageCurrentQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_USAGE_CURRENT).build();
+    }
+
+    @Bean public Queue auditUsageHistoryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_USAGE_HISTORY).build();
+    }
+
     // ─── AI filter decision stats + query queues ──────────────────────────────
 
     /** Queue: audit-service serves AI filter stats queries from admin-api */
@@ -145,6 +161,24 @@ public class AuditRabbitConfig {
     @Bean
     public Binding auditReplayBulkBinding(Queue auditReplayBulkQueue, DirectExchange auditServiceExchange) {
         return BindingBuilder.bind(auditReplayBulkQueue).to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_REPLAY_BULK);
+    }
+
+    @Bean
+    public Binding auditRouteHealthBinding(Queue auditRouteHealthQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(auditRouteHealthQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_ROUTE_HEALTH);
+    }
+
+    @Bean
+    public Binding auditUsageCurrentBinding(Queue auditUsageCurrentQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(auditUsageCurrentQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_USAGE_CURRENT);
+    }
+
+    @Bean
+    public Binding auditUsageHistoryBinding(Queue auditUsageHistoryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(auditUsageHistoryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_USAGE_HISTORY);
     }
 
     @Bean

@@ -148,6 +148,30 @@ public class RabbitConfig {
                 .to(routeServiceExchange).with(RabbitTopology.RK_FILTERS_GET);
     }
 
+    // ─── Route SLO queues ──────────────────────────────────────────────────────
+
+    @Bean
+    public Queue routeSloGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROUTE_SLO_GET).build();
+    }
+
+    @Bean
+    public Queue routeSloSaveQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROUTE_SLO_SAVE).build();
+    }
+
+    @Bean
+    public Binding routeSloGetBinding(Queue routeSloGetQueue, DirectExchange routeServiceExchange) {
+        return BindingBuilder.bind(routeSloGetQueue)
+                .to(routeServiceExchange).with(RabbitTopology.RK_ROUTE_SLO_GET);
+    }
+
+    @Bean
+    public Binding routeSloSaveBinding(Queue routeSloSaveQueue, DirectExchange routeServiceExchange) {
+        return BindingBuilder.bind(routeSloSaveQueue)
+                .to(routeServiceExchange).with(RabbitTopology.RK_ROUTE_SLO_SAVE);
+    }
+
     // ─── Message converter & template ─────────────────────────────────────────
 
     /**
