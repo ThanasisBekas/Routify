@@ -137,6 +137,9 @@ public class DomainEventAuditConsumer {
             case DomainEvent.GatewayConfigChanged ignored  -> "GATEWAY_CONFIG_CHANGED";
             case DomainEvent.ApiKeyCreated ignored         -> "API_KEY_CREATED";
             case DomainEvent.ApiKeyRevoked ignored         -> "API_KEY_REVOKED";
+            case DomainEvent.CanaryDeployed ignored        -> "CANARY_DEPLOYED";
+            case DomainEvent.CanaryPromoted ignored        -> "CANARY_PROMOTED";
+            case DomainEvent.CanaryRolledBack ignored      -> "CANARY_ROLLED_BACK";
             // Safety net: Unknown is already handled before entering the switch.
             case DomainEvent.Unknown ignored -> "UNKNOWN";
         };
@@ -178,6 +181,9 @@ public class DomainEventAuditConsumer {
             case DomainEvent.GatewayConfigChanged ignored  -> "GATEWAY";
             case DomainEvent.ApiKeyCreated ignored         -> "API_KEY";
             case DomainEvent.ApiKeyRevoked ignored         -> "API_KEY";
+            case DomainEvent.CanaryDeployed ignored        -> "ROUTE";
+            case DomainEvent.CanaryPromoted ignored        -> "ROUTE";
+            case DomainEvent.CanaryRolledBack ignored      -> "ROUTE";
             case DomainEvent.Unknown ignored -> "UNKNOWN";
         };
     }
@@ -218,6 +224,9 @@ public class DomainEventAuditConsumer {
             case DomainEvent.GatewayConfigChanged g       -> g.section() != null ? g.section() : "global";
             case DomainEvent.ApiKeyCreated e              -> e.apiKeyId().toString();
             case DomainEvent.ApiKeyRevoked e              -> e.apiKeyId().toString();
+            case DomainEvent.CanaryDeployed e             -> e.primaryRouteId().toString();
+            case DomainEvent.CanaryPromoted e             -> e.primaryRouteId().toString();
+            case DomainEvent.CanaryRolledBack e           -> e.primaryRouteId().toString();
             case DomainEvent.Unknown u -> u.tenantId() != null ? u.tenantId().toString() : "unknown";
         };
     }

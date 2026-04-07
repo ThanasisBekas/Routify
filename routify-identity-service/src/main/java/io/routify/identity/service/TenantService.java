@@ -103,7 +103,8 @@ public class TenantService {
 
         outboxStore.store(
                 new DomainEvent.TenantUpdated(
-                        UUID.randomUUID(), id, saved.getName(), Instant.now(), null, null),
+                        UUID.randomUUID(), id, saved.getName(), saved.getPlan().name(),
+                        Instant.now(), null, null),
                 KafkaTopics.TENANT_EVENTS,
                 id);
 
@@ -137,7 +138,8 @@ public class TenantService {
 
         outboxStore.store(
                 new DomainEvent.TenantUpdated(
-                        UUID.randomUUID(), id, saved.getName(), Instant.now(), null, null),
+                        UUID.randomUUID(), id, saved.getName(), saved.getPlan().name(),
+                        Instant.now(), null, null),
                 KafkaTopics.TENANT_EVENTS,
                 id);
 
