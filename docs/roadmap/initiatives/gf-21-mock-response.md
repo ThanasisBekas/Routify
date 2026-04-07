@@ -2,7 +2,8 @@
 
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 5 (Extensions) · **Owner:** Gateway team  
 > **Category:** Developer Experience · **Priority:** Medium  
-> **Filter type:** `MOCK_RESPONSE`
+> **Filter type:** `MOCK_RESPONSE`  
+> **Status:** ✅ **COMPLETED**
 
 ---
 
@@ -41,11 +42,11 @@ A filter that returns a configurable static response without forwarding the requ
 5. If `delay > 0`, use `Mono.delay(Duration.ofMillis(delay))` before writing.
 
 **Task list:**
-- [ ] Create filter factory
-- [ ] Short-circuit filter chain (no upstream call)
-- [ ] Set status, content type, and custom headers
-- [ ] Write response body
-- [ ] Implement delay simulation
+- [x] Create filter factory
+- [x] Short-circuit filter chain (no upstream call)
+- [x] Set status, content type, and custom headers
+- [x] Write response body
+- [x] Implement delay simulation
 
 ---
 
@@ -74,10 +75,10 @@ A filter that returns a configurable static response without forwarding the requ
 - Unknown placeholders resolve to empty string.
 
 **Task list:**
-- [ ] Parse template placeholders at config time
-- [ ] Resolve `${method}`, `${path}`, `${timestamp}`, `${correlationId}`
-- [ ] Resolve `${header:name}` and `${param:name}`
-- [ ] Unknown placeholders resolve to empty string
+- [x] Parse template placeholders at config time
+- [x] Resolve `${method}`, `${path}`, `${timestamp}`, `${correlationId}`
+- [x] Resolve `${header:name}` and `${param:name}`
+- [x] Unknown placeholders resolve to empty string
 
 ---
 
@@ -90,8 +91,8 @@ When `conditionHeader` is configured:
 This enables per-request mock toggling without changing the filter config.
 
 **Task list:**
-- [ ] Implement conditional activation via header presence
-- [ ] Pass through when condition not met
+- [x] Implement conditional activation via header presence
+- [x] Pass through when condition not met
 
 ---
 
@@ -102,9 +103,9 @@ This enables per-request mock toggling without changing the filter config.
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `MOCK_RESPONSE` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form with body editor (code textarea) in dashboard
+- [x] Add `MOCK_RESPONSE` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form with body editor (code textarea) in dashboard
 
 ---
 
@@ -125,9 +126,9 @@ config:
 Apply to all routes via global filter entry to put the entire gateway in maintenance mode.
 
 **Task list:**
-- [ ] Document maintenance mode pattern
-- [ ] Document API stubbing pattern
-- [ ] Add dashboard presets/templates for common mock scenarios
+- [x] Document maintenance mode pattern
+- [x] Document API stubbing pattern
+- [x] Add dashboard presets/templates for common mock scenarios
 
 ---
 
@@ -149,19 +150,18 @@ Apply to all routes via global filter entry to put the entire gateway in mainten
 - No upstream call made when mock is active
 
 **Task list:**
-- [ ] Write mock response tests
-- [ ] Write template interpolation tests
-- [ ] Write delay simulation tests
-- [ ] Write conditional activation tests
+- [x] Write mock response tests
+- [x] Write template interpolation tests
+- [x] Write delay simulation tests
+- [x] Write conditional activation tests
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Static response returned without forwarding to upstream
-- [ ] Template interpolation with request attributes
-- [ ] Simulated latency for timeout testing
-- [ ] Conditional activation via header presence
-- [ ] Maintenance mode pattern documented
-- [ ] No upstream call when mock is active
-
+- [x] Static response returned without forwarding to upstream
+- [x] Template interpolation with request attributes
+- [x] Simulated latency for timeout testing
+- [x] Conditional activation via header presence
+- [x] Maintenance mode pattern documented
+- [x] No upstream call when mock is active

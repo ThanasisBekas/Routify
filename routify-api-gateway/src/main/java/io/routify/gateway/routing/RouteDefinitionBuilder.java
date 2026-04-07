@@ -371,6 +371,9 @@ public class RouteDefinitionBuilder {
             case "CUSTOM_METRIC"    -> customFilter("CustomMetric", cfg);
             case "BODY_SIZE_METRIC" -> customFilter("BodySizeMetric", cfg);
 
+            // ─── Developer Experience ────────────────────────────────────────────
+            case "MOCK_RESPONSE" -> customFilter("MockResponse", cfg);
+
             // ─── Custom ───────────────────────────────────────────────────────────
             case "CUSTOM_SPEL" -> customFilter("SpelCustom", cfg);
 

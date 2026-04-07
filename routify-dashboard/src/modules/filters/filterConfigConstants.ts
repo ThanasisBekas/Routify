@@ -153,6 +153,15 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
     geoDbPath: 'classpath:GeoLite2-Country.mmdb',
     cacheSize: 10000,
   },
+  // Developer Experience
+  MOCK_RESPONSE: {
+    status: 200,
+    contentType: 'application/json',
+    body: '{}',
+    headers: '',
+    delay: 0,
+    conditionHeader: '',
+  },
   // Custom
   CUSTOM_SPEL: { expression: '', description: '', maxExpressionLength: 500, maxPropertyDepth: 5, allowedFunctions: [] },
   // AI
