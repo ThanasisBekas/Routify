@@ -1,7 +1,7 @@
 # Initiative GF-05 — Jolt Transform Response-Phase Support
 
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 4 (Advanced Features) · **Owner:** Gateway team  
-> **Category:** Body Transformation · **Priority:** Medium
+> **Category:** Body Transformation · **Priority:** Medium · **Status:** ✅ Complete
 
 ---
 
@@ -20,7 +20,7 @@ Implement full response-phase Jolt transformation using a `ServerHttpResponseDec
 ### Step 1: Implement Response-Phase Transformation
 
 **Files to modify:**
-- `routify-api-gateway/.../filter/transform/JoltTransformGatewayFilterFactory.java`
+- `routify-api-gateway/.../filter/JoltTransformGatewayFilterFactory.java`
 
 **Implementation:**
 1. When `phase=RESPONSE`, wrap the response with a `ServerHttpResponseDecorator` that intercepts `writeWith()`.
@@ -30,11 +30,11 @@ Implement full response-phase Jolt transformation using a `ServerHttpResponseDec
 5. Only transform `application/json` responses; pass other content types through unchanged.
 
 **Task list:**
-- [ ] Implement `ServerHttpResponseDecorator` for response body transformation
-- [ ] Join response body flux into single buffer
-- [ ] Apply Jolt `Chainr` to response JSON
-- [ ] Update `Content-Length` after transformation
-- [ ] Pass non-JSON responses through unchanged
+- [x] Implement `ServerHttpResponseDecorator` for response body transformation
+- [x] Join response body flux into single buffer
+- [x] Apply Jolt `Chainr` to response JSON
+- [x] Update `Content-Length` after transformation
+- [x] Pass non-JSON responses through unchanged
 
 ---
 
@@ -48,9 +48,9 @@ maxBodySize: 1048576  # 1 MB default
 When the response body exceeds `maxBodySize`, skip transformation and pass through the original body unchanged. Log a warning with the route ID and actual body size.
 
 **Task list:**
-- [ ] Add `maxBodySize` config parameter (default 1 MB)
-- [ ] Skip transformation for oversized bodies
-- [ ] Log warning with route ID and body size
+- [x] Add `maxBodySize` config parameter (default 1 MB)
+- [x] Skip transformation for oversized bodies
+- [x] Log warning with route ID and body size
 
 ---
 
@@ -67,17 +67,17 @@ When `phase=BOTH`:
 3. Both specs are compiled to `Chainr` instances at config bind time.
 
 **Task list:**
-- [ ] Add `responseSpec` config field
-- [ ] Compile `responseSpec` to `Chainr` at config bind time
-- [ ] Apply request spec on REQUEST phase, response spec on RESPONSE phase
-- [ ] Validate that `responseSpec` is provided when `phase=BOTH`
+- [x] Add `responseSpec` config field
+- [x] Compile `responseSpec` to `Chainr` at config bind time
+- [x] Apply request spec on REQUEST phase, response spec on RESPONSE phase
+- [x] Validate that `responseSpec` is provided when `phase=BOTH`
 
 ---
 
 ### Step 4: Tests
 
 **Files to create:**
-- `routify-api-gateway/src/test/java/io/routify/gateway/filter/transform/JoltTransformResponseTest.java`
+- `routify-api-gateway/src/test/java/io/routify/gateway/filter/JoltTransformResponseTest.java`
 
 **Test cases:**
 - `phase=RESPONSE` transforms upstream JSON response correctly
@@ -89,17 +89,16 @@ When `phase=BOTH`:
 - Malformed JSON response produces a 502 error (not a silent failure)
 
 **Task list:**
-- [ ] Write tests for response transformation
-- [ ] Write tests for `BOTH` phase
-- [ ] Write tests for edge cases (non-JSON, oversized, empty, malformed)
+- [x] Write tests for response transformation
+- [x] Write tests for `BOTH` phase
+- [x] Write tests for edge cases (non-JSON, oversized, empty, malformed)
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `phase=RESPONSE` transforms upstream response body before returning to client
-- [ ] `phase=BOTH` transforms request and response with independent specs
-- [ ] `Content-Length` updated on transformed responses
-- [ ] Non-JSON responses pass through unchanged
-- [ ] Bodies exceeding `maxBodySize` pass through with a warning log
-
+- [x] `phase=RESPONSE` transforms upstream response body before returning to client
+- [x] `phase=BOTH` transforms request and response with independent specs
+- [x] `Content-Length` updated on transformed responses
+- [x] Non-JSON responses pass through unchanged
+- [x] Bodies exceeding `maxBodySize` pass through with a warning log

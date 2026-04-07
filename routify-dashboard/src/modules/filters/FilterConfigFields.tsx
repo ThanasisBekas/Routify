@@ -431,11 +431,19 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               onChange={(v) => set('phase', v)}
               options={[
                 { value: 'REQUEST', label: 'Request body' },
-                { value: 'RESPONSE', label: 'Response body (not yet implemented)', disabled: true },
+                { value: 'RESPONSE', label: 'Response body' },
+                { value: 'BOTH', label: 'Both (request + response)' },
               ]}
             />
           </Field>
-          <Field label="Jolt Spec" hint="Jolt Chainr transform spec (JSON array)">
+          <Field
+            label={str('phase', 'REQUEST') === 'BOTH' ? 'Request Jolt Spec' : 'Jolt Spec'}
+            hint={
+              str('phase', 'REQUEST') === 'RESPONSE'
+                ? 'Jolt Chainr transform spec for the response body (JSON array). If responseSpec is set below, it takes precedence.'
+                : 'Jolt Chainr transform spec (JSON array)'
+            }
+          >
             <textarea
               value={str('spec', '[]')}
               onChange={(e) => set('spec', e.target.value)}
@@ -445,6 +453,40 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               placeholder={'[\n  {\n    "operation": "shift",\n    "spec": { ... }\n  }\n]'}
             />
           </Field>
+          {(str('phase', 'REQUEST') === 'RESPONSE' || str('phase', 'REQUEST') === 'BOTH') && (
+            <Field
+              label="Response Jolt Spec"
+              hint={
+                str('phase', 'REQUEST') === 'BOTH'
+                  ? 'Separate Jolt spec applied to the upstream response body (required for BOTH phase)'
+                  : 'Optional separate Jolt spec for the response body. Falls back to the main spec if empty.'
+              }
+            >
+              <textarea
+                value={str('responseSpec', '[]')}
+                onChange={(e) => set('responseSpec', e.target.value)}
+                rows={8}
+                spellCheck={false}
+                className={`${monoInputCls} resize-y`}
+                placeholder={'[\n  {\n    "operation": "shift",\n    "spec": { "result": "data" }\n  }\n]'}
+              />
+            </Field>
+          )}
+          {(str('phase', 'REQUEST') === 'RESPONSE' || str('phase', 'REQUEST') === 'BOTH') && (
+            <Field
+              label="Max Body Size (bytes)"
+              hint="Maximum response body size to transform. Bodies exceeding this limit pass through unchanged. Default: 1 MB (1048576)."
+            >
+              <input
+                type="number"
+                min={0}
+                value={Number(config.maxBodySize ?? 1048576)}
+                onChange={(e) => set('maxBodySize', Number(e.target.value))}
+                className={inputCls}
+                placeholder="1048576"
+              />
+            </Field>
+          )}
         </div>
       )
 

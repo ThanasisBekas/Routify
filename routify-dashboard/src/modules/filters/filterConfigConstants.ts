@@ -39,7 +39,7 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   REQUEST_HEADER_MODIFY: { add: {}, set: {}, remove: {} },
   RESPONSE_HEADER_MODIFY: { add: {}, set: {}, remove: {} },
   // Transformation
-  BODY_JOLT_TRANSFORM: { spec: '[]', phase: 'REQUEST' },
+  BODY_JOLT_TRANSFORM: { spec: '[]', phase: 'REQUEST', responseSpec: '[]', maxBodySize: 1048576 },
   // Validation
   VALIDATE_JSON_SCHEMA: { schema: '{}', specVersion: 'V7' },
   // Resilience
