@@ -33,8 +33,8 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   DOWNSTREAM_BASIC_AUTH: { username: '', password: '' },
   DOWNSTREAM_BEARER_CC: { oauth2ProviderName: '', forwardCallerAuth: false },
   // Rate Limiting
-  RATE_LIMIT_FIXED_WINDOW: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP' },
-  RATE_LIMIT_SLIDING_WINDOW: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP' },
+  RATE_LIMIT_FIXED_WINDOW: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP', includeHeaders: true },
+  RATE_LIMIT_SLIDING_WINDOW: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP', includeHeaders: true },
   // Modification
   REQUEST_HEADER_MODIFY: { add: {}, set: {}, remove: {} },
   RESPONSE_HEADER_MODIFY: { add: {}, set: {}, remove: {} },

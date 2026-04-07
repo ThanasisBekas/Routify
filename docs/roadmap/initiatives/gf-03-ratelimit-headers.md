@@ -38,9 +38,9 @@ return {count, ttl}
 ```
 
 **Task list:**
-- [ ] Modify fixed window Lua script to return `{count, ttl}` tuple
-- [ ] Modify sliding window Lua script to return `{count, ttl}` tuple
-- [ ] Ensure backward compatibility (callers handle tuple response)
+- [x] Modify fixed window Lua script to return `{count, ttl}` tuple
+- [x] Modify sliding window Lua script to return `{count, ttl}` tuple
+- [x] Ensure backward compatibility (callers handle tuple response)
 
 ---
 
@@ -73,11 +73,11 @@ exchange.getResponse().getHeaders().set("X-RateLimit-Reset", String.valueOf(rese
 ```
 
 **Task list:**
-- [ ] Parse `{count, ttl}` tuple from Lua script response
-- [ ] Inject `X-RateLimit-Limit` on every response
-- [ ] Inject `X-RateLimit-Remaining` on every response
-- [ ] Inject `X-RateLimit-Reset` on every response
-- [ ] Inject `Retry-After` on 429 responses (via `GatewayProblemResponse` from GF-02)
+- [x] Parse `{count, ttl}` tuple from Lua script response
+- [x] Inject `X-RateLimit-Limit` on every response
+- [x] Inject `X-RateLimit-Remaining` on every response
+- [x] Inject `X-RateLimit-Reset` on every response
+- [x] Inject `Retry-After` on 429 responses (via `GatewayProblemResponse` from GF-02)
 
 ---
 
@@ -94,9 +94,9 @@ private boolean includeHeaders = true;
 When `includeHeaders=false`, all `X-RateLimit-*` headers are suppressed. The `Retry-After` header on 429 responses is always included regardless of this flag (it's semantically required by RFC 6585).
 
 **Task list:**
-- [ ] Add `includeHeaders` boolean config parameter (default `true`)
-- [ ] Conditionally inject headers based on config
-- [ ] Always include `Retry-After` on 429
+- [x] Add `includeHeaders` boolean config parameter (default `true`)
+- [x] Conditionally inject headers based on config
+- [x] Always include `Retry-After` on 429
 
 ---
 
@@ -114,17 +114,17 @@ When `includeHeaders=false`, all `X-RateLimit-*` headers are suppressed. The `Re
 - Integration test validates header values against Redis state
 
 **Task list:**
-- [ ] Write unit tests for header injection logic
-- [ ] Write integration tests validating header values vs. Redis state
-- [ ] Write tests for `includeHeaders=false` suppression
+- [x] Write unit tests for header injection logic
+- [x] Write integration tests validating header values vs. Redis state
+- [x] Write tests for `includeHeaders=false` suppression
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every 2xx/4xx response
-- [ ] `Retry-After` on 429 responses
-- [ ] Lua scripts return `{count, ttl}` tuple
-- [ ] `includeHeaders=false` suppresses all rate limit headers
-- [ ] Integration test validates header values against Redis state
+- [x] `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every 2xx/4xx response
+- [x] `Retry-After` on 429 responses
+- [x] Lua scripts return `{count, ttl}` tuple
+- [x] `includeHeaders=false` suppresses all rate limit headers
+- [x] Integration test validates header values against Redis state
 
