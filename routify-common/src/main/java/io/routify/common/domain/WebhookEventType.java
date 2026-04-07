@@ -40,6 +40,8 @@ public enum WebhookEventType {
     /** Triggered when more than N DLQ events are observed in a time window. */
     DLQ_OVERFLOW,
     GATEWAY_RELOAD_FAILED,
+    /** Triggered when a gateway instance's config version is behind the global version for &gt;60s. */
+    GATEWAY_CONFIG_DRIFT,
 
     // ─── Quota events ──────────────────────────────────────────────────────────
     /** Triggered when a tenant reaches 80% of any quota (routes, filters, or requests). */

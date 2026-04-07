@@ -59,12 +59,12 @@ public void heartbeat() {
 ```
 
 **Task list:**
-- [ ] Create `GatewayInstanceRegistry` component
-- [ ] Generate stable instance ID on startup
-- [ ] Implement heartbeat scheduler
-- [ ] Register/deregister on startup/shutdown (`@PreDestroy`)
-- [ ] Add `RedisKeys.GATEWAY_INSTANCES_PREFIX` and `GATEWAY_CONFIG_VERSION` to `routify-common`
-- [ ] Add config properties `routify.gateway.cluster.heartbeat-interval-ms`
+- [x] Create `GatewayInstanceRegistry` component
+- [x] Generate stable instance ID on startup
+- [x] Implement heartbeat scheduler
+- [x] Register/deregister on startup/shutdown (`@PreDestroy`)
+- [x] Add `RedisKeys.GATEWAY_INSTANCES_PREFIX` and `GATEWAY_CONFIG_VERSION` to `routify-common`
+- [x] Add config properties `routify.gateway.cluster.heartbeat-interval-ms`
 
 ---
 
@@ -82,10 +82,10 @@ public void heartbeat() {
 **Consistency rule:** An instance's `configVersion` should match the global Redis `config-version` within `heartbeat-interval * 3` (30s). If lagging longer, the instance is "stale".
 
 **Task list:**
-- [ ] Add local `AtomicLong configVersion` to route refresh listener
-- [ ] Increment Redis config version on each event
-- [ ] Update heartbeat with new version
-- [ ] Add `routify.gateway.cluster.config-version` Micrometer gauge
+- [x] Add local `AtomicLong configVersion` to route refresh listener
+- [x] Increment Redis config version on each event
+- [x] Update heartbeat with new version
+- [x] Add `routify.gateway.cluster.config-version` Micrometer gauge
 
 ---
 
@@ -137,9 +137,9 @@ GET /api/v1/admin/gateway/fleet
 ```
 
 **Task list:**
-- [ ] Implement fleet status query in `DashboardStatsService`
-- [ ] Add REST endpoint
-- [ ] Handle expired instances (remove from set if heartbeat hash is gone)
+- [x] Implement fleet status query in `DashboardStatsService`
+- [x] Add REST endpoint
+- [x] Handle expired instances (remove from set if heartbeat hash is gone)
 
 ---
 
@@ -156,12 +156,12 @@ GET /api/v1/admin/gateway/fleet
 - Stale instances highlighted with amber border and "Config version behind" warning.
 
 **Task list:**
-- [ ] Create `FleetTab` component
-- [ ] Create `InstanceCard` component
-- [ ] Add to gateway page tab layout (alongside Q3 Health Dashboard tabs)
-- [ ] Add fleet API function to `gatewayApi.ts`
-- [ ] Add TypeScript types
-- [ ] Add MSW mock handlers
+- [x] Create `FleetTab` component
+- [x] Create `InstanceCard` component
+- [x] Add to gateway page tab layout (alongside Q3 Health Dashboard tabs)
+- [x] Add fleet API function to `gatewayApi.ts`
+- [x] Add TypeScript types
+- [x] Add MSW mock handlers
 
 ---
 
@@ -174,18 +174,17 @@ GET /api/v1/admin/gateway/fleet
 **Implementation:** `DashboardStatsService.checkFleetHealth()` runs on a 60s schedule in admin-api. Compares each instance's version against global. If drift detected, publishes `AUDIT_EVENTS` with type `GATEWAY_CONFIG_DRIFT`.
 
 **Task list:**
-- [ ] Add `GATEWAY_CONFIG_DRIFT` to `WebhookEventType` enum
-- [ ] Implement drift detection scheduler in admin-api
-- [ ] Publish audit event on drift detection
+- [x] Add `GATEWAY_CONFIG_DRIFT` to `WebhookEventType` enum
+- [x] Implement drift detection scheduler in admin-api
+- [x] Publish audit event on drift detection
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Each gateway instance registers in Redis with heartbeat every 10s
-- [ ] Fleet status endpoint returns all instances with config versions
-- [ ] Stale instances (config version behind for >30s) are correctly identified
-- [ ] Dashboard fleet tab shows instance cards with version badges
-- [ ] Expired instances (heartbeat TTL) are automatically cleaned from the registry
-- [ ] Config drift webhook fires when any instance lags for >60s
-
+- [x] Each gateway instance registers in Redis with heartbeat every 10s
+- [x] Fleet status endpoint returns all instances with config versions
+- [x] Stale instances (config version behind for >30s) are correctly identified
+- [x] Dashboard fleet tab shows instance cards with version badges
+- [x] Expired instances (heartbeat TTL) are automatically cleaned from the registry
+- [x] Config drift webhook fires when any instance lags for >60s

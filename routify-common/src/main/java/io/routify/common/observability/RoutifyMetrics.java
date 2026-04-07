@@ -77,6 +77,10 @@ public class RoutifyMetrics {
     private final Map<String, Counter> acmeRenewals = new ConcurrentHashMap<>();
     private final Map<String, Counter> acmeFailures = new ConcurrentHashMap<>();
 
+    // ─── Gateway Cluster ─────────────────────────────────────────────────────
+
+    private final AtomicLong gatewayConfigVersion = new AtomicLong(0);
+
     public RoutifyMetrics(MeterRegistry registry) {
         this.registry = registry;
 
@@ -111,6 +115,10 @@ public class RoutifyMetrics {
         Gauge.builder("routify.outbox.pending", outboxPending, AtomicLong::get)
                 .description("Number of outbox events awaiting publication")
                 .register(registry);
+
+        Gauge.builder("routify.gateway.cluster.config-version", gatewayConfigVersion, AtomicLong::get)
+                .description("Local config version counter for this gateway instance")
+                .register(registry);
     }
 
     // ─── Gateway ──────────────────────────────────────────────────────────────
@@ -131,6 +139,14 @@ public class RoutifyMetrics {
 
     public void setActiveRoutes(int count)   { activeRoutes.set(count); }
     public void setLoadedFilters(int count)  { loadedFilters.set(count); }
+
+    /**
+     * Updates the local config version gauge.
+     * Called by the gateway's {@code GatewayInstanceRegistry} after each reload.
+     *
+     * @param version the new local config version
+     */
+    public void setGatewayConfigVersion(long version) { gatewayConfigVersion.set(version); }
 
     // ─── Outbox ───────────────────────────────────────────────────────────────
 
