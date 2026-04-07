@@ -560,6 +560,64 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    case 'GRAPHQL_DEPTH_LIMIT':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Parses incoming <strong className="text-cyan-300">GraphQL</strong> queries and rejects those
+            exceeding configurable depth, complexity, or alias limits. Optionally blocks
+            introspection queries and batched queries exceeding a maximum batch size.
+            Non-GraphQL requests pass through unchanged.
+          </p>
+          <Field label="Max Depth" hint="Maximum allowed query nesting depth (default: 10)">
+            <input
+              type="number"
+              value={num('maxDepth', 10)}
+              onChange={(e) => set('maxDepth', parseInt(e.target.value) || 10)}
+              className={inputCls}
+              min={1}
+              max={100}
+            />
+          </Field>
+          <Field label="Max Complexity" hint="Maximum total field count / complexity score (default: 100)">
+            <input
+              type="number"
+              value={num('maxComplexity', 100)}
+              onChange={(e) => set('maxComplexity', parseInt(e.target.value) || 100)}
+              className={inputCls}
+              min={1}
+              max={10000}
+            />
+          </Field>
+          <Field label="Max Aliases" hint="Maximum number of aliases per query (default: 5)">
+            <input
+              type="number"
+              value={num('maxAliases', 5)}
+              onChange={(e) => set('maxAliases', parseInt(e.target.value) || 5)}
+              className={inputCls}
+              min={0}
+              max={100}
+            />
+          </Field>
+          <Field label="Max Batch Size" hint="Maximum operations in a batched query (default: 5)">
+            <input
+              type="number"
+              value={num('maxBatchSize', 5)}
+              onChange={(e) => set('maxBatchSize', parseInt(e.target.value) || 5)}
+              className={inputCls}
+              min={1}
+              max={100}
+            />
+          </Field>
+          <Toggle
+            label="Allow introspection"
+            description="Permit __schema and __type introspection queries (default: blocked)"
+            checked={bool('introspectionAllowed', false)}
+            onChange={(v) => set('introspectionAllowed', v)}
+          />
+        </div>
+      )
+
     // ── Performance ──────────────────────────────────────────────────────────
     case 'RESPONSE_CACHE':
       return (

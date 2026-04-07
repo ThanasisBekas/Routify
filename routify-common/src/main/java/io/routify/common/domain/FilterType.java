@@ -73,6 +73,13 @@ public enum FilterType {
     VALIDATE_JSON_SCHEMA,
     /** Enforce per-route maximum request body size (413 on exceed) — RequestSizeLimitGatewayFilterFactory */
     REQUEST_SIZE_LIMIT,
+    /**
+     * Parse incoming GraphQL queries and reject those exceeding configurable depth,
+     * complexity, or alias limits. Optionally blocks introspection queries and batched
+     * queries beyond a maximum batch size. Uses graphql-java AST parser (no execution engine).
+     * — GraphQLDepthLimitGatewayFilterFactory
+     */
+    GRAPHQL_DEPTH_LIMIT,
 
     // ─── Performance ──────────────────────────────────────────────────────────
 

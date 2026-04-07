@@ -164,6 +164,13 @@
             <version>3.0.1</version>
         </dependency>
 
+        <!-- GraphQL parser (AST only) for GRAPHQL_DEPTH_LIMIT filter -->
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+            <version>22.3</version>
+        </dependency>
+
         <!-- JSONata expression engine for BODY_JSONATA_TRANSFORM filter -->
         <dependency>
             <groupId>com.dashjoin</groupId>

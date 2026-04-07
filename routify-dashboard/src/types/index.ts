@@ -325,6 +325,7 @@ export type FilterType =
   | 'BODY_JOLT_TRANSFORM'
   | 'VALIDATE_JSON_SCHEMA'
   | 'REQUEST_SIZE_LIMIT'
+  | 'GRAPHQL_DEPTH_LIMIT'
   | 'TIMEOUT'
   // ─── Resilience ─────────────────────────────────────────────────────────
   | 'CIRCUIT_BREAKER_V2'
