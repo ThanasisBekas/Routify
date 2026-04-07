@@ -31,10 +31,10 @@ Remove the unsigned JWT decode path (fail-closed security), add JWKS URI support
 - Add a `@PostConstruct` health check that validates at least one key source is configured.
 
 **Task list:**
-- [ ] Remove unsigned JWT decode path
-- [ ] Add startup validation: fail if neither public key nor JWKS URI is configured
-- [ ] Log `ERROR` with clear remediation message
-- [ ] Return `SERVER_MISCONFIGURED` error via `GatewayProblemResponse` (from GF-02)
+- [x] Remove unsigned JWT decode path
+- [x] Add startup validation: fail if neither public key nor JWKS URI is configured
+- [x] Log `ERROR` with clear remediation message
+- [x] Return `SERVER_MISCONFIGURED` error via `GatewayProblemResponse` (from GF-02)
 
 ---
 
@@ -59,11 +59,11 @@ routify:
 - If both static `public-key` and `jwks-uri` are configured, prefer JWKS URI; fall back to static key if JWKS fetch fails.
 
 **Task list:**
-- [ ] Add `jwks-uri` and `jwks-cache-minutes` config properties
-- [ ] Implement JWKS fetcher with caching (Caffeine or scheduled refresh)
-- [ ] Resolve signing key by `kid` from JWKS
-- [ ] Fallback to static public key if JWKS fetch fails
-- [ ] Non-blocking JWKS fetch using `WebClient`
+- [x] Add `jwks-uri` and `jwks-cache-minutes` config properties
+- [x] Implement JWKS fetcher with caching (Caffeine or scheduled refresh)
+- [x] Resolve signing key by `kid` from JWKS
+- [x] Fallback to static public key if JWKS fetch fails
+- [x] Non-blocking JWKS fetch using `WebClient`
 
 ---
 
@@ -78,9 +78,9 @@ routify:
 - Both validations happen after signature verification, before further claims processing.
 
 **Task list:**
-- [ ] Enforce issuer validation when configured
-- [ ] Enforce audience validation when configured
-- [ ] Return specific error codes (`INVALID_ISSUER`, `INVALID_AUDIENCE`)
+- [x] Enforce issuer validation when configured
+- [x] Enforce audience validation when configured
+- [x] Return specific error codes (`INVALID_ISSUER`, `INVALID_AUDIENCE`)
 
 ---
 
@@ -95,9 +95,9 @@ routify:
 - Log a `WARN` at startup if `algorithm: HS256` is configured (backward compat migration aid).
 
 **Task list:**
-- [ ] Remove HS256 support from filter
-- [ ] Log migration warning if HS256 is configured
-- [ ] Update documentation
+- [x] Remove HS256 support from filter
+- [x] Log migration warning if HS256 is configured
+- [x] Update documentation
 
 ---
 
@@ -116,9 +116,9 @@ routify:
 When `true`, reject tokens without a `jti` claim with `MISSING_JTI` error code instead of logging a warning and skipping the blocklist check.
 
 **Task list:**
-- [ ] Add `require-jti` config property (default `true`)
-- [ ] Reject tokens without `jti` when `require-jti=true`
-- [ ] Return `MISSING_JTI` error code
+- [x] Add `require-jti` config property (default `true`)
+- [x] Reject tokens without `jti` when `require-jti=true`
+- [x] Return `MISSING_JTI` error code
 
 ---
 
@@ -138,17 +138,16 @@ When `true`, reject tokens without a `jti` claim with `MISSING_JTI` error code i
 - HS256 config → startup warning logged
 
 **Task list:**
-- [ ] Write tests for all hardening scenarios
-- [ ] Verify no behavioral regression for valid RS256 tokens
-- [ ] Test JWKS fetch failure fallback to static key
+- [x] Write tests for all hardening scenarios
+- [x] Verify no behavioral regression for valid RS256 tokens
+- [x] Test JWKS fetch failure fallback to static key
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] No unsigned JWT decode path in production
-- [ ] JWKS URI support with key caching and rotation
-- [ ] Issuer and audience claims validated when configured
-- [ ] `require-jti=true` by default; tokens without `jti` rejected
-- [ ] Startup health check fails if neither public key nor JWKS URI is configured
-
+- [x] No unsigned JWT decode path in production
+- [x] JWKS URI support with key caching and rotation
+- [x] Issuer and audience claims validated when configured
+- [x] `require-jti=true` by default; tokens without `jti` rejected
+- [x] Startup health check fails if neither public key nor JWKS URI is configured

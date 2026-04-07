@@ -1,5 +1,6 @@
 package io.routify.gateway.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -32,8 +34,8 @@ import static org.mockito.Mockito.*;
  * Unit tests for {@link JwtAuthGatewayFilterFactory}.
  *
  * <p>Tests JWT validation, header injection, token expiry, blocklist checks,
- * and query-param token extraction. Uses an in-memory RSA key pair (no containers needed).
- * Mocks the {@link ReactiveRedisOperations} interface to avoid JDK 25+ class mocking issues.
+ * issuer/audience enforcement, require-jti behaviour, and query-param token extraction.
+ * Uses an in-memory RSA key pair (no containers needed).
  */
 class JwtAuthGatewayFilterFactoryTest {
 
@@ -56,18 +58,29 @@ class JwtAuthGatewayFilterFactoryTest {
     @BeforeEach
     void setUp() throws Exception {
         redisTemplate = mock(ReactiveStringRedisTemplate.class);
-        factory = new JwtAuthGatewayFilterFactory(redisTemplate);
+        factory = new JwtAuthGatewayFilterFactory(
+                redisTemplate, WebClient.builder(), new ObjectMapper());
 
         // Inject the public key via reflection (non-final @Value field)
         String publicKeyBase64 = Base64.getEncoder().encodeToString(publicKey.getEncoded());
-        var keyField = JwtAuthGatewayFilterFactory.class.getDeclaredField("publicKeyBase64");
-        keyField.setAccessible(true);
-        keyField.set(factory, publicKeyBase64);
+        setField("publicKeyBase64", publicKeyBase64);
+        setField("jwksUri", "");
+        setField("jwksCacheMinutes", 5);
+        setField("globalRequireJti", true);
+
+        // Trigger @PostConstruct manually
+        factory.validateKeySource();
 
         filter = factory.apply(new JwtAuthGatewayFilterFactory.Config());
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private void setField(String name, Object value) throws Exception {
+        var field = JwtAuthGatewayFilterFactory.class.getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(factory, value);
+    }
 
     private String issueToken(UUID userId, String tenantId, String role, String email,
                               String jti, Instant expiry) {
@@ -80,6 +93,23 @@ class JwtAuthGatewayFilterFactoryTest {
                 .expiration(Date.from(expiry))
                 .signWith(privateKey);
         if (jti != null) builder.id(jti);
+        return builder.compact();
+    }
+
+    private String issueTokenWithIssuerAndAudience(UUID userId, String tenantId, String role,
+                                                    String email, String jti, Instant expiry,
+                                                    String issuer, String audience) {
+        var builder = Jwts.builder()
+                .subject(userId.toString())
+                .claim("tenantId", tenantId)
+                .claim("role", role)
+                .claim("email", email)
+                .issuedAt(Date.from(Instant.now()))
+                .expiration(Date.from(expiry))
+                .signWith(privateKey);
+        if (jti != null) builder.id(jti);
+        if (issuer != null) builder.issuer(issuer);
+        if (audience != null) builder.audience().add(audience).and();
         return builder.compact();
     }
 
@@ -203,8 +233,31 @@ class JwtAuthGatewayFilterFactoryTest {
     }
 
     @Test
-    @DisplayName("JWT without JTI — passes through without blocklist check (with warning)")
-    void jwtWithoutJti_passesThrough() {
+    @DisplayName("JWT without JTI + require-jti=true (default) — returns 401 MISSING_JTI")
+    void jwtWithoutJti_requireJtiTrue_returns401() {
+        String token = issueToken(UUID.randomUUID(), "tenant1", "VIEWER", "u@t.com",
+                null, Instant.now().plusSeconds(3600));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        verifyNoInteractions(redisTemplate);
+    }
+
+    @Test
+    @DisplayName("JWT without JTI + require-jti=false — passes through with warning")
+    void jwtWithoutJti_requireJtiFalse_passesThrough() throws Exception {
+        // Override global require-jti to false and re-initialise
+        setField("globalRequireJti", false);
+        factory.validateKeySource();
+        filter = factory.apply(new JwtAuthGatewayFilterFactory.Config());
+
         String token = issueToken(UUID.randomUUID(), "tenant1", "VIEWER", "u@t.com",
                 null, Instant.now().plusSeconds(3600));
 
@@ -269,5 +322,164 @@ class JwtAuthGatewayFilterFactoryTest {
         assertThat(captured[0].getHeaders().getFirst("X-Auth-Role")).isEqualTo("SUPER_ADMIN");
         assertThat(captured[0].getHeaders().getFirst("X-Auth-Email")).isEqualTo("admin@test.com");
     }
-}
 
+    // ─── GF-04 Hardening: Issuer & Audience Validation ────────────────────────
+
+    @Test
+    @DisplayName("Issuer mismatch returns 401 INVALID_ISSUER")
+    void issuerMismatch_returns401() {
+        var config = new JwtAuthGatewayFilterFactory.Config();
+        config.setIssuer("https://auth.example.com");
+        var issuedFilter = factory.apply(config);
+
+        String token = issueTokenWithIssuerAndAudience(
+                UUID.randomUUID(), "t1", "VIEWER", "u@t.com",
+                UUID.randomUUID().toString(), Instant.now().plusSeconds(3600),
+                "https://wrong-issuer.com", null);
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(issuedFilter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("Matching issuer passes through")
+    void matchingIssuer_passesThrough() {
+        var config = new JwtAuthGatewayFilterFactory.Config();
+        config.setIssuer("https://auth.example.com");
+        var issuedFilter = factory.apply(config);
+
+        String jti = UUID.randomUUID().toString();
+        String token = issueTokenWithIssuerAndAudience(
+                UUID.randomUUID(), "t1", "VIEWER", "u@t.com",
+                jti, Instant.now().plusSeconds(3600),
+                "https://auth.example.com", null);
+
+        when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(issuedFilter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        verify(redisTemplate).hasKey("routify:token:blocklist:" + jti);
+    }
+
+    @Test
+    @DisplayName("Audience mismatch returns 401 INVALID_AUDIENCE")
+    void audienceMismatch_returns401() {
+        var config = new JwtAuthGatewayFilterFactory.Config();
+        config.setAudience("api://routify");
+        var audFilter = factory.apply(config);
+
+        String token = issueTokenWithIssuerAndAudience(
+                UUID.randomUUID(), "t1", "VIEWER", "u@t.com",
+                UUID.randomUUID().toString(), Instant.now().plusSeconds(3600),
+                null, "api://other-service");
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(audFilter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("Matching audience passes through")
+    void matchingAudience_passesThrough() {
+        var config = new JwtAuthGatewayFilterFactory.Config();
+        config.setAudience("api://routify");
+        var audFilter = factory.apply(config);
+
+        String jti = UUID.randomUUID().toString();
+        String token = issueTokenWithIssuerAndAudience(
+                UUID.randomUUID(), "t1", "VIEWER", "u@t.com",
+                jti, Instant.now().plusSeconds(3600),
+                null, "api://routify");
+
+        when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(audFilter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        verify(redisTemplate).hasKey("routify:token:blocklist:" + jti);
+    }
+
+    // ─── GF-04 Hardening: Misconfigured (no key source) ──────────────────────
+
+    @Test
+    @DisplayName("No public key and no JWKS URI — returns 500 SERVER_MISCONFIGURED")
+    void misconfigured_returns500() throws Exception {
+        // Create a factory with neither key source
+        var misconfiguredFactory = new JwtAuthGatewayFilterFactory(
+                redisTemplate, WebClient.builder(), new ObjectMapper());
+        setFieldOn(misconfiguredFactory, "publicKeyBase64", "");
+        setFieldOn(misconfiguredFactory, "jwksUri", "");
+        setFieldOn(misconfiguredFactory, "jwksCacheMinutes", 5);
+        setFieldOn(misconfiguredFactory, "globalRequireJti", true);
+        misconfiguredFactory.validateKeySource();
+
+        var miscFilter = misconfiguredFactory.apply(new JwtAuthGatewayFilterFactory.Config());
+
+        String token = issueToken(UUID.randomUUID(), "t1", "VIEWER", "u@t.com",
+                UUID.randomUUID().toString(), Instant.now().plusSeconds(3600));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(miscFilter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // ─── GF-04 Hardening: Per-filter requireJti override ─────────────────────
+
+    @Test
+    @DisplayName("Per-filter requireJti=false overrides global=true — passes through without JTI")
+    void perFilterRequireJtiFalse_overridesGlobal() {
+        var config = new JwtAuthGatewayFilterFactory.Config();
+        config.setRequireJti(false);
+        var overrideFilter = factory.apply(config);
+
+        String token = issueToken(UUID.randomUUID(), "tenant1", "VIEWER", "u@t.com",
+                null, Instant.now().plusSeconds(3600));
+
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        StepVerifier.create(overrideFilter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        // No Redis call — no JTI, but allowed by per-filter override
+        verifyNoInteractions(redisTemplate);
+    }
+
+    private void setFieldOn(Object target, String name, Object value) throws Exception {
+        var field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+}

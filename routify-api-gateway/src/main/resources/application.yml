@@ -102,11 +102,14 @@ management:
 routify:
   jwt:
     public-key: ${JWT_PUBLIC_KEY:}
+    jwks-uri: ${JWT_JWKS_URI:}
+    jwks-cache-minutes: ${JWT_JWKS_CACHE_MINUTES:5}
+    require-jti: ${JWT_REQUIRE_JTI:true}
 
   # ─── Startup secret validation ────────────────────────────────────────────────
-  # NOTE: JWT_PUBLIC_KEY is intentionally NOT in this list — in dev mode the gateway
-  # falls back to ephemeral key validation (acceptable for local development only).
-  # Add it here when deploying to staging/production environments.
+  # NOTE: JWT key source validation is handled by JwtAuthGatewayFilterFactory @PostConstruct.
+  # If neither routify.jwt.public-key nor routify.jwt.jwks-uri is set, all JWT
+  # auth requests will be rejected with SERVER_MISCONFIGURED (fail-closed).
   required-secrets: >-
     spring.rabbitmq.password,
     spring.data.redis.password
