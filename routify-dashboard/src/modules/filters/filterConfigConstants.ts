@@ -67,6 +67,12 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
     respectCacheControl: true,
     addCacheHeaders: true,
   },
+  REQUEST_DECOMPRESS: {
+    supportedEncodings: 'gzip,br,zstd',
+    maxDecompressedSize: '10MB',
+    removeEncoding: true,
+    updateContentLength: true,
+  },
   // Resilience
   TIMEOUT: { timeoutMs: 30000 },
   CIRCUIT_BREAKER_V2: {

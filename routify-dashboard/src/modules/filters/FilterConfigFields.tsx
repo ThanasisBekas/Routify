@@ -842,6 +842,70 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    case 'REQUEST_DECOMPRESS':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Transparently decompresses <strong className="text-green-300">gzip</strong>,{' '}
+            <strong className="text-green-300">Brotli (br)</strong>, and{' '}
+            <strong className="text-green-300">Zstandard (zstd)</strong> encoded request bodies before
+            forwarding to upstream. Useful when mobile/IoT clients compress payloads but backend
+            services expect uncompressed JSON. Includes <strong className="text-green-300">zip bomb protection</strong>{' '}
+            via a configurable maximum decompressed size limit.
+          </p>
+
+          <Field
+            label="Supported Encodings"
+            hint="Comma-separated Content-Encoding types to decompress. Default: gzip,br,zstd"
+          >
+            <input
+              value={str('supportedEncodings', 'gzip,br,zstd')}
+              onChange={(e) => set('supportedEncodings', e.target.value)}
+              className={inputCls}
+              placeholder="gzip,br,zstd"
+            />
+          </Field>
+
+          <Field
+            label="Max Decompressed Size"
+            hint="Maximum allowed decompressed body size. Exceeding this limit returns 413 Payload Too Large (zip bomb protection). Supports KB, MB, GB suffixes. Default: 10MB."
+          >
+            <input
+              value={str('maxDecompressedSize', '10MB')}
+              onChange={(e) => set('maxDecompressedSize', e.target.value)}
+              className={inputCls}
+              placeholder="10MB"
+            />
+          </Field>
+
+          <SectionTitle>Header Behaviour</SectionTitle>
+
+          <Toggle
+            label="Remove Content-Encoding header"
+            description="Remove the Content-Encoding header after decompression so upstream sees a plain request"
+            checked={bool('removeEncoding', true)}
+            onChange={(v) => set('removeEncoding', v)}
+          />
+          <Toggle
+            label="Update Content-Length header"
+            description="Update Content-Length to reflect the decompressed body size"
+            checked={bool('updateContentLength', true)}
+            onChange={(v) => set('updateContentLength', v)}
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Injects <code className="font-mono text-blue-300">X-Original-Encoding</code> header
+              with the original encoding type (e.g. <code className="font-mono text-blue-300">gzip</code>)
+              for downstream observability. Unsupported or absent{' '}
+              <code className="font-mono text-blue-300">Content-Encoding</code> headers pass through
+              unchanged.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Resilience ────────────────────────────────────────────────────────────
     case 'TIMEOUT':
       return (

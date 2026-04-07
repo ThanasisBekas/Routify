@@ -2,7 +2,8 @@
 
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 3 (Resilience & Performance) · **Owner:** Gateway team  
 > **Category:** Performance · **Priority:** Medium  
-> **Filter type:** `REQUEST_DECOMPRESS`
+> **Filter type:** `REQUEST_DECOMPRESS`  
+> **Status:** ✅ **COMPLETED**
 
 ---
 
@@ -42,9 +43,9 @@ A filter that transparently decompresses `gzip`, `br` (Brotli), and `zstd` encod
 Note: `gzip` uses `java.util.zip.GZIPInputStream` (JDK built-in, no extra dependency).
 
 **Task list:**
-- [ ] Add `org.brotli:dec` dependency
-- [ ] Add `com.github.luben:zstd-jni` dependency
-- [ ] Verify no dependency conflicts
+- [x] Add `org.brotli:dec` dependency
+- [x] Add `com.github.luben:zstd-jni` dependency
+- [x] Verify no dependency conflicts
 
 ---
 
@@ -71,11 +72,11 @@ Note: `gzip` uses `java.util.zip.GZIPInputStream` (JDK built-in, no extra depend
 7. Add `X-Original-Encoding: <encoding>` header for downstream observability.
 
 **Task list:**
-- [ ] Create filter factory
-- [ ] Implement `gzip` decompression via `GZIPInputStream`
-- [ ] Implement `br` decompression via Brotli library
-- [ ] Implement `zstd` decompression via zstd-jni
-- [ ] Wrap decompressed body in `ServerHttpRequestDecorator`
+- [x] Create filter factory
+- [x] Implement `gzip` decompression via `GZIPInputStream`
+- [x] Implement `br` decompression via Brotli library
+- [x] Implement `zstd` decompression via zstd-jni
+- [x] Wrap decompressed body in `ServerHttpRequestDecorator`
 
 ---
 
@@ -88,10 +89,10 @@ Note: `gzip` uses `java.util.zip.GZIPInputStream` (JDK built-in, no extra depend
 - Never buffer the entire decompressed payload in memory — use streaming decompression.
 
 **Task list:**
-- [ ] Implement streaming byte counter
-- [ ] Abort with 413 on exceeded limit
-- [ ] Use `GatewayProblemResponse` for error response
-- [ ] Never buffer full payload in memory
+- [x] Implement streaming byte counter
+- [x] Abort with 413 on exceeded limit
+- [x] Use `GatewayProblemResponse` for error response
+- [x] Never buffer full payload in memory
 
 ---
 
@@ -104,9 +105,9 @@ After decompression:
 - Add `X-Original-Encoding: gzip` (or `br`/`zstd`) header.
 
 **Task list:**
-- [ ] Remove `Content-Encoding` when configured
-- [ ] Update `Content-Length` when configured
-- [ ] Add `X-Original-Encoding` header
+- [x] Remove `Content-Encoding` when configured
+- [x] Update `Content-Length` when configured
+- [x] Add `X-Original-Encoding` header
 
 ---
 
@@ -117,9 +118,9 @@ After decompression:
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `REQUEST_DECOMPRESS` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `REQUEST_DECOMPRESS` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -141,19 +142,18 @@ After decompression:
 - Upstream receives readable decompressed body
 
 **Task list:**
-- [ ] Write decompression tests for each encoding
-- [ ] Write zip bomb protection tests
-- [ ] Write header cleanup tests
-- [ ] Write passthrough tests for unsupported encodings
+- [x] Write decompression tests for each encoding
+- [x] Write zip bomb protection tests
+- [x] Write header cleanup tests
+- [x] Write passthrough tests for unsupported encodings
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `gzip`, `br`, and `zstd` request bodies decompressed transparently
-- [ ] Zip bomb protection with `maxDecompressedSize` limit
-- [ ] `Content-Encoding` removed and `Content-Length` updated
-- [ ] `X-Original-Encoding` header for downstream observability
-- [ ] Unsupported encodings pass through unchanged
-- [ ] Streaming decompression — never buffers entire payload
-
+- [x] `gzip`, `br`, and `zstd` request bodies decompressed transparently
+- [x] Zip bomb protection with `maxDecompressedSize` limit
+- [x] `Content-Encoding` removed and `Content-Length` updated
+- [x] `X-Original-Encoding` header for downstream observability
+- [x] Unsupported encodings pass through unchanged
+- [x] Streaming decompression — never buffers entire payload

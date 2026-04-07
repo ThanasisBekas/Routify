@@ -94,6 +94,15 @@ public enum FilterType {
 
     /** Per-route Redis-backed response cache with configurable TTL — ResponseCacheGatewayFilterFactory */
     RESPONSE_CACHE,
+    /**
+     * Transparently decompresses {@code gzip}, {@code br} (Brotli), and {@code zstd}
+     * encoded request bodies before forwarding to upstream. Includes zip bomb protection
+     * via {@code maxDecompressedSize} limit, header cleanup ({@code Content-Encoding}
+     * removal, {@code Content-Length} update), and {@code X-Original-Encoding} header
+     * injection for downstream observability.
+     * — RequestDecompressGatewayFilterFactory
+     */
+    REQUEST_DECOMPRESS,
 
     // ─── Reliability ─────────────────────────────────────────────────────────
 

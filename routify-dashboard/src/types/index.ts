@@ -334,6 +334,7 @@ export type FilterType =
   | 'IDEMPOTENCY_KEY'
   // ─── Performance ───────────────────────────────────────────────────────
   | 'RESPONSE_CACHE'
+  | 'REQUEST_DECOMPRESS'
   | 'CONDITIONAL_ROUTE'
   | 'USER_ID_PAYLOAD_ROUTING'
   | 'GEO_ROUTE'

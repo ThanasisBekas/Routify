@@ -274,7 +274,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 | 17 | ✅ [GraphQL Depth Limit Filter](#17-graphql-depth-limit-filter) | Validation | Medium | Parses GraphQL queries and rejects those exceeding configurable depth/complexity limits |
 | 18 | ✅ [Response Header Rewrite Filter](#18-response-header-rewrite-filter) | Modification | Medium | Regex-based response header value rewriting (e.g., rewrite `Location` headers for proxy URLs) |
 | 19 | ✅ [Idempotency Key Filter](#19-idempotency-key-filter) | Reliability | High | Deduplicates write requests using a client-provided idempotency key stored in Redis |
-| 20 | [Request Decompression Filter](#20-request-decompression-filter) | Performance | Medium | Transparently decompresses `gzip`/`br`/`zstd` request bodies before forwarding upstream |
+| 20 | ✅ [Request Decompression Filter](#20-request-decompression-filter) | Performance | Medium | Transparently decompresses `gzip`/`br`/`zstd` request bodies before forwarding upstream |
 | 21 | [Mock Response Filter](#21-mock-response-filter) | Developer Experience | Medium | Returns a configurable static JSON/XML response without forwarding to upstream — enables API stubbing |
 | 22 | [Webhook Notification Filter](#22-webhook-notification-filter) | Integration | Medium | Fires a non-blocking webhook POST on configurable request conditions (status code, header match) |
 
@@ -604,12 +604,13 @@ Deduplicates write requests using a client-provided idempotency key (typically `
 
 ---
 
-### 20. Request Decompression Filter
+### 20. Request Decompression Filter ✅
 
 **Design doc:** [`initiatives/gf-20-request-decompression.md`](./initiatives/gf-20-request-decompression.md)  
 **Filter type:** `REQUEST_DECOMPRESS`  
 **Category:** Performance  
-**Priority:** Medium
+**Priority:** Medium  
+**Status:** ✅ **COMPLETED**
 
 #### Description
 Transparently decompresses `gzip`, `br` (Brotli), and `zstd` encoded request bodies before forwarding to upstream services that don't support compressed payloads. Useful when mobile/IoT clients compress payloads to reduce bandwidth but backend services expect uncompressed JSON.
