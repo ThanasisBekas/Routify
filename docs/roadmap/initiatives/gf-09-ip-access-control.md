@@ -44,11 +44,11 @@ A high-priority, order-first filter (`order=-1500`) that evaluates the client IP
 6. Use `GatewayProblemResponse` (from GF-02) for rejection responses.
 
 **Task list:**
-- [ ] Create `IpAccessControlGatewayFilterFactory` with `Ordered` interface
-- [ ] Create `CidrMatcher` utility for CIDR range matching
-- [ ] Implement `X-Forwarded-For` parsing with configurable proxy depth
-- [ ] Implement `ALLOWLIST` and `DENYLIST` modes
-- [ ] Use `GatewayProblemResponse` for rejections
+- [x] Create `IpAccessControlGatewayFilterFactory` with `Ordered` interface
+- [x] Create `CidrMatcher` utility for CIDR range matching
+- [x] Implement `X-Forwarded-For` parsing with configurable proxy depth
+- [x] Implement `ALLOWLIST` and `DENYLIST` modes
+- [x] Use `GatewayProblemResponse` for rejections
 
 ---
 
@@ -60,9 +60,9 @@ A high-priority, order-first filter (`order=-1500`) that evaluates the client IP
 - Use `java.net.InetAddress` for parsing and `CidrMatcher` for prefix matching.
 
 **Task list:**
-- [ ] Support IPv4 CIDR ranges
-- [ ] Support IPv6 CIDR ranges
-- [ ] Normalize IPv4-mapped IPv6 addresses
+- [x] Support IPv4 CIDR ranges
+- [x] Support IPv6 CIDR ranges
+- [x] Normalize IPv4-mapped IPv6 addresses
 
 ---
 
@@ -73,9 +73,9 @@ A high-priority, order-first filter (`order=-1500`) that evaluates the client IP
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `IP_ACCESS_CONTROL` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard `src/modules/filters/`
+- [x] Add `IP_ACCESS_CONTROL` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard `src/modules/filters/`
 
 ---
 
@@ -86,15 +86,15 @@ A high-priority, order-first filter (`order=-1500`) that evaluates the client IP
 - `routify.filter.ip_access_control.blocked` — counter, tagged by `routeId`
 
 **Task list:**
-- [ ] Register Micrometer counters
-- [ ] Increment on allow/block decisions
+- [x] Register Micrometer counters
+- [x] Increment on allow/block decisions
 
 ---
 
 ### Step 5: Tests
 
 **Files to create:**
-- `routify-api-gateway/src/test/java/io/routify/gateway/filter/security/IpAccessControlTest.java`
+- `routify-api-gateway/src/test/java/io/routify/gateway/filter/security/IpAccessControlGatewayFilterFactoryTest.java`
 - `routify-api-gateway/src/test/java/io/routify/gateway/filter/security/CidrMatcherTest.java`
 
 **Test cases:**
@@ -110,19 +110,19 @@ A high-priority, order-first filter (`order=-1500`) that evaluates the client IP
 - Hot-reload updates CIDR list without restart
 
 **Task list:**
-- [ ] Write `CidrMatcher` unit tests
-- [ ] Write filter factory tests for both modes
-- [ ] Write `X-Forwarded-For` parsing tests
-- [ ] Write IPv6 tests
+- [x] Write `CidrMatcher` unit tests
+- [x] Write filter factory tests for both modes
+- [x] Write `X-Forwarded-For` parsing tests
+- [x] Write IPv6 tests
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Filter blocks/allows by IP and CIDR range
-- [ ] IPv4 and IPv6 fully supported
-- [ ] `X-Forwarded-For` parsing with configurable proxy depth
-- [ ] CIDR ranges compiled once at config time (not per-request)
-- [ ] Hot-reload via Kafka event pipeline
-- [ ] Metrics for allowed/blocked counts
+- [x] Filter blocks/allows by IP and CIDR range
+- [x] IPv4 and IPv6 fully supported
+- [x] `X-Forwarded-For` parsing with configurable proxy depth
+- [x] CIDR ranges compiled once at config time (not per-request)
+- [x] Hot-reload via Kafka event pipeline
+- [x] Metrics for allowed/blocked counts
 

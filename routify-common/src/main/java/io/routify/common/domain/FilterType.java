@@ -77,6 +77,11 @@ public enum FilterType {
     /** Route to an alternative upstream when userId in request body is in an allowlist — UserIdPayloadRoutingGatewayFilterFactory */
     USER_ID_PAYLOAD_ROUTING,
 
+    // ─── Security ──────────────────────────────────────────────────────────────
+
+    /** IP allowlist/denylist — block or allow requests by client IP or CIDR range — IpAccessControlGatewayFilterFactory */
+    IP_ACCESS_CONTROL,
+
     // ─── Certificate / TLS ───────────────────────────────────────────────────
 
     /**

@@ -65,6 +65,14 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Security
   CERT_ROTATION: { logicalId: '', certificateHeader: 'X-Client-Certificate' },
   CERT_VAULT_EXPIRY_CHECK: { logicalId: '', warningDays: 30, rejectOnExpiringSoon: false, injectMetadataHeaders: true },
+  IP_ACCESS_CONTROL: {
+    mode: 'DENYLIST',
+    addresses: '',
+    trustProxy: true,
+    proxyDepth: 1,
+    rejectStatus: 403,
+    rejectMessage: 'Access denied',
+  },
   // Versioning
   API_VERSIONING: {
     version: 'v1',

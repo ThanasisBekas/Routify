@@ -294,6 +294,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-rose-300/10',
     border: 'border-rose-300/20',
   },
+  {
+    value: 'IP_ACCESS_CONTROL',
+    label: 'IP Access Control',
+    category: 'Security',
+    description:
+      'Block or allow requests by client IP address or CIDR range. Supports IPv4/IPv6, X-Forwarded-For, and allowlist/denylist modes. Runs at order −1500 (before all auth filters).',
+    color: 'text-red-300',
+    bg: 'bg-red-300/10',
+    border: 'border-red-300/20',
+  },
 
   // ── Versioning ────────────────────────────────────────────────────────────────
   {

@@ -340,6 +340,9 @@ public class RouteDefinitionBuilder {
             case "CONDITIONAL_ROUTE"        -> customFilter("ConditionalRoute", cfg);
             case "USER_ID_PAYLOAD_ROUTING"  -> customFilter("UserIdPayloadRouting", cfg);
 
+            // ─── Security ──────────────────────────────────────────────────────
+            case "IP_ACCESS_CONTROL"         -> customFilter("IpAccessControl", cfg);
+
             // ─── Certificates / TLS ───────────────────────────────────────────
             case "AUTH_CERT_VAULT"           -> customFilter("CertVaultAuth", cfg);
             case "CERT_ROTATION"             -> customFilter("CertRotation", cfg);

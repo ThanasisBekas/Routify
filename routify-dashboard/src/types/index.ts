@@ -335,6 +335,8 @@ export type FilterType =
   | 'SECURITY_HEADERS'
   | 'CUSTOM_METRIC'
   | 'CUSTOM_SPEL'
+  // ─── Security ─────────────────────────────────────────────────────────────
+  | 'IP_ACCESS_CONTROL'
   // ─── AI ──────────────────────────────────────────────────────────────────
   | 'AI_FILTER'
   | 'AI_MODIFIER'
