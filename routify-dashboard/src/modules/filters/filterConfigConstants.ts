@@ -97,6 +97,7 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   TENANT_CONTEXT: {},
   SECURITY_HEADERS: {},
   CUSTOM_METRIC: { metricName: '', description: '', tags: {} },
+  BODY_SIZE_METRIC: { includeRequest: true, includeResponse: true, tags: {} },
   // Security
   CERT_ROTATION: { logicalId: '', certificateHeader: 'X-Client-Certificate' },
   CERT_VAULT_EXPIRY_CHECK: { logicalId: '', warningDays: 30, rejectOnExpiringSoon: false, injectMetadataHeaders: true },

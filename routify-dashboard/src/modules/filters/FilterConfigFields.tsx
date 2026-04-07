@@ -1176,6 +1176,51 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    case 'BODY_SIZE_METRIC':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Lightweight, <strong className="text-indigo-300">zero-copy</strong> filter that records request and response
+            body sizes as Micrometer distribution summaries. Uses the{' '}
+            <code className="font-mono text-indigo-300">Content-Length</code> header as a fast path. For chunked
+            transfers, counts bytes per chunk without buffering.
+          </p>
+
+          <SectionTitle>What to Record</SectionTitle>
+          <Toggle
+            label="Include Request Body Size"
+            description="Record request body size as routify.request.body.size distribution summary"
+            checked={bool('includeRequest', true)}
+            onChange={(v) => set('includeRequest', v)}
+          />
+          <Toggle
+            label="Include Response Body Size"
+            description="Record response body size as routify.response.body.size distribution summary"
+            checked={bool('includeResponse', true)}
+            onChange={(v) => set('includeResponse', v)}
+          />
+
+          <SectionTitle>Custom Tags</SectionTitle>
+          <KeyValueFields
+            label="Additional Tags"
+            hint="Extra Micrometer tags added to both request and response distribution summaries. Tags routeId, method, and status are always included automatically."
+            obj={(config.tags as Record<string, string>) ?? {}}
+            onChange={(v) => set('tags', v)}
+            optional
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.request.body.size</code> (tagged: routeId, method) and{' '}
+              <code className="font-mono text-blue-300">routify.response.body.size</code> (tagged: routeId, method,
+              status). Body content is <strong>never buffered or read</strong> — only byte counts are recorded.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Versioning / Security / Custom ────────────────────────────────────────
     case 'API_VERSIONING':
       return (

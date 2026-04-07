@@ -364,6 +364,7 @@ public class RouteDefinitionBuilder {
             case "TENANT_CONTEXT"   -> namedFilter("TenantContext");
             case "SECURITY_HEADERS" -> namedFilter("SecurityHeaders");
             case "CUSTOM_METRIC"    -> customFilter("CustomMetric", cfg);
+            case "BODY_SIZE_METRIC" -> customFilter("BodySizeMetric", cfg);
 
             // ─── Custom ───────────────────────────────────────────────────────────
             case "CUSTOM_SPEL" -> customFilter("SpelCustom", cfg);

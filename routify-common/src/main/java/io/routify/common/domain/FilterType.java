@@ -134,6 +134,12 @@ public enum FilterType {
     SECURITY_HEADERS,
     /** Increment a custom Micrometer counter with optional dynamic tags — CustomMetricGatewayFilterFactory */
     CUSTOM_METRIC,
+    /**
+     * Lightweight, zero-copy filter that records request and response body sizes as
+     * Micrometer distribution summaries without reading or buffering body content.
+     * — BodySizeMetricGatewayFilterFactory
+     */
+    BODY_SIZE_METRIC,
 
     // ─── Custom ──────────────────────────────────────────────────────────────
 
