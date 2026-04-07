@@ -1282,6 +1282,89 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── Geographic Routing ────────────────────────────────────────────────────
+    case 'GEO_ROUTE':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-sky-500/10 border border-sky-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Routes requests to <strong className="text-sky-300">geographically closest upstream</strong> endpoints
+            using MaxMind GeoIP2 database lookups. Resolves client IP → country → region → upstream URI.
+            Injects <code className="font-mono text-sky-300">X-Geo-Region</code> header for downstream observability.
+          </p>
+
+          <Field
+            label="Regions"
+            hint="Comma-separated REGION=URI pairs. Example: US=https://us.api.example.com,EU=https://eu.api.example.com,APAC=https://apac.api.example.com"
+          >
+            <textarea
+              value={str('regions')}
+              onChange={(e) => set('regions', e.target.value)}
+              rows={4}
+              spellCheck={false}
+              className={`${monoInputCls} resize-y`}
+              placeholder="US=https://us.api.example.com,EU=https://eu.api.example.com,APAC=https://apac.api.example.com"
+            />
+          </Field>
+
+          <Field
+            label="Default Region"
+            hint="Fallback region when GeoIP lookup fails or the country is not mapped to any region"
+          >
+            <input
+              value={str('defaultRegion', 'US')}
+              onChange={(e) => set('defaultRegion', e.target.value)}
+              className={inputCls}
+              placeholder="US"
+            />
+          </Field>
+
+          <SectionTitle>Database &amp; Cache</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="GeoIP Database Path"
+              hint="Path to MaxMind GeoLite2-Country.mmdb file. Use classpath: prefix for bundled resources."
+              optional
+            >
+              <input
+                value={str('geoDbPath', 'classpath:GeoLite2-Country.mmdb')}
+                onChange={(e) => set('geoDbPath', e.target.value)}
+                className={monoInputCls}
+                placeholder="classpath:GeoLite2-Country.mmdb"
+              />
+            </Field>
+            <Field label="Cache Size" hint="Max IP → region entries in LRU cache. Default: 10,000.">
+              <input
+                type="number"
+                min={100}
+                max={1000000}
+                value={num('cacheSize', 10000)}
+                onChange={(e) => set('cacheSize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/6 border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              The MaxMind database is loaded once when the filter is applied. IP → country lookups are cached in
+              a Caffeine LRU cache to avoid per-request disk I/O. A default country → region mapping covers
+              NA, EU, and APAC countries. Countries not in the mapping fall back to the default region.
+              Requires a <strong>GeoLite2-Country.mmdb</strong> file — sign up at{' '}
+              <a
+                href="https://www.maxmind.com/en/geolite2/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-300 hover:text-blue-200"
+              >
+                maxmind.com
+              </a>{' '}
+              to download.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── AI Filter ─────────────────────────────────────────────────────────────
     case 'AI_FILTER':
       return <AiFilterFields config={config} onChange={onChange} />

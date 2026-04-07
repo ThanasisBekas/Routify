@@ -84,6 +84,12 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Routing
   CONDITIONAL_ROUTE: { conditionHeader: '', conditionParam: '', conditionPattern: '.*', alternativeUri: '' },
   USER_ID_PAYLOAD_ROUTING: { enabled: true, userIdField: 'userId', allowlistUserIds: [], alternativeUri: '' },
+  GEO_ROUTE: {
+    regions: '',
+    defaultRegion: 'US',
+    geoDbPath: 'classpath:GeoLite2-Country.mmdb',
+    cacheSize: 10000,
+  },
   // Custom
   CUSTOM_SPEL: { expression: '', description: '', maxExpressionLength: 500, maxPropertyDepth: 5, allowedFunctions: [] },
   // AI
