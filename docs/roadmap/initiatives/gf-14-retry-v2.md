@@ -3,7 +3,8 @@
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 3 (Resilience & Performance) · **Owner:** Gateway team  
 > **Category:** Resilience · **Priority:** High  
 > **Filter type:** `RETRY_V2`  
-> **Dependencies:** GF-19 (Idempotency Key — for idempotency header awareness)
+> **Dependencies:** GF-19 (Idempotency Key — for idempotency header awareness)  
+> **Status:** ✅ **COMPLETED**
 
 ---
 
@@ -54,10 +55,10 @@ return chain.filter(exchange).retryWhen(retrySpec);
 ```
 
 **Task list:**
-- [ ] Create filter factory with Reactor `retryWhen`
-- [ ] Implement exponential backoff with configurable multiplier
-- [ ] Implement jitter using `ThreadLocalRandom`
-- [ ] Parse `retryableStatuses` and `retryableMethods`
+- [x] Create filter factory with Reactor `retryWhen`
+- [x] Implement exponential backoff with configurable multiplier
+- [x] Implement jitter using `ThreadLocalRandom`
+- [x] Parse `retryableStatuses` and `retryableMethods`
 
 ---
 
@@ -70,9 +71,9 @@ return chain.filter(exchange).retryWhen(retrySpec);
 - This integrates with GF-19 (Idempotency Key Filter) — if both filters are active on a route, the retry filter knows the upstream has deduplication.
 
 **Task list:**
-- [ ] Check HTTP method safety before retrying
-- [ ] Allow retry of unsafe methods when idempotency header is present
-- [ ] Log a WARN if retrying an unsafe method without idempotency header
+- [x] Check HTTP method safety before retrying
+- [x] Allow retry of unsafe methods when idempotency header is present
+- [x] Log a WARN if retrying an unsafe method without idempotency header
 
 ---
 
@@ -82,8 +83,8 @@ return chain.filter(exchange).retryWhen(retrySpec);
 When `retryOnTimeout=true`, catch `TimeoutException`, `ConnectTimeoutException`, and `ReadTimeoutException` in the retry filter predicate.
 
 **Task list:**
-- [ ] Catch timeout exceptions in retry predicate
-- [ ] Support `retryOnTimeout=false` to skip timeout retries
+- [x] Catch timeout exceptions in retry predicate
+- [x] Support `retryOnTimeout=false` to skip timeout retries
 
 ---
 
@@ -93,8 +94,8 @@ When `retryOnTimeout=true`, catch `TimeoutException`, `ConnectTimeoutException`,
 Inject `X-Retry-Count: <n>` header on retried requests. The upstream service can use this for observability (e.g., logging, metrics).
 
 **Task list:**
-- [ ] Inject `X-Retry-Count` header on each retry attempt
-- [ ] Count starts at 1 on first retry
+- [x] Inject `X-Retry-Count` header on each retry attempt
+- [x] Count starts at 1 on first retry
 
 ---
 
@@ -105,9 +106,9 @@ Inject `X-Retry-Count: <n>` header on retried requests. The upstream service can
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `RETRY_V2` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `RETRY_V2` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -119,9 +120,9 @@ Inject `X-Retry-Count: <n>` header on retried requests. The upstream service can
 - `routify.filter.retry.success` — counter (succeeded after retry)
 
 **Task list:**
-- [ ] Register Micrometer counters
-- [ ] Increment on each retry attempt
-- [ ] Track exhausted vs. success outcomes
+- [x] Register Micrometer counters
+- [x] Increment on each retry attempt
+- [x] Track exhausted vs. success outcomes
 
 ---
 
@@ -141,19 +142,18 @@ Inject `X-Retry-Count: <n>` header on retried requests. The upstream service can
 - Jitter ensures non-deterministic backoff timing
 
 **Task list:**
-- [ ] Write retry lifecycle tests
-- [ ] Write idempotency awareness tests
-- [ ] Write timeout retry tests
-- [ ] Write backoff timing tests (statistical verification)
+- [x] Write retry lifecycle tests
+- [x] Write idempotency awareness tests
+- [x] Write timeout retry tests
+- [x] Write backoff timing tests (statistical verification)
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Exponential backoff with configurable multiplier and max
-- [ ] Jitter prevents retry storms across concurrent clients
-- [ ] Idempotency-aware: unsafe methods only retried with idempotency header
-- [ ] `X-Retry-Count` header on retried requests
-- [ ] Timeout retries configurable
-- [ ] Micrometer metrics for attempt/exhausted/success
-
+- [x] Exponential backoff with configurable multiplier and max
+- [x] Jitter prevents retry storms across concurrent clients
+- [x] Idempotency-aware: unsafe methods only retried with idempotency header
+- [x] `X-Retry-Count` header on retried requests
+- [x] Timeout retries configurable
+- [x] Micrometer metrics for attempt/exhausted/success

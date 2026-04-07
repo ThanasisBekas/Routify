@@ -821,6 +821,129 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    case 'RETRY_V2':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Custom retry filter with <strong className="text-amber-300">exponential backoff</strong> and{' '}
+            <strong className="text-amber-300">jitter</strong>. Safe methods ({str('retryableMethods', 'GET,HEAD,OPTIONS')}) are always
+            retried. Unsafe methods (POST, PUT, PATCH, DELETE) are only retried when the{' '}
+            <code className="font-mono text-amber-300">{str('idempotencyHeader', 'Idempotency-Key')}</code> header
+            is present — guaranteeing the client asserts idempotency.
+          </p>
+
+          <SectionTitle>Backoff Configuration</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Max Retries" hint="Maximum number of retry attempts before giving up. Default: 3.">
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={num('maxRetries', 3)}
+                onChange={(e) => set('maxRetries', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Initial Backoff (ms)" hint="Delay before the first retry. Default: 500 ms.">
+              <input
+                type="number"
+                min={50}
+                value={num('initialBackoffMs', 500)}
+                onChange={(e) => set('initialBackoffMs', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Field label="Max Backoff (ms)" hint="Upper bound for backoff delay. Default: 5000 ms.">
+              <input
+                type="number"
+                min={100}
+                value={num('maxBackoffMs', 5000)}
+                onChange={(e) => set('maxBackoffMs', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Backoff Multiplier" hint="Exponential growth factor. Default: 2.0.">
+              <input
+                type="number"
+                min={1}
+                step={0.1}
+                value={num('backoffMultiplier', 2.0)}
+                onChange={(e) => set('backoffMultiplier', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Jitter Factor" hint="Random jitter (0.0–1.0) to prevent retry storms. Default: 0.25.">
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step={0.05}
+                value={num('jitterFactor', 0.25)}
+                onChange={(e) => set('jitterFactor', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Retry Conditions</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Retryable Status Codes" hint="Comma-separated HTTP status codes to retry on. Default: 502,503,504.">
+              <input
+                value={str('retryableStatuses', '502,503,504')}
+                onChange={(e) => set('retryableStatuses', e.target.value)}
+                className={inputCls}
+                placeholder="502,503,504"
+              />
+            </Field>
+            <Field label="Retryable Methods" hint="Comma-separated safe HTTP methods always retried. Default: GET,HEAD,OPTIONS.">
+              <input
+                value={str('retryableMethods', 'GET,HEAD,OPTIONS')}
+                onChange={(e) => set('retryableMethods', e.target.value)}
+                className={inputCls}
+                placeholder="GET,HEAD,OPTIONS"
+              />
+            </Field>
+          </div>
+
+          <Toggle
+            label="Retry on Timeout"
+            description="Retry when upstream connection or read timeouts occur (TimeoutException, ConnectTimeoutException, ReadTimeoutException)"
+            checked={bool('retryOnTimeout', true)}
+            onChange={(v) => set('retryOnTimeout', v)}
+          />
+
+          <SectionTitle>Idempotency</SectionTitle>
+
+          <Field
+            label="Idempotency Header"
+            hint="Header name that signals the request is idempotent. When present, unsafe methods (POST, PUT, PATCH, DELETE) become retryable. Default: Idempotency-Key."
+          >
+            <input
+              value={str('idempotencyHeader', 'Idempotency-Key')}
+              onChange={(e) => set('idempotencyHeader', e.target.value)}
+              className={inputCls}
+              placeholder="Idempotency-Key"
+            />
+          </Field>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Injects <code className="font-mono text-blue-300">X-Retry-Count</code> header on retried requests for
+              upstream observability. Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.retry.attempt</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.retry.exhausted</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.retry.success</code>.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Observability ─────────────────────────────────────────────────────────
     case 'CORRELATION_ID':
       return (

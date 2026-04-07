@@ -261,6 +261,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-orange-400/10',
     border: 'border-orange-400/20',
   },
+  {
+    value: 'RETRY_V2',
+    label: 'Retry v2',
+    category: 'Resilience',
+    description:
+      'Per-route retry with exponential backoff, jitter, idempotency-aware logic (only retries unsafe methods with Idempotency-Key header), and configurable status/timeout retry conditions',
+    color: 'text-amber-400',
+    bg: 'bg-amber-400/10',
+    border: 'border-amber-400/20',
+  },
 
   // ── Observability ─────────────────────────────────────────────────────────────
   {

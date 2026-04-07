@@ -68,6 +68,17 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
     fallbackStatus: 503,
     fallbackBody: '',
   },
+  RETRY_V2: {
+    maxRetries: 3,
+    initialBackoffMs: 500,
+    maxBackoffMs: 5000,
+    backoffMultiplier: 2.0,
+    jitterFactor: 0.25,
+    retryableStatuses: '502,503,504',
+    retryableMethods: 'GET,HEAD,OPTIONS',
+    retryOnTimeout: true,
+    idempotencyHeader: 'Idempotency-Key',
+  },
   // Observability
   CORRELATION_ID: {},
   REQUEST_LOGGER: {

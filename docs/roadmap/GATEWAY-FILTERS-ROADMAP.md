@@ -268,7 +268,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 | 11 | ✅ [Request Size Limit Filter](#11-request-size-limit-filter) | Validation | High | Enforces per-route request body size limits with early rejection |
 | 12 | ✅ [Response Cache Filter](#12-response-cache-filter) | Performance | High | Per-route Redis-backed response caching with configurable TTL and cache-control semantics |
 | 13 | [Circuit Breaker v2 Filter](#13-circuit-breaker-v2-filter) | Resilience | High | Custom Resilience4j circuit breaker with per-route config, half-open probing, and dashboard status |
-| 14 | [Retry v2 Filter](#14-retry-v2-filter) | Resilience | High | Custom retry filter with exponential backoff, jitter, idempotency awareness, and per-route config |
+| 14 | ✅ [Retry v2 Filter](#14-retry-v2-filter) | Resilience | High | Custom retry filter with exponential backoff, jitter, idempotency awareness, and per-route config |
 | 15 | [Request/Response Body Size Logging Filter](#15-requestresponse-body-size-logging-filter) | Observability | Low | Lightweight filter that emits Micrometer metrics for body sizes without capturing content |
 | 16 | [OAuth2 Token Relay Filter](#16-oauth2-token-relay-filter) | Authentication | Medium | Exchange incoming token for a downstream-specific token via token exchange (RFC 8693) |
 | 17 | [GraphQL Depth Limit Filter](#17-graphql-depth-limit-filter) | Validation | Medium | Parses GraphQL queries and rejects those exceeding configurable depth/complexity limits |
@@ -430,12 +430,13 @@ A custom circuit breaker filter replacing the deprecated `CIRCUIT_BREAKER` type 
 
 ---
 
-### 14. Retry v2 Filter
+### 14. Retry v2 Filter ✅
 
 **Design doc:** [`initiatives/gf-14-retry-v2.md`](./initiatives/gf-14-retry-v2.md)  
 **Filter type:** `RETRY_V2`  
 **Category:** Resilience  
-**Priority:** High
+**Priority:** High  
+**Status:** ✅ **COMPLETED**
 
 #### Description
 A custom retry filter replacing the deprecated `RETRY` type. Adds exponential backoff with jitter, idempotency-aware retry logic (only retry safe methods or requests with an idempotency key), and configurable retry conditions beyond just HTTP status codes.
