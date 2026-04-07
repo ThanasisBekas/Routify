@@ -331,7 +331,7 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     value: 'CUSTOM_SPEL',
     label: 'Custom (SpEL)',
     category: 'Custom',
-    description: 'Evaluate a Spring Expression Language expression — returning false rejects with 403',
+    description: 'Sandboxed SpEL expression evaluation — returning false rejects with 403. Audited, complexity-limited.',
     color: 'text-gray-400',
     bg: 'bg-gray-400/10',
     border: 'border-gray-400/20',
