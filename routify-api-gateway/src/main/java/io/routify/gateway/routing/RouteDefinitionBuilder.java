@@ -345,6 +345,7 @@ public class RouteDefinitionBuilder {
 
             // ─── Performance ──────────────────────────────────────────────────
             case "RESPONSE_CACHE"           -> customFilter("ResponseCache", cfg);
+            case "REQUEST_DECOMPRESS"       -> customFilter("RequestDecompress", cfg);
 
             // ─── Routing ─────────────────────────────────────────────────────────
             case "CONDITIONAL_ROUTE"        -> customFilter("ConditionalRoute", cfg);

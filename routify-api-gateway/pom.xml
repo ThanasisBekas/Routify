@@ -178,6 +178,19 @@
             <version>0.9.9</version>
         </dependency>
 
+        <!-- Brotli decompressor for REQUEST_DECOMPRESS filter -->
+        <dependency>
+            <groupId>org.brotli</groupId>
+            <artifactId>dec</artifactId>
+            <version>0.1.2</version>
+        </dependency>
+        <!-- Zstandard decompressor for REQUEST_DECOMPRESS filter -->
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <version>1.5.6-6</version>
+        </dependency>
+
         <!-- Utilities -->
         <dependency>
             <groupId>org.projectlombok</groupId>

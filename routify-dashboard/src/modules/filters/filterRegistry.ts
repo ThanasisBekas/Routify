@@ -269,6 +269,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-lime-400/10',
     border: 'border-lime-400/20',
   },
+  {
+    value: 'REQUEST_DECOMPRESS',
+    label: 'Request Decompression',
+    category: 'Performance',
+    description:
+      'Transparently decompresses gzip, Brotli (br), and Zstandard (zstd) encoded request bodies before forwarding to upstream. Includes zip bomb protection, Content-Encoding removal, and X-Original-Encoding header injection.',
+    color: 'text-green-400',
+    bg: 'bg-green-400/10',
+    border: 'border-green-400/20',
+  },
 
   // ── Resilience ────────────────────────────────────────────────────────────────
   {
