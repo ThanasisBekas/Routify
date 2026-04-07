@@ -44,8 +44,8 @@ public class RateLimitKeyResolver {
      * @return a non-null key string
      */
     public String resolve(ServerWebExchange exchange, String strategy) {
-        String normalized = strategy != null ? strategy.trim().toUpperCase() : "IP";
-        String result = doResolve(exchange, normalized);
+        String trimmed = strategy != null ? strategy.trim() : "IP";
+        String result = doResolve(exchange, trimmed);
         if (result == null || result.isBlank()) {
             log.debug("RateLimitKeyResolver: strategy '{}' yielded null/blank — falling back to client IP", strategy);
             result = resolveIp(exchange);
@@ -54,18 +54,20 @@ public class RateLimitKeyResolver {
     }
 
     private String doResolve(ServerWebExchange exchange, String strategy) {
+        String upper = strategy.toUpperCase();
+
         // ─── COMPOSITE:<a>:<b> — must check before general cases ──────────
-        if (strategy.startsWith("COMPOSITE:")) {
+        if (upper.startsWith("COMPOSITE:")) {
             return resolveComposite(exchange, strategy);
         }
 
-        // ─── HEADER:<name> ────────────────────────────────────────────────
-        if (strategy.startsWith("HEADER:")) {
+        // ─── HEADER:<name> — preserve original header name casing ─────────
+        if (upper.startsWith("HEADER:")) {
             return resolveHeader(exchange, strategy);
         }
 
         // ─── Simple strategies ────────────────────────────────────────────
-        return switch (strategy) {
+        return switch (upper) {
             case "IP" -> resolveIp(exchange);
             case "USER" -> resolveUser(exchange);
             case "TENANT" -> resolveTenant(exchange);

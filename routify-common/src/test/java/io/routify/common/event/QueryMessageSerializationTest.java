@@ -145,7 +145,7 @@ class QueryMessageSerializationTest {
                     "http://user-service:8080", "1", 3, "PRODUCTION",
                     List.of(new QueryResponse.GatewaySnapshotList.RouteSnapshot.FilterSnapshot(
                         OTHER_ID, "RATE_LIMIT_FIXED_WINDOW", 1, "PRE", Map.of("limit", 10), Map.of()
-                    )), Map.of("timeout", 5000))
+                    )), Map.of("timeout", (Object) 5000), 100, null)
             )), "GATEWAY_SNAPSHOT_LIST"),
 
             Arguments.of(new QueryResponse.GatewayConfig(Map.of("cors", Map.of("allowedOrigins", "*"))), "GATEWAY_CONFIG"),
@@ -155,7 +155,8 @@ class QueryMessageSerializationTest {
             Arguments.of(new QueryResponse.RoutesPage(
                 List.of(new QueryResponse.RoutesPage.RouteSummary(
                     ID, "users-api", "User routes", "/api/users/**", "GET,POST",
-                    "http://user:8080", RouteStatus.ACTIVE, RouteEnvironment.PRODUCTION, 2, 3, NOW, NOW
+                    "http://user:8080", RouteStatus.ACTIVE, RouteEnvironment.PRODUCTION, 2, 3, NOW, NOW,
+                    100, null
                 )), 1, 1, 0, 20
             ), "ROUTES_PAGE"),
 
@@ -163,7 +164,8 @@ class QueryMessageSerializationTest {
                 ID, TENANT, "users-api", "User routes", "/api/users/**", "GET,POST",
                 "http://user:8080", "1", RouteStatus.ACTIVE, RouteEnvironment.PRODUCTION, 2,
                 List.of(new QueryResponse.RouteDetail.FilterRef(OTHER_ID, "rate-limiter", "RATE_LIMIT_FIXED_WINDOW", 1, "PRE", true)),
-                Map.of("timeout", 5000), "admin", NOW, NOW, NOW
+                Map.of("timeout", (Object) 5000), "admin", NOW, NOW, NOW,
+                100, null, null
             ), "ROUTE_DETAIL"),
 
             Arguments.of(new QueryResponse.FiltersPage(
