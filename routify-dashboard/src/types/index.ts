@@ -327,6 +327,7 @@ export type FilterType =
   | 'TIMEOUT'
   // ─── Resilience ─────────────────────────────────────────────────────────
   | 'CIRCUIT_BREAKER_V2'
+  | 'RETRY_V2'
   // ─── Performance ───────────────────────────────────────────────────────
   | 'RESPONSE_CACHE'
   | 'CONDITIONAL_ROUTE'

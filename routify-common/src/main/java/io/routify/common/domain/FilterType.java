@@ -83,6 +83,12 @@ public enum FilterType {
      * — CircuitBreakerV2GatewayFilterFactory
      */
     CIRCUIT_BREAKER_V2,
+    /**
+     * Per-route custom retry filter with exponential backoff, jitter, idempotency-aware
+     * retry logic, and configurable retry conditions. Replaces the deprecated {@link #RETRY} filter.
+     * — RetryV2GatewayFilterFactory
+     */
+    RETRY_V2,
 
     // ─── Routing ─────────────────────────────────────────────────────────────
 
