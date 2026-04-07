@@ -1,6 +1,7 @@
 package io.routify.gateway.filter;
 
 import io.routify.common.web.RoutifyHeaders;
+import io.routify.gateway.filter.ratelimit.RateLimitKeyResolver;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -68,10 +69,13 @@ public class FixedWindowRateLimitGatewayFilterFactory
 
     private final ReactiveStringRedisTemplate redisTemplate;
     private final DefaultRedisScript<Long> script;
+    private final RateLimitKeyResolver keyResolver;
 
-    public FixedWindowRateLimitGatewayFilterFactory(ReactiveStringRedisTemplate redisTemplate) {
+    public FixedWindowRateLimitGatewayFilterFactory(ReactiveStringRedisTemplate redisTemplate,
+                                                    RateLimitKeyResolver keyResolver) {
         super(Config.class);
         this.redisTemplate = redisTemplate;
+        this.keyResolver = keyResolver;
         this.script = new DefaultRedisScript<>(FIXED_WINDOW_SCRIPT, Long.class);
     }
 
@@ -81,7 +85,7 @@ public class FixedWindowRateLimitGatewayFilterFactory
         int  maxRequests = config.getMaxRequests() > 0 ? config.getMaxRequests() : 100;
 
         return (exchange, chain) -> {
-            String clientKey  = resolveKey(exchange, config.getKeyResolver());
+            String clientKey  = keyResolver.resolve(exchange, config.getKeyResolver());
             long   windowSlot = System.currentTimeMillis() / windowMs;
             String key        = KEY_PREFIX + clientKey + ":" + windowSlot;
 
@@ -102,6 +106,11 @@ public class FixedWindowRateLimitGatewayFilterFactory
         };
     }
 
+    /**
+     * @deprecated Use {@link RateLimitKeyResolver#resolve(ServerWebExchange, String)} instead.
+     *             Will be removed in the next minor version.
+     */
+    @Deprecated(forRemoval = true)
     private String resolveKey(ServerWebExchange exchange, String keyResolver) {
         return switch (keyResolver != null ? keyResolver.toUpperCase() : "IP") {
             case "USER"        -> Optional.ofNullable(

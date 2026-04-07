@@ -114,6 +114,9 @@ The API Gateway calls `routify-ai-service` via **RabbitMQ RPC** (not HTTP). Exch
 - `event.io.routify.common.RequestTelemetryEvent` / `AiFilterDecisionEvent` / `AiModificationDecisionEvent` — event payloads published to their respective Kafka topics (telemetry, AI filter decisions, AI modification events).
 - `web.io.routify.common.PageResponse` — generic paginated response **record** wrapping `content`, `page`, `size`, `totalElements`, `totalPages`, `first`, `last`. Factory methods: `PageResponse.of(content, page, size, totalElements)` and `PageResponse.from(Spring Data Page<T>)`. Used by all RabbitMQ query handlers that return paginated results.
 
+**Gateway shared utilities (`routify-api-gateway`):**
+- `filter.ratelimit.io.routify.gateway.RateLimitKeyResolver` — `@Component` shared by all three rate limiter paths (`FixedWindowRateLimitGatewayFilterFactory`, `SlidingWindowRateLimitGatewayFilterFactory`, and SCG built-in `RequestRateLimiter` via `KeyResolver` beans in `RateLimiterKeyResolverConfig`). Strategies: `IP` (X-Forwarded-For aware), `USER`, `TENANT`, `API_KEY`, `TENANT_USER`, `ROUTE` (route ID), `HEADER:<name>` (arbitrary header), `COMPOSITE:<a>:<b>` (concatenation). Falls back to client IP on null/missing values. Never duplicate key resolution logic — always use this component.
+
 **Frontend (`routify-dashboard`):**
 - Feature code lives in `src/modules/<feature>/`. Shared primitives go in `src/components/ui/`.
 - All HTTP calls use the single `apiClient` (Axios) in `src/api/client.ts` — it handles JWT injection, `X-Tenant-Id` header, and the 401→refresh lock.
