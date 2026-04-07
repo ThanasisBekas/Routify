@@ -69,10 +69,10 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | Canary weighted routing | ✅ | `Weight` predicate with `canary-{primaryRouteId}` group |
 | Cluster heartbeat | ✅ | `GatewayInstanceRegistry` → Redis |
 | Telemetry publishing | ✅ | `RequestLoggerGatewayFilterFactory` → Kafka `REQUEST_TELEMETRY` |
-| JWT issuer/audience validation | ❌ | Config params declared but **never validated** — see [P-01](#p-01-jwt-auth-filter-hardening) |
+| JWT issuer/audience validation | ✅ | Issuer + audience claim validation, fail-closed misconfiguration, require-jti enforcement, JWKS URI support — [P-01](#p-01-jwt-auth-filter-hardening) ✅ completed |
 | OAuth2 dynamic config bridge | ❌ | `OAuth2TokenIntrospectGatewayFilterFactory` reads `AuthProperties` YAML, ignores resolved `gatewayConfigRef` values — see [P-04](#p-04-oauth2-auth-provider-dynamic-config-bridge) |
 | mTLS/ClientID dynamic config | ❌ | Use legacy static `CertificateValuesConfig`/`ClientProperties` — see [P-05](#p-05-mtlsclientid-migration-to-dynamic-gateway-config) |
-| SpEL sandboxing | ❌ | `StandardEvaluationContext` exposes `#request` → ClassLoader escape — see [P-02](#p-02-spel-filter-sandboxing) |
+| SpEL sandboxing | ✅ | `SimpleEvaluationContext` with read-only data binding, `#request` removed, expression length + depth limits — [P-02](#p-02-spel-filter-sandboxing) ✅ completed |
 
 ### routify-admin-api (port 8082)
 
@@ -188,15 +188,15 @@ This assessment identifies **28 improvement initiatives** across four priority p
 
 | # | Filter | Issue | Severity |
 |---|--------|-------|----------|
-| 1 | `JwtAuthGatewayFilterFactory` | `Config.issuer` and `Config.audience` are declared but **never validated** in `parseAndValidate()`. The `issuer` resolved from `gatewayConfigRef` (`issuerUri`) lands in the config but is never checked against `claims.getIssuer()`. | **High** |
-| 2 | `JwtAuthGatewayFilterFactory` | Dev-mode unsigned JWT fallback: when `routify.jwt.public-key` is empty, the filter decodes JWT payload **without signature verification**. If this config is accidentally unset in production, all JWTs are accepted regardless of signature. | **High** |
-| 3 | `JwtAuthGatewayFilterFactory` | `Config.algorithm` supports `HS256` in the config schema but the `parseAndValidate()` implementation only handles RS256 (public key). HS256 secret-key parsing is not implemented. | **Low** |
-| 4 | `SpelCustomGatewayFilterFactory` | Uses `StandardEvaluationContext` which exposes `#request` (full `ServerHttpRequest`). A malicious operator can call `#request.getClass().getClassLoader()` to escape the sandbox and execute arbitrary code. | **High** |
+| ~~1~~ | ~~`JwtAuthGatewayFilterFactory`~~ | ~~`Config.issuer` and `Config.audience` are declared but **never validated** in `parseAndValidate()`.~~ **Resolved in P-01:** issuer + audience validated after claims parsing. | ~~**High**~~ ✅ |
+| ~~2~~ | ~~`JwtAuthGatewayFilterFactory`~~ | ~~Dev-mode unsigned JWT fallback.~~ **Resolved in P-01:** fail-closed — rejects all requests with `SERVER_MISCONFIGURED` when neither public key nor JWKS URI is configured. JWKS URI support added. | ~~**High**~~ ✅ |
+| ~~3~~ | ~~`JwtAuthGatewayFilterFactory`~~ | ~~`Config.algorithm` supports `HS256` but only RS256 is implemented.~~ **Resolved in P-01:** HS256 config is logged as warning and ignored (RS256 only). | ~~**Low**~~ ✅ |
+| ~~4~~ | ~~`SpelCustomGatewayFilterFactory`~~ | ~~Uses `StandardEvaluationContext` which exposes `#request`.~~ **Resolved in P-02:** replaced with `SimpleEvaluationContext.forReadOnlyDataBinding()`, `#request` removed, expression length + depth limits enforced. | ~~**High**~~ ✅ |
 | 5 | `OAuth2TokenIntrospectGatewayFilterFactory` | Reads `providerName` from `Config`, then looks it up in `AuthProperties.oauth2Verification` (static YAML map). The `GatewayConfigRefResolver.resolveAuthProvider()` correctly resolves `introspectUri`/`clientId`/`clientSecret` from gateway config, but these land as config keys the filter **ignores** — it only reads `providerName` and delegates to `AuthProperties`. The bridge is broken. | **Medium** |
 | 6 | `MtlsAuthGatewayFilterFactory` | Config class is `CertificateValuesConfig` (from `auth.properties` YAML). No `GatewayConfigRefResolver` mapping exists for `AUTH_MTLS`. Filter cannot import cert mappings from dynamic gateway config. | **Medium** |
 | 7 | `ClientIdAuthGatewayFilterFactory` | Config class is `NameValuesConfig` backed by `ClientProperties` YAML. No `GatewayConfigRefResolver` mapping for `AUTH_CLIENT_ID`. Same static-config limitation as mTLS. | **Medium** |
 | 8 | `DownstreamOAuth2BearerGatewayFilterFactory` | `Config.oauth2ProviderName` maps to `Oauth2AccessTokenProvider` static config. Not integrated with the `DOWNSTREAM_CREDENTIAL` ref type or dynamic auth provider config. | **Medium** |
-| 9 | `BasicAuthGatewayFilterFactory` | Password comparison is plain-text `equals()`. While `@SensitiveField` masks the password in API responses, the stored value in gateway config is not hashed. | **Low** |
+| 9 | `BasicAuthGatewayFilterFactory` | ~~Password comparison is plain-text `equals()`.~~ BCrypt-hashed at rest, `BCryptPasswordEncoder.matches()` in gateway. Backward-compatible with legacy plain-text configs. — [P-03](#p-03-basicauth-password-hashing-in-gateway-config) ✅ completed | **Resolved** |
 | 10 | Cert-related filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK`) | `VAULT_CERT` ref type correctly injects `logicalId`, but the dashboard filter form requires manual `logicalId` text entry. No cert picker dropdown populated from cert-vault. | **Medium** |
 
 ### 3b. Cross-Service Config Resolution Gaps
@@ -240,57 +240,60 @@ Critical issues that could lead to security vulnerabilities or incorrect behavio
 
 ---
 
-#### P-01: JWT Auth Filter Hardening
+#### P-01: JWT Auth Filter Hardening ✅ COMPLETED
 
 **Overlaps with:** [gf-04 (Gateway Filters Roadmap)](./GATEWAY-FILTERS-ROADMAP.md#4-jwtauth-filter-hardening)  
 **Affected services:** `routify-api-gateway`  
 **Complexity:** S  
-**Files:** `JwtAuthGatewayFilterFactory.java`
+**Files:** `JwtAuthGatewayFilterFactory.java`  
+**Status:** ✅ Completed — all 3 problems resolved, 10 dedicated hardening tests passing.
 
 **Problem:**
-1. `Config.issuer` and `Config.audience` are declared but the `parseAndValidate()` method never checks `claims.getIssuer()` or `claims.getAudience()` against them.
-2. When `routify.jwt.public-key` is blank, the filter decodes JWTs without signature verification (dev-mode fallback). If this accidentally reaches production, any crafted JWT is accepted.
-3. Tokens without a `jti` claim skip the Redis blocklist check entirely (only a warning is logged).
+1. ~~`Config.issuer` and `Config.audience` are declared but the `parseAndValidate()` method never checks `claims.getIssuer()` or `claims.getAudience()` against them.~~ ✅ Fixed
+2. ~~When `routify.jwt.public-key` is blank, the filter decodes JWTs without signature verification (dev-mode fallback). If this accidentally reaches production, any crafted JWT is accepted.~~ ✅ Fixed
+3. ~~Tokens without a `jti` claim skip the Redis blocklist check entirely (only a warning is logged).~~ ✅ Fixed
 
-**Changes:**
-- **Backend:** In `parseAndValidate()`, after parsing claims:
-  - If `config.getIssuer()` is non-blank, validate `claims.getIssuer().equals(config.getIssuer())`.
-  - If `config.getAudience()` is non-blank, validate `claims.getAudience().contains(config.getAudience())`.
-  - Throw `SecurityException` on mismatch.
-- **Backend:** Replace the dev-mode unsigned decode path with a fail-closed error: if no public key is configured, reject all JWT requests with `SERVER_MISCONFIGURED`. Log a startup `WARN`.
-- **Backend:** Add `requireJti` config flag (default `true`). When true, reject tokens without a `jti` claim instead of skipping the blocklist check.
-- **Frontend:** None.
+**Implementation summary:**
+- **Issuer/audience validation:** After `parseAndValidate()` returns claims, the filter checks `config.getIssuer()` and `config.getAudience()`. Mismatches return 401 with `INVALID_ISSUER` or `INVALID_AUDIENCE` error codes.
+- **Fail-closed misconfiguration:** The unsigned JWT decode path has been removed. `@PostConstruct validateKeySource()` sets a `misconfigured` flag when neither `routify.jwt.public-key` nor `routify.jwt.jwks-uri` is set. All requests receive 500 `SERVER_MISCONFIGURED`. A prominent `ERROR`-level banner is logged at startup.
+- **JWKS URI support:** New `routify.jwt.jwks-uri` config property enables fetching RSA public keys from a JWKS endpoint. Keys are cached in a Caffeine cache (`routify.jwt.jwks-cache-minutes`, default 5). Supports `kid`-based key selection and single-flight fetching. Static key fallback on JWKS fetch failure when both are configured.
+- **Require JTI:** Global `routify.jwt.require-jti` (default `true`) and per-filter `Config.requireJti` (nullable override). Tokens without a `jti` claim are rejected with 401 `MISSING_JTI` when enabled.
+- **HS256 deprecated:** HS256 algorithm config is logged as a warning and ignored (RS256 only).
+- **Tests:** `JwtAuthHardeningTest.java` (10 tests): JWKS fetch + cache, key rotation, JWKS failure + static fallback, misconfigured rejection, issuer mismatch, audience mismatch, missing JTI require-true, missing JTI require-false, HS256 migration, JWKS without kid.
 
 ---
 
-#### P-02: SpEL Filter Sandboxing
+#### P-02: SpEL Filter Sandboxing ✅ COMPLETED
 
 **Overlaps with:** [gf-07 (Gateway Filters Roadmap)](./GATEWAY-FILTERS-ROADMAP.md#7-spel-filter-sandboxing--security)  
 **Affected services:** `routify-api-gateway`  
 **Complexity:** S  
-**Files:** `SpelCustomGatewayFilterFactory.java`
+**Files:** `SpelCustomGatewayFilterFactory.java`  
+**Status:** ✅ Completed — all 3 changes implemented, 20 dedicated sandboxing tests passing.
 
-**Problem:** `StandardEvaluationContext` exposes `#request` (full `ServerHttpRequest` object), enabling `#request.getClass().getClassLoader()` → arbitrary code execution.
+**Problem:** ~~`StandardEvaluationContext` exposes `#request` (full `ServerHttpRequest` object), enabling `#request.getClass().getClassLoader()` → arbitrary code execution.~~ ✅ Fixed
 
-**Changes:**
-- **Backend:** Replace `StandardEvaluationContext` with `SimpleEvaluationContext.forReadOnlyDataBinding()`.
-- **Backend:** Remove `#request` variable. Keep `#headers`, `#params`, `#method`, `#path` (all immutable strings/maps). Add `#clientIp`, `#contentType`.
-- **Backend:** Add expression length limit (500 chars, configurable).
-- **Frontend:** None.
+**Implementation summary:**
+- **`SimpleEvaluationContext`:** Replaced `StandardEvaluationContext` with `SimpleEvaluationContext.forReadOnlyDataBinding().withInstanceMethods()`. This disallows type references (`T(java.lang.Runtime)`), constructors (`new ProcessBuilder()`), and method invocation on arbitrary objects. Only String instance methods are allowed on context variables.
+- **`#request` removed:** The `#request` variable (full `ServerHttpRequest` object) has been removed. Replaced with safe primitives: `#headers` (Map), `#params` (Map), `#method` (String), `#path` (String), `#contentType` (String), `#clientIp` (String, X-Forwarded-For aware).
+- **Expression length limit:** `maxExpressionLength` config param (default 500 chars). Expressions exceeding the limit are rejected at config bind time with 500 `SPEL_EXPRESSION_TOO_LONG`.
+- **Property depth limit:** `maxPropertyDepth` config param (default 5). Prevents deeply nested property chains. Rejected with 500 `SPEL_EXPRESSION_TOO_COMPLEX`.
+- **Audit events:** Every evaluation (success, failure, rejection) publishes a `CUSTOM_SPEL_EVALUATED` audit event to Kafka with expression (truncated), result, evaluation time, and client IP.
+- **Tests:** `SpelSandboxingTest.java` (20 tests): sandbox escape attempts blocked (Runtime.exec, ProcessBuilder, #request.getClass), valid expressions with all 6 context variables, expression complexity limits, property depth counting, audit event emission, edge cases.
 
 ---
 
-#### P-03: BasicAuth Password Hashing in Gateway Config
+#### P-03: BasicAuth Password Hashing in Gateway Config ✅ completed
 
-**Affected services:** `routify-api-gateway`, `routify-admin-api`, `routify-route-service`  
+**Affected services:** `routify-api-gateway`, `routify-admin-api`  
 **Complexity:** S  
-**Files:** `BasicAuthGatewayFilterFactory.java`, `GatewayConfigController.java`
+**Files:** `BasicAuthGatewayFilterFactory.java`, `GatewayConfigService.java`
 
 **Problem:** `BasicAuthGatewayFilterFactory` compares passwords using plain-text `equals()`. The password stored in gateway config (via the Auth Providers section) is stored unencrypted. `@SensitiveField` masks it in API responses but not at rest.
 
-**Changes:**
-- **Backend (admin-api/route-service):** When saving an auth provider of type `BASIC`, BCrypt-hash the password before persisting. Use `Sensitive.isMasked(value)` to skip re-hashing on updates where the password field is masked.
-- **Backend (gateway):** In `BasicAuthGatewayFilterFactory.apply()`, use `BCryptPasswordEncoder.matches()` instead of `equals()` for password comparison. The filter config `password` field now contains a BCrypt hash.
+**Changes (implemented):**
+- **Backend (admin-api):** `GatewayConfigService.upsertAuthProvider()` and `saveConfig()` BCrypt-hash (strength 12) the password of BASIC auth providers before persisting. Skips re-hashing when the password is masked (`Sensitive.isMasked()`), already a BCrypt hash (`$2` prefix), or null/blank.
+- **Backend (gateway):** `BasicAuthGatewayFilterFactory` uses `BCryptPasswordEncoder.matches()` for password comparison when the stored value is a BCrypt hash. Falls back to plain-text `equals()` for legacy configs that have not yet been re-saved, with a `WARN` log urging re-save.
 - **Frontend:** None (password field already masked by `@SensitiveField`).
 
 ---
@@ -726,8 +729,8 @@ Testing, cleanup, and operational improvements.
 
 ```
 Phase 1 (P0 — Security)
-  P-01 JWT Hardening ─────────────────────────────── standalone
-  P-02 SpEL Sandboxing ──────────────────────────── standalone
+  P-01 JWT Hardening ─────────────────────────────── ✅ COMPLETED
+  P-02 SpEL Sandboxing ──────────────────────────── ✅ COMPLETED
   P-03 BasicAuth Password Hashing ────────────────── standalone
 
 Phase 2 (P1 — Config Integration)
@@ -768,9 +771,9 @@ Phase 4 (P3 — Quality)
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| **P-01 JWT hardening breaks dev workflows** | Medium | Medium | Add `routify.jwt.allow-unsigned: true` explicit opt-in for dev profile only. Fail-closed by default. Document migration in release notes. |
-| **P-02 SpEL sandboxing breaks existing expressions** | Medium | Medium | Log warnings for expressions that reference `#request` for 1 release before removal. Provide `#clientIp` and `#contentType` as replacements. |
-| **P-03 BCrypt hashing breaks existing BasicAuth configs** | Medium | Low | On first gateway reload after upgrade, detect unhashed passwords (no `$2a$` prefix) and reject with a clear migration error. Provide a migration script. |
+| ~~**P-01 JWT hardening breaks dev workflows**~~ | ~~Medium~~ | ~~Medium~~ | ✅ **Mitigated.** Fail-closed by default. JWKS URI provides key rotation without restart. `routify.jwt.require-jti` can be set to `false` per environment. |
+| ~~**P-02 SpEL sandboxing breaks existing expressions**~~ | ~~Medium~~ | ~~Medium~~ | ✅ **Mitigated.** `#request` removed; `#clientIp` and `#contentType` provided as replacements. Expressions referencing `#request` fail open (pass through with warning). `SimpleEvaluationContext` blocks type references and constructors. |
+| **P-03 BCrypt hashing breaks existing BasicAuth configs** | Medium | Low | ✅ Mitigated: gateway auto-detects unhashed passwords (no `$2` prefix) and falls back to plain-text `equals()` with a WARN log. Re-saving the auth provider via admin API triggers automatic BCrypt hashing. |
 | **P-04 OAuth2 config migration is a breaking change** | Low | Medium | Purely additive — existing `providerName` → YAML path continues to work. New direct-config path is opt-in via `gatewayConfigRef`. |
 | **P-05 mTLS/ClientID refactoring breaks existing deployments** | Medium | High | Keep backward compatibility with `CertificateValuesConfig` YAML. New dynamic config is an additional path, not a replacement. |
 | **P-14 gatewayConfigRef validation blocks valid saves** | Low | Medium | Only validate `refType` is known and `refId` format is valid. Log a warning (don't block) if the referenced entry isn't found — it may be created later. |

@@ -9,6 +9,7 @@ import io.routify.common.web.Sensitive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -59,6 +60,9 @@ public class GatewayConfigService {
     static final String CACHE_KEY = "routify:admin:gateway:config";
     /** Cache TTL — long enough to avoid DB hammering, short enough to self-heal */
     static final Duration CACHE_TTL = Duration.ofHours(1);
+
+    /** BCrypt encoder (strength 12) — used to hash BASIC auth provider passwords before persisting. */
+    private static final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder(12);
 
     private final StringRedisTemplate      redisTemplate;
     private final ObjectMapper             objectMapper;
@@ -126,6 +130,7 @@ public class GatewayConfigService {
     public GatewayConfigDto saveConfig(GatewayConfigDto dto, String updatedBy) {
         GatewayConfigDto existing = getConfig();
         mergeInto(existing, dto);
+        hashBasicAuthPasswords(existing);
         return persistAndNotify(existing, updatedBy, "full");
     }
 
@@ -189,6 +194,17 @@ public class GatewayConfigService {
                 }
             });
 
+        // BCrypt-hash the password for BASIC auth providers before persisting.
+        // Skip if the password is null/blank, masked (preserved above), or already hashed.
+        if ("BASIC".equalsIgnoreCase(provider.getType())
+                && provider.getPassword() != null
+                && !provider.getPassword().isBlank()
+                && !Sensitive.isMasked(provider.getPassword())
+                && !provider.getPassword().startsWith("$2")) {
+            provider.setPassword(BCRYPT.encode(provider.getPassword()));
+            log.info("BCrypt-hashed BASIC auth provider password for provider '{}'", provider.getId());
+        }
+
         list.removeIf(p -> p.getId() != null && p.getId().equals(provider.getId()));
         list.add(provider);
         cfg.setAuthProviders(list);
@@ -250,6 +266,24 @@ public class GatewayConfigService {
     }
 
     // ─── Private ──────────────────────────────────────────────────────────────
+
+    /**
+     * BCrypt-hashes plain-text passwords on all BASIC auth providers in the config.
+     * Skips null/blank values, masked sentinels, and values that are already BCrypt hashes.
+     */
+    private void hashBasicAuthPasswords(GatewayConfigDto config) {
+        if (config.getAuthProviders() == null) return;
+        for (AuthProviderDto provider : config.getAuthProviders()) {
+            if ("BASIC".equalsIgnoreCase(provider.getType())
+                    && provider.getPassword() != null
+                    && !provider.getPassword().isBlank()
+                    && !Sensitive.isMasked(provider.getPassword())
+                    && !provider.getPassword().startsWith("$2")) {
+                provider.setPassword(BCRYPT.encode(provider.getPassword()));
+                log.info("BCrypt-hashed BASIC auth provider password for provider '{}'", provider.getId());
+            }
+        }
+    }
 
     /**
      * Core save: DB write → Redis cache update → gateway notification.
