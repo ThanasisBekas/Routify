@@ -1,5 +1,6 @@
 package io.routify.gateway.filter;
 
+import io.routify.gateway.filter.ratelimit.RateLimitKeyResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class FixedWindowRateLimitGatewayFilterFactoryTest {
     @BeforeEach
     void setUp() {
         redisTemplate = mock(ReactiveStringRedisTemplate.class);
-        factory = new FixedWindowRateLimitGatewayFilterFactory(redisTemplate);
+        factory = new FixedWindowRateLimitGatewayFilterFactory(redisTemplate, new RateLimitKeyResolver());
     }
 
     private GatewayFilterChain passThroughChain() {

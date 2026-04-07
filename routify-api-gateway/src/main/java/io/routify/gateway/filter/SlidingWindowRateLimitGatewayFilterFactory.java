@@ -1,6 +1,7 @@
 package io.routify.gateway.filter;
 
 import io.routify.common.web.RoutifyHeaders;
+import io.routify.gateway.filter.ratelimit.RateLimitKeyResolver;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -74,10 +75,13 @@ public class SlidingWindowRateLimitGatewayFilterFactory
 
     private final ReactiveStringRedisTemplate redisTemplate;
     private final DefaultRedisScript<Long> script;
+    private final RateLimitKeyResolver keyResolver;
 
-    public SlidingWindowRateLimitGatewayFilterFactory(ReactiveStringRedisTemplate redisTemplate) {
+    public SlidingWindowRateLimitGatewayFilterFactory(ReactiveStringRedisTemplate redisTemplate,
+                                                      RateLimitKeyResolver keyResolver) {
         super(Config.class);
         this.redisTemplate = redisTemplate;
+        this.keyResolver = keyResolver;
         this.script = new DefaultRedisScript<>(SLIDING_WINDOW_SCRIPT, Long.class);
     }
 
@@ -88,7 +92,7 @@ public class SlidingWindowRateLimitGatewayFilterFactory
         long ttlSec      = (windowMs / 1000) + 1;
 
         return (exchange, chain) -> {
-            String key = KEY_PREFIX + resolveKey(exchange, config.getKeyResolver());
+            String key = KEY_PREFIX + keyResolver.resolve(exchange, config.getKeyResolver());
             long now      = Instant.now().toEpochMilli();
             long winStart = now - windowMs;
 
@@ -111,6 +115,11 @@ public class SlidingWindowRateLimitGatewayFilterFactory
         };
     }
 
+    /**
+     * @deprecated Use {@link RateLimitKeyResolver#resolve(ServerWebExchange, String)} instead.
+     *             Will be removed in the next minor version.
+     */
+    @Deprecated(forRemoval = true)
     private String resolveKey(ServerWebExchange exchange, String keyResolver) {
         return switch (keyResolver != null ? keyResolver.toUpperCase() : "IP") {
             case "USER"        -> Optional.ofNullable(

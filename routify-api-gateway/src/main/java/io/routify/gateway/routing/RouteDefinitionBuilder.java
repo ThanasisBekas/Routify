@@ -461,11 +461,16 @@ public class RouteDefinitionBuilder {
 
     private static String resolveRateLimitKeyResolver(Map<String, Object> cfg) {
         String keyResolver = String.valueOf(cfg.getOrDefault("keyResolver", "IP"));
+        // For new dynamic strategies (ROUTE, HEADER:<name>, COMPOSITE:<a>:<b>),
+        // delegate to the ipKeyResolver as a fallback since the SCG token bucket
+        // can only reference named beans. The actual key resolution for these strategies
+        // is handled by our custom filter factories via RateLimitKeyResolver.
         return switch (keyResolver) {
             case "USER"        -> "#{@userKeyResolver}";
             case "TENANT"      -> "#{@tenantKeyResolver}";
             case "API_KEY"     -> "#{@apiKeyResolver}";
             case "TENANT_USER" -> "#{@tenantUserKeyResolver}";
+            case "ROUTE"       -> "#{@routeKeyResolver}";
             default            -> "#{@ipKeyResolver}";
         };
     }

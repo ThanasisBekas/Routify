@@ -23,7 +23,7 @@ Each initiative has a dedicated design document in [`docs/roadmap/initiatives/`]
 
 | # | Initiative | Category | Priority | Impact |
 |---|-----------|----------|----------|--------|
-| 1 | [Extract Shared Key Resolver](#1-extract-shared-key-resolver) | Rate Limiting | High | Eliminates duplicated key resolution logic across 3 rate limit filters |
+| 1 | ✅ [Extract Shared Key Resolver](#1-extract-shared-key-resolver) | Rate Limiting | High | Eliminates duplicated key resolution logic across 3 rate limit filters |
 | 2 | [Unified Error Response Builder](#2-unified-error-response-builder) | Cross-cutting | High | Consistent RFC 9457 ProblemDetail responses from all filters with shared `Retry-After`, rate-limit headers |
 | 3 | [Rate Limiter `X-RateLimit-*` Response Headers](#3-rate-limiter-x-ratelimit--response-headers) | Rate Limiting | Medium | Standard `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every response |
 | 4 | [JwtAuth Filter Hardening](#4-jwtauth-filter-hardening) | Authentication | High | Remove dev-mode unsigned JWT path, add JWKS rotation, issuer/audience validation enforcement |
@@ -51,10 +51,10 @@ The `resolveKey()` method is duplicated verbatim in both `FixedWindowRateLimitGa
 5. **Add `ROUTE` strategy** to both custom factories and add a SpEL bean for the SCG token bucket (`#{@routeKeyResolver}`).
 
 #### Acceptance Criteria
-- [ ] Single `RateLimitKeyResolver` class used by all 3 rate limiter paths
-- [ ] `ROUTE`, `HEADER:<name>`, `COMPOSITE` strategies supported
-- [ ] Existing `IP`, `USER`, `TENANT`, `API_KEY`, `TENANT_USER` strategies unchanged
-- [ ] Unit tests for every strategy variant
+- [x] Single `RateLimitKeyResolver` class used by all 3 rate limiter paths
+- [x] `ROUTE`, `HEADER:<name>`, `COMPOSITE` strategies supported
+- [x] Existing `IP`, `USER`, `TENANT`, `API_KEY`, `TENANT_USER` strategies unchanged
+- [x] Unit tests for every strategy variant
 
 ---
 

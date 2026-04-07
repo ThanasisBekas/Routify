@@ -47,12 +47,12 @@ public class RateLimitKeyResolver {
 ```
 
 **Task list:**
-- [ ] Create `RateLimitKeyResolver` as a Spring `@Component`
-- [ ] Migrate existing `IP`, `USER`, `TENANT`, `API_KEY`, `TENANT_USER` strategies from inline code
-- [ ] Add `ROUTE` strategy (resolves to route ID from exchange attribute)
-- [ ] Add `HEADER:<name>` strategy (resolves to arbitrary header value)
-- [ ] Add `COMPOSITE:<a>:<b>` strategy (concatenation of two strategies separated by `:`)
-- [ ] Handle missing/null values gracefully — fall back to client IP
+- [x] Create `RateLimitKeyResolver` as a Spring `@Component`
+- [x] Migrate existing `IP`, `USER`, `TENANT`, `API_KEY`, `TENANT_USER` strategies from inline code
+- [x] Add `ROUTE` strategy (resolves to route ID from exchange attribute)
+- [x] Add `HEADER:<name>` strategy (resolves to arbitrary header value)
+- [x] Add `COMPOSITE:<a>:<b>` strategy (concatenation of two strategies separated by `:`)
+- [x] Handle missing/null values gracefully — fall back to client IP
 
 ---
 
@@ -69,10 +69,10 @@ public class RateLimitKeyResolver {
 4. Remove deprecated method in the next minor version.
 
 **Task list:**
-- [ ] Inject `RateLimitKeyResolver` into `FixedWindowRateLimitGatewayFilterFactory`
-- [ ] Inject `RateLimitKeyResolver` into `SlidingWindowRateLimitGatewayFilterFactory`
-- [ ] Replace all inline `resolveKey()` calls
-- [ ] Deprecate inline methods
+- [x] Inject `RateLimitKeyResolver` into `FixedWindowRateLimitGatewayFilterFactory`
+- [x] Inject `RateLimitKeyResolver` into `SlidingWindowRateLimitGatewayFilterFactory`
+- [x] Replace all inline `resolveKey()` calls
+- [x] Deprecate inline methods
 
 ---
 
@@ -86,8 +86,8 @@ public class RateLimitKeyResolver {
 2. Remove the inline key resolver mapping in `RouteDefinitionBuilder`.
 
 **Task list:**
-- [ ] Create `KeyResolver` bean wrapping `RateLimitKeyResolver`
-- [ ] Replace inline key resolver mapping in `RouteDefinitionBuilder`
+- [x] Create `KeyResolver` bean wrapping `RateLimitKeyResolver`
+- [x] Replace inline key resolver mapping in `RouteDefinitionBuilder`
 
 ---
 
@@ -109,17 +109,17 @@ public class RateLimitKeyResolver {
 - Null/missing values handled gracefully
 
 **Task list:**
-- [ ] Write unit tests for all strategy variants
-- [ ] Write edge case tests (null headers, missing attributes)
-- [ ] Verify backward compatibility with existing filter configurations
+- [x] Write unit tests for all strategy variants
+- [x] Write edge case tests (null headers, missing attributes)
+- [x] Verify backward compatibility with existing filter configurations
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Single `RateLimitKeyResolver` class used by all 3 rate limiter paths
-- [ ] `ROUTE`, `HEADER:<name>`, `COMPOSITE` strategies supported
-- [ ] Existing `IP`, `USER`, `TENANT`, `API_KEY`, `TENANT_USER` strategies unchanged
-- [ ] Unit tests for every strategy variant
-- [ ] No behavioral regression in existing rate limit filters
+- [x] Single `RateLimitKeyResolver` class used by all 3 rate limiter paths
+- [x] `ROUTE`, `HEADER:<name>`, `COMPOSITE` strategies supported
+- [x] Existing `IP`, `USER`, `TENANT`, `API_KEY`, `TENANT_USER` strategies unchanged
+- [x] Unit tests for every strategy variant
+- [x] No behavioral regression in existing rate limit filters
 
