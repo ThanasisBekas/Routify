@@ -4,6 +4,7 @@
 > **Category:** Validation · **Priority:** High  
 > **Filter type:** `REQUEST_SIZE_LIMIT`  
 > **Dependencies:** GF-02 (Unified Error Response Builder)
+> **Status:** ✅ Completed
 
 ---
 
@@ -45,10 +46,10 @@ A custom filter that enforces maximum request body size with two enforcement sta
 - If `counter > maxSize` → signal error, which triggers a 413 response.
 
 **Task list:**
-- [ ] Create filter factory with size parsing (`5MB` → bytes)
-- [ ] Implement Stage 1: `Content-Length` header check
-- [ ] Implement Stage 2: streaming byte counter
-- [ ] Use `GatewayProblemResponse` for 413 response (includes `maxSize` in body)
+- [x] Create filter factory with size parsing (`5MB` → bytes)
+- [x] Implement Stage 1: `Content-Length` header check
+- [x] Implement Stage 2: streaming byte counter
+- [x] Use `GatewayProblemResponse` for 413 response (includes `maxSize` in body)
 
 ---
 
@@ -62,9 +63,9 @@ When `tenantAware=true`:
 4. Use the tenant-specific limit instead of the static `maxSize`.
 
 **Task list:**
-- [ ] Read tenant plan from exchange attributes
-- [ ] Resolve tenant-specific size limit
-- [ ] Fall back to static `maxSize` if tenant not resolved
+- [x] Read tenant plan from exchange attributes
+- [x] Resolve tenant-specific size limit
+- [x] Fall back to static `maxSize` if tenant not resolved
 
 ---
 
@@ -75,9 +76,9 @@ When `tenantAware=true`:
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `REQUEST_SIZE_LIMIT` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `REQUEST_SIZE_LIMIT` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -88,9 +89,9 @@ When `tenantAware=true`:
 - `routify.filter.request_size.bytes` — distribution summary of request body sizes
 
 **Task list:**
-- [ ] Register Micrometer counter and distribution summary
-- [ ] Record body size on every request (from `Content-Length` or streamed count)
-- [ ] Increment rejected counter on 413
+- [x] Register Micrometer counter and distribution summary
+- [x] Record body size on every request (from `Content-Length` or streamed count)
+- [x] Increment rejected counter on 413
 
 ---
 
@@ -109,19 +110,18 @@ When `tenantAware=true`:
 - Response body contains `maxSize` in ProblemDetail
 
 **Task list:**
-- [ ] Write tests for header-based rejection
-- [ ] Write tests for streaming-based rejection
-- [ ] Write tests for size parsing
-- [ ] Write tests for tenant-aware mode
+- [x] Write tests for header-based rejection
+- [x] Write tests for streaming-based rejection
+- [x] Write tests for size parsing
+- [x] Write tests for tenant-aware mode
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Requests exceeding `maxSize` rejected with HTTP 413
-- [ ] Header-based fast rejection for known `Content-Length`
-- [ ] Streaming enforcement for chunked transfers
-- [ ] Tenant-aware mode resolves per-tenant limits
-- [ ] RFC 9457 ProblemDetail response with `maxSize` in body
-- [ ] Micrometer metrics for rejected count and body size distribution
-
+- [x] Requests exceeding `maxSize` rejected with HTTP 413
+- [x] Header-based fast rejection for known `Content-Length`
+- [x] Streaming enforcement for chunked transfers
+- [x] Tenant-aware mode resolves per-tenant limits
+- [x] RFC 9457 ProblemDetail response with `maxSize` in body
+- [x] Micrometer metrics for rejected count and body size distribution
