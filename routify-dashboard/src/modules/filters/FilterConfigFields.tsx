@@ -1715,6 +1715,170 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── Developer Experience ──────────────────────────────────────────────────
+    case 'MOCK_RESPONSE':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Returns a <strong className="text-emerald-300">static response</strong> without forwarding to any
+            upstream service. Supports <strong className="text-emerald-300">template interpolation</strong> with
+            request attributes, simulated latency for timeout testing, and conditional activation via header.
+            Ideal for API stubbing, contract-first development, and maintenance mode.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Status Code" hint="HTTP status code to return. Default: 200.">
+              <input
+                type="number"
+                min={100}
+                max={599}
+                value={num('status', 200)}
+                onChange={(e) => set('status', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Content-Type" hint="Response Content-Type header. Default: application/json.">
+              <input
+                value={str('contentType', 'application/json')}
+                onChange={(e) => set('contentType', e.target.value)}
+                className={inputCls}
+                placeholder="application/json"
+              />
+            </Field>
+          </div>
+
+          <Field
+            label="Response Body"
+            hint="Supports template placeholders: ${method}, ${path}, ${header:Name}, ${param:name}, ${timestamp}, ${correlationId}"
+          >
+            <textarea
+              value={str('body', '{}')}
+              onChange={(e) => set('body', e.target.value)}
+              rows={6}
+              spellCheck={false}
+              className={`${monoInputCls} resize-y`}
+              placeholder={'{\n  "message": "Mock response for ${method} ${path}",\n  "timestamp": "${timestamp}"\n}'}
+            />
+          </Field>
+
+          <Field
+            label="Extra Headers"
+            hint="Comma-separated key: value pairs to add as response headers. E.g. Retry-After: 3600, X-Mock: true"
+            optional
+          >
+            <input
+              value={str('headers')}
+              onChange={(e) => set('headers', e.target.value)}
+              className={inputCls}
+              placeholder="Retry-After: 3600, X-Custom: value"
+            />
+          </Field>
+
+          <Field
+            label="Simulated Delay (ms)"
+            hint="Artificial latency before writing the response. Useful for testing client timeout handling. 0 = no delay."
+          >
+            <input
+              type="number"
+              min={0}
+              max={60000}
+              value={num('delay', 0)}
+              onChange={(e) => set('delay', +e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <Field
+            label="Condition Header"
+            hint="When set, the mock is only returned if this header is present on the request. If absent, the request passes through to upstream. Leave empty to always mock."
+            optional
+          >
+            <input
+              value={str('conditionHeader')}
+              onChange={(e) => set('conditionHeader', e.target.value)}
+              className={inputCls}
+              placeholder="X-Mock"
+            />
+          </Field>
+
+          <SectionTitle>Common Presets</SectionTitle>
+          <div className="space-y-2">
+            {[
+              {
+                label: 'Maintenance Mode (503)',
+                status: 503,
+                contentType: 'application/json',
+                body: '{"type":"about:blank","title":"Service Unavailable","status":503,"detail":"Service is under scheduled maintenance. Please try again later."}',
+                headers: 'Retry-After: 3600',
+                delay: 0,
+                conditionHeader: '',
+              },
+              {
+                label: 'API Stub (200 JSON)',
+                status: 200,
+                contentType: 'application/json',
+                body: '{"message":"Mock response for ${method} ${path}","timestamp":"${timestamp}"}',
+                headers: '',
+                delay: 0,
+                conditionHeader: '',
+              },
+              {
+                label: 'Conditional Mock (header toggle)',
+                status: 200,
+                contentType: 'application/json',
+                body: '{"mock":true,"method":"${method}","path":"${path}"}',
+                headers: '',
+                delay: 0,
+                conditionHeader: 'X-Mock',
+              },
+              {
+                label: 'Slow Response (timeout test)',
+                status: 200,
+                contentType: 'application/json',
+                body: '{"message":"Delayed response after ${method} ${path}"}',
+                headers: '',
+                delay: 3000,
+                conditionHeader: '',
+              },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    status: preset.status,
+                    contentType: preset.contentType,
+                    body: preset.body,
+                    headers: preset.headers,
+                    delay: preset.delay,
+                    conditionHeader: preset.conditionHeader,
+                  })
+                }
+                className="w-full text-left px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] transition-all group"
+              >
+                <div className="text-xs font-medium text-gray-300 group-hover:text-white">{preset.label}</div>
+                <div className="text-[10px] text-gray-600 font-mono mt-0.5 truncate">
+                  {preset.status} · {preset.contentType}
+                  {preset.delay > 0 ? ` · ${preset.delay}ms delay` : ''}
+                  {preset.conditionHeader ? ` · if ${preset.conditionHeader}` : ''}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              The request is <strong>short-circuited</strong> — no upstream call is made.
+              Apply as a <strong>global filter entry</strong> to put the entire gateway
+              in maintenance mode. Use <code className="font-mono text-blue-300">conditionHeader</code>{' '}
+              to toggle mock per-request without changing the filter configuration.
+            </span>
+          </div>
+        </div>
+      )
+
     case 'CUSTOM_SPEL':
       return (
         <div className="space-y-4">

@@ -348,6 +348,8 @@ export type FilterType =
   | 'CUSTOM_METRIC'
   | 'BODY_SIZE_METRIC'
   | 'CUSTOM_SPEL'
+  // ─── Developer Experience ──────────────────────────────────────────────────
+  | 'MOCK_RESPONSE'
   // ─── Security ─────────────────────────────────────────────────────────────
   | 'IP_ACCESS_CONTROL'
   // ─── AI ──────────────────────────────────────────────────────────────────

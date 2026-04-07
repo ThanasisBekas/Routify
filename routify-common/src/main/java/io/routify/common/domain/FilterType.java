@@ -184,6 +184,18 @@ public enum FilterType {
      */
     BODY_SIZE_METRIC,
 
+    // ─── Developer Experience ───────────────────────────────────────────────
+
+    /**
+     * Mock Response filter — returns a configurable static response without forwarding
+     * to any upstream service. Supports template interpolation with request attributes
+     * ({@code ${method}}, {@code ${path}}, {@code ${header:X-Foo}}, {@code ${param:id}},
+     * {@code ${timestamp}}, {@code ${correlationId}}), simulated latency for timeout
+     * testing, and conditional activation via header presence.
+     * — MockResponseGatewayFilterFactory
+     */
+    MOCK_RESPONSE,
+
     // ─── Custom ──────────────────────────────────────────────────────────────
 
     /** Evaluate a SpEL expression — returning false rejects with 403 — SpelCustomGatewayFilterFactory */

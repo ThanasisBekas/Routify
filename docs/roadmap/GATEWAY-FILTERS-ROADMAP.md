@@ -275,7 +275,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 | 18 | ✅ [Response Header Rewrite Filter](#18-response-header-rewrite-filter) | Modification | Medium | Regex-based response header value rewriting (e.g., rewrite `Location` headers for proxy URLs) |
 | 19 | ✅ [Idempotency Key Filter](#19-idempotency-key-filter) | Reliability | High | Deduplicates write requests using a client-provided idempotency key stored in Redis |
 | 20 | ✅ [Request Decompression Filter](#20-request-decompression-filter) | Performance | Medium | Transparently decompresses `gzip`/`br`/`zstd` request bodies before forwarding upstream |
-| 21 | [Mock Response Filter](#21-mock-response-filter) | Developer Experience | Medium | Returns a configurable static JSON/XML response without forwarding to upstream — enables API stubbing |
+| 21 | ✅ [Mock Response Filter](#21-mock-response-filter) | Developer Experience | Medium | Returns a configurable static JSON/XML response without forwarding to upstream — enables API stubbing |
 | 22 | [Webhook Notification Filter](#22-webhook-notification-filter) | Integration | Medium | Fires a non-blocking webhook POST on configurable request conditions (status code, header match) |
 
 ---
@@ -633,12 +633,13 @@ Transparently decompresses `gzip`, `br` (Brotli), and `zstd` encoded request bod
 
 ---
 
-### 21. Mock Response Filter
+### 21. Mock Response Filter ✅
 
 **Design doc:** [`initiatives/gf-21-mock-response.md`](./initiatives/gf-21-mock-response.md)  
 **Filter type:** `MOCK_RESPONSE`  
 **Category:** Developer Experience  
-**Priority:** Medium
+**Priority:** Medium  
+**Status:** ✅ **COMPLETED**
 
 #### Description
 Returns a configurable static response without forwarding the request to any upstream service. Enables API stubbing, contract-first development, and maintenance mode pages directly at the gateway level.

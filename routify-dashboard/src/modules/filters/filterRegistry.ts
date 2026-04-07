@@ -32,6 +32,7 @@ export type FilterCategory =
   | 'Security'
   | 'Versioning'
   | 'Routing'
+  | 'Developer Experience'
   | 'Custom'
   | 'AI'
 
@@ -48,6 +49,7 @@ export const CATEGORY_ORDER: FilterCategory[] = [
   'Security',
   'Versioning',
   'Routing',
+  'Developer Experience',
   'Custom',
   'AI',
 ]
@@ -66,6 +68,7 @@ export const CATEGORY_COLORS: Record<FilterCategory, string> = {
   Security: 'text-red-400 bg-red-400/10 border-red-400/20',
   Versioning: 'text-teal-400 bg-teal-400/10 border-teal-400/20',
   Routing: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
+  'Developer Experience': 'text-emerald-300 bg-emerald-300/10 border-emerald-300/20',
   Custom: 'text-gray-400 bg-gray-400/10 border-gray-400/20',
   AI: 'text-fuchsia-400 bg-fuchsia-400/10 border-fuchsia-400/20',
 }
@@ -447,6 +450,18 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     color: 'text-sky-400',
     bg: 'bg-sky-400/10',
     border: 'border-sky-400/20',
+  },
+
+  // ── Developer Experience ─────────────────────────────────────────────────────
+  {
+    value: 'MOCK_RESPONSE',
+    label: 'Mock Response',
+    category: 'Developer Experience',
+    description:
+      'Returns a configurable static response without forwarding to upstream. Supports template interpolation (${method}, ${path}, ${header:X-Foo}, ${param:id}), simulated latency, and conditional activation via header. Ideal for API stubbing, contract-first development, and maintenance mode.',
+    color: 'text-emerald-300',
+    bg: 'bg-emerald-300/10',
+    border: 'border-emerald-300/20',
   },
 
   // ── Custom ────────────────────────────────────────────────────────────────────
