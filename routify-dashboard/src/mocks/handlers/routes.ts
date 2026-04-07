@@ -368,4 +368,10 @@ export const routeHandlers = [
     routes.set(route.id, { ...route, trafficWeight: 100 - body.weight, updatedAt: now })
     return HttpResponse.json({ status: 'ACCEPTED', message: 'Weight adjusted' }, { status: 202 })
   }),
+
+  // ─── Cache Purge ──────────────────────────────────────────────────────────
+  http.post(`${BASE}/:id/cache/purge`, async () => {
+    await delay(300)
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Cache purge in progress' }, { status: 202 })
+  }),
 ]

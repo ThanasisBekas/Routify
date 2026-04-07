@@ -91,6 +91,10 @@ public class RoutifyMetrics {
     private final Timer   alertEvaluationTimer;
     private final Counter alertsFired;
 
+    // ─── Response Cache ──────────────────────────────────────────────────────
+
+    private final Counter cachePurges;
+
     public RoutifyMetrics(MeterRegistry registry) {
         this.registry = registry;
 
@@ -142,6 +146,10 @@ public class RoutifyMetrics {
                 .register(registry);
         alertsFired = Counter.builder("routify.alerts.fired")
                 .description("Number of alert rules that transitioned to FIRING")
+                .register(registry);
+
+        cachePurges = Counter.builder("routify.filter.response_cache.purges")
+                .description("Number of response cache purge operations")
                 .register(registry);
     }
 
@@ -271,5 +279,9 @@ public class RoutifyMetrics {
 
     public Timer alertEvaluationTimer()   { return alertEvaluationTimer; }
     public void  recordAlertFired()       { alertsFired.increment(); }
+
+    // ─── Response Cache ──────────────────────────────────────────────────────
+
+    public void recordCachePurge() { cachePurges.increment(); }
 }
 

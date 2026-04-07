@@ -560,6 +560,118 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── Performance ──────────────────────────────────────────────────────────
+    case 'RESPONSE_CACHE':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-lime-500/10 border border-lime-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Caches upstream responses in <strong className="text-lime-300">Redis</strong> per route.
+            On cache <strong className="text-lime-300">HIT</strong>, returns the stored response directly
+            without forwarding to upstream. Injects{' '}
+            <code className="font-mono text-lime-300">X-Cache: HIT</code> or{' '}
+            <code className="font-mono text-lime-300">X-Cache: MISS</code> on every response.
+            Respects upstream <code className="font-mono text-lime-300">Cache-Control</code> directives
+            when enabled.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="TTL (seconds)" hint="Default cache time-to-live. Overridden by upstream max-age if shorter.">
+              <input
+                type="number"
+                min={1}
+                value={num('ttlSeconds', 60)}
+                onChange={(e) => set('ttlSeconds', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Max Cached Body Size" hint="Max response body bytes to cache. Default: 65536 (64 KB).">
+              <input
+                type="number"
+                min={1024}
+                value={num('maxCachedBodySize', 65536)}
+                onChange={(e) => set('maxCachedBodySize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cacheable Methods" hint="Comma-separated HTTP methods to cache. Default: GET.">
+              <input
+                value={str('methods', 'GET')}
+                onChange={(e) => set('methods', e.target.value)}
+                className={inputCls}
+                placeholder="GET"
+              />
+            </Field>
+            <Field label="Cacheable Status Codes" hint="Comma-separated status codes eligible for caching.">
+              <input
+                value={str('statusCodes', '200,206,301')}
+                onChange={(e) => set('statusCodes', e.target.value)}
+                className={inputCls}
+                placeholder="200,206,301"
+              />
+            </Field>
+          </div>
+
+          <Field label="Cache Key Strategy" hint="How to derive the cache key from the request.">
+            <Select
+              value={str('keyStrategy', 'PATH_QUERY')}
+              onChange={(v) => set('keyStrategy', v)}
+              options={[
+                {
+                  value: 'PATH_QUERY',
+                  label: 'Path + Query Params',
+                  description: 'Cache key from request path and sorted query parameters',
+                },
+                {
+                  value: 'PATH_QUERY_HEADERS',
+                  label: 'Path + Query + Headers',
+                  description: 'Include specified Vary headers in the cache key for content negotiation',
+                },
+              ]}
+            />
+          </Field>
+
+          {str('keyStrategy', 'PATH_QUERY') === 'PATH_QUERY_HEADERS' && (
+            <TagInput
+              label="Vary Headers"
+              hint="Request headers to include in the cache key (e.g. Accept, Accept-Language)"
+              values={arr('varyHeaders')}
+              onChange={(v) => set('varyHeaders', v)}
+              placeholder="Accept"
+            />
+          )}
+
+          <SectionTitle>Behaviour</SectionTitle>
+          <Toggle
+            label="Respect Cache-Control"
+            description="Honour upstream Cache-Control directives (no-store, no-cache, max-age, s-maxage, private). When off, the configured TTL is always used."
+            checked={bool('respectCacheControl', true)}
+            onChange={(v) => set('respectCacheControl', v)}
+          />
+          <Toggle
+            label="Add Cache Headers"
+            description="Inject X-Cache (HIT/MISS), X-Cache-TTL, and Age headers on every response."
+            checked={bool('addCacheHeaders', true)}
+            onChange={(v) => set('addCacheHeaders', v)}
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Cache entries are stored in Redis with the key format{' '}
+              <code className="font-mono text-blue-300">routify:cache:{'{'}&lt;routeId&gt;{'}'}:{'{'}&lt;sha256&gt;{'}'}</code>.
+              Use the <strong>Purge Cache</strong> button on the route detail page to invalidate all cached responses
+              for a route. Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.cache.hit</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.cache.miss</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.cache.skip</code>.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Resilience ────────────────────────────────────────────────────────────
     case 'TIMEOUT':
       return (

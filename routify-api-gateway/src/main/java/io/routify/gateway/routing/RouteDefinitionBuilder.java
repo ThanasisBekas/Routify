@@ -337,6 +337,9 @@ public class RouteDefinitionBuilder {
             }
             case "TIMEOUT" -> customFilter("RequestTimeout", cfg);
 
+            // ─── Performance ──────────────────────────────────────────────────
+            case "RESPONSE_CACHE"           -> customFilter("ResponseCache", cfg);
+
             // ─── Routing ─────────────────────────────────────────────────────────
             case "CONDITIONAL_ROUTE"        -> customFilter("ConditionalRoute", cfg);
             case "USER_ID_PAYLOAD_ROUTING"  -> customFilter("UserIdPayloadRouting", cfg);

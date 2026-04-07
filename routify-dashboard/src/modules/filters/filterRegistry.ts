@@ -26,6 +26,7 @@ export type FilterCategory =
   | 'Modification'
   | 'Transformation'
   | 'Validation'
+  | 'Performance'
   | 'Resilience'
   | 'Observability'
   | 'Security'
@@ -41,6 +42,7 @@ export const CATEGORY_ORDER: FilterCategory[] = [
   'Modification',
   'Transformation',
   'Validation',
+  'Performance',
   'Resilience',
   'Observability',
   'Security',
@@ -58,6 +60,7 @@ export const CATEGORY_COLORS: Record<FilterCategory, string> = {
   Modification: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
   Transformation: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
   Validation: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
+  Performance: 'text-lime-400 bg-lime-400/10 border-lime-400/20',
   Resilience: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
   Observability: 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
   Security: 'text-red-400 bg-red-400/10 border-red-400/20',
@@ -224,6 +227,18 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     color: 'text-cyan-300',
     bg: 'bg-cyan-300/10',
     border: 'border-cyan-300/20',
+  },
+
+  // ── Performance ────────────────────────────────────────────────────────────
+  {
+    value: 'RESPONSE_CACHE',
+    label: 'Response Cache',
+    category: 'Performance',
+    description:
+      'Per-route Redis-backed response caching with configurable TTL, Cache-Control respect, and cache key strategies. Injects X-Cache: HIT/MISS headers.',
+    color: 'text-lime-400',
+    bg: 'bg-lime-400/10',
+    border: 'border-lime-400/20',
   },
 
   // ── Resilience ────────────────────────────────────────────────────────────────

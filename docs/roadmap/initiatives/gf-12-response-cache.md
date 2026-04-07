@@ -41,9 +41,9 @@ A per-route, Redis-backed response cache with configurable TTL, HTTP `Cache-Cont
 - `CUSTOM_SPEL` — SpEL expression for custom key derivation
 
 **Task list:**
-- [ ] Create filter factory with config binding
-- [ ] Implement cache key derivation for all 3 strategies
-- [ ] SHA-256 hash the derived key to keep Redis keys bounded
+- [x] Create filter factory with config binding
+- [x] Implement cache key derivation for all 3 strategies
+- [x] SHA-256 hash the derived key to keep Redis keys bounded
 
 ---
 
@@ -67,11 +67,11 @@ routify:cache:{routeId}:{sha256(derivedKey)}
 - Body exceeding `maxCachedBodySize` → skip caching (serve response normally, don't store).
 
 **Task list:**
-- [ ] Implement Redis read for cache HIT
-- [ ] Implement `ServerHttpResponseDecorator` for cache MISS capture
-- [ ] Base64 encode/decode response body
-- [ ] Set Redis TTL on cache entries
-- [ ] Skip caching for oversized bodies
+- [x] Implement Redis read for cache HIT
+- [x] Implement `ServerHttpResponseDecorator` for cache MISS capture
+- [x] Base64 encode/decode response body
+- [x] Set Redis TTL on cache entries
+- [x] Skip caching for oversized bodies
 
 ---
 
@@ -88,9 +88,9 @@ Parse upstream response `Cache-Control` header:
 When `respectCacheControl=false`, ignore upstream headers entirely (use configured TTL).
 
 **Task list:**
-- [ ] Parse `Cache-Control` header directives
-- [ ] Implement `no-store`, `no-cache`, `max-age`, `private`, `s-maxage` handling
-- [ ] Honor `respectCacheControl` flag
+- [x] Parse `Cache-Control` header directives
+- [x] Implement `no-store`, `no-cache`, `max-age`, `private`, `s-maxage` handling
+- [x] Honor `respectCacheControl` flag
 
 ---
 
@@ -104,9 +104,9 @@ When `respectCacheControl=false`, ignore upstream headers entirely (use configur
 When `addCacheHeaders=false`, suppress all cache-related headers.
 
 **Task list:**
-- [ ] Inject `X-Cache` header on every response
-- [ ] Inject `X-Cache-TTL` and `Age` on cache HITs
-- [ ] Support `addCacheHeaders=false`
+- [x] Inject `X-Cache` header on every response
+- [x] Inject `X-Cache-TTL` and `Age` on cache HITs
+- [x] Support `addCacheHeaders=false`
 
 ---
 
@@ -120,10 +120,10 @@ POST /api/v1/admin/routes/{id}/cache/purge
 Dispatches a Kafka command (`CommandEvent.PurgeCacheRoute`) that the gateway consumes to delete all Redis keys matching `routify:cache:{routeId}:*`.
 
 **Task list:**
-- [ ] Add `CommandEvent.PurgeCacheRoute` to `routify-common`
-- [ ] Add admin-api endpoint
-- [ ] Gateway consumer deletes Redis keys on command
-- [ ] Dashboard "Purge Cache" button on route detail page
+- [x] Add `CommandEvent.PurgeCacheRoute` to `routify-common`
+- [x] Add admin-api endpoint
+- [x] Gateway consumer deletes Redis keys on command
+- [x] Dashboard "Purge Cache" button on route detail page
 
 ---
 
@@ -134,9 +134,9 @@ Dispatches a Kafka command (`CommandEvent.PurgeCacheRoute`) that the gateway con
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `RESPONSE_CACHE` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `RESPONSE_CACHE` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -149,9 +149,9 @@ Dispatches a Kafka command (`CommandEvent.PurgeCacheRoute`) that the gateway con
 - `routify.filter.cache.size_bytes` — gauge of total cached bytes per route
 
 **Task list:**
-- [ ] Register Micrometer counters
-- [ ] Record hit/miss/skip per request
-- [ ] Track cached body size
+- [x] Register Micrometer counters
+- [x] Record hit/miss/skip per request
+- [x] Track cached body size
 
 ---
 
@@ -173,20 +173,19 @@ Dispatches a Kafka command (`CommandEvent.PurgeCacheRoute`) that the gateway con
 - `respectCacheControl=false` ignores upstream headers
 
 **Task list:**
-- [ ] Write cache HIT/MISS lifecycle tests
-- [ ] Write `Cache-Control` header respect tests
-- [ ] Write cache invalidation tests
-- [ ] Write metrics validation tests
+- [x] Write cache HIT/MISS lifecycle tests
+- [x] Write `Cache-Control` header respect tests
+- [x] Write cache invalidation tests
+- [x] Write metrics validation tests
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] GET responses cached in Redis with configurable TTL
-- [ ] Cache HIT returns stored response without upstream call
-- [ ] `X-Cache` header on every response
-- [ ] `Cache-Control` directives honored when `respectCacheControl=true`
-- [ ] Cache invalidation via admin-api endpoint
-- [ ] Body size limit prevents caching oversized responses
-- [ ] Micrometer metrics for hit/miss/skip
-
+- [x] GET responses cached in Redis with configurable TTL
+- [x] Cache HIT returns stored response without upstream call
+- [x] `X-Cache` header on every response
+- [x] `Cache-Control` directives honored when `respectCacheControl=true`
+- [x] Cache invalidation via admin-api endpoint
+- [x] Body size limit prevents caching oversized responses
+- [x] Micrometer metrics for hit/miss/skip

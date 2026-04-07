@@ -325,6 +325,8 @@ export type FilterType =
   | 'VALIDATE_JSON_SCHEMA'
   | 'REQUEST_SIZE_LIMIT'
   | 'TIMEOUT'
+  // ─── Performance ───────────────────────────────────────────────────────
+  | 'RESPONSE_CACHE'
   | 'CONDITIONAL_ROUTE'
   | 'USER_ID_PAYLOAD_ROUTING'
   | 'GEO_ROUTE'
