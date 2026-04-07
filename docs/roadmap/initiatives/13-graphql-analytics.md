@@ -42,9 +42,9 @@ spring:
 ```
 
 **Task list:**
-- [ ] Add dependency
-- [ ] Configure properties
-- [ ] Enable GraphiQL in dev profile only
+- [x] Add dependency
+- [x] Configure properties
+- [x] Enable GraphiQL in dev profile only
 
 ---
 
@@ -206,8 +206,8 @@ scalar Long
 ```
 
 **Task list:**
-- [ ] Define complete schema
-- [ ] Add custom scalar type configuration (DateTime, Date, Long)
+- [x] Define complete schema
+- [x] Add custom scalar type configuration (DateTime, Date, Long)
 
 ---
 
@@ -245,10 +245,10 @@ public class AnalyticsGraphQLController {
 **Security interceptor:** Validates JWT from `Authorization` header, enforces tenant isolation (user can only query their own tenant), checks granular permissions if Q3 RBAC is active.
 
 **Task list:**
-- [ ] Create controller with all `@QueryMapping` methods
-- [ ] Implement security interceptor (JWT + tenant scoping)
-- [ ] Wire to existing messaging clients for data
-- [ ] Add DataLoader batching for N+1 prevention on `routeAnalytics.routes` list
+- [x] Create controller with all `@QueryMapping` methods
+- [x] Implement security interceptor (JWT + tenant scoping)
+- [x] Wire to existing messaging clients for data
+- [x] Add DataLoader batching for N+1 prevention on `routeAnalytics.routes` list
 
 ---
 
@@ -276,10 +276,10 @@ record TimeSeriesQuery(
 **Implementation:** SQL `date_trunc(granularity, requested_at)` grouping on `request_log` table.
 
 **Task list:**
-- [ ] Add RabbitMQ topology constants
-- [ ] Implement time-series aggregation SQL query
-- [ ] Create handler in audit-service
-- [ ] Add request/response types to `routify-common`
+- [x] Add RabbitMQ topology constants
+- [x] Implement time-series aggregation SQL query
+- [x] Create handler in audit-service
+- [x] Add request/response types to `routify-common`
 
 ---
 
@@ -290,9 +290,9 @@ Selected dashboard components can optionally use GraphQL for complex views:
 - Cert expiry report: single query returns all cert expiry data.
 
 **Task list:**
-- [ ] Add `graphql-request` lightweight client library to dashboard (or use `fetch`)
-- [ ] Convert route health tab data source to GraphQL (optional, feature-flagged)
-- [ ] Add GraphQL query builder utility in `src/api/graphqlClient.ts`
+- [x] Add `graphql-request` lightweight client library to dashboard (or use `fetch`)
+- [x] Convert route health tab data source to GraphQL (optional, feature-flagged)
+- [x] Add GraphQL query builder utility in `src/api/graphqlClient.ts`
 
 ---
 
@@ -304,19 +304,19 @@ Selected dashboard components can optionally use GraphQL for complex views:
 - Rate limit: 100 GraphQL queries per minute per tenant (reuse Redis rate limiter).
 
 **Task list:**
-- [ ] Configure `spring.graphql.schema.inspection` depth/complexity limits
-- [ ] Add rate limiting middleware for GraphQL endpoint
-- [ ] Document query limits in API documentation
+- [x] Configure `spring.graphql.schema.inspection` depth/complexity limits
+- [x] Add rate limiting middleware for GraphQL endpoint
+- [x] Document query limits in API documentation
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `routeAnalytics` query returns per-route time-bucketed metrics with configurable granularity
-- [ ] `tenantUsage` query returns quota usage with daily trend
-- [ ] `aiFilterAnalytics` query returns decision stats per filter with time series
-- [ ] GraphiQL playground accessible in dev profile for query exploration
-- [ ] JWT authentication enforced on all GraphQL queries
-- [ ] Tenant isolation prevents cross-tenant data access
-- [ ] Query depth limited to 5 levels
+- [x] `routeAnalytics` query returns per-route time-bucketed metrics with configurable granularity
+- [x] `tenantUsage` query returns quota usage with daily trend
+- [x] `aiFilterAnalytics` query returns decision stats per filter with time series
+- [x] GraphiQL playground accessible in dev profile for query exploration
+- [x] JWT authentication enforced on all GraphQL queries
+- [x] Tenant isolation prevents cross-tenant data access
+- [x] Query depth limited to 5 levels
 

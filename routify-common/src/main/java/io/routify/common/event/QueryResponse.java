@@ -106,6 +106,8 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.PromptVersionsPage.class,     name = "PROMPT_VERSIONS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.PromptVersionDetail.class,    name = "PROMPT_VERSION_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.AiDecisionLabelResult.class,  name = "AI_DECISION_LABEL_RESULT"),
+    // ─── routify-audit-service time-series (GraphQL Initiative 13) ──────────
+    @JsonSubTypes.Type(value = QueryResponse.TimeSeriesResult.class,      name = "TIME_SERIES_RESULT"),
     // ─── routify-api-gateway ─────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.GatewayStatus.class,        name = "GATEWAY_STATUS"),
     @JsonSubTypes.Type(value = QueryResponse.CertRegistrySnapshot.class, name = "CERT_REGISTRY_SNAPSHOT"),
@@ -164,6 +166,7 @@ public sealed interface QueryResponse
             QueryResponse.PromptVersionsPage,
             QueryResponse.PromptVersionDetail,
             QueryResponse.AiDecisionLabelResult,
+            QueryResponse.TimeSeriesResult,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1185,6 +1188,45 @@ public sealed interface QueryResponse
             UUID                promptVersionId,
             java.math.BigDecimal newAccuracy
     ) implements QueryResponse {}
+
+    // ─── routify-audit-service time-series analytics (GraphQL Initiative 13) ──
+
+    /**
+     * Time-bucketed request metrics result for the GraphQL Analytics API.
+     *
+     * @param buckets List of time buckets with aggregated metrics.
+     */
+    record TimeSeriesResult(List<TimeSeriesBucket> buckets) implements QueryResponse {
+
+        /**
+         * A single time bucket with aggregated request metrics.
+         *
+         * @param timestamp    Bucket start timestamp (ISO-8601).
+         * @param routeId      Route UUID (null if aggregated across all routes).
+         * @param routeName    Route name.
+         * @param requestCount Total requests in this bucket.
+         * @param errorCount   Requests with HTTP status >= 400.
+         * @param errorRate    errorCount / requestCount.
+         * @param avgLatencyMs Mean latency in ms.
+         * @param p50LatencyMs 50th-percentile latency.
+         * @param p95LatencyMs 95th-percentile latency.
+         * @param p99LatencyMs 99th-percentile latency.
+         * @param statusCodes  Status code distribution.
+         */
+        public record TimeSeriesBucket(
+                String timestamp,
+                UUID   routeId,
+                String routeName,
+                long   requestCount,
+                long   errorCount,
+                double errorRate,
+                double avgLatencyMs,
+                double p50LatencyMs,
+                double p95LatencyMs,
+                double p99LatencyMs,
+                Map<Integer, Long> statusCodes
+        ) {}
+    }
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

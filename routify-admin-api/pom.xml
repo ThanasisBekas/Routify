@@ -100,6 +100,12 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- GraphQL Analytics API (Initiative 13) — composable analytics queries -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-graphql</artifactId>
+        </dependency>
+
         <!-- SnakeYAML — explicit declaration for route import/export (GitOps Initiative 07).
              Transitively available via spring-boot-starter-web, declared explicitly
              because we use DumperOptions and Yaml directly for block-style YAML formatting. -->

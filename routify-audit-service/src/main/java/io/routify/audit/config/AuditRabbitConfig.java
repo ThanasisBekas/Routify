@@ -78,6 +78,12 @@ public class AuditRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_AI_DECISION_LABEL).build();
     }
 
+    // ─── Time-series analytics queue (GraphQL Initiative 13) ────────────────
+
+    @Bean public Queue auditTimeSeriesQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_TIME_SERIES).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -157,6 +163,14 @@ public class AuditRabbitConfig {
     public Binding aiDecisionLabelBinding(Queue aiDecisionLabelQueue, DirectExchange auditServiceExchange) {
         return BindingBuilder.bind(aiDecisionLabelQueue)
                 .to(auditServiceExchange).with(RabbitTopology.RK_AI_DECISION_LABEL);
+    }
+
+    // ─── Time-series analytics binding (GraphQL Initiative 13) ──────────────
+
+    @Bean
+    public Binding auditTimeSeriesBinding(Queue auditTimeSeriesQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(auditTimeSeriesQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_TIME_SERIES);
     }
 
     // ─── Message converter & template ─────────────────────────────────────────
