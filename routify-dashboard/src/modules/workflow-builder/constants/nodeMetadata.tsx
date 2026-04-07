@@ -601,7 +601,7 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     type: 'filterNode',
     filterType: 'REQUEST_LOGGER',
     label: 'Request Logger',
-    description: 'Log structured request / response metadata + Kafka telemetry',
+    description: 'Structured request/response logging with sampling, path exclusions, and header control',
     icon: <Eye className="w-4 h-4" />,
     color: 'text-gray-300',
     bg: 'bg-gray-300/10',
