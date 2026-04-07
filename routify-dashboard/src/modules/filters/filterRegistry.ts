@@ -242,7 +242,7 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     value: 'REQUEST_LOGGER',
     label: 'Request Logger',
     category: 'Observability',
-    description: 'Log requests/responses and publish telemetry to the routify.request.telemetry Kafka topic',
+    description: 'Log requests/responses with sampling, header allow/denylists, path exclusions, and structured MDC logging',
     color: 'text-gray-300',
     bg: 'bg-gray-300/10',
     border: 'border-gray-300/20',

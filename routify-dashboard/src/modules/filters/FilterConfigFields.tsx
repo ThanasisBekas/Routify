@@ -558,6 +558,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
 
     case 'REQUEST_LOGGER': {
       const threshold = (config['failedStatusThreshold'] as number) ?? 500
+      const currentSamplingRate = (config['samplingRate'] as number) ?? 1.0
       return (
         <div className="space-y-4">
           <SectionTitle>What to log</SectionTitle>
@@ -591,13 +592,19 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               />
             </div>
           </div>
+
+          <SectionTitle>Body capture</SectionTitle>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Max Body Log Size (bytes)" hint="Max bytes captured. Default: 4096.">
+            <Field
+              label="Max Body Capture (bytes)"
+              hint="Max bytes captured from request/response body. Hard limit: 65536 (64 KB). Default: 4096."
+            >
               <input
                 type="number"
                 min={0}
-                value={num('maxBodyLogSize', 4096)}
-                onChange={(e) => set('maxBodyLogSize', +e.target.value)}
+                max={65536}
+                value={num('maxBodyCaptureBytes', 4096)}
+                onChange={(e) => set('maxBodyCaptureBytes', Math.min(+e.target.value, 65536))}
                 className={inputCls}
               />
             </Field>
@@ -637,6 +644,56 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               </div>
             </Field>
           </div>
+
+          <SectionTitle>Sampling</SectionTitle>
+          <Field
+            label={`Sampling Rate: ${(currentSamplingRate * 100).toFixed(0)}%`}
+            hint="Fraction of requests that generate telemetry events. 1.0 = all (default), 0.1 = ~10%, 0.0 = none."
+          >
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={currentSamplingRate}
+              onChange={(e) => set('samplingRate', +e.target.value)}
+              className="w-full accent-indigo-500 h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+            />
+            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
+              <span>0% (disabled)</span>
+              <span>50%</span>
+              <span>100% (all)</span>
+            </div>
+          </Field>
+
+          <SectionTitle>Header capture</SectionTitle>
+          <TagInput
+            label="Header Allowlist"
+            hint="When non-empty, only these headers are captured. Leave empty to capture all (except denied)."
+            values={arr('headerAllowlist')}
+            onChange={(v) => set('headerAllowlist', v)}
+            placeholder="Content-Type"
+            optional
+          />
+          <TagInput
+            label="Header Denylist"
+            hint="Headers to redact from telemetry. Deny overrides allow. Default: Authorization, Cookie, X-Api-Key."
+            values={arr('headerDenylist')}
+            onChange={(v) => set('headerDenylist', v)}
+            placeholder="Authorization"
+            optional
+          />
+
+          <SectionTitle>Path exclusions</SectionTitle>
+          <TagInput
+            label="Skip Paths"
+            hint="Glob patterns for paths to exclude from logging and telemetry entirely. E.g. /actuator/**, /health"
+            values={arr('skipPaths')}
+            onChange={(v) => set('skipPaths', v)}
+            placeholder="/actuator/**"
+            optional
+          />
+
           <div
             className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed
             bg-amber-500/[0.06] border-amber-500/20 text-amber-400/80"
@@ -650,8 +707,15 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2">
             Sensitive headers (<code className="font-mono text-indigo-300">Authorization</code>,{' '}
             <code className="font-mono text-indigo-300">X-Api-Key</code>,{' '}
-            <code className="font-mono text-indigo-300">Cookie</code>) are always redacted from logs. Telemetry is
-            published to the <code className="font-mono text-indigo-300">routify.request.telemetry</code> Kafka topic.
+            <code className="font-mono text-indigo-300">Cookie</code>) are redacted by default.
+            Use <strong>Header Denylist</strong> to customise which headers are redacted.
+            Structured MDC logging emits <code className="font-mono text-indigo-300">method</code>,{' '}
+            <code className="font-mono text-indigo-300">path</code>,{' '}
+            <code className="font-mono text-indigo-300">status</code>,{' '}
+            <code className="font-mono text-indigo-300">elapsedMs</code>,{' '}
+            <code className="font-mono text-indigo-300">correlationId</code> as MDC keys.
+            Telemetry is published to the{' '}
+            <code className="font-mono text-indigo-300">routify.request.telemetry</code> Kafka topic.
           </p>
         </div>
       )

@@ -1,7 +1,7 @@
 # Initiative GF-06 — RequestLogger Performance & Configurability
 
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 4 (Advanced Features) · **Owner:** Gateway team  
-> **Category:** Observability · **Priority:** Medium
+> **Category:** Observability · **Priority:** Medium · **Status:** ✅ Complete
 
 ---
 
@@ -23,7 +23,7 @@ Add body capture limits, probabilistic sampling, configurable header allow/denyl
 ### Step 1: Add `maxBodyCaptureBytes` Config Param
 
 **Files to modify:**
-- `routify-api-gateway/.../filter/observability/RequestLoggerGatewayFilterFactory.java`
+- `routify-api-gateway/.../filter/RequestLoggerGatewayFilterFactory.java`
 
 **New config parameter:**
 ```yaml
@@ -36,10 +36,10 @@ maxBodyCaptureBytes: 4096  # default, hard upper bound: 65536 (64 KB)
 - Enforce a hard upper bound of 64 KB regardless of config value.
 
 **Task list:**
-- [ ] Add `maxBodyCaptureBytes` config parameter (default 4096)
-- [ ] Enforce hard upper bound of 64 KB
-- [ ] Truncate body with marker text
-- [ ] No behavior change when `logRequestBody=false`
+- [x] Add `maxBodyCaptureBytes` config parameter (default 4096)
+- [x] Enforce hard upper bound of 64 KB
+- [x] Truncate body with marker text
+- [x] No behavior change when `logRequestBody=false`
 
 ---
 
@@ -57,10 +57,10 @@ samplingRate: 1.0  # default (capture all), range 0.0–1.0
 - `samplingRate=0.0` disables telemetry publishing entirely.
 
 **Task list:**
-- [ ] Add `samplingRate` config parameter (default `1.0`)
-- [ ] Implement probabilistic sampling with `ThreadLocalRandom`
-- [ ] Validate range 0.0–1.0 at config bind time
-- [ ] TRACE-level log for skipped events
+- [x] Add `samplingRate` config parameter (default `1.0`)
+- [x] Implement probabilistic sampling with `ThreadLocalRandom`
+- [x] Validate range 0.0–1.0 at config bind time
+- [x] TRACE-level log for skipped events
 
 ---
 
@@ -82,10 +82,10 @@ headerDenylist:             # overrides allow
 - Redacted headers appear as `<header-name>: [REDACTED]` in telemetry.
 
 **Task list:**
-- [ ] Add `headerAllowlist` and `headerDenylist` config parameters
-- [ ] Implement deny-overrides-allow logic
-- [ ] Migrate hardcoded `REDACTED_HEADERS` to default denylist
-- [ ] Backward compatible when both lists are empty
+- [x] Add `headerAllowlist` and `headerDenylist` config parameters
+- [x] Implement deny-overrides-allow logic
+- [x] Migrate hardcoded `REDACTED_HEADERS` to default denylist
+- [x] Backward compatible when both lists are empty
 
 ---
 
@@ -98,9 +98,9 @@ headerDenylist:             # overrides allow
 - Ensure MDC is cleared after each request (already handled by `SecurityContext.clearMdc()`).
 
 **Task list:**
-- [ ] Enrich MDC with request metadata fields
-- [ ] Replace positional log interpolation with MDC-based structured logging
-- [ ] Ensure MDC cleanup after each request
+- [x] Enrich MDC with request metadata fields
+- [x] Replace positional log interpolation with MDC-based structured logging
+- [x] Ensure MDC cleanup after each request
 
 ---
 
@@ -115,21 +115,21 @@ skipPaths:
 ```
 
 **Implementation:**
-- Compile patterns to `PathPattern` instances at config bind time.
+- Compile patterns to `Pattern` instances at config bind time.
 - Before processing, check if the request path matches any skip pattern.
 - Matched requests bypass both logging and telemetry publishing entirely.
 
 **Task list:**
-- [ ] Add `skipPaths` config parameter (list of glob patterns)
-- [ ] Compile patterns at config bind time
-- [ ] Skip logging and telemetry for matched paths
+- [x] Add `skipPaths` config parameter (list of glob patterns)
+- [x] Compile patterns at config bind time
+- [x] Skip logging and telemetry for matched paths
 
 ---
 
 ### Step 6: Tests
 
 **Files to create:**
-- `routify-api-gateway/src/test/java/io/routify/gateway/filter/observability/RequestLoggerConfigTest.java`
+- `routify-api-gateway/src/test/java/io/routify/gateway/filter/RequestLoggerConfigTest.java`
 
 **Test cases:**
 - Body capture truncated at `maxBodyCaptureBytes`
@@ -143,17 +143,16 @@ skipPaths:
 - Default config produces identical behavior to current implementation
 
 **Task list:**
-- [ ] Write tests for all new config parameters
-- [ ] Write backward compatibility test (all defaults)
-- [ ] Write statistical sampling test
+- [x] Write tests for all new config parameters
+- [x] Write backward compatibility test (all defaults)
+- [x] Write statistical sampling test
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Body capture capped at `maxBodyCaptureBytes` (hard limit 64 KB)
-- [ ] `samplingRate=0.1` produces ~10% of telemetry events
-- [ ] `headerAllowlist` and `headerDenylist` work as documented
-- [ ] `skipPaths` excludes matching requests from logging
-- [ ] No behaviour change when all config is at defaults
-
+- [x] Body capture capped at `maxBodyCaptureBytes` (hard limit 64 KB)
+- [x] `samplingRate=0.1` produces ~10% of telemetry events
+- [x] `headerAllowlist` and `headerDenylist` work as documented
+- [x] `skipPaths` excludes matching requests from logging
+- [x] No behaviour change when all config is at defaults
