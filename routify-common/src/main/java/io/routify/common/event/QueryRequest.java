@@ -114,6 +114,8 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.PromptVersionGet.class,      name = "PROMPT_VERSION_GET"),
     @JsonSubTypes.Type(value = QueryRequest.PromptVersionSave.class,     name = "PROMPT_VERSION_SAVE"),
     @JsonSubTypes.Type(value = QueryRequest.AiDecisionLabel.class,       name = "AI_DECISION_LABEL"),
+    // ─── routify-audit-service time-series analytics (GraphQL Initiative 13) ──
+    @JsonSubTypes.Type(value = QueryRequest.TimeSeriesQuery.class,      name = "TIME_SERIES_QUERY"),
 })
 public sealed interface QueryRequest
         permits
@@ -181,6 +183,7 @@ public sealed interface QueryRequest
             QueryRequest.PromptVersionGet,
             QueryRequest.PromptVersionSave,
             QueryRequest.AiDecisionLabel,
+            QueryRequest.TimeSeriesQuery,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -661,6 +664,28 @@ public sealed interface QueryRequest
      * @param label        CORRECT | INCORRECT | UNCLEAR.
      */
     record AiDecisionLabel(String evaluationId, UUID tenantId, String label) implements QueryRequest {}
+
+    // ─── routify-audit-service time-series analytics (GraphQL Initiative 13) ──
+
+    /**
+     * Time-bucketed request metrics for the GraphQL Analytics API.
+     * SQL: {@code date_trunc(granularity, requested_at)} grouping on {@code request_log}.
+     *
+     * @param tenantId     Tenant to scope the query (required).
+     * @param routeId      Optional — if null returns stats aggregated across all routes.
+     * @param from         ISO-8601 start timestamp (inclusive).
+     * @param to           ISO-8601 end timestamp (exclusive).
+     * @param granularity  MINUTE, HOUR, DAY, WEEK.
+     * @param metrics      List of requested metrics: requestCount, errorCount, latencyP50, latencyP95, latencyP99.
+     */
+    record TimeSeriesQuery(
+            UUID tenantId,
+            UUID routeId,
+            String from,
+            String to,
+            String granularity,
+            java.util.List<String> metrics
+    ) implements QueryRequest {}
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

@@ -554,6 +554,48 @@ public class AuditRabbitHandler {
         return new QueryResponse.AiDecisionLabelResult(true, promptVersionId, newAccuracy);
     }
 
+    // ─── Time-Series Analytics (GraphQL Initiative 13) ────────────────────────
+
+    /**
+     * Returns time-bucketed request metrics using SQL {@code date_trunc}.
+     * Granularity is validated and mapped to a PostgreSQL interval (minute, hour, day, week).
+     */
+    @RabbitListener(queues = RabbitTopology.QUEUE_AUDIT_TIME_SERIES)
+    public QueryResponse.TimeSeriesResult handleTimeSeries(QueryRequest.TimeSeriesQuery req) {
+        log.debug("RabbitMQ: received audit.time-series request: tenantId={} granularity={}",
+                req.tenantId(), req.granularity());
+
+        String pgGranularity = switch (req.granularity() != null ? req.granularity().toUpperCase() : "HOUR") {
+            case "MINUTE" -> "minute";
+            case "DAY"    -> "day";
+            case "WEEK"   -> "week";
+            default       -> "hour";
+        };
+
+        List<Object[]> rows = requestLogRepository.getTimeSeriesMetrics(
+                req.tenantId(), req.routeId(),
+                req.from(), req.to(), pgGranularity);
+
+        var buckets = rows.stream().map(row -> {
+            String timestamp = row[0] != null ? row[0].toString() : "";
+            UUID   routeId   = row[1] != null ? UUID.fromString(row[1].toString()) : null;
+            String routeName = row[2] != null ? row[2].toString() : "unknown";
+            long   total     = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+            long   errors    = row[4] != null ? ((Number) row[4]).longValue() : 0L;
+            double avgLat    = row[5] != null ? ((Number) row[5]).doubleValue() : 0.0;
+            double p50       = row[6] != null ? ((Number) row[6]).doubleValue() : 0.0;
+            double p95       = row[7] != null ? ((Number) row[7]).doubleValue() : 0.0;
+            double p99       = row[8] != null ? ((Number) row[8]).doubleValue() : 0.0;
+            double errorRate = total > 0 ? (double) errors / total : 0.0;
+
+            return new QueryResponse.TimeSeriesResult.TimeSeriesBucket(
+                    timestamp, routeId, routeName, total, errors, errorRate,
+                    avgLat, p50, p95, p99, Map.of());
+        }).toList();
+
+        return new QueryResponse.TimeSeriesResult(buckets);
+    }
+
     // ─── Prompt Version Mapping Helpers ────────────────────────────────────────
 
     private QueryResponse.PromptVersionsPage.PromptVersionSummary toVersionSummary(AiPromptVersion v) {

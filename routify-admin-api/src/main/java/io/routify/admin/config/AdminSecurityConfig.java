@@ -71,6 +71,8 @@ public class AdminSecurityConfig {
                                  "/api/v1/auth/logout").permitAll()
                 // Workspaces list — public for login-page dropdown (name+slug only)
                 .requestMatchers("/api/v1/admin/tenants/workspaces").permitAll()
+                // GraphiQL playground — public in dev profile (security enforced on queries themselves)
+                .requestMatchers("/api/v1/admin/graphiql").permitAll()
                 // Actuator health/info — accessible to load-balancer probes without auth.
                 .requestMatchers("/actuator/health", "/actuator/health/**",
                                  "/actuator/info").permitAll()

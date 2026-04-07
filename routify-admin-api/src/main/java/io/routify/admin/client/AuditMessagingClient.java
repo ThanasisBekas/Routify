@@ -308,4 +308,23 @@ public class AuditMessagingClient extends AmqpServiceClientSupport {
         return new QueryResponse.AiFilterStatsResult(tenantId, routeId, 0L, 0L, 0L, 0L, 0L, 0L, 0.0, 0L, 0L,
                 from != null ? from : "", to != null ? to : "");
     }
+
+    // ─── Time-Series Analytics (GraphQL Initiative 13) ────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryTimeSeriesFallback")
+    public QueryResponse.TimeSeriesResult queryTimeSeries(
+            UUID tenantId, UUID routeId, String from, String to,
+            String granularity, java.util.List<String> metrics) {
+        return rpc(RabbitTopology.RK_AUDIT_TIME_SERIES,
+                new QueryRequest.TimeSeriesQuery(tenantId, routeId, from, to, granularity, metrics),
+                QueryResponse.TimeSeriesResult.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.TimeSeriesResult queryTimeSeriesFallback(
+            UUID tenantId, UUID routeId, String from, String to,
+            String granularity, java.util.List<String> metrics, Throwable t) {
+        log.warn("queryTimeSeries circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.TimeSeriesResult(List.of());
+    }
 }

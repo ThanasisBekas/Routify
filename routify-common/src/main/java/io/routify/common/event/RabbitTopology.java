@@ -477,6 +477,12 @@ public final class RabbitTopology {
     public static final String QUEUE_AUDIT_USAGE_HISTORY     = "routify.audit-service.usage.history";
     public static final String RK_AUDIT_USAGE_HISTORY        = "audit.usage.history";
 
+    // ─── routify-audit-service time-series analytics (GraphQL Initiative 13) ──
+
+    /** Queue: audit-service serves time-bucketed request metrics for the GraphQL Analytics API */
+    public static final String QUEUE_AUDIT_TIME_SERIES       = "routify.audit-service.time-series";
+    public static final String RK_AUDIT_TIME_SERIES          = "audit.time-series";
+
     // ─── routify-route-service SLO queues & routing keys ──────────────────────
 
     /** Queue: route-service serves route SLO config GET queries from admin-api */

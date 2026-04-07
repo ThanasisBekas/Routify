@@ -191,6 +191,41 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, UUID> {
     List<Object[]> countRequestsByTenantForPeriod(
             @Param("dayStart") Instant dayStart,
             @Param("dayEnd") Instant dayEnd);
+
+    // ─── Time-Series Analytics (GraphQL Initiative 13) ─────────────────────────
+
+    /**
+     * Time-bucketed request metrics using {@code date_trunc} for configurable granularity.
+     * Returns rows of [bucket, route_id, route_name, total, errors, avg_latency, p50, p95, p99].
+     *
+     * <p>The {@code granularity} parameter must be a valid PostgreSQL date_trunc field
+     * (minute, hour, day, week). Caller validates before invoking.
+     */
+    @Query(value = """
+            SELECT date_trunc(:granularity, r.requested_at)    AS bucket,
+                   r.route_id,
+                   r.route_name,
+                   COUNT(*)                                     AS total,
+                   SUM(CASE WHEN r.response_status >= 400 THEN 1 ELSE 0 END) AS errors,
+                   AVG(r.duration_ms)                           AS avg_latency,
+                   percentile_cont(0.50) WITHIN GROUP (ORDER BY r.duration_ms) AS p50,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY r.duration_ms) AS p95,
+                   percentile_cont(0.99) WITHIN GROUP (ORDER BY r.duration_ms) AS p99
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= CAST(:from AS TIMESTAMP WITH TIME ZONE)
+              AND r.requested_at < CAST(:to AS TIMESTAMP WITH TIME ZONE)
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+              AND r.route_id IS NOT NULL
+            GROUP BY bucket, r.route_id, r.route_name
+            ORDER BY bucket ASC, total DESC
+            """, nativeQuery = true)
+    List<Object[]> getTimeSeriesMetrics(
+            @Param("tenantId") UUID tenantId,
+            @Param("routeId") UUID routeId,
+            @Param("from") String from,
+            @Param("to") String to,
+            @Param("granularity") String granularity);
 }
 
 

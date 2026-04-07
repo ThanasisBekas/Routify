@@ -6,6 +6,17 @@ spring:
     virtual:
       enabled: true
 
+  # ─── GraphQL Analytics API (Initiative 13) ─────────────────────────────────
+  graphql:
+    path: /api/v1/admin/graphql
+    graphiql:
+      enabled: false  # Overridden to true in dev profile below
+      path: /api/v1/admin/graphiql
+    schema:
+      locations: classpath:graphql/
+      inspection:
+        enabled: true
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -158,3 +169,14 @@ resilience4j:
       # AI service — 10s hard cap matches the ai-service's own OpenAI timeout.
       ai-service:
         timeout-duration: 10s
+
+# ─── Dev profile — GraphiQL playground ────────────────────────────────────
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  graphql:
+    graphiql:
+      enabled: true
+

@@ -1,0 +1,150 @@
+type Query {
+  routeAnalytics(
+    tenantId: ID!
+    routeId: ID
+    from: DateTime!
+    to: DateTime!
+    granularity: Granularity = HOUR
+  ): RouteAnalyticsResult!
+
+  tenantUsage(
+    tenantId: ID!
+    from: DateTime!
+    to: DateTime!
+  ): TenantUsageResult!
+
+  aiFilterAnalytics(
+    tenantId: ID!
+    filterId: ID
+    from: DateTime!
+    to: DateTime!
+    granularity: Granularity = DAY
+  ): AiFilterAnalyticsResult!
+
+  certExpiryReport(tenantId: ID!): CertExpiryReport!
+
+  auditTimeline(
+    tenantId: ID!
+    aggregateType: String
+    from: DateTime!
+    to: DateTime!
+    limit: Int = 100
+  ): [AuditTimelineEntry!]!
+}
+
+enum Granularity { MINUTE, HOUR, DAY, WEEK }
+
+type RouteAnalyticsResult {
+  routes: [RouteMetrics!]!
+  totals: AggregateMetrics!
+}
+
+type RouteMetrics {
+  routeId: ID!
+  routeName: String!
+  timeSeries: [TimeBucket!]!
+  aggregate: AggregateMetrics!
+}
+
+type TimeBucket {
+  timestamp: DateTime!
+  requestCount: Long!
+  errorCount: Long!
+  errorRate: Float!
+  p50LatencyMs: Float!
+  p95LatencyMs: Float!
+  p99LatencyMs: Float!
+  avgLatencyMs: Float!
+  statusCodes: [StatusCodeCount!]!
+}
+
+type StatusCodeCount {
+  code: Int!
+  count: Long!
+}
+
+type AggregateMetrics {
+  totalRequests: Long!
+  totalErrors: Long!
+  errorRate: Float!
+  avgLatencyMs: Float!
+  p50LatencyMs: Float!
+  p95LatencyMs: Float!
+  p99LatencyMs: Float!
+}
+
+type TenantUsageResult {
+  tenantId: ID!
+  plan: String!
+  routes: QuotaUsage!
+  filters: QuotaUsage!
+  requests: QuotaUsage!
+  dailyUsage: [DailyUsage!]!
+}
+
+type QuotaUsage {
+  used: Int!
+  limit: Int!
+  percentage: Float!
+}
+
+type DailyUsage {
+  date: Date!
+  requestCount: Long!
+  errorCount: Long!
+  routeCount: Int!
+}
+
+type AiFilterAnalyticsResult {
+  filters: [AiFilterMetrics!]!
+}
+
+type AiFilterMetrics {
+  filterId: ID!
+  filterName: String!
+  totalDecisions: Long!
+  allowCount: Long!
+  blockCount: Long!
+  flagCount: Long!
+  avgLatencyMs: Float!
+  cacheHitRate: Float!
+  accuracyScore: Float
+  timeSeries: [AiFilterTimeBucket!]!
+}
+
+type AiFilterTimeBucket {
+  timestamp: DateTime!
+  decisions: Long!
+  blockRate: Float!
+  avgLatencyMs: Float!
+}
+
+type CertExpiryReport {
+  totalCerts: Int!
+  expiringSoon: Int!
+  expired: Int!
+  certs: [CertExpiry!]!
+}
+
+type CertExpiry {
+  certId: ID!
+  alias: String!
+  daysUntilExpiry: Int!
+  notAfter: DateTime
+  status: String!
+  autoRenew: Boolean!
+}
+
+type AuditTimelineEntry {
+  eventId: ID!
+  eventType: String!
+  aggregateType: String!
+  aggregateId: ID!
+  actorId: String
+  occurredAt: DateTime!
+}
+
+scalar DateTime
+scalar Date
+scalar Long
+
