@@ -437,7 +437,7 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     type: 'filterNode',
     filterType: 'BODY_JOLT_TRANSFORM',
     label: 'Jolt Transform',
-    description: 'JSON-to-JSON transformation via Jolt spec',
+    description: 'JSON-to-JSON request/response transformation via Jolt spec',
     icon: <Code2 className="w-4 h-4" />,
     color: 'text-purple-400',
     bg: 'bg-purple-400/10',

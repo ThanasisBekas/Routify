@@ -200,7 +200,7 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     value: 'BODY_JOLT_TRANSFORM',
     label: 'Jolt Transform',
     category: 'Transformation',
-    description: 'Transform JSON request body with a Jolt Chainr specification',
+    description: 'Transform JSON request and/or response body with a Jolt Chainr specification',
     color: 'text-purple-400',
     bg: 'bg-purple-400/10',
     border: 'border-purple-400/20',
