@@ -396,12 +396,13 @@ Per-route, Redis-backed response caching with configurable TTL, HTTP cache-contr
 
 ---
 
-### 13. Circuit Breaker v2 Filter
+### 13. Circuit Breaker v2 Filter ✅
 
 **Design doc:** [`initiatives/gf-13-circuit-breaker-v2.md`](./initiatives/gf-13-circuit-breaker-v2.md)  
 **Filter type:** `CIRCUIT_BREAKER_V2`  
 **Category:** Resilience  
-**Priority:** High
+**Priority:** High  
+**Status:** ✅ **COMPLETED**
 
 #### Description
 A custom circuit breaker filter replacing the deprecated `CIRCUIT_BREAKER` type (which delegated to SCG's built-in `CircuitBreaker` filter with minimal configuration). This version provides per-route Resilience4j `CircuitBreaker` instances with configurable thresholds, slow-call detection, half-open probing, and integration with the dashboard's circuit breaker visualization (via WebSocket `wsStore`).

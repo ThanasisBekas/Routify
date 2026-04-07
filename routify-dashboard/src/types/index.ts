@@ -325,6 +325,8 @@ export type FilterType =
   | 'VALIDATE_JSON_SCHEMA'
   | 'REQUEST_SIZE_LIMIT'
   | 'TIMEOUT'
+  // ─── Resilience ─────────────────────────────────────────────────────────
+  | 'CIRCUIT_BREAKER_V2'
   // ─── Performance ───────────────────────────────────────────────────────
   | 'RESPONSE_CACHE'
   | 'CONDITIONAL_ROUTE'

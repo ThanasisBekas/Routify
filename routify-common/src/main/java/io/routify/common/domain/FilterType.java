@@ -76,6 +76,13 @@ public enum FilterType {
 
     /** Per-route request timeout (504 on exceed) — RequestTimeoutGatewayFilterFactory */
     TIMEOUT,
+    /**
+     * Per-route Resilience4j circuit breaker with configurable failure/slow-call thresholds,
+     * half-open probing, state broadcast via WebSocket, and manual override via admin-api.
+     * Replaces the deprecated {@link #CIRCUIT_BREAKER} filter.
+     * — CircuitBreakerV2GatewayFilterFactory
+     */
+    CIRCUIT_BREAKER_V2,
 
     // ─── Routing ─────────────────────────────────────────────────────────────
 

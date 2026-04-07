@@ -69,4 +69,15 @@ export const routesApi = {
 
   adjustCanaryWeight: (routeId: string, req: AdjustCanaryWeightRequest) =>
     apiClient.put<AsyncAcknowledgement>(`${BASE}/${routeId}/canary/weight`, req).then((r) => r.data),
+
+  // ─── Circuit Breaker Manual Override ────────────────────────────────────
+
+  forceCircuitBreakerOpen: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/circuit-breaker/force-open`).then((r) => r.data),
+
+  forceCircuitBreakerClosed: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/circuit-breaker/force-closed`).then((r) => r.data),
+
+  resetCircuitBreaker: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/circuit-breaker/reset`).then((r) => r.data),
 }

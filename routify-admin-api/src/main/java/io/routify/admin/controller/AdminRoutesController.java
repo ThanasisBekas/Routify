@@ -329,4 +329,45 @@ public class AdminRoutesController {
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(AsyncAcknowledgement.of("Canary weight adjustment in progress"));
     }
+
+    // ─── Circuit Breaker Manual Override ──────────────────────────────────────
+
+    @PostMapping("/{id}/circuit-breaker/force-open")
+    @PreAuthorize("hasAuthority('ROUTES_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    public ResponseEntity<AsyncAcknowledgement> forceCircuitBreakerOpen(
+            @PathVariable UUID id,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
+            Authentication auth) {
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
+        messagingClient.sendForceCircuitBreaker(id, tenantId, actor, "FORCE_OPEN");
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(AsyncAcknowledgement.of("Circuit breaker force-open in progress"));
+    }
+
+    @PostMapping("/{id}/circuit-breaker/force-closed")
+    @PreAuthorize("hasAuthority('ROUTES_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    public ResponseEntity<AsyncAcknowledgement> forceCircuitBreakerClosed(
+            @PathVariable UUID id,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
+            Authentication auth) {
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
+        messagingClient.sendForceCircuitBreaker(id, tenantId, actor, "FORCE_CLOSED");
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(AsyncAcknowledgement.of("Circuit breaker force-closed in progress"));
+    }
+
+    @PostMapping("/{id}/circuit-breaker/reset")
+    @PreAuthorize("hasAuthority('ROUTES_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    public ResponseEntity<AsyncAcknowledgement> resetCircuitBreaker(
+            @PathVariable UUID id,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
+            Authentication auth) {
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
+        messagingClient.sendForceCircuitBreaker(id, tenantId, actor, "RESET");
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(AsyncAcknowledgement.of("Circuit breaker reset in progress"));
+    }
 }
