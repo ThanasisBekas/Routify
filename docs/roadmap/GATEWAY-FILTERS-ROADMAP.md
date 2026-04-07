@@ -30,7 +30,7 @@ Each initiative has a dedicated design document in [`docs/roadmap/initiatives/`]
 | 5 | ✅ [Jolt Transform Response-Phase Support](#5-jolt-transform-response-phase-support) | Body Transform | Medium | Complete the `phase=RESPONSE` stub; enable JSON-to-JSON transformation on upstream responses |
 | 6 | ✅ [RequestLogger Performance & Configurability](#6-requestlogger-performance--configurability) | Observability | Medium | Reduce body-capture overhead, add sampling, header allowlists, and structured JSON log format |
 | 7 | ✅ [SpEL Filter Sandboxing & Security](#7-spel-filter-sandboxing--security) | Security | High | Restrict SpEL context to a safe subset; prevent ClassLoader/Runtime escapes |
-| 8 | [AI Filter Streaming Body Support](#8-ai-filter-streaming-body-support) | AI | Medium | Stream request body incrementally to AI service for large payloads instead of buffering entire body |
+| 8 | ✅ [AI Filter Streaming Body Support](#8-ai-filter-streaming-body-support) | AI | Medium | Stream request body incrementally to AI service for large payloads instead of buffering entire body |
 
 ---
 
@@ -251,11 +251,11 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 5. **Re-emit body for downstream** — after reading, re-wrap the body bytes in a `ServerHttpRequestDecorator` so upstream services still receive the full payload.
 
 #### Acceptance Criteria
-- [ ] AI filter reads body inline without requiring a pre-caching filter
-- [ ] Binary content types are automatically skipped
-- [ ] Body hash included in RPC request for cache keying
-- [ ] Upstream services receive the original full body unchanged
-- [ ] `maxBodyBytes=2048` by default
+- [x] AI filter reads body inline without requiring a pre-caching filter
+- [x] Binary content types are automatically skipped
+- [x] Body hash included in RPC request for cache keying
+- [x] Upstream services receive the original full body unchanged
+- [x] `maxBodyBytes=2048` by default
 
 ---
 

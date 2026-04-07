@@ -11,7 +11,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.stereotype.Component;
@@ -37,7 +40,11 @@ import java.util.stream.Collectors;
  *   │
  *   ▼  AiModifierGatewayFilterFactory.apply(Config)
  *   │
+ *   ├── Check content-type (skip body for binary types)
+ *   │
  *   ├── Buffer request body (up to maxBodyBytes) from the DataBuffer flux
+ *   │
+ *   ├── Compute SHA-256 body hash for cache keying
  *   │
  *   ├── Build QueryRequest.AiModifierEvaluate from exchange metadata + buffered body
  *   │
@@ -55,6 +62,11 @@ import java.util.stream.Collectors;
  *       ├── Inject X-AI-Modifier-Applied: true, X-AI-Modifier-Id: {mutationId}
  *       └── chain.filter(exchange.mutate().request(mutatedRequest).build())
  * </pre>
+ *
+ * <h2>Content-Type Awareness</h2>
+ * Body reading is only performed for textual content types ({@code application/json},
+ * {@code text/plain}, {@code application/xml}, {@code text/xml}). Binary content types
+ * are automatically skipped — the modifier operates on headers only.
  *
  * <h2>Body Buffering</h2>
  * Spring Cloud Gateway is fully reactive. To read the request body we must:
@@ -89,6 +101,17 @@ public class AiModifierGatewayFilterFactory
     /** Header carrying the mutation type for downstream observability. */
     private static final String HEADER_AI_MODIFIER_TYPE      = "X-AI-Modifier-Type";
 
+    /**
+     * Textual content types for which body reading is performed.
+     * Binary content types are automatically skipped.
+     */
+    private static final Set<MediaType> READABLE_CONTENT_TYPES = Set.of(
+            MediaType.APPLICATION_JSON,
+            MediaType.TEXT_PLAIN,
+            MediaType.APPLICATION_XML,
+            MediaType.TEXT_XML
+    );
+
     private static final Set<String> REDACTED_HEADER_NAMES = Set.of(
             "authorization", "cookie", "x-api-key", "x-auth-token",
             "proxy-authorization", "x-amz-security-token"
@@ -106,51 +129,86 @@ public class AiModifierGatewayFilterFactory
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
 
+            // ── Skip body reading for binary content types ────────────────────
+            if (!isReadableContentType(request)) {
+                // No body to include — evaluate with headers only
+                QueryRequest.AiModifierEvaluate rpcRequest =
+                        buildRpcRequest(exchange, config, null, null);
+
+                return evaluateAndApply(exchange, chain, config, rpcRequest, new byte[0]);
+            }
+
             // ── Buffer body (respecting maxBodyBytes) ─────────────────────────
-            return request.getBody()
-                    .collect(exchange.getResponse().bufferFactory()::allocateBuffer, DataBuffer::write)
-                    .defaultIfEmpty(exchange.getResponse().bufferFactory().allocateBuffer(0))
+            return DataBufferUtils.join(request.getBody())
+                    .defaultIfEmpty(new DefaultDataBufferFactory().wrap(new byte[0]))
                     .flatMap(buffer -> {
                         // Read buffered bytes and release the DataBuffer
                         byte[] bodyBytes = new byte[buffer.readableByteCount()];
                         buffer.read(bodyBytes);
-                        org.springframework.core.io.buffer.DataBufferUtils.release(buffer);
+                        DataBufferUtils.release(buffer);
 
                         // Truncate to maxBodyBytes to prevent large RPC payloads
+                        byte[] excerptBytes = bodyBytes;
                         if (bodyBytes.length > config.getMaxBodyBytes()) {
-                            byte[] truncated = new byte[config.getMaxBodyBytes()];
-                            System.arraycopy(bodyBytes, 0, truncated, 0, config.getMaxBodyBytes());
-                            bodyBytes = truncated;
+                            excerptBytes = new byte[config.getMaxBodyBytes()];
+                            System.arraycopy(bodyBytes, 0, excerptBytes, 0, config.getMaxBodyBytes());
                         }
 
-                        final byte[] finalBodyBytes = bodyBytes;
-                        String bodyBase64 = config.isIncludeBody() && finalBodyBytes.length > 0
-                                ? Base64.getEncoder().encodeToString(finalBodyBytes) : null;
+                        String bodyBase64 = config.isIncludeBody() && excerptBytes.length > 0
+                                ? Base64.getEncoder().encodeToString(excerptBytes) : null;
+                        String bodyHash = config.isIncludeBody() && excerptBytes.length > 0
+                                ? AiGatewayFilterFactory.sha256Hex(excerptBytes) : null;
+
+                        // Cache body excerpt as exchange attribute for potential reuse
+                        if (bodyBase64 != null) {
+                            exchange.getAttributes().put("AI_MODIFIER_BODY_EXCERPT", bodyBase64);
+                        }
 
                         QueryRequest.AiModifierEvaluate rpcRequest =
-                                buildRpcRequest(exchange, config, bodyBase64);
+                                buildRpcRequest(exchange, config, bodyBase64, bodyHash);
 
-                        // Re-capture for use in closure
-                        final byte[] originalBodyBytes = finalBodyBytes;
-
-                        return Mono.fromCallable(() -> aiServiceClient.modify(rpcRequest))
-                                .subscribeOn(Schedulers.boundedElastic())
-                                .timeout(
-                                        java.time.Duration.ofMillis(config.getTimeoutMs()),
-                                        Mono.just(QueryResponse.AiModifierVerdict.passthrough(
-                                                "AI modifier timeout after %dms — passthrough".formatted(config.getTimeoutMs()),
-                                                config.getTimeoutMs()))
-                                )
-                                .onErrorResume(ex -> {
-                                    log.warn("AI modifier RPC error: route={} fallback={} error={}",
-                                            config.getRouteId(), config.getFallbackBehavior(), ex.getMessage());
-                                    return Mono.just(QueryResponse.AiModifierVerdict.passthrough(
-                                            "AI modifier error — passthrough: " + ex.getClass().getSimpleName(), 0L));
-                                })
-                                .flatMap(verdict -> applyMutation(exchange, chain, verdict,
-                                        config, originalBodyBytes));
+                        return evaluateAndApply(exchange, chain, config, rpcRequest, bodyBytes);
                     });
         };
+    }
+
+    /**
+     * Sends the RPC request to the AI service and applies the mutation verdict.
+     */
+    private Mono<Void> evaluateAndApply(ServerWebExchange exchange,
+                                        org.springframework.cloud.gateway.filter.GatewayFilterChain chain,
+                                        Config config,
+                                        QueryRequest.AiModifierEvaluate rpcRequest,
+                                        byte[] originalBodyBytes) {
+        return Mono.fromCallable(() -> aiServiceClient.modify(rpcRequest))
+                .subscribeOn(Schedulers.boundedElastic())
+                .timeout(
+                        java.time.Duration.ofMillis(config.getTimeoutMs()),
+                        Mono.just(QueryResponse.AiModifierVerdict.passthrough(
+                                "AI modifier timeout after %dms — passthrough".formatted(config.getTimeoutMs()),
+                                config.getTimeoutMs()))
+                )
+                .onErrorResume(ex -> {
+                    log.warn("AI modifier RPC error: route={} fallback={} error={}",
+                            config.getRouteId(), config.getFallbackBehavior(), ex.getMessage());
+                    return Mono.just(QueryResponse.AiModifierVerdict.passthrough(
+                            "AI modifier error — passthrough: " + ex.getClass().getSimpleName(), 0L));
+                })
+                .flatMap(verdict -> applyMutation(exchange, chain, verdict,
+                        config, originalBodyBytes));
+    }
+
+    // ─── Content-type awareness ───────────────────────────────────────────────
+
+    /**
+     * Checks whether the request content type is a readable textual type.
+     * Returns false for binary types (images, multipart, octet-stream, etc.).
+     */
+    private boolean isReadableContentType(ServerHttpRequest request) {
+        MediaType contentType = request.getHeaders().getContentType();
+        if (contentType == null) return false;
+        MediaType baseType = new MediaType(contentType.getType(), contentType.getSubtype());
+        return READABLE_CONTENT_TYPES.contains(baseType);
     }
 
     // ─── Mutation application ─────────────────────────────────────────────────
@@ -233,16 +291,7 @@ public class AiModifierGatewayFilterFactory
             @Override
             public Flux<DataBuffer> getBody() {
                 if (bodyBytes == null || bodyBytes.length == 0) return Flux.empty();
-                DataBuffer buffer = getDelegate().getHeaders()
-                        // bufferFactory() is not directly on the request — use exchange
-                        // We create a buffer from the response factory (same pool in Netty)
-                        // This is the standard pattern used by ModifyRequestBodyGatewayFilterFactory
-                        .getFirst("X-Request-Body-Hint") != null
-                        ? null : null; // placeholder — actual buffer creation below
-                // Create buffer via the default Netty allocator
-                org.springframework.core.io.buffer.DataBufferFactory factory =
-                        new org.springframework.core.io.buffer.DefaultDataBufferFactory();
-                DataBuffer db = factory.wrap(bodyBytes);
+                DataBuffer db = new DefaultDataBufferFactory().wrap(bodyBytes);
                 return Flux.just(db);
             }
         };
@@ -259,7 +308,8 @@ public class AiModifierGatewayFilterFactory
 
     private QueryRequest.AiModifierEvaluate buildRpcRequest(ServerWebExchange exchange,
                                                              Config config,
-                                                             String bodyBase64) {
+                                                             String bodyBase64,
+                                                             String bodyHash) {
         ServerHttpRequest request = exchange.getRequest();
 
         return new QueryRequest.AiModifierEvaluate(
@@ -283,6 +333,7 @@ public class AiModifierGatewayFilterFactory
                 resolveClientIp(request),
                 sanitizeHeaders(request),
                 bodyBase64,
+                bodyHash,
                 request.getHeaders().getFirst(RoutifyHeaders.CORRELATION_ID)
         );
     }
