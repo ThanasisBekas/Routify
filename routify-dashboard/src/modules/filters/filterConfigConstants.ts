@@ -77,7 +77,7 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   CONDITIONAL_ROUTE: { conditionHeader: '', conditionParam: '', conditionPattern: '.*', alternativeUri: '' },
   USER_ID_PAYLOAD_ROUTING: { enabled: true, userIdField: 'userId', allowlistUserIds: [], alternativeUri: '' },
   // Custom
-  CUSTOM_SPEL: { expression: '', description: '' },
+  CUSTOM_SPEL: { expression: '', description: '', maxExpressionLength: 500, maxPropertyDepth: 5, allowedFunctions: [] },
   // AI
   AI_FILTER: {
     policyDescription: '',

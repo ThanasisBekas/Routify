@@ -960,14 +960,16 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
     case 'CUSTOM_SPEL':
       return (
         <div className="space-y-4">
-          <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2">
-            Evaluated against a per-request context with variables
-            <code className="font-mono text-indigo-300 mx-1">#request</code>,
+          <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Evaluated in a <strong className="text-indigo-300">sandboxed</strong> context with variables{' '}
             <code className="font-mono text-indigo-300 mx-1">#headers</code>,
             <code className="font-mono text-indigo-300 mx-1">#params</code>,
             <code className="font-mono text-indigo-300 mx-1">#method</code>,
-            <code className="font-mono text-indigo-300 mx-1">#path</code>. Returning{' '}
+            <code className="font-mono text-indigo-300 mx-1">#path</code>,
+            <code className="font-mono text-indigo-300 mx-1">#contentType</code>,
+            <code className="font-mono text-indigo-300 mx-1">#clientIp</code>. Returning{' '}
             <code className="font-mono text-indigo-300">false</code> rejects the request with 403.
+            Type references, constructors, and arbitrary method calls are blocked.
           </p>
           <Field label="SpEL Expression" hint="e.g. #headers['X-Feature-Flag'] == 'enabled'">
             <textarea
@@ -987,6 +989,46 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               placeholder="Block unauthenticated beta users"
             />
           </Field>
+          <SectionTitle>Security limits</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Max Expression Length" hint="Max characters allowed. Default: 500.">
+              <input
+                type="number"
+                min={1}
+                max={2000}
+                value={num('maxExpressionLength', 500)}
+                onChange={(e) => set('maxExpressionLength', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Max Property Depth" hint="Max nested property accessors (dots). Default: 5.">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={num('maxPropertyDepth', 5)}
+                onChange={(e) => set('maxPropertyDepth', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+          <TagInput
+            label="Allowed Functions"
+            hint="When non-empty, only these String methods are allowed. Leave empty for all (default)."
+            values={arr('allowedFunctions')}
+            onChange={(v) => set('allowedFunctions', v)}
+            placeholder="contains"
+            optional
+          />
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+            <span className="mt-0.5 shrink-0">🔒</span>
+            <span>
+              Every evaluation emits a <strong>CUSTOM_SPEL_EVALUATED</strong> audit event.
+              The <code className="font-mono text-emerald-300">#request</code> variable has been removed for security.
+              Use <code className="font-mono text-emerald-300">#clientIp</code> and{' '}
+              <code className="font-mono text-emerald-300">#contentType</code> as replacements.
+            </span>
+          </div>
         </div>
       )
 

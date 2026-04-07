@@ -636,7 +636,7 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     type: 'filterNode',
     filterType: 'CUSTOM_SPEL',
     label: 'Custom (SpEL)',
-    description: 'Evaluate a Spring Expression Language expression; false → 403',
+    description: 'Sandboxed SpEL expression; false → 403. Audited, complexity-limited.',
     icon: <Brackets className="w-4 h-4" />,
     color: 'text-gray-400',
     bg: 'bg-gray-400/10',

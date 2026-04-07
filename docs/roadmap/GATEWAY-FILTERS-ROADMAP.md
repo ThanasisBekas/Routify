@@ -29,7 +29,7 @@ Each initiative has a dedicated design document in [`docs/roadmap/initiatives/`]
 | 4 | ✅ [JwtAuth Filter Hardening](#4-jwtauth-filter-hardening) | Authentication | High | Remove dev-mode unsigned JWT path, add JWKS rotation, issuer/audience validation enforcement |
 | 5 | ✅ [Jolt Transform Response-Phase Support](#5-jolt-transform-response-phase-support) | Body Transform | Medium | Complete the `phase=RESPONSE` stub; enable JSON-to-JSON transformation on upstream responses |
 | 6 | ✅ [RequestLogger Performance & Configurability](#6-requestlogger-performance--configurability) | Observability | Medium | Reduce body-capture overhead, add sampling, header allowlists, and structured JSON log format |
-| 7 | [SpEL Filter Sandboxing & Security](#7-spel-filter-sandboxing--security) | Security | High | Restrict SpEL context to a safe subset; prevent ClassLoader/Runtime escapes |
+| 7 | ✅ [SpEL Filter Sandboxing & Security](#7-spel-filter-sandboxing--security) | Security | High | Restrict SpEL context to a safe subset; prevent ClassLoader/Runtime escapes |
 | 8 | [AI Filter Streaming Body Support](#8-ai-filter-streaming-body-support) | AI | Medium | Stream request body incrementally to AI service for large payloads instead of buffering entire body |
 
 ---
@@ -226,11 +226,11 @@ The SpEL expression context exposes `#request` (the full `ServerHttpRequest` obj
 5. **Audit log** — emit a `CUSTOM_SPEL_EVALUATED` event with the expression, result, and evaluation time for security auditing.
 
 #### Acceptance Criteria
-- [ ] `SimpleEvaluationContext` used — no access to `Class`, `Runtime`, `ProcessBuilder`
-- [ ] `#request` variable removed from context
-- [ ] Expression length limit enforced (configurable, default 500 chars)
-- [ ] Audit event emitted on every evaluation
-- [ ] Existing `#headers`, `#params`, `#method`, `#path` expressions work unchanged
+- [x] `SimpleEvaluationContext` used — no access to `Class`, `Runtime`, `ProcessBuilder`
+- [x] `#request` variable removed from context
+- [x] Expression length limit enforced (configurable, default 500 chars)
+- [x] Audit event emitted on every evaluation
+- [x] Existing `#headers`, `#params`, `#method`, `#path` expressions work unchanged
 
 ---
 
