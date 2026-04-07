@@ -24,7 +24,7 @@ Each initiative has a dedicated design document in [`docs/roadmap/initiatives/`]
 | # | Initiative | Category | Priority | Impact |
 |---|-----------|----------|----------|--------|
 | 1 | ✅ [Extract Shared Key Resolver](#1-extract-shared-key-resolver) | Rate Limiting | High | Eliminates duplicated key resolution logic across 3 rate limit filters |
-| 2 | [Unified Error Response Builder](#2-unified-error-response-builder) | Cross-cutting | High | Consistent RFC 9457 ProblemDetail responses from all filters with shared `Retry-After`, rate-limit headers |
+| 2 | ✅ [Unified Error Response Builder](#2-unified-error-response-builder) | Cross-cutting | High | Consistent RFC 9457 ProblemDetail responses from all filters with shared `Retry-After`, rate-limit headers |
 | 3 | [Rate Limiter `X-RateLimit-*` Response Headers](#3-rate-limiter-x-ratelimit--response-headers) | Rate Limiting | Medium | Standard `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every response |
 | 4 | [JwtAuth Filter Hardening](#4-jwtauth-filter-hardening) | Authentication | High | Remove dev-mode unsigned JWT path, add JWKS rotation, issuer/audience validation enforcement |
 | 5 | [Jolt Transform Response-Phase Support](#5-jolt-transform-response-phase-support) | Body Transform | Medium | Complete the `phase=RESPONSE` stub; enable JSON-to-JSON transformation on upstream responses |
@@ -86,11 +86,11 @@ Every filter that short-circuits a request (auth failures, rate limit, validatio
 4. **Migrate all filters** to use the shared builder (one filter at a time, non-breaking).
 
 #### Acceptance Criteria
-- [ ] `GatewayProblemResponse` class with builder API
-- [ ] All 12 filter factories that produce error responses migrated
-- [ ] JSON injection tests (malicious `detail` strings) pass
-- [ ] `Content-Type` is always `application/problem+json`
-- [ ] `Retry-After` header present on all 429 responses
+- [x] `GatewayProblemResponse` class with builder API
+- [x] All 12 filter factories that produce error responses migrated
+- [x] JSON injection tests (malicious `detail` strings) pass
+- [x] `Content-Type` is always `application/problem+json`
+- [x] `Retry-After` header present on all 429 responses
 
 ---
 

@@ -1,6 +1,7 @@
 package io.routify.gateway.filter;
 
 import io.routify.common.web.RoutifyHeaders;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -8,7 +9,6 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -102,15 +102,11 @@ public class BasicAuthGatewayFilterFactory
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String errorCode, String detail) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
-        response.getHeaders().set(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"Routify\"");
-        response.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Unauthorized","status":401,\
-                "errorCode":"%s","detail":"%s"}""".formatted(errorCode, detail);
-        return response.writeWith(Mono.just(
-                response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))));
+        return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
+                .errorCode(errorCode)
+                .detail(detail)
+                .header("WWW-Authenticate", "Basic realm=\"Routify\"")
+                .write(exchange);
     }
 
     @Data

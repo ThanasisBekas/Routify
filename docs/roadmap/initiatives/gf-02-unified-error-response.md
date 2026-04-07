@@ -54,11 +54,11 @@ public final class GatewayProblemResponse {
 5. Complete the response: set status code, write body, return `Mono<Void>`.
 
 **Task list:**
-- [ ] Create `GatewayProblemResponse` with builder pattern
-- [ ] Use Jackson `ObjectMapper` (inject via `@Autowired` or static singleton)
-- [ ] Standardize `Content-Type` to `application/problem+json`
-- [ ] Support `Retry-After` and custom headers
-- [ ] Support RFC 9457 extension fields via `extension(key, value)`
+- [x] Create `GatewayProblemResponse` with builder pattern
+- [x] Use Jackson `ObjectMapper` (inject via `@Autowired` or static singleton)
+- [x] Standardize `Content-Type` to `application/problem+json`
+- [x] Support `Retry-After` and custom headers
+- [x] Support RFC 9457 extension fields via `extension(key, value)`
 
 ---
 
@@ -89,9 +89,9 @@ return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
 ```
 
 **Task list:**
-- [ ] Migrate all 7 authentication filter factories
-- [ ] Verify error code consistency across auth filters
-- [ ] Remove inline JSON template code
+- [x] Migrate all 7 authentication filter factories
+- [x] Verify error code consistency across auth filters
+- [x] Remove inline JSON template code
 
 ---
 
@@ -106,9 +106,9 @@ return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
 - `X-RateLimit-Limit: <maxRequests>` (if headers enabled — see GF-03)
 
 **Task list:**
-- [ ] Migrate both rate limit filter factories
-- [ ] Add `Retry-After` header on 429 responses
-- [ ] Remove inline JSON template code
+- [x] Migrate both rate limit filter factories
+- [x] Add `Retry-After` header on 429 responses
+- [x] Remove inline JSON template code
 
 ---
 
@@ -119,12 +119,12 @@ return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
 - `SpelCustomGatewayFilterFactory.java`
 - `AiGatewayFilterFactory.java`
 - `AiModifierGatewayFilterFactory.java`
-- `ConditionalRouteGatewayFilterFactory.java`
+- `TenantContextGatewayFilterFactory.java` (bonus — not originally listed but has identical patterns)
 
 **Task list:**
-- [ ] Migrate all 5 remaining filter factories that produce error responses
-- [ ] Remove ad hoc JSON escaping (`replace("\"", "'")`, `replace("\"", "\\\"")`)
-- [ ] Standardize error codes per filter category
+- [x] Migrate all 5 remaining filter factories that produce error responses
+- [x] Remove ad hoc JSON escaping (`replace("\"", "'")`, `replace("\"", "\\\"")`)
+- [x] Standardize error codes per filter category
 
 ---
 
@@ -142,18 +142,18 @@ return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
 - Extension fields appear in response body
 
 **Task list:**
-- [ ] Write unit tests for `GatewayProblemResponse` builder
-- [ ] Write JSON injection tests with adversarial input
-- [ ] Write integration tests verifying migrated filters produce consistent responses
+- [x] Write unit tests for `GatewayProblemResponse` builder
+- [x] Write JSON injection tests with adversarial input
+- [x] Write integration tests verifying migrated filters produce consistent responses
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `GatewayProblemResponse` class with builder API
-- [ ] All 12 filter factories that produce error responses migrated
-- [ ] JSON injection tests (malicious `detail` strings) pass
-- [ ] `Content-Type` is always `application/problem+json`
-- [ ] `Retry-After` header present on all 429 responses
-- [ ] Average lines of error response code per filter drops from ~12 to ~1
+- [x] `GatewayProblemResponse` class with builder API
+- [x] All 12 filter factories that produce error responses migrated (14 total including bonus filters)
+- [x] JSON injection tests (malicious `detail` strings) pass
+- [x] `Content-Type` is always `application/problem+json`
+- [x] `Retry-After` header present on all 429 responses
+- [x] Average lines of error response code per filter drops from ~12 to ~1
 

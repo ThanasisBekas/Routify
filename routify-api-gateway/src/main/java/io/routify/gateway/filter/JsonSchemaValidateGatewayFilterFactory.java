@@ -5,6 +5,7 @@ import com.networknt.schema.InputFormat;
 import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SpecificationVersion;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -15,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
@@ -150,18 +150,14 @@ public class JsonSchemaValidateGatewayFilterFactory
     }
 
     private Mono<Void> badRequest(ServerWebExchange exchange, String detail, List<Error> violations) {
-        ServerHttpResponse resp = exchange.getResponse();
-        resp.setStatusCode(HttpStatus.BAD_REQUEST);
-        resp.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");
-        String violationsJson = violations.isEmpty() ? "[]"
-                : violations.stream()
-                        .map(v -> "\"" + v.getMessage().replace("\"", "\\\"") + "\"")
-                        .collect(Collectors.joining(",", "[", "]"));
-        String body = """
-                {"type":"about:blank","title":"Bad Request","status":400,\
-                "detail":"%s","violations":%s}""".formatted(
-                detail.replace("\"", "\\\""), violationsJson);
-        return resp.writeWith(Mono.just(resp.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))));
+        List<String> violationMessages = violations.stream()
+                .map(Error::getMessage)
+                .toList();
+        return GatewayProblemResponse.status(HttpStatus.BAD_REQUEST)
+                .errorCode("JSON_SCHEMA_VALIDATION_FAILED")
+                .detail(detail)
+                .extension("violations", violationMessages)
+                .write(exchange);
     }
 
     @Data

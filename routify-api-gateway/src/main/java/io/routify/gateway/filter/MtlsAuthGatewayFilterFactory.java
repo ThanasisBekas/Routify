@@ -4,6 +4,7 @@ import io.routify.gateway.auth.properties.CertificateValuesConfig;
 import io.routify.gateway.certificate.CertificateRegistry;
 import io.routify.gateway.certificate.PemCertificateParser;
 import io.routify.gateway.certificate.VersionedCertificate;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
@@ -11,8 +12,6 @@ import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
-import reactor.core.publisher.Mono;
 
 import javax.security.auth.x500.X500Principal;
 import java.security.cert.Certificate;
@@ -45,8 +44,10 @@ public class MtlsAuthGatewayFilterFactory
             var matchResult = matchIncomingCertificate(config.getValues(), exchange.getRequest());
             if (matchResult == null) {
                 log.error("ClientId/Certificate mismatch. Headers: {}", exchange.getRequest().getHeaders());
-                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "Client Authentication failed. ClientId/ClientCertificate mismatch"));
+                return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
+                        .errorCode("MTLS_AUTH_FAILED")
+                        .detail("Client Authentication failed. ClientId/ClientCertificate mismatch")
+                        .write(exchange);
             }
 
             log.info("Certificate matched: id='{}', v{}, fp='{}', clientId='{}'",

@@ -2,6 +2,7 @@ package io.routify.gateway.filter;
 
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.filter.ratelimit.RateLimitKeyResolver;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -9,7 +10,6 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -138,14 +138,13 @@ public class FixedWindowRateLimitGatewayFilterFactory
     }
 
     private Mono<Void> tooManyRequests(ServerWebExchange exchange, long windowMs) {
-        ServerHttpResponse resp = exchange.getResponse();
-        resp.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
-        resp.getHeaders().set("Content-Type", "application/problem+json");
-        resp.getHeaders().set("X-RateLimit-Window", windowMs + "ms");
-        String body = """
-                {"type":"about:blank","title":"Too Many Requests","status":429,\
-                "detail":"Rate limit exceeded. Please slow down."}""";
-        return resp.writeWith(Mono.just(resp.bufferFactory().wrap(body.getBytes())));
+        long retryAfterSeconds = Math.max(1, windowMs / 1000);
+        return GatewayProblemResponse.status(HttpStatus.TOO_MANY_REQUESTS)
+                .errorCode("RATE_LIMIT_EXCEEDED")
+                .detail("Rate limit exceeded. Please slow down.")
+                .header("Retry-After", retryAfterSeconds)
+                .header("X-RateLimit-Window", windowMs + "ms")
+                .write(exchange);
     }
 
     @Data

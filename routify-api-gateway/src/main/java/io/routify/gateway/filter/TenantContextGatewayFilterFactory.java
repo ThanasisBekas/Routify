@@ -5,6 +5,7 @@ import io.routify.common.observability.RoutifyMetrics;
 import io.routify.common.security.RedisKeys;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.config.GatewayConfigLoader;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import io.routify.gateway.routing.RouteDefinitionBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +18,6 @@ import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -374,29 +374,21 @@ public class TenantContextGatewayFilterFactory
     private static Mono<Void> forbidden(ServerWebExchange exchange,
                                   String errorCode,
                                   String detail) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.FORBIDDEN);
-        response.getHeaders().set("Content-Type", "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Forbidden","status":403,\
-                "errorCode":"%s","detail":"%s"}""".formatted(errorCode, detail);
-        var buffer = response.bufferFactory().wrap(body.getBytes());
-        return response.writeWith(Mono.just(buffer));
+        return GatewayProblemResponse.status(HttpStatus.FORBIDDEN)
+                .errorCode(errorCode)
+                .detail(detail)
+                .write(exchange);
     }
 
     private static Mono<Void> tooManyRequests(ServerWebExchange exchange, YearMonth currentMonth) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
-        response.getHeaders().set("Content-Type", "application/problem+json");
         // Calculate seconds until next month
         var nextMonth = currentMonth.plusMonths(1).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         long retryAfter = java.time.Instant.now().until(nextMonth, ChronoUnit.SECONDS);
-        response.getHeaders().set("Retry-After", String.valueOf(retryAfter));
-        String body = """
-                {"type":"about:blank","title":"Too Many Requests","status":429,\
-                "errorCode":"QUOTA_EXCEEDED","detail":"Monthly request quota exceeded. Retry after billing period reset."}""";
-        var buffer = response.bufferFactory().wrap(body.getBytes());
-        return response.writeWith(Mono.just(buffer));
+        return GatewayProblemResponse.status(HttpStatus.TOO_MANY_REQUESTS)
+                .errorCode("QUOTA_EXCEEDED")
+                .detail("Monthly request quota exceeded. Retry after billing period reset.")
+                .header("Retry-After", retryAfter)
+                .write(exchange);
     }
 
     public static class Config {

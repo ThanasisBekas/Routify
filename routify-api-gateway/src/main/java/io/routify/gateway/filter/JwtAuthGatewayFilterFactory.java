@@ -13,10 +13,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -195,15 +195,10 @@ public class JwtAuthGatewayFilterFactory
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String errorCode, String detail) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
-        response.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Unauthorized","status":401,
-                 "errorCode":"%s","detail":"%s"}
-                """.formatted(errorCode, detail).strip();
-        var buffer = response.bufferFactory().wrap(body.getBytes());
-        return response.writeWith(Mono.just(buffer));
+        return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
+                .errorCode(errorCode)
+                .detail(detail)
+                .write(exchange);
     }
 
     /**
