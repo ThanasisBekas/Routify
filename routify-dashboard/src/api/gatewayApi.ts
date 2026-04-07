@@ -109,7 +109,9 @@ export const gatewayApi = {
 
   // ─── Gateway Health Dashboard v2 ─────────────────────────────────────────
   getRouteHealth: (window: HealthTimeWindow = '24h') =>
-    apiClient.get<RouteHealthResponse>(`/api/v1/admin/dashboard/route-health`, { params: { window } }).then((r) => r.data),
+    apiClient
+      .get<RouteHealthResponse>(`/api/v1/admin/dashboard/route-health`, { params: { window } })
+      .then((r) => r.data),
 
   getRouteSloStatus: (routeId: string) =>
     apiClient.get<SloStatus>(`/api/v1/admin/routes/${routeId}/slo-status`).then((r) => r.data),
@@ -118,6 +120,5 @@ export const gatewayApi = {
     apiClient.put(`/api/v1/admin/routes/${routeId}/slo`, slo).then((r) => r.data),
 
   // ─── Multi-Gateway Fleet Status ─────────────────────────────────────────
-  getFleetStatus: () =>
-    apiClient.get<FleetStatusResponse>('/api/v1/admin/gateway/fleet').then((r) => r.data),
+  getFleetStatus: () => apiClient.get<FleetStatusResponse>('/api/v1/admin/gateway/fleet').then((r) => r.data),
 }

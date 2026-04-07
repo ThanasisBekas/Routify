@@ -12,7 +12,11 @@ import { SectionHeader, EmptyState, Card } from '../components/GatewayPrimitives
 import InstanceCard from '../components/InstanceCard'
 
 export default function FleetTab() {
-  const { data: fleet, isLoading, error } = useRealtimeQuery({
+  const {
+    data: fleet,
+    isLoading,
+    error,
+  } = useRealtimeQuery({
     queryKey: ['gateway-fleet'],
     queryFn: gatewayApi.getFleetStatus,
     wsEvents: ['gateway'],
@@ -101,14 +105,9 @@ export default function FleetTab() {
       {/* ── Instance cards grid ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {fleet.instances.map((instance) => (
-          <InstanceCard
-            key={instance.instanceId}
-            instance={instance}
-            globalConfigVersion={fleet.globalConfigVersion}
-          />
+          <InstanceCard key={instance.instanceId} instance={instance} globalConfigVersion={fleet.globalConfigVersion} />
         ))}
       </div>
     </div>
   )
 }
-

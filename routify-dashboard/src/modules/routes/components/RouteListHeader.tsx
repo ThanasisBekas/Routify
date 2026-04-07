@@ -60,11 +60,7 @@ export default function RouteListHeader({
         </div>
 
         <div className="flex items-center gap-2">
-          <ImportExportButtons
-            onExport={onExport}
-            onImportFile={onImportFile}
-            isExporting={isExporting}
-          />
+          <ImportExportButtons onExport={onExport} onImportFile={onImportFile} isExporting={isExporting} />
 
           <button
             onClick={onRefresh}

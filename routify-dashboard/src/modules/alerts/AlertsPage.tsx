@@ -58,8 +58,7 @@ export default function AlertsPage() {
   })
 
   const muteMutation = useMutation({
-    mutationFn: ({ id, minutes }: { id: string; minutes: number }) =>
-      alertsApi.mute(id, { durationMinutes: minutes }),
+    mutationFn: ({ id, minutes }: { id: string; minutes: number }) => alertsApi.mute(id, { durationMinutes: minutes }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alerts'] })
       setMuteMenu(null)
@@ -78,8 +77,7 @@ export default function AlertsPage() {
   })
 
   const rules = data?.content ?? []
-  const isMuted = (rule: AlertRule) =>
-    rule.mutedUntil && new Date(rule.mutedUntil) > new Date()
+  const isMuted = (rule: AlertRule) => rule.mutedUntil && new Date(rule.mutedUntil) > new Date()
 
   const handleEdit = (rule: AlertRule) => {
     setEditingRule(rule)
@@ -200,9 +198,7 @@ export default function AlertsPage() {
                         >
                           {rule.severity}
                         </span>
-                        <span className="text-[10px] text-gray-500">
-                          {STATE_LABELS[rule.currentState]}
-                        </span>
+                        <span className="text-[10px] text-gray-500">{STATE_LABELS[rule.currentState]}</span>
                         {isMuted(rule) && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-500/20 text-gray-400 border border-gray-500/30">
                             Muted
@@ -219,9 +215,7 @@ export default function AlertsPage() {
 
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() =>
-                        setSelectedRule(selectedRule === rule.id ? null : rule.id)
-                      }
+                      onClick={() => setSelectedRule(selectedRule === rule.id ? null : rule.id)}
                       className="p-1.5 rounded-md text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
                       title="History"
                     >
@@ -250,9 +244,7 @@ export default function AlertsPage() {
                             {MUTE_DURATIONS.map((d) => (
                               <button
                                 key={d.value}
-                                onClick={() =>
-                                  muteMutation.mutate({ id: rule.id, minutes: d.value })
-                                }
+                                onClick={() => muteMutation.mutate({ id: rule.id, minutes: d.value })}
                                 className="block w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-white/[0.06] rounded-md transition-colors"
                               >
                                 {d.label}
@@ -268,12 +260,7 @@ export default function AlertsPage() {
                       className="p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
                       title="Edit"
                     >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -285,8 +272,7 @@ export default function AlertsPage() {
 
                     <button
                       onClick={() => {
-                        if (confirm(`Delete alert rule "${rule.name}"?`))
-                          deleteMutation.mutate(rule.id)
+                        if (confirm(`Delete alert rule "${rule.name}"?`)) deleteMutation.mutate(rule.id)
                       }}
                       className="p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                       title="Delete"
@@ -321,4 +307,3 @@ export default function AlertsPage() {
     </div>
   )
 }
-

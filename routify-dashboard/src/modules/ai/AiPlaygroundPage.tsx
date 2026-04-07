@@ -227,10 +227,7 @@ export default function AiPlaygroundPage() {
 
         {/* Right: Test request + verdict */}
         <div className="w-1/2 flex flex-col overflow-y-auto p-5 gap-5">
-          <TestRequestBuilder
-            onRun={(req) => testMutation.mutate(req)}
-            isRunning={testMutation.isPending}
-          />
+          <TestRequestBuilder onRun={(req) => testMutation.mutate(req)} isRunning={testMutation.isPending} />
 
           <div className="border-t border-white/[0.06] pt-4">
             <VerdictDisplay verdict={verdict} isLoading={testMutation.isPending} />
@@ -240,4 +237,3 @@ export default function AiPlaygroundPage() {
     </div>
   )
 }
-

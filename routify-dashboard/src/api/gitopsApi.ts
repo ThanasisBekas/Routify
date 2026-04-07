@@ -11,7 +11,5 @@ export const gitopsApi = {
   getHistory: () => apiClient.get<ReconciliationResult[]>(`${BASE}/history`).then((r) => r.data),
 
   /** Trigger an immediate reconciliation (Sync Now). */
-  triggerSync: () =>
-    apiClient.post<{ status: string; outcome: string }>(`${BASE}/sync`).then((r) => r.data),
+  triggerSync: () => apiClient.post<{ status: string; outcome: string }>(`${BASE}/sync`).then((r) => r.data),
 }
-

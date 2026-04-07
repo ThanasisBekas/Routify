@@ -37,7 +37,14 @@ export default function ImportExportButtons({ onExport, onImportFile, isExportin
         {showExportMenu && (
           <>
             {/* Backdrop */}
-            <div className="fixed inset-0 z-10" role="presentation" onClick={() => setShowExportMenu(false)} onKeyDown={(e) => { if (e.key === 'Escape') setShowExportMenu(false) }} />
+            <div
+              className="fixed inset-0 z-10"
+              role="presentation"
+              onClick={() => setShowExportMenu(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setShowExportMenu(false)
+              }}
+            />
             {/* Dropdown menu */}
             <div className="absolute right-0 mt-1 w-44 bg-[#1a1d27] border border-white/[0.08] rounded-lg shadow-xl z-20 py-1">
               <button
@@ -93,4 +100,3 @@ export default function ImportExportButtons({ onExport, onImportFile, isExportin
     </div>
   )
 }
-

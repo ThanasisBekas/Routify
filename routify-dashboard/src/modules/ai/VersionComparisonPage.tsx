@@ -63,9 +63,7 @@ export default function VersionComparisonPage() {
   if (!filterId) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-gray-500 text-sm">
-          Navigate here from the AI Playground with a filter selected.
-        </p>
+        <p className="text-gray-500 text-sm">Navigate here from the AI Playground with a filter selected.</p>
       </div>
     )
   }
@@ -148,14 +146,9 @@ export default function VersionComparisonPage() {
               { info: versionAInfo, label: 'A' },
               { info: versionBInfo, label: 'B' },
             ].map(({ info, label }) => (
-              <div
-                key={label}
-                className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-2"
-              >
+              <div key={label} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-white">
-                    v{info.version}
-                  </span>
+                  <span className="text-sm font-bold text-white">v{info.version}</span>
                   <span
                     className={cn(
                       'px-1.5 py-0.5 text-[10px] font-bold rounded border',
@@ -192,4 +185,3 @@ export default function VersionComparisonPage() {
     </div>
   )
 }
-

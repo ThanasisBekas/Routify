@@ -28,10 +28,13 @@ export const aiApi = {
     promptOverride?: string
   }) =>
     apiClient
-      .post<{ action: string; reason: string; confidence: number; latencyMs?: number; cached?: boolean }>(
-        `${AI_BASE}-filter/test-policy`,
-        req,
-      )
+      .post<{
+        action: string
+        reason: string
+        confidence: number
+        latencyMs?: number
+        cached?: boolean
+      }>(`${AI_BASE}-filter/test-policy`, req)
       .then((r) => r.data),
 
   // ─── AI Modifier (mutation/test) ──────────────────────────────────────────

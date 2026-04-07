@@ -27,4 +27,3 @@ export default function PromptEditor({ value, onChange, disabled }: Props) {
     </div>
   )
 }
-

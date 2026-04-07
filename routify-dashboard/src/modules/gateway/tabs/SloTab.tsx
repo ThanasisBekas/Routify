@@ -28,8 +28,12 @@ function ErrorBudgetBar({ budget }: { budget: SloStatus['errorBudget'] }) {
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-[10px]">
         <span className="text-gray-500">Error Budget</span>
-        <span className={cn('font-semibold', exceeded ? 'text-red-400' : pct > 80 ? 'text-amber-400' : 'text-emerald-400')}>
-          {exceeded ? `${Math.abs(budget.remaining).toFixed(0)} over budget` : `${budget.remaining.toFixed(0)} remaining`}
+        <span
+          className={cn('font-semibold', exceeded ? 'text-red-400' : pct > 80 ? 'text-amber-400' : 'text-emerald-400')}
+        >
+          {exceeded
+            ? `${Math.abs(budget.remaining).toFixed(0)} over budget`
+            : `${budget.remaining.toFixed(0)} remaining`}
         </span>
       </div>
       <div className="w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
@@ -117,7 +121,10 @@ function SloConfigModal({
             <h3 className="text-sm font-bold text-white">Edit SLO Targets</h3>
             <p className="text-xs text-gray-500 mt-0.5 font-mono">{routeName}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-all">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/[0.06] transition-all"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -131,7 +138,9 @@ function SloConfigModal({
               {...register('availabilityTarget', { valueAsNumber: true })}
               className="w-full px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             />
-            {errors.availabilityTarget && <p className="text-[10px] text-red-400">{errors.availabilityTarget.message}</p>}
+            {errors.availabilityTarget && (
+              <p className="text-[10px] text-red-400">{errors.availabilityTarget.message}</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -141,7 +150,9 @@ function SloConfigModal({
               {...register('latencyP99TargetMs', { valueAsNumber: true })}
               className="w-full px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             />
-            {errors.latencyP99TargetMs && <p className="text-[10px] text-red-400">{errors.latencyP99TargetMs.message}</p>}
+            {errors.latencyP99TargetMs && (
+              <p className="text-[10px] text-red-400">{errors.latencyP99TargetMs.message}</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -151,11 +162,17 @@ function SloConfigModal({
               {...register('evaluationWindowHours', { valueAsNumber: true })}
               className="w-full px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             />
-            {errors.evaluationWindowHours && <p className="text-[10px] text-red-400">{errors.evaluationWindowHours.message}</p>}
+            {errors.evaluationWindowHours && (
+              <p className="text-[10px] text-red-400">{errors.evaluationWindowHours.message}</p>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-xs text-gray-400 hover:text-white transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs text-gray-400 hover:text-white transition-colors"
+            >
               Cancel
             </button>
             <button
@@ -174,13 +191,7 @@ function SloConfigModal({
 
 // ─── SLO Route Row ──────────────────────────────────────────────────────────
 
-function SloRouteRow({
-  route,
-  onEdit,
-}: {
-  route: RouteHealthEntry
-  onEdit: () => void
-}) {
+function SloRouteRow({ route, onEdit }: { route: RouteHealthEntry; onEdit: () => void }) {
   const { data: sloStatus } = useRealtimeQuery({
     queryKey: ['slo-status', route.routeId],
     queryFn: () => gatewayApi.getRouteSloStatus(route.routeId),
@@ -188,18 +199,18 @@ function SloRouteRow({
     staleTime: 60_000,
   })
 
-  const availability = route.totalRequests > 0
-    ? (1 - route.errorRate) * 100
-    : 100
+  const availability = route.totalRequests > 0 ? (1 - route.errorRate) * 100 : 100
 
   const hasData = !!sloStatus
   const exceeded = hasData && !sloStatus.availabilitySloMet
 
   return (
-    <div className={cn(
-      'rounded-xl border p-4 space-y-3',
-      exceeded ? 'border-red-500/20 bg-red-500/[0.03]' : 'border-white/[0.07] bg-white/[0.02]',
-    )}>
+    <div
+      className={cn(
+        'rounded-xl border p-4 space-y-3',
+        exceeded ? 'border-red-500/20 bg-red-500/[0.03]' : 'border-white/[0.07] bg-white/[0.02]',
+      )}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <div className="text-sm font-medium text-white font-mono truncate">{route.routeName}</div>
@@ -248,7 +259,12 @@ function SloRouteRow({
         </div>
         <div className="bg-white/[0.04] rounded-lg px-3 py-2">
           <div className="text-gray-500 mb-0.5">Actual</div>
-          <div className={cn('font-semibold', availability >= (sloStatus?.slo.availabilityTarget ?? 99.9) ? 'text-emerald-400' : 'text-red-400')}>
+          <div
+            className={cn(
+              'font-semibold',
+              availability >= (sloStatus?.slo.availabilityTarget ?? 99.9) ? 'text-emerald-400' : 'text-red-400',
+            )}
+          >
             {availability.toFixed(2)}%
           </div>
         </div>
@@ -258,7 +274,12 @@ function SloRouteRow({
         </div>
         <div className="bg-white/[0.04] rounded-lg px-3 py-2">
           <div className="text-gray-500 mb-0.5">P99 Actual</div>
-          <div className={cn('font-semibold', route.p99LatencyMs <= (sloStatus?.slo.latencyP99TargetMs ?? 1000) ? 'text-emerald-400' : 'text-red-400')}>
+          <div
+            className={cn(
+              'font-semibold',
+              route.p99LatencyMs <= (sloStatus?.slo.latencyP99TargetMs ?? 1000) ? 'text-emerald-400' : 'text-red-400',
+            )}
+          >
             {route.p99LatencyMs.toFixed(0)}ms
           </div>
         </div>
@@ -296,7 +317,8 @@ export default function SloTab() {
       <div>
         <h2 className="text-base font-semibold text-white">SLO Tracking</h2>
         <p className="text-sm text-gray-400 mt-0.5">
-          Set availability and latency targets per route. Error budgets are computed over the configured evaluation window.
+          Set availability and latency targets per route. Error budgets are computed over the configured evaluation
+          window.
         </p>
       </div>
 
@@ -336,4 +358,3 @@ export default function SloTab() {
     </div>
   )
 }
-

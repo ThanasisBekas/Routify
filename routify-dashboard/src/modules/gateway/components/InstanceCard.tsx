@@ -106,11 +106,7 @@ export default function InstanceCard({ instance, globalConfigVersion }: Instance
           )}
         >
           v{instance.configVersion}
-          {isVersionBehind && (
-            <span className="ml-1 text-[10px] text-amber-500">
-              (global: v{globalConfigVersion})
-            </span>
-          )}
+          {isVersionBehind && <span className="ml-1 text-[10px] text-amber-500">(global: v{globalConfigVersion})</span>}
         </span>
       </div>
 
@@ -118,7 +114,9 @@ export default function InstanceCard({ instance, globalConfigVersion }: Instance
       {instance.status === 'STALE' && (
         <div className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] px-3 py-2 flex items-center gap-2">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-          <span className="text-xs text-amber-300/90">Config version behind — this instance may serve stale routes</span>
+          <span className="text-xs text-amber-300/90">
+            Config version behind — this instance may serve stale routes
+          </span>
         </div>
       )}
 
@@ -156,4 +154,3 @@ export default function InstanceCard({ instance, globalConfigVersion }: Instance
     </div>
   )
 }
-

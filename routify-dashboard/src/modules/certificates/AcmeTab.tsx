@@ -4,24 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
-import {
-  ShieldCheck,
-  Plus,
-  Globe,
-  Loader2,
-  AlertTriangle,
-  CheckCircle2,
-  RefreshCw,
-} from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
+import { ShieldCheck, Plus, Globe, Loader2, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { certVaultApi } from '../../api/certVaultApi'
 import { extractApiError } from '../../lib/utils'
 import { useAuthStore } from '../../store/authStore'
@@ -46,10 +30,7 @@ function computeChartData(orders: AcmeOrderDto[]) {
     .filter((o) => o.status === 'COMPLETED' && o.nextRenewalAt)
     .map((o) => ({
       domain: o.domain.length > 20 ? o.domain.slice(0, 20) + '…' : o.domain,
-      daysUntilRenewal: Math.max(
-        0,
-        Math.ceil((new Date(o.nextRenewalAt!).getTime() - now) / 86_400_000),
-      ),
+      daysUntilRenewal: Math.max(0, Math.ceil((new Date(o.nextRenewalAt!).getTime() - now) / 86_400_000)),
     }))
 }
 
@@ -65,7 +46,11 @@ function RenewalTimeline({ chartData }: { chartData: ReturnType<typeof computeCh
       <ResponsiveContainer width="100%" height={180}>
         <BarChart data={chartData} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-          <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10 }} label={{ value: 'Days until renewal', position: 'bottom', fill: '#6b7280', fontSize: 10 }} />
+          <XAxis
+            type="number"
+            tick={{ fill: '#6b7280', fontSize: 10 }}
+            label={{ value: 'Days until renewal', position: 'bottom', fill: '#6b7280', fontSize: 10 }}
+          />
           <YAxis type="category" dataKey="domain" tick={{ fill: '#9ca3af', fontSize: 10 }} width={130} />
           <Tooltip
             contentStyle={{ background: '#1a1d27', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
@@ -216,9 +201,7 @@ export default function AcmeTab() {
           </div>
           <div>
             <h2 className="text-base font-bold text-white">ACME / Auto-Renew</h2>
-            <p className="text-xs text-gray-500">
-              Automated certificate lifecycle via Let&apos;s Encrypt / ZeroSSL
-            </p>
+            <p className="text-xs text-gray-500">Automated certificate lifecycle via Let&apos;s Encrypt / ZeroSSL</p>
           </div>
         </div>
         <button
@@ -271,9 +254,7 @@ export default function AcmeTab() {
       {/* Order List */}
       <div className="flex items-center gap-2 mb-3">
         <Globe className="w-4 h-4 text-gray-500" />
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          ACME Orders ({orders.length})
-        </h3>
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">ACME Orders ({orders.length})</h3>
       </div>
 
       {ordersLoading ? (
@@ -288,8 +269,8 @@ export default function AcmeTab() {
           <div>
             <p className="text-sm font-semibold text-gray-200 mb-1">No ACME certificates yet</p>
             <p className="text-xs text-gray-500 leading-relaxed max-w-sm">
-              Register an ACME account, then issue certificates for your domains. They&apos;ll be
-              auto-renewed 30 days before expiry.
+              Register an ACME account, then issue certificates for your domains. They&apos;ll be auto-renewed 30 days
+              before expiry.
             </p>
           </div>
           <button
@@ -322,4 +303,3 @@ export default function AcmeTab() {
     </div>
   )
 }
-

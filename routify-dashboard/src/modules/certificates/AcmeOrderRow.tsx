@@ -1,15 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  RefreshCw,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  XCircle,
-  Loader2,
-  Globe,
-  Calendar,
-} from 'lucide-react'
+import { RefreshCw, CheckCircle2, Clock, AlertTriangle, XCircle, Loader2, Globe, Calendar } from 'lucide-react'
 import { certVaultApi } from '../../api/certVaultApi'
 import { extractApiError } from '../../lib/utils'
 import { cn } from '../../lib/utils'
@@ -49,13 +40,7 @@ function formatDate(iso?: string) {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-export default function AcmeOrderRow({
-  order,
-  tenantId,
-}: {
-  order: AcmeOrderDto
-  tenantId: string
-}) {
+export default function AcmeOrderRow({ order, tenantId }: { order: AcmeOrderDto; tenantId: string }) {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
   const statusConfig = STATUS_CONFIG[order.status]
@@ -170,4 +155,3 @@ export default function AcmeOrderRow({
     </div>
   )
 }
-

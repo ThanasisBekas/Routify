@@ -61,8 +61,7 @@ export const tenantsApi = {
   reactivate: (id: string) => apiClient.post<TenantDto>(`/api/v1/admin/tenants/${id}/reactivate`).then((r) => r.data),
 
   /** Current usage vs plan limits — requires auth. */
-  getUsage: (id: string) =>
-    apiClient.get<TenantUsageCurrent>(`/api/v1/admin/tenants/${id}/usage`).then((r) => r.data),
+  getUsage: (id: string) => apiClient.get<TenantUsageCurrent>(`/api/v1/admin/tenants/${id}/usage`).then((r) => r.data),
 
   /** Daily usage history (default 30 days) — requires auth. */
   getUsageHistory: (id: string, days = 30) =>

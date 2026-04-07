@@ -58,4 +58,3 @@ export default function TraceLink({ correlationId, className, compact = false }:
     </a>
   )
 }
-

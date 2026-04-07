@@ -1308,4 +1308,3 @@ export interface UpdateAlertRuleRequest {
 export interface MuteAlertRequest {
   durationMinutes: number
 }
-

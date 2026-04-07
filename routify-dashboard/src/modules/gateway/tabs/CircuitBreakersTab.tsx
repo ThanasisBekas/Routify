@@ -87,9 +87,7 @@ function CbDetailCard({
           <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-none">
             {history.map((t, i) => (
               <div key={i} className="flex items-center gap-2 text-[10px]">
-                <span className="text-gray-600 font-mono w-16 shrink-0">
-                  {new Date(t.at).toLocaleTimeString()}
-                </span>
+                <span className="text-gray-600 font-mono w-16 shrink-0">{new Date(t.at).toLocaleTimeString()}</span>
                 <span className="text-gray-500">{t.from}</span>
                 <span className="text-gray-600">→</span>
                 <span
@@ -115,6 +113,7 @@ interface Props {
   config: GatewayConfig
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function CircuitBreakersTab({ config: _config }: Props) {
   const wsCbStates = useWsStore((s) => s.circuitBreakers)
   const wsStatus = useWsStore((s) => s.status)
@@ -149,18 +148,17 @@ export default function CircuitBreakersTab({ config: _config }: Props) {
 
       if (prevNorm && prevNorm !== norm) {
         const transitions = newHistory[name] ?? []
-        newHistory[name] = [
-          { from: prevNorm, to: norm, at: new Date().toISOString() },
-          ...transitions,
-        ].slice(0, 10)
+        newHistory[name] = [{ from: prevNorm, to: norm, at: new Date().toISOString() }, ...transitions].slice(0, 10)
       }
 
       prev[name] = norm
     }
 
     prevStatesRef.current = prev
-    if (Object.keys(newHistory).length !== Object.keys(cbHistory).length ||
-        JSON.stringify(newHistory) !== JSON.stringify(cbHistory)) {
+    if (
+      Object.keys(newHistory).length !== Object.keys(cbHistory).length ||
+      JSON.stringify(newHistory) !== JSON.stringify(cbHistory)
+    ) {
       setCbHistory(newHistory)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,9 +174,7 @@ export default function CircuitBreakersTab({ config: _config }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-white">Circuit Breakers</h2>
-          <p className="text-sm text-gray-400 mt-0.5">
-            Live circuit breaker states updated via WebSocket — no polling
-          </p>
+          <p className="text-sm text-gray-400 mt-0.5">Live circuit breaker states updated via WebSocket — no polling</p>
         </div>
         <div className="flex items-center gap-3">
           {wsStatus === 'CONNECTED' && (
@@ -202,7 +198,9 @@ export default function CircuitBreakersTab({ config: _config }: Props) {
         </div>
         <div className="bg-white/[0.025] rounded-lg px-4 py-3 border border-white/[0.05]">
           <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 font-medium">Half-Open</div>
-          <div className={cn('text-lg font-bold', halfOpenCbs > 0 ? 'text-amber-400' : 'text-emerald-400')}>{halfOpenCbs}</div>
+          <div className={cn('text-lg font-bold', halfOpenCbs > 0 ? 'text-amber-400' : 'text-emerald-400')}>
+            {halfOpenCbs}
+          </div>
         </div>
       </div>
 
@@ -215,12 +213,7 @@ export default function CircuitBreakersTab({ config: _config }: Props) {
               return (order[a.state?.toUpperCase()] ?? 3) - (order[b.state?.toUpperCase()] ?? 3)
             })
             .map(([name, state]) => (
-              <CbDetailCard
-                key={name}
-                name={name}
-                state={state}
-                history={cbHistory[name] ?? []}
-              />
+              <CbDetailCard key={name} name={name} state={state} history={cbHistory[name] ?? []} />
             ))}
         </div>
       ) : (
@@ -234,4 +227,3 @@ export default function CircuitBreakersTab({ config: _config }: Props) {
     </div>
   )
 }
-

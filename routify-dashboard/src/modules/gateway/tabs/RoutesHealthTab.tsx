@@ -53,9 +53,7 @@ function LatencyHeatmap({ routes }: { routes: RouteHealthEntry[] }) {
 
   return (
     <div className="space-y-2">
-      <div className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
-        P99 Latency Heatmap
-      </div>
+      <div className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">P99 Latency Heatmap</div>
       <div className="grid gap-2" style={{ gridTemplateColumns: `180px repeat(4, 1fr)` }}>
         {/* Header row */}
         <div className="text-[10px] text-gray-600 font-medium">Route</div>
@@ -71,25 +69,37 @@ function LatencyHeatmap({ routes }: { routes: RouteHealthEntry[] }) {
             </div>
             <div
               key={`p50-${route.routeId}`}
-              className={cn('rounded-md text-center text-xs font-semibold text-white py-1.5', latencyColor(route.p50LatencyMs))}
+              className={cn(
+                'rounded-md text-center text-xs font-semibold text-white py-1.5',
+                latencyColor(route.p50LatencyMs),
+              )}
             >
               {route.p50LatencyMs.toFixed(0)}ms
             </div>
             <div
               key={`p95-${route.routeId}`}
-              className={cn('rounded-md text-center text-xs font-semibold text-white py-1.5', latencyColor(route.p95LatencyMs))}
+              className={cn(
+                'rounded-md text-center text-xs font-semibold text-white py-1.5',
+                latencyColor(route.p95LatencyMs),
+              )}
             >
               {route.p95LatencyMs.toFixed(0)}ms
             </div>
             <div
               key={`p99-${route.routeId}`}
-              className={cn('rounded-md text-center text-xs font-semibold text-white py-1.5', latencyColor(route.p99LatencyMs))}
+              className={cn(
+                'rounded-md text-center text-xs font-semibold text-white py-1.5',
+                latencyColor(route.p99LatencyMs),
+              )}
             >
               {route.p99LatencyMs.toFixed(0)}ms
             </div>
             <div
               key={`avg-${route.routeId}`}
-              className={cn('rounded-md text-center text-xs font-semibold text-white py-1.5', latencyColor(route.avgLatencyMs))}
+              className={cn(
+                'rounded-md text-center text-xs font-semibold text-white py-1.5',
+                latencyColor(route.avgLatencyMs),
+              )}
             >
               {route.avgLatencyMs.toFixed(0)}ms
             </div>
@@ -120,8 +130,7 @@ function LatencyHeatmap({ routes }: { routes: RouteHealthEntry[] }) {
 // ─── Per-route health row ───────────────────────────────────────────────────
 
 function RouteHealthRow({ route }: { route: RouteHealthEntry }) {
-  const statusCodes = Object.entries(route.statusCodeDistribution)
-    .sort(([a], [b]) => Number(a) - Number(b))
+  const statusCodes = Object.entries(route.statusCodeDistribution).sort(([a], [b]) => Number(a) - Number(b))
 
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
@@ -164,7 +173,10 @@ function RouteHealthRow({ route }: { route: RouteHealthEntry }) {
             ].map((m) => (
               <div key={m.label} className="bg-white/[0.04] rounded-lg px-2 py-1.5 text-center">
                 <div className="text-[9px] text-gray-500 mb-0.5">{m.label}</div>
-                <div className="font-semibold text-white">{m.value.toFixed(0)}<span className="text-gray-500 text-[9px]">ms</span></div>
+                <div className="font-semibold text-white">
+                  {m.value.toFixed(0)}
+                  <span className="text-gray-500 text-[9px]">ms</span>
+                </div>
               </div>
             ))}
           </div>
@@ -175,11 +187,17 @@ function RouteHealthRow({ route }: { route: RouteHealthEntry }) {
           <div className="flex flex-wrap gap-1.5">
             {statusCodes.map(([code, count]) => {
               const c = Number(code)
-              const cls = c >= 500 ? 'text-red-400 bg-red-500/10 border-red-500/20'
-                : c >= 400 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+              const cls =
+                c >= 500
+                  ? 'text-red-400 bg-red-500/10 border-red-500/20'
+                  : c >= 400
+                    ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                    : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
               return (
-                <span key={code} className={cn('text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border', cls)}>
+                <span
+                  key={code}
+                  className={cn('text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border', cls)}
+                >
                   {code}: {Number(count).toLocaleString()}
                 </span>
               )
@@ -254,4 +272,3 @@ export default function RoutesHealthTab() {
     </div>
   )
 }
-

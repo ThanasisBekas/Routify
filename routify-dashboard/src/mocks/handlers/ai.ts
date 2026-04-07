@@ -252,7 +252,7 @@ export const aiHandlers = [
       ...v,
       tenantId: MOCK_TENANT_ID,
       promptText: `Block requests that contain SQL injection patterns, XSS payloads, or attempt to access admin endpoints without proper authentication. Version ${v.version}.`,
-      correctCount: Math.floor((v.accuracyScore ?? 0) * v.totalDecisions / 100),
+      correctCount: Math.floor(((v.accuracyScore ?? 0) * v.totalDecisions) / 100),
     }
     return HttpResponse.json(detail)
   }),

@@ -31,11 +31,7 @@ export default function VerdictDisplay({ verdict, isLoading }: Props) {
   }
 
   if (!verdict) {
-    return (
-      <div className="py-8 text-center text-gray-600 text-sm">
-        Run a test to see the AI verdict
-      </div>
-    )
+    return <div className="py-8 text-center text-gray-600 text-sm">Run a test to see the AI verdict</div>
   }
 
   const config = VERDICT_CONFIG[verdict.action] ?? VERDICT_CONFIG.ALLOW
@@ -49,9 +45,7 @@ export default function VerdictDisplay({ verdict, isLoading }: Props) {
         <div className="flex items-center gap-2 mb-2">
           <Icon className={cn('w-5 h-5', config.color)} />
           <span className={cn('text-lg font-bold', config.color)}>{verdict.action}</span>
-          <span className="text-xs text-gray-500 ml-auto">
-            confidence: {(verdict.confidence * 100).toFixed(0)}%
-          </span>
+          <span className="text-xs text-gray-500 ml-auto">confidence: {(verdict.confidence * 100).toFixed(0)}%</span>
         </div>
         <p className="text-sm text-gray-300 leading-relaxed">{verdict.reason}</p>
         <div className="flex gap-4 mt-3 text-[11px] text-gray-500">
@@ -62,4 +56,3 @@ export default function VerdictDisplay({ verdict, isLoading }: Props) {
     </div>
   )
 }
-
