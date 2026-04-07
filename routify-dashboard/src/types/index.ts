@@ -928,3 +928,51 @@ export interface WebhookTestResult {
   responseStatus?: number
   message: string
 }
+
+// ─── Gateway Health Dashboard v2 ──────────────────────────────────────────────
+
+export interface RouteHealthEntry {
+  routeId: string
+  routeName: string
+  totalRequests: number
+  errorCount: number
+  errorRate: number
+  p50LatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  avgLatencyMs: number
+  statusCodeDistribution: Record<number, number>
+}
+
+export interface RouteHealthResponse {
+  routes: RouteHealthEntry[]
+}
+
+export type HealthTimeWindow = '1h' | '24h' | '7d'
+
+export interface RouteSloConfig {
+  availabilityTarget: number
+  latencyP99TargetMs: number
+  evaluationWindowHours: number
+  configured?: boolean
+}
+
+export interface SloStatus {
+  routeId: string
+  slo: RouteSloConfig & { configured: boolean }
+  actual: {
+    availability: number
+    latencyP99Ms: number
+    totalRequests: number
+    errorCount: number
+  }
+  errorBudget: {
+    totalBudget: number
+    consumed: number
+    remaining: number
+    percentConsumed: number
+  }
+  latencySloMet: boolean
+  availabilitySloMet: boolean
+}
+

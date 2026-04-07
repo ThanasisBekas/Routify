@@ -32,6 +32,9 @@ import {
   Wifi,
   Database,
   Layers,
+  HeartPulse,
+  Target,
+  Zap,
 } from 'lucide-react'
 import { gatewayApi } from '../../api/gatewayApi'
 import { useWsStore } from '../../store/wsStore'
@@ -49,11 +52,17 @@ import AuthProvidersTab from './tabs/AuthProvidersTab'
 import NetworkingTab from './tabs/NetworkingTab'
 import TenantIsolationTab from './tabs/TenantIsolationTab'
 import GlobalFiltersTab from './tabs/GlobalFiltersTab'
+import RoutesHealthTab from './tabs/RoutesHealthTab'
+import SloTab from './tabs/SloTab'
+import CircuitBreakersTab from './tabs/CircuitBreakersTab'
 
 // ─── Tab catalogue ────────────────────────────────────────────────────────────
 
 type GatewayTab =
   | 'overview'
+  | 'routes-health'
+  | 'slos'
+  | 'circuit-breakers'
   | 'cors'
   | 'security'
   | 'rate-limit'
@@ -70,6 +79,9 @@ const TABS: {
   description: string
 }[] = [
   { id: 'overview', label: 'Overview', icon: Activity, description: 'Live health and KPI stats' },
+  { id: 'routes-health', label: 'Routes Health', icon: HeartPulse, description: 'Per-route latency heatmap and error rates' },
+  { id: 'slos', label: 'SLOs', icon: Target, description: 'SLO targets and error budget tracking' },
+  { id: 'circuit-breakers', label: 'Circuit Breakers', icon: Zap, description: 'Live circuit breaker state and history' },
   { id: 'cors', label: 'CORS', icon: Globe, description: 'Cross-origin request policies' },
   { id: 'security', label: 'Security Headers', icon: Shield, description: 'OWASP response headers' },
   { id: 'rate-limit', label: 'Rate Limiting', icon: Gauge, description: 'Global token-bucket policies' },
@@ -195,6 +207,10 @@ export default function GatewayPage() {
       {/* ── Tab Content ──────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto px-6 py-6">
         {activeTab === 'overview' && <OverviewTab config={config} />}
+
+        {activeTab === 'routes-health' && <RoutesHealthTab />}
+        {activeTab === 'slos' && <SloTab />}
+        {activeTab === 'circuit-breakers' && <CircuitBreakersTab config={config} />}
 
         {activeTab === 'cors' && (
           <CorsTab

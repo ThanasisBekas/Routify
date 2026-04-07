@@ -50,10 +50,10 @@ record RouteHealthEntry(
 **Implementation:** Query `request_log` table aggregated by `route_id` within the time window.
 
 **Task list:**
-- [ ] Add `RabbitTopology` constants
-- [ ] Add `QueryRequest.RouteHealthQuery` / `QueryResponse.RouteHealthResponse`
-- [ ] Implement query handler in audit-service (SQL aggregation)
-- [ ] Add index on `request_log(route_id, requested_at)` if not present
+- [x] Add `RabbitTopology` constants
+- [x] Add `QueryRequest.RouteHealthQuery` / `QueryResponse.RouteHealthResponse`
+- [x] Implement query handler in audit-service (SQL aggregation)
+- [x] Add index on `request_log(route_id, requested_at)` if not present
 
 ---
 
@@ -84,11 +84,11 @@ QUEUE_ROUTE_SLO_SAVE = "routify.route-service.route-slo.save";
 ```
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Create `RouteSlo` entity
-- [ ] Create repository
-- [ ] Add RabbitMQ get/save handlers
-- [ ] Add topology constants
+- [x] Create Flyway migration
+- [x] Create `RouteSlo` entity
+- [x] Create repository
+- [x] Add RabbitMQ get/save handlers
+- [x] Add topology constants
 
 ---
 
@@ -133,11 +133,11 @@ double percentConsumed = (consumed / allowedErrors) * 100;
 ```
 
 **Task list:**
-- [ ] Add `getRouteSloStatus(tenantId, routeId)` to `DashboardStatsService`
-- [ ] Query route SLO config via RabbitMQ from route-service
-- [ ] Query actual metrics via RabbitMQ from audit-service
-- [ ] Compute error budget
-- [ ] Add REST endpoint to controller
+- [x] Add `getRouteSloStatus(tenantId, routeId)` to `DashboardStatsService`
+- [x] Query route SLO config via RabbitMQ from route-service
+- [x] Query actual metrics via RabbitMQ from audit-service
+- [x] Compute error budget
+- [x] Add REST endpoint to controller
 
 ---
 
@@ -157,9 +157,9 @@ double percentConsumed = (consumed / allowedErrors) * 100;
 - Live status indicator from WebSocket (`wsStore`).
 
 **Task list:**
-- [ ] Refactor `GatewayPage` into tab layout
-- [ ] Create `OverviewTab` component
-- [ ] Source data from existing `DashboardStatsService`
+- [x] Refactor `GatewayPage` into tab layout
+- [x] Create `OverviewTab` component
+- [x] Source data from existing `DashboardStatsService`
 
 ---
 
@@ -176,12 +176,12 @@ gatewayApi.getRouteHealth(tenantId, window) → admin-api → RabbitMQ → audit
 ```
 
 **Task list:**
-- [ ] Create `RoutesHealthTab` with time window selector
-- [ ] Create `LatencyHeatmap` component (Recharts or custom)
-- [ ] Create per-route health row with sparklines
-- [ ] Add `getRouteHealth()` to `gatewayApi.ts`
-- [ ] Add TypeScript types for health response
-- [ ] Use `useRealtimeQuery` hook for auto-refresh
+- [x] Create `RoutesHealthTab` with time window selector
+- [x] Create `LatencyHeatmap` component (Recharts or custom)
+- [x] Create per-route health row with sparklines
+- [x] Add `getRouteHealth()` to `gatewayApi.ts`
+- [x] Add TypeScript types for health response
+- [x] Use `useRealtimeQuery` hook for auto-refresh
 
 ---
 
@@ -198,11 +198,11 @@ gatewayApi.getRouteHealth(tenantId, window) → admin-api → RabbitMQ → audit
 - Routes exceeding budget are highlighted in red.
 
 **Task list:**
-- [ ] Create `SloTab` component
-- [ ] Create `ErrorBudgetBar` component
-- [ ] Create `SloConfigModal` (React Hook Form + Zod)
-- [ ] Add SLO API functions to `gatewayApi.ts`
-- [ ] Wire save action → Kafka command via admin-api
+- [x] Create `SloTab` component
+- [x] Create `ErrorBudgetBar` component
+- [x] Create `SloConfigModal` (React Hook Form + Zod)
+- [x] Add SLO API functions to `gatewayApi.ts`
+- [x] Wire save action → Kafka command via admin-api
 
 ---
 
@@ -214,9 +214,9 @@ gatewayApi.getRouteHealth(tenantId, window) → admin-api → RabbitMQ → audit
 - State transition timeline (last 10 transitions).
 
 **Task list:**
-- [ ] Create `CircuitBreakersTab` component
-- [ ] Use `wsStore` circuit breaker state for live updates
-- [ ] Add state transition history (stored in Zustand, last 10 per CB)
+- [x] Create `CircuitBreakersTab` component
+- [x] Use `wsStore` circuit breaker state for live updates
+- [x] Add state transition history (stored in Zustand, last 10 per CB)
 
 ---
 
@@ -232,19 +232,19 @@ gatewayApi.getRouteHealth(tenantId, window) → admin-api → RabbitMQ → audit
 - `GRAFANA_BASE_URL` configurable via `VITE_GRAFANA_URL` env var (default `http://localhost:3001`).
 
 **Task list:**
-- [ ] Add `VITE_GRAFANA_URL` env var
-- [ ] Create `TraceLink` component
-- [ ] Add to request log rows in audit module
-- [ ] Add to route health rows
+- [x] Add `VITE_GRAFANA_URL` env var
+- [x] Create `TraceLink` component
+- [x] Add to request log rows in audit module
+- [x] Add to route health rows
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Gateway page loads with 4 tabs: Overview, Routes Health, SLOs, Circuit Breakers
-- [ ] Latency heatmap displays per-route p99 latency with color coding
-- [ ] SLO error budget bar accurately reflects request error rates
-- [ ] Circuit breaker tab updates live via WebSocket without polling
-- [ ] "View Trace" links open Grafana Tempo with the correct trace query
-- [ ] Page loads within 2 seconds including the health data query
+- [x] Gateway page loads with 4 tabs: Overview, Routes Health, SLOs, Circuit Breakers
+- [x] Latency heatmap displays per-route p99 latency with color coding
+- [x] SLO error budget bar accurately reflects request error rates
+- [x] Circuit breaker tab updates live via WebSocket without polling
+- [x] "View Trace" links open Grafana Tempo with the correct trace query
+- [x] Page loads within 2 seconds including the health data query
 

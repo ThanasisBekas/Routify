@@ -12,6 +12,10 @@ import type {
   GatewayTenantIsolationConfig,
   GatewayLiveStatus,
   GlobalFilterEntry,
+  RouteHealthResponse,
+  HealthTimeWindow,
+  SloStatus,
+  RouteSloConfig,
 } from '../types'
 
 const BASE = '/api/v1/admin/gateway'
@@ -101,4 +105,14 @@ export const gatewayApi = {
 
   updateGlobalFilterEntries: (entries: GlobalFilterEntry[]) =>
     apiClient.put<GatewayConfig>(`${BASE}/global-filter-entries`, entries).then((r) => r.data),
+
+  // ─── Gateway Health Dashboard v2 ─────────────────────────────────────────
+  getRouteHealth: (window: HealthTimeWindow = '24h') =>
+    apiClient.get<RouteHealthResponse>(`/api/v1/admin/dashboard/route-health`, { params: { window } }).then((r) => r.data),
+
+  getRouteSloStatus: (routeId: string) =>
+    apiClient.get<SloStatus>(`/api/v1/admin/routes/${routeId}/slo-status`).then((r) => r.data),
+
+  saveRouteSlo: (routeId: string, slo: RouteSloConfig) =>
+    apiClient.put(`/api/v1/admin/routes/${routeId}/slo`, slo).then((r) => r.data),
 }

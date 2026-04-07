@@ -91,6 +91,10 @@ import java.util.UUID;
     // ─── routify-audit-service AI filter ─────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.AiFilterStatsResult.class,     name = "AI_FILTER_STATS_RESULT"),
     @JsonSubTypes.Type(value = QueryResponse.AiFilterDecisionsPage.class,   name = "AI_FILTER_DECISIONS_PAGE"),
+    // ─── routify-audit-service route health ─────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.RouteHealthResponse.class,     name = "ROUTE_HEALTH_RESPONSE"),
+    // ─── routify-route-service SLO ──────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.RouteSloResult.class,          name = "ROUTE_SLO_RESULT"),
     // ─── routify-api-gateway ─────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.GatewayStatus.class,        name = "GATEWAY_STATUS"),
     @JsonSubTypes.Type(value = QueryResponse.CertRegistrySnapshot.class, name = "CERT_REGISTRY_SNAPSHOT"),
@@ -139,6 +143,8 @@ public sealed interface QueryResponse
             QueryResponse.AiModifierVerdict,
             QueryResponse.AiFilterStatsResult,
             QueryResponse.AiFilterDecisionsPage,
+            QueryResponse.RouteHealthResponse,
+            QueryResponse.RouteSloResult,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -981,6 +987,62 @@ public sealed interface QueryResponse
                 Instant evaluatedAt
         ) {}
     }
+
+    // ─── routify-audit-service route health (Gateway Health Dashboard v2) ────
+
+    /**
+     * Per-route health stats for the Gateway Health Dashboard v2 heatmap.
+     *
+     * @param routes List of per-route health entries within the requested window.
+     */
+    record RouteHealthResponse(List<RouteHealthEntry> routes) implements QueryResponse {
+
+        /**
+         * Health statistics for a single route over a time window.
+         *
+         * @param routeId              Route UUID.
+         * @param routeName            Human-readable route name.
+         * @param totalRequests        Total request count in the window.
+         * @param errorCount           Requests with HTTP status >= 400.
+         * @param errorRate            errorCount / totalRequests (0.0–1.0).
+         * @param p50LatencyMs         Median latency in ms.
+         * @param p95LatencyMs         95th-percentile latency in ms.
+         * @param p99LatencyMs         99th-percentile latency in ms.
+         * @param avgLatencyMs         Mean latency in ms.
+         * @param statusCodeDistribution HTTP status code → count map.
+         */
+        public record RouteHealthEntry(
+                UUID   routeId,
+                String routeName,
+                long   totalRequests,
+                long   errorCount,
+                double errorRate,
+                double p50LatencyMs,
+                double p95LatencyMs,
+                double p99LatencyMs,
+                double avgLatencyMs,
+                Map<Integer, Long> statusCodeDistribution
+        ) {}
+    }
+
+    // ─── routify-route-service SLO (Gateway Health Dashboard v2) ─────────────
+
+    /**
+     * SLO configuration for a route (or absence thereof).
+     *
+     * @param routeId              Route UUID.
+     * @param availabilityTarget   Target availability percentage (e.g. 99.9).
+     * @param latencyP99TargetMs   Target p99 latency in ms.
+     * @param evaluationWindowHours Window in hours for SLO evaluation.
+     * @param found                Whether an SLO config exists for this route.
+     */
+    record RouteSloResult(
+            UUID   routeId,
+            double availabilityTarget,
+            int    latencyP99TargetMs,
+            int    evaluationWindowHours,
+            boolean found
+    ) implements QueryResponse {}
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

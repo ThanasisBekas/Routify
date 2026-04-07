@@ -95,6 +95,11 @@ import java.util.UUID;
     // ─── routify-audit-service AI filter stats ────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AiFilterStatsQuery.class,    name = "AI_FILTER_STATS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AiFilterDecisionsQuery.class,name = "AI_FILTER_DECISIONS_QUERY"),
+    // ─── routify-audit-service route health ─────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.RouteHealthQuery.class,      name = "ROUTE_HEALTH_QUERY"),
+    // ─── routify-route-service SLO ──────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.RouteSloGet.class,           name = "ROUTE_SLO_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.RouteSloSave.class,          name = "ROUTE_SLO_SAVE"),
 })
 public sealed interface QueryRequest
         permits
@@ -148,6 +153,9 @@ public sealed interface QueryRequest
             QueryRequest.AiModifierEvaluate,
             QueryRequest.AiFilterStatsQuery,
             QueryRequest.AiFilterDecisionsQuery,
+            QueryRequest.RouteHealthQuery,
+            QueryRequest.RouteSloGet,
+            QueryRequest.RouteSloSave,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -516,6 +524,31 @@ public sealed interface QueryRequest
             String to,
             int    page,
             int    size
+    ) implements QueryRequest {}
+
+    // ─── routify-audit-service route health ─────────────────────────────────
+
+    /**
+     * Per-route health stats (latency percentiles, error rate, status code distribution)
+     * over a configurable time window. Used by the Gateway Health Dashboard v2.
+     *
+     * @param tenantId Tenant to scope the query (required).
+     * @param window   Time window: "1h", "24h", or "7d".
+     */
+    record RouteHealthQuery(UUID tenantId, String window) implements QueryRequest {}
+
+    // ─── routify-route-service SLO ──────────────────────────────────────────
+
+    /** Fetch the SLO configuration for a route. */
+    record RouteSloGet(UUID routeId, UUID tenantId) implements QueryRequest {}
+
+    /** Upsert SLO configuration for a route. */
+    record RouteSloSave(
+            UUID   routeId,
+            UUID   tenantId,
+            double availabilityTarget,
+            int    latencyP99TargetMs,
+            int    evaluationWindowHours
     ) implements QueryRequest {}
 
     /**
