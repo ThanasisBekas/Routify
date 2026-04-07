@@ -1179,6 +1179,109 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── IP Access Control ────────────────────────────────────────────────────
+    case 'IP_ACCESS_CONTROL':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Evaluates the client IP address against a configurable allowlist or denylist.
+            Supports individual IPs, CIDR ranges (IPv4 and IPv6), and{' '}
+            <code className="font-mono text-red-300">X-Forwarded-For</code> parsing for deployments
+            behind load balancers. Runs at <strong className="text-red-300">order −1500</strong> — before
+            all authentication filters.
+          </p>
+
+          <Field label="Mode" hint="DENYLIST blocks matching IPs. ALLOWLIST only allows matching IPs.">
+            <Select
+              value={str('mode', 'DENYLIST')}
+              onChange={(v) => set('mode', v)}
+              options={[
+                {
+                  value: 'DENYLIST',
+                  label: 'Denylist',
+                  description: 'Block requests from IPs in the list — all other IPs are allowed',
+                },
+                {
+                  value: 'ALLOWLIST',
+                  label: 'Allowlist',
+                  description: 'Only allow requests from IPs in the list — all other IPs are blocked',
+                },
+              ]}
+            />
+          </Field>
+
+          <Field
+            label="Addresses"
+            hint="Comma-separated IP addresses and CIDR ranges (e.g. 10.0.0.0/8, 192.168.1.100, 2001:db8::/32, ::1)"
+          >
+            <textarea
+              value={str('addresses')}
+              onChange={(e) => set('addresses', e.target.value)}
+              rows={4}
+              spellCheck={false}
+              className={`${monoInputCls} resize-y`}
+              placeholder="10.0.0.0/8, 192.168.1.100, 172.16.0.0/12"
+            />
+          </Field>
+
+          <SectionTitle>Proxy Settings</SectionTitle>
+          <Toggle
+            label="Trust Proxy (X-Forwarded-For)"
+            description="Resolve the client IP from the X-Forwarded-For header instead of the TCP connection address. Required when behind a load balancer or reverse proxy."
+            checked={bool('trustProxy', true)}
+            onChange={(v) => set('trustProxy', v)}
+          />
+          {bool('trustProxy', true) && (
+            <Field
+              label="Proxy Depth"
+              hint="Which X-Forwarded-For entry to use: 1 = rightmost (last proxy hop), 2 = second-to-last, etc."
+            >
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={num('proxyDepth', 1)}
+                onChange={(e) => set('proxyDepth', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          )}
+
+          <SectionTitle>Rejection Response</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Reject Status" hint="HTTP status code for rejected requests" optional>
+              <input
+                type="number"
+                min={400}
+                max={599}
+                value={num('rejectStatus', 403)}
+                onChange={(e) => set('rejectStatus', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Reject Message" hint="Detail message in the ProblemDetail response" optional>
+              <input
+                value={str('rejectMessage', 'Access denied')}
+                onChange={(e) => set('rejectMessage', e.target.value)}
+                className={inputCls}
+                placeholder="Access denied"
+              />
+            </Field>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              CIDR ranges are compiled once when the filter is applied — there is no per-request overhead.
+              Changes propagate via the standard Kafka hot-reload pipeline without gateway restart.
+              Metrics: <code className="font-mono text-blue-300">routify.filter.ip_access_control.allowed</code> and{' '}
+              <code className="font-mono text-blue-300">routify.filter.ip_access_control.blocked</code> counters
+              (tagged by routeId).
+            </span>
+          </div>
+        </div>
+      )
+
     // ── AI Filter ─────────────────────────────────────────────────────────────
     case 'AI_FILTER':
       return <AiFilterFields config={config} onChange={onChange} />
