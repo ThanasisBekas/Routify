@@ -273,7 +273,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 | 16 | ✅ [OAuth2 Token Relay Filter](#16-oauth2-token-relay-filter) | Authentication | Medium | Exchange incoming token for a downstream-specific token via token exchange (RFC 8693) |
 | 17 | ✅ [GraphQL Depth Limit Filter](#17-graphql-depth-limit-filter) | Validation | Medium | Parses GraphQL queries and rejects those exceeding configurable depth/complexity limits |
 | 18 | ✅ [Response Header Rewrite Filter](#18-response-header-rewrite-filter) | Modification | Medium | Regex-based response header value rewriting (e.g., rewrite `Location` headers for proxy URLs) |
-| 19 | [Idempotency Key Filter](#19-idempotency-key-filter) | Reliability | High | Deduplicates write requests using a client-provided idempotency key stored in Redis |
+| 19 | ✅ [Idempotency Key Filter](#19-idempotency-key-filter) | Reliability | High | Deduplicates write requests using a client-provided idempotency key stored in Redis |
 | 20 | [Request Decompression Filter](#20-request-decompression-filter) | Performance | Medium | Transparently decompresses `gzip`/`br`/`zstd` request bodies before forwarding upstream |
 | 21 | [Mock Response Filter](#21-mock-response-filter) | Developer Experience | Medium | Returns a configurable static JSON/XML response without forwarding to upstream — enables API stubbing |
 | 22 | [Webhook Notification Filter](#22-webhook-notification-filter) | Integration | Medium | Fires a non-blocking webhook POST on configurable request conditions (status code, header match) |
