@@ -31,6 +31,7 @@ const RolesPage = lazy(() => import('./modules/roles/RolesPage'))
 const GitOpsPage = lazy(() => import('./modules/gitops/GitOpsPage'))
 const AiPlaygroundPage = lazy(() => import('./modules/ai/AiPlaygroundPage'))
 const VersionComparisonPage = lazy(() => import('./modules/ai/VersionComparisonPage'))
+const AlertsPage = lazy(() => import('./modules/alerts/AlertsPage'))
 
 /** Minimal full-screen spinner shown while a lazy chunk is loading. */
 function PageLoader() {
@@ -244,6 +245,18 @@ function AppRoutes() {
             <ErrorBoundary label="Version Comparison">
               <Suspense fallback={<PageLoader />}>
                 <VersionComparisonPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* Alerts — platform alerting engine */}
+        <Route
+          path="alerts"
+          element={
+            <ErrorBoundary label="Alerts">
+              <Suspense fallback={<PageLoader />}>
+                <AlertsPage />
               </Suspense>
             </ErrorBoundary>
           }

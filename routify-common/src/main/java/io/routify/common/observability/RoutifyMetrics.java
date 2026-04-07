@@ -86,6 +86,11 @@ public class RoutifyMetrics {
     private final Counter canaryDeployments;
     private final Counter canaryRollbacks;
 
+    // ─── Alerting Engine ──────────────────────────────────────────────────────
+
+    private final Timer   alertEvaluationTimer;
+    private final Counter alertsFired;
+
     public RoutifyMetrics(MeterRegistry registry) {
         this.registry = registry;
 
@@ -130,6 +135,13 @@ public class RoutifyMetrics {
                 .register(registry);
         canaryRollbacks = Counter.builder("routify.canary.rollbacks")
                 .description("Number of canary route rollbacks (manual + auto)")
+                .register(registry);
+
+        alertEvaluationTimer = Timer.builder("routify.alerts.evaluation")
+                .description("Time spent evaluating alert rules per cycle")
+                .register(registry);
+        alertsFired = Counter.builder("routify.alerts.fired")
+                .description("Number of alert rules that transitioned to FIRING")
                 .register(registry);
     }
 
@@ -254,5 +266,10 @@ public class RoutifyMetrics {
 
     public void recordCanaryDeployment() { canaryDeployments.increment(); }
     public void recordCanaryRollback()   { canaryRollbacks.increment(); }
+
+    // ─── Alerting Engine ──────────────────────────────────────────────────────
+
+    public Timer alertEvaluationTimer()   { return alertEvaluationTimer; }
+    public void  recordAlertFired()       { alertsFired.increment(); }
 }
 

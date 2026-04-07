@@ -84,6 +84,24 @@ public class AuditRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_TIME_SERIES).build();
     }
 
+    // ─── Alerting engine queues (Initiative 15) ──────────────────────────────
+
+    @Bean public Queue alertRulesQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ALERT_RULES_QUERY).build();
+    }
+
+    @Bean public Queue alertRulesGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ALERT_RULES_GET).build();
+    }
+
+    @Bean public Queue alertEventsQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ALERT_EVENTS_QUERY).build();
+    }
+
+    @Bean public Queue alertRulesCommandQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ALERT_RULES_COMMAND).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -171,6 +189,32 @@ public class AuditRabbitConfig {
     public Binding auditTimeSeriesBinding(Queue auditTimeSeriesQueue, DirectExchange auditServiceExchange) {
         return BindingBuilder.bind(auditTimeSeriesQueue)
                 .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_TIME_SERIES);
+    }
+
+    // ─── Alerting engine bindings (Initiative 15) ────────────────────────────
+
+    @Bean
+    public Binding alertRulesQueryBinding(Queue alertRulesQueryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(alertRulesQueryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_ALERT_RULES_QUERY);
+    }
+
+    @Bean
+    public Binding alertRulesGetBinding(Queue alertRulesGetQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(alertRulesGetQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_ALERT_RULES_GET);
+    }
+
+    @Bean
+    public Binding alertEventsQueryBinding(Queue alertEventsQueryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(alertEventsQueryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_ALERT_EVENTS_QUERY);
+    }
+
+    @Bean
+    public Binding alertRulesCommandBinding(Queue alertRulesCommandQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(alertRulesCommandQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_ALERT_RULES_COMMAND);
     }
 
     // ─── Message converter & template ─────────────────────────────────────────

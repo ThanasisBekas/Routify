@@ -52,6 +52,12 @@ public enum WebhookEventType {
     // ─── Canary routing events (Initiative 14) ──────────────────────────────────
     CANARY_DEPLOYED,
     CANARY_PROMOTED,
-    CANARY_ROLLBACK
+    CANARY_ROLLBACK,
+
+    // ─── Alerting engine events (Initiative 15) ──────────────────────────────────
+    /** Triggered when an alert rule transitions from PENDING to FIRING. */
+    ALERT_FIRED,
+    /** Triggered when a previously firing alert resolves back to OK. */
+    ALERT_RESOLVED
 }
 

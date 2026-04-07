@@ -3,11 +3,15 @@ package io.routify.audit.messaging;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.routify.audit.domain.AiFilterDecision;
 import io.routify.audit.domain.AiPromptVersion;
+import io.routify.audit.domain.AlertEvent;
+import io.routify.audit.domain.AlertRule;
 import io.routify.audit.domain.AuditLogEntry;
 import io.routify.audit.domain.RequestLog;
 import io.routify.audit.replay.FailedRequestReplayService;
 import io.routify.audit.repository.AiFilterDecisionRepository;
 import io.routify.audit.repository.AiPromptVersionRepository;
+import io.routify.audit.repository.AlertEventRepository;
+import io.routify.audit.repository.AlertRuleRepository;
 import io.routify.audit.repository.AuditLogRepository;
 import io.routify.audit.repository.RequestLogRepository;
 import io.routify.audit.repository.TenantUsageDailyRepository;
@@ -51,6 +55,8 @@ public class AuditRabbitHandler {
     private final AiFilterDecisionRepository aiFilterDecisionRepository;
     private final AiPromptVersionRepository  aiPromptVersionRepository;
     private final TenantUsageDailyRepository tenantUsageDailyRepository;
+    private final AlertRuleRepository        alertRuleRepository;
+    private final AlertEventRepository       alertEventRepository;
     private final FailedRequestReplayService replayService;
     private final ObjectMapper               objectMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -611,5 +617,140 @@ public class AuditRabbitHandler {
                 v.getPromptText(), v.getDescription(), v.getStatus(),
                 v.getAccuracyScore(), v.getTotalDecisions(), v.getCorrectCount(),
                 v.getCreatedBy(), v.getCreatedAt(), v.getActivatedAt(), v.getArchivedAt());
+    }
+
+    // ─── Alerting Engine (Initiative 15) ──────────────────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ALERT_RULES_QUERY)
+    public QueryResponse.AlertRulesPage handleAlertRulesQuery(QueryRequest.AlertRulesQuery req) {
+        log.debug("RabbitMQ: received alert-rules.query: tenantId={}", req.tenantId());
+        var pageable = PageRequest.of(req.page(), req.size(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        var result = alertRuleRepository.findByTenantIdOrderByCreatedAtDesc(req.tenantId(), pageable);
+        var content = result.getContent().stream().map(this::toAlertRuleSummary).toList();
+        return new QueryResponse.AlertRulesPage(content, result.getTotalElements(),
+                result.getTotalPages(), result.getNumber(), result.getSize());
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ALERT_RULES_GET)
+    public QueryResponse.AlertRuleDetail handleAlertRuleGet(QueryRequest.AlertRuleGet req) {
+        log.debug("RabbitMQ: received alert-rules.get: id={}", req.id());
+        var rule = alertRuleRepository.findByIdAndTenantId(req.id(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "AlertRule", req.id().toString()));
+        return toAlertRuleDetail(rule);
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ALERT_EVENTS_QUERY)
+    public QueryResponse.AlertEventsPage handleAlertEventsQuery(QueryRequest.AlertEventsQuery req) {
+        log.debug("RabbitMQ: received alert-events.query: ruleId={}", req.ruleId());
+        var pageable = PageRequest.of(req.page(), req.size(),
+                Sort.by(Sort.Direction.DESC, "occurredAt"));
+        var result = alertEventRepository.findByRuleIdOrderByOccurredAtDesc(req.ruleId(), pageable);
+        var content = result.getContent().stream().map(this::toAlertEventEntry).toList();
+        return new QueryResponse.AlertEventsPage(content, result.getTotalElements(),
+                result.getTotalPages(), result.getNumber(), result.getSize());
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ALERT_RULES_COMMAND)
+    @org.springframework.transaction.annotation.Transactional
+    public QueryResponse.AlertRuleDetail handleAlertRuleCommand(QueryRequest.AlertRuleCommand req) {
+        log.debug("RabbitMQ: received alert-rules.command: action={} ruleId={}", req.action(), req.ruleId());
+        return switch (req.action()) {
+            case "CREATE" -> createAlertRule(req);
+            case "UPDATE" -> updateAlertRule(req);
+            case "DELETE" -> deleteAlertRule(req);
+            case "MUTE"   -> muteAlertRule(req);
+            case "UNMUTE" -> unmuteAlertRule(req);
+            default -> throw new io.routify.common.exception.RoutifyException.BadRequest(
+                    "Unknown alert rule action: " + req.action());
+        };
+    }
+
+    private QueryResponse.AlertRuleDetail createAlertRule(QueryRequest.AlertRuleCommand req) {
+        var rule = AlertRule.builder()
+                .tenantId(req.tenantId())
+                .name(req.name())
+                .description(req.description())
+                .metric(req.metric())
+                .routeId(req.routeId())
+                .operator(req.operator())
+                .threshold(req.threshold())
+                .windowMinutes(req.windowMinutes() != null ? req.windowMinutes() : 5)
+                .cooldownMinutes(req.cooldownMinutes() != null ? req.cooldownMinutes() : 30)
+                .severity(req.severity() != null ? req.severity() : "WARNING")
+                .enabled(req.enabled() != null ? req.enabled() : true)
+                .createdBy(req.requestedBy())
+                .build();
+        return toAlertRuleDetail(alertRuleRepository.save(rule));
+    }
+
+    private QueryResponse.AlertRuleDetail updateAlertRule(QueryRequest.AlertRuleCommand req) {
+        var rule = alertRuleRepository.findByIdAndTenantId(req.ruleId(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "AlertRule", req.ruleId().toString()));
+        if (req.name() != null) rule.setName(req.name());
+        if (req.description() != null) rule.setDescription(req.description());
+        if (req.metric() != null) rule.setMetric(req.metric());
+        if (req.routeId() != null) rule.setRouteId(req.routeId());
+        if (req.operator() != null) rule.setOperator(req.operator());
+        if (req.threshold() != null) rule.setThreshold(req.threshold());
+        if (req.windowMinutes() != null) rule.setWindowMinutes(req.windowMinutes());
+        if (req.cooldownMinutes() != null) rule.setCooldownMinutes(req.cooldownMinutes());
+        if (req.severity() != null) rule.setSeverity(req.severity());
+        if (req.enabled() != null) rule.setEnabled(req.enabled());
+        return toAlertRuleDetail(alertRuleRepository.save(rule));
+    }
+
+    private QueryResponse.AlertRuleDetail deleteAlertRule(QueryRequest.AlertRuleCommand req) {
+        var rule = alertRuleRepository.findByIdAndTenantId(req.ruleId(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "AlertRule", req.ruleId().toString()));
+        var detail = toAlertRuleDetail(rule);
+        alertRuleRepository.delete(rule);
+        return detail;
+    }
+
+    private QueryResponse.AlertRuleDetail muteAlertRule(QueryRequest.AlertRuleCommand req) {
+        var rule = alertRuleRepository.findByIdAndTenantId(req.ruleId(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "AlertRule", req.ruleId().toString()));
+        int minutes = req.muteDurationMinutes() != null ? req.muteDurationMinutes() : 60;
+        rule.setMutedUntil(Instant.now().plusSeconds((long) minutes * 60));
+        return toAlertRuleDetail(alertRuleRepository.save(rule));
+    }
+
+    private QueryResponse.AlertRuleDetail unmuteAlertRule(QueryRequest.AlertRuleCommand req) {
+        var rule = alertRuleRepository.findByIdAndTenantId(req.ruleId(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "AlertRule", req.ruleId().toString()));
+        rule.setMutedUntil(null);
+        return toAlertRuleDetail(alertRuleRepository.save(rule));
+    }
+
+    private QueryResponse.AlertRulesPage.AlertRuleSummary toAlertRuleSummary(AlertRule r) {
+        return new QueryResponse.AlertRulesPage.AlertRuleSummary(
+                r.getId(), r.getTenantId(), r.getName(), r.getDescription(),
+                r.getMetric(), r.getRouteId(), r.getOperator(), r.getThreshold(),
+                r.getWindowMinutes(), r.getCooldownMinutes(), r.getSeverity(),
+                r.isEnabled(), r.getCurrentState(), r.getStateChangedAt(),
+                r.getConsecutiveBreaches(), r.getLastEvaluatedAt(), r.getLastFiredAt(),
+                r.getMutedUntil(), r.getCreatedAt());
+    }
+
+    private QueryResponse.AlertRuleDetail toAlertRuleDetail(AlertRule r) {
+        return new QueryResponse.AlertRuleDetail(
+                r.getId(), r.getTenantId(), r.getName(), r.getDescription(),
+                r.getMetric(), r.getRouteId(), r.getOperator(), r.getThreshold(),
+                r.getWindowMinutes(), r.getCooldownMinutes(), r.getSeverity(),
+                r.isEnabled(), r.getCurrentState(), r.getStateChangedAt(),
+                r.getConsecutiveBreaches(), r.getLastEvaluatedAt(), r.getLastFiredAt(),
+                r.getMutedUntil(), r.getCreatedBy(), r.getCreatedAt(), r.getUpdatedAt());
+    }
+
+    private QueryResponse.AlertEventsPage.AlertEventEntry toAlertEventEntry(AlertEvent e) {
+        return new QueryResponse.AlertEventsPage.AlertEventEntry(
+                e.getId(), e.getRuleId(), e.getTenantId(), e.getTransition(),
+                e.getMetricValue(), e.getThreshold(), e.getMessage(), e.getOccurredAt());
     }
 }

@@ -327,4 +327,75 @@ public class AuditMessagingClient extends AmqpServiceClientSupport {
         log.warn("queryTimeSeries circuit open or timed out: {}", t.getMessage());
         return new QueryResponse.TimeSeriesResult(List.of());
     }
+
+    // ─── Alerting Engine (Initiative 15) ──────────────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryAlertRulesFallback")
+    public QueryResponse.AlertRulesPage queryAlertRules(UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_ALERT_RULES_QUERY,
+                new QueryRequest.AlertRulesQuery(tenantId, page, size),
+                QueryResponse.AlertRulesPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AlertRulesPage queryAlertRulesFallback(UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryAlertRules circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.AlertRulesPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "getAlertRuleFallback")
+    public QueryResponse.AlertRuleDetail getAlertRule(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_ALERT_RULES_GET,
+                new QueryRequest.AlertRuleGet(id, tenantId),
+                QueryResponse.AlertRuleDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AlertRuleDetail getAlertRuleFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("getAlertRule circuit open or timed out: {}", t.getMessage());
+        throw new io.routify.common.exception.RoutifyException.GatewayError(
+                "audit-service temporarily unavailable");
+    }
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryAlertEventsFallback")
+    public QueryResponse.AlertEventsPage queryAlertEvents(UUID ruleId, UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_ALERT_EVENTS_QUERY,
+                new QueryRequest.AlertEventsQuery(ruleId, tenantId, page, size),
+                QueryResponse.AlertEventsPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AlertEventsPage queryAlertEventsFallback(UUID ruleId, UUID tenantId,
+                                                                     int page, int size, Throwable t) {
+        log.warn("queryAlertEvents circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.AlertEventsPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "alertRuleCommandFallback")
+    public QueryResponse.AlertRuleDetail alertRuleCommand(
+            String action, UUID tenantId, UUID ruleId,
+            String name, String description, String metric, UUID routeId,
+            String operator, java.math.BigDecimal threshold,
+            Integer windowMinutes, Integer cooldownMinutes, String severity,
+            Boolean enabled, Integer muteDurationMinutes, String requestedBy) {
+        return rpc(RabbitTopology.RK_ALERT_RULES_COMMAND,
+                new QueryRequest.AlertRuleCommand(action, tenantId, ruleId,
+                        name, description, metric, routeId, operator, threshold,
+                        windowMinutes, cooldownMinutes, severity, enabled,
+                        muteDurationMinutes, requestedBy),
+                QueryResponse.AlertRuleDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AlertRuleDetail alertRuleCommandFallback(
+            String action, UUID tenantId, UUID ruleId,
+            String name, String description, String metric, UUID routeId,
+            String operator, java.math.BigDecimal threshold,
+            Integer windowMinutes, Integer cooldownMinutes, String severity,
+            Boolean enabled, Integer muteDurationMinutes, String requestedBy,
+            Throwable t) {
+        log.warn("alertRuleCommand circuit open or timed out: {}", t.getMessage());
+        throw new io.routify.common.exception.RoutifyException.GatewayError(
+                "audit-service temporarily unavailable");
+    }
 }

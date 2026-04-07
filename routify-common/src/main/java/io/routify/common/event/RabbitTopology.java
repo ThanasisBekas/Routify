@@ -492,5 +492,23 @@ public final class RabbitTopology {
     /** Queue: route-service serves route SLO config SAVE (upsert) from admin-api */
     public static final String QUEUE_ROUTE_SLO_SAVE          = "routify.route-service.route-slo.save";
     public static final String RK_ROUTE_SLO_SAVE             = "route-slo.save";
+
+    // ─── routify-audit-service alert engine (Initiative 15) ─────────────────────
+
+    /** Queue: audit-service serves paginated alert rule list queries from admin-api */
+    public static final String QUEUE_ALERT_RULES_QUERY       = "routify.audit-service.alert-rules.query";
+    public static final String RK_ALERT_RULES_QUERY          = "alert-rules.query";
+
+    /** Queue: audit-service serves single alert rule GET queries from admin-api */
+    public static final String QUEUE_ALERT_RULES_GET         = "routify.audit-service.alert-rules.get";
+    public static final String RK_ALERT_RULES_GET            = "alert-rules.get";
+
+    /** Queue: audit-service serves paginated alert event history from admin-api */
+    public static final String QUEUE_ALERT_EVENTS_QUERY      = "routify.audit-service.alert-events.query";
+    public static final String RK_ALERT_EVENTS_QUERY         = "alert-events.query";
+
+    /** Queue: audit-service handles alert rule create/update/delete/mute/unmute (sync RPC) */
+    public static final String QUEUE_ALERT_RULES_COMMAND     = "routify.audit-service.alert-rules.command";
+    public static final String RK_ALERT_RULES_COMMAND        = "alert-rules.command";
 }
 

@@ -113,6 +113,10 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.CertRegistrySnapshot.class, name = "CERT_REGISTRY_SNAPSHOT"),
     // ─── Canary routing (Initiative 14) ───────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.CanaryStatusResult.class,   name = "CANARY_STATUS_RESULT"),
+    // ─── Alerting engine (Initiative 15) ────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.AlertRulesPage.class,       name = "ALERT_RULES_PAGE"),
+    @JsonSubTypes.Type(value = QueryResponse.AlertRuleDetail.class,      name = "ALERT_RULE_DETAIL"),
+    @JsonSubTypes.Type(value = QueryResponse.AlertEventsPage.class,      name = "ALERT_EVENTS_PAGE"),
 })
 public sealed interface QueryResponse
         permits
@@ -170,6 +174,9 @@ public sealed interface QueryResponse
             QueryResponse.AiDecisionLabelResult,
             QueryResponse.TimeSeriesResult,
             QueryResponse.CanaryStatusResult,
+            QueryResponse.AlertRulesPage,
+            QueryResponse.AlertRuleDetail,
+            QueryResponse.AlertEventsPage,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1255,6 +1262,86 @@ public sealed interface QueryResponse
             String deployedAt,
             int    breachCount
     ) implements QueryResponse {}
+
+    // ─── Alerting Engine (Initiative 15) ─────────────────────────────────────
+
+    /** Paginated list of alert rules. */
+    record AlertRulesPage(
+            List<AlertRuleSummary> content,
+            long totalElements,
+            int  totalPages,
+            int  page,
+            int  size
+    ) implements QueryResponse {
+
+        public record AlertRuleSummary(
+                UUID   id,
+                UUID   tenantId,
+                String name,
+                String description,
+                String metric,
+                UUID   routeId,
+                String operator,
+                java.math.BigDecimal threshold,
+                int    windowMinutes,
+                int    cooldownMinutes,
+                String severity,
+                boolean enabled,
+                String currentState,
+                Instant stateChangedAt,
+                int     consecutiveBreaches,
+                Instant lastEvaluatedAt,
+                Instant lastFiredAt,
+                Instant mutedUntil,
+                Instant createdAt
+        ) {}
+    }
+
+    /** Alert rule detail — same as summary with createdBy and updatedAt. */
+    record AlertRuleDetail(
+            UUID   id,
+            UUID   tenantId,
+            String name,
+            String description,
+            String metric,
+            UUID   routeId,
+            String operator,
+            java.math.BigDecimal threshold,
+            int    windowMinutes,
+            int    cooldownMinutes,
+            String severity,
+            boolean enabled,
+            String currentState,
+            Instant stateChangedAt,
+            int     consecutiveBreaches,
+            Instant lastEvaluatedAt,
+            Instant lastFiredAt,
+            Instant mutedUntil,
+            String  createdBy,
+            Instant createdAt,
+            Instant updatedAt
+    ) implements QueryResponse {}
+
+    /** Paginated list of alert events (state transition history). */
+    record AlertEventsPage(
+            List<AlertEventEntry> content,
+            long totalElements,
+            int  totalPages,
+            int  page,
+            int  size
+    ) implements QueryResponse {
+
+        public record AlertEventEntry(
+                UUID   id,
+                UUID   ruleId,
+                UUID   tenantId,
+                String transition,
+                java.math.BigDecimal metricValue,
+                java.math.BigDecimal threshold,
+                String  message,
+                Instant occurredAt
+        ) {}
+    }
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

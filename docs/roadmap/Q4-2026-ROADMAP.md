@@ -17,7 +17,7 @@
 | 4 | ✅ [AI Policy Playground & Prompt Versioning](#4-ai-policy-playground--prompt-versioning) | AI / Intelligence | Weeks 4–7 | Visual prompt editor with version history, A/B testing, and accuracy scoring |
 | 5 | ✅ [GraphQL Analytics API](#5-graphql-analytics-api) | Integration | Weeks 5–8 | Flexible, composable analytics queries replace the fixed-schema REST stats endpoints |
 | 6 | ✅ [Canary Routing & Traffic Splitting](#6-canary-routing--traffic-splitting) | Reliability | Weeks 6–9 | Weighted traffic splitting between route versions for progressive delivery |
-| 7 | [Platform Alerting Engine](#7-platform-alerting-engine) | Operations | Weeks 8–11 | Threshold-based alerting on SLOs, error rates, DLQ depth, and cert expiry — delivered via webhooks |
+| 7 | ✅ [Platform Alerting Engine](#7-platform-alerting-engine) | Operations | Weeks 8–11 | Threshold-based alerting on SLOs, error rates, DLQ depth, and cert expiry — delivered via webhooks |
 | 8 | [Helm Chart & Kubernetes-Native Deployment](#8-helm-chart--kubernetes-native-deployment) | Infrastructure | Weeks 9–12 | Production-ready Helm chart with HPA, PDB, ConfigMaps, Secrets, and init containers |
 
 Each initiative has a dedicated design document in [`docs/roadmap/initiatives/`](./initiatives/).
