@@ -170,9 +170,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <code className="font-mono text-blue-300">X-Auth-User-Id</code>,{' '}
             <code className="font-mono text-blue-300">X-Auth-Tenant-Id</code>,{' '}
             <code className="font-mono text-blue-300">X-Auth-Role</code> and{' '}
-            <code className="font-mono text-blue-300">X-Auth-Email</code> downstream.
-            Supports static RSA public key or <strong>JWKS URI</strong> for automatic key rotation.
-            RS256 only. Issuer/audience claims are enforced when configured.
+            <code className="font-mono text-blue-300">X-Auth-Email</code> downstream. Supports static RSA public key or{' '}
+            <strong>JWKS URI</strong> for automatic key rotation. RS256 only. Issuer/audience claims are enforced when
+            configured.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Issuer" hint="Expected iss claim value — leave blank to skip validation" optional>
@@ -427,13 +427,16 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 leading-relaxed">
             Performs <strong className="text-blue-300">regex-based rewriting</strong> of response header values.
             Supports Java regex patterns with <code className="font-mono text-blue-300">$1</code>,{' '}
-            <code className="font-mono text-blue-300">$2</code> capture group references.
-            Common use cases: rewriting <code className="font-mono text-blue-300">Location</code> redirect headers
-            from internal to external URLs, rewriting <code className="font-mono text-blue-300">Set-Cookie</code>{' '}
-            domain attributes, normalizing CORS origins.
+            <code className="font-mono text-blue-300">$2</code> capture group references. Common use cases: rewriting{' '}
+            <code className="font-mono text-blue-300">Location</code> redirect headers from internal to external URLs,
+            rewriting <code className="font-mono text-blue-300">Set-Cookie</code> domain attributes, normalizing CORS
+            origins.
           </p>
 
-          <Field label="Header Name" hint="Response header to rewrite (e.g. Location, Set-Cookie, Access-Control-Allow-Origin)">
+          <Field
+            label="Header Name"
+            hint="Response header to rewrite (e.g. Location, Set-Cookie, Access-Control-Allow-Origin)"
+          >
             <input
               value={str('headerName')}
               onChange={(e) => set('headerName', e.target.value)}
@@ -454,10 +457,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             />
           </Field>
 
-          <Field
-            label="Replacement"
-            hint="Replacement string — use $1, $2, etc. for capture group references"
-          >
+          <Field label="Replacement" hint="Replacement string — use $1, $2, etc. for capture group references">
             <input
               value={str('replacement')}
               onChange={(e) => set('replacement', e.target.value)}
@@ -514,8 +514,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               >
                 <div className="text-xs font-medium text-gray-300 group-hover:text-white">{preset.label}</div>
                 <div className="text-[10px] text-gray-600 font-mono mt-0.5 truncate">
-                  {preset.headerName}: s/{preset.pattern}/{preset.replacement}/
-                  {preset.replaceAll ? 'g' : ''}
+                  {preset.headerName}: s/{preset.pattern}/{preset.replacement}/{preset.replaceAll ? 'g' : ''}
                 </div>
               </button>
             ))}
@@ -524,10 +523,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-amber-500/[0.06] border-amber-500/20 text-amber-400/80">
             <span className="mt-0.5 shrink-0">⚠</span>
             <span>
-              Regex patterns are <strong>pre-compiled</strong> at filter bind time for performance.
-              Pathological patterns with nested quantifiers (e.g.{' '}
-              <code className="font-mono text-amber-300">(a+)+</code>) are automatically rejected
-              to prevent catastrophic backtracking. Match operations are bounded by a 100ms timeout.
+              Regex patterns are <strong>pre-compiled</strong> at filter bind time for performance. Pathological
+              patterns with nested quantifiers (e.g. <code className="font-mono text-amber-300">(a+)+</code>) are
+              automatically rejected to prevent catastrophic backtracking. Match operations are bounded by a 100ms
+              timeout.
             </span>
           </div>
         </div>
@@ -638,10 +637,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       return (
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2 leading-relaxed">
-            Enforces a maximum request body size per route. Uses a two-stage approach: fast rejection
-            via <code className="font-mono text-cyan-300">Content-Length</code> header check, and
-            streaming byte counting for chunked transfers. Oversized requests receive{' '}
-            <strong>HTTP 413 Payload Too Large</strong> with an RFC 9457 ProblemDetail body.
+            Enforces a maximum request body size per route. Uses a two-stage approach: fast rejection via{' '}
+            <code className="font-mono text-cyan-300">Content-Length</code> header check, and streaming byte counting
+            for chunked transfers. Oversized requests receive <strong>HTTP 413 Payload Too Large</strong> with an RFC
+            9457 ProblemDetail body.
           </p>
           <Field label="Max Size" hint="Maximum allowed request body size (e.g. 5MB, 512KB, 1GB)">
             <input
@@ -676,10 +675,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       return (
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2 leading-relaxed">
-            Parses incoming <strong className="text-cyan-300">GraphQL</strong> queries and rejects those
-            exceeding configurable depth, complexity, or alias limits. Optionally blocks
-            introspection queries and batched queries exceeding a maximum batch size.
-            Non-GraphQL requests pass through unchanged.
+            Parses incoming <strong className="text-cyan-300">GraphQL</strong> queries and rejects those exceeding
+            configurable depth, complexity, or alias limits. Optionally blocks introspection queries and batched queries
+            exceeding a maximum batch size. Non-GraphQL requests pass through unchanged.
           </p>
           <Field label="Max Depth" hint="Maximum allowed query nesting depth (default: 10)">
             <input
@@ -735,13 +733,11 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       return (
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-lime-500/10 border border-lime-500/20 rounded-lg px-3 py-2 leading-relaxed">
-            Caches upstream responses in <strong className="text-lime-300">Redis</strong> per route.
-            On cache <strong className="text-lime-300">HIT</strong>, returns the stored response directly
-            without forwarding to upstream. Injects{' '}
-            <code className="font-mono text-lime-300">X-Cache: HIT</code> or{' '}
-            <code className="font-mono text-lime-300">X-Cache: MISS</code> on every response.
-            Respects upstream <code className="font-mono text-lime-300">Cache-Control</code> directives
-            when enabled.
+            Caches upstream responses in <strong className="text-lime-300">Redis</strong> per route. On cache{' '}
+            <strong className="text-lime-300">HIT</strong>, returns the stored response directly without forwarding to
+            upstream. Injects <code className="font-mono text-lime-300">X-Cache: HIT</code> or{' '}
+            <code className="font-mono text-lime-300">X-Cache: MISS</code> on every response. Respects upstream{' '}
+            <code className="font-mono text-lime-300">Cache-Control</code> directives when enabled.
           </p>
 
           <div className="grid grid-cols-2 gap-3">
@@ -831,10 +827,11 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <span className="mt-0.5 shrink-0">ℹ</span>
             <span>
               Cache entries are stored in Redis with the key format{' '}
-              <code className="font-mono text-blue-300">routify:cache:{'{'}&lt;routeId&gt;{'}'}:{'{'}&lt;sha256&gt;{'}'}</code>.
-              Use the <strong>Purge Cache</strong> button on the route detail page to invalidate all cached responses
-              for a route. Metrics:{' '}
-              <code className="font-mono text-blue-300">routify.filter.cache.hit</code>,{' '}
+              <code className="font-mono text-blue-300">
+                routify:cache:{'{'}&lt;routeId&gt;{'}'}:{'{'}&lt;sha256&gt;{'}'}
+              </code>
+              . Use the <strong>Purge Cache</strong> button on the route detail page to invalidate all cached responses
+              for a route. Metrics: <code className="font-mono text-blue-300">routify.filter.cache.hit</code>,{' '}
               <code className="font-mono text-blue-300">routify.filter.cache.miss</code>,{' '}
               <code className="font-mono text-blue-300">routify.filter.cache.skip</code>.
             </span>
@@ -848,10 +845,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <p className="text-xs text-gray-500 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 leading-relaxed">
             Transparently decompresses <strong className="text-green-300">gzip</strong>,{' '}
             <strong className="text-green-300">Brotli (br)</strong>, and{' '}
-            <strong className="text-green-300">Zstandard (zstd)</strong> encoded request bodies before
-            forwarding to upstream. Useful when mobile/IoT clients compress payloads but backend
-            services expect uncompressed JSON. Includes <strong className="text-green-300">zip bomb protection</strong>{' '}
-            via a configurable maximum decompressed size limit.
+            <strong className="text-green-300">Zstandard (zstd)</strong> encoded request bodies before forwarding to
+            upstream. Useful when mobile/IoT clients compress payloads but backend services expect uncompressed JSON.
+            Includes <strong className="text-green-300">zip bomb protection</strong> via a configurable maximum
+            decompressed size limit.
           </p>
 
           <Field
@@ -896,11 +893,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
             <span className="mt-0.5 shrink-0">ℹ</span>
             <span>
-              Injects <code className="font-mono text-blue-300">X-Original-Encoding</code> header
-              with the original encoding type (e.g. <code className="font-mono text-blue-300">gzip</code>)
-              for downstream observability. Unsupported or absent{' '}
-              <code className="font-mono text-blue-300">Content-Encoding</code> headers pass through
-              unchanged.
+              Injects <code className="font-mono text-blue-300">X-Original-Encoding</code> header with the original
+              encoding type (e.g. <code className="font-mono text-blue-300">gzip</code>) for downstream observability.
+              Unsupported or absent <code className="font-mono text-blue-300">Content-Encoding</code> headers pass
+              through unchanged.
             </span>
           </div>
         </div>
@@ -931,14 +927,17 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <p className="text-xs text-gray-500 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 leading-relaxed">
             Per-route Resilience4j circuit breaker. When the failure or slow-call rate exceeds the configured threshold
             the circuit <strong className="text-orange-300">opens</strong> and all requests receive a fallback response.
-            After a wait period it transitions to <strong className="text-amber-300">half-open</strong> to probe upstream
-            health.
+            After a wait period it transitions to <strong className="text-amber-300">half-open</strong> to probe
+            upstream health.
           </p>
 
           <SectionTitle>Thresholds</SectionTitle>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Failure Rate Threshold (%)" hint="Failure rate percentage to trip the circuit (0–100). Default: 50.">
+            <Field
+              label="Failure Rate Threshold (%)"
+              hint="Failure rate percentage to trip the circuit (0–100). Default: 50."
+            >
               <input
                 type="number"
                 min={0}
@@ -949,7 +948,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
                 className={inputCls}
               />
             </Field>
-            <Field label="Slow Call Rate Threshold (%)" hint="Slow call rate percentage to trip the circuit. Default: 80.">
+            <Field
+              label="Slow Call Rate Threshold (%)"
+              hint="Slow call rate percentage to trip the circuit. Default: 80."
+            >
               <input
                 type="number"
                 min={0}
@@ -962,7 +964,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             </Field>
           </div>
 
-          <Field label="Slow Call Duration (ms)" hint="Calls exceeding this duration are considered slow. Default: 3000 ms.">
+          <Field
+            label="Slow Call Duration (ms)"
+            hint="Calls exceeding this duration are considered slow. Default: 3000 ms."
+          >
             <input
               type="number"
               min={100}
@@ -975,7 +980,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <SectionTitle>Sliding Window</SectionTitle>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Sliding Window Size" hint="Number of calls (or seconds for TIME_BASED) in the window. Default: 10.">
+            <Field
+              label="Sliding Window Size"
+              hint="Number of calls (or seconds for TIME_BASED) in the window. Default: 10."
+            >
               <input
                 type="number"
                 min={1}
@@ -987,7 +995,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <Field label="Sliding Window Type" hint="COUNT_BASED or TIME_BASED. Default: COUNT_BASED.">
               <Select
                 value={str('slidingWindowType', 'COUNT_BASED')}
-                onValueChange={(v) => set('slidingWindowType', v)}
+                onChange={(v: string) => set('slidingWindowType', v)}
                 options={[
                   { value: 'COUNT_BASED', label: 'Count-Based' },
                   { value: 'TIME_BASED', label: 'Time-Based' },
@@ -1009,7 +1017,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <SectionTitle>Half-Open &amp; Recovery</SectionTitle>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Wait Duration in Open State (ms)" hint="Time to wait before transitioning to half-open. Default: 60000 ms.">
+            <Field
+              label="Wait Duration in Open State (ms)"
+              hint="Time to wait before transitioning to half-open. Default: 60000 ms."
+            >
               <input
                 type="number"
                 min={1000}
@@ -1018,7 +1029,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
                 className={inputCls}
               />
             </Field>
-            <Field label="Permitted Calls in Half-Open" hint="Number of probe calls allowed in half-open state. Default: 3.">
+            <Field
+              label="Permitted Calls in Half-Open"
+              hint="Number of probe calls allowed in half-open state. Default: 3."
+            >
               <input
                 type="number"
                 min={1}
@@ -1042,7 +1056,11 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
                 className={inputCls}
               />
             </Field>
-            <Field label="Fallback Body" hint="Custom response body (JSON). Leave blank for ProblemDetail default." optional>
+            <Field
+              label="Fallback Body"
+              hint="Custom response body (JSON). Leave blank for ProblemDetail default."
+              optional
+            >
               <input
                 type="text"
                 value={str('fallbackBody', '')}
@@ -1060,10 +1078,11 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 leading-relaxed">
             Custom retry filter with <strong className="text-amber-300">exponential backoff</strong> and{' '}
-            <strong className="text-amber-300">jitter</strong>. Safe methods ({str('retryableMethods', 'GET,HEAD,OPTIONS')}) are always
-            retried. Unsafe methods (POST, PUT, PATCH, DELETE) are only retried when the{' '}
-            <code className="font-mono text-amber-300">{str('idempotencyHeader', 'Idempotency-Key')}</code> header
-            is present — guaranteeing the client asserts idempotency.
+            <strong className="text-amber-300">jitter</strong>. Safe methods (
+            {str('retryableMethods', 'GET,HEAD,OPTIONS')}) are always retried. Unsafe methods (POST, PUT, PATCH, DELETE)
+            are only retried when the{' '}
+            <code className="font-mono text-amber-300">{str('idempotencyHeader', 'Idempotency-Key')}</code> header is
+            present — guaranteeing the client asserts idempotency.
           </p>
 
           <SectionTitle>Backoff Configuration</SectionTitle>
@@ -1126,7 +1145,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <SectionTitle>Retry Conditions</SectionTitle>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Retryable Status Codes" hint="Comma-separated HTTP status codes to retry on. Default: 502,503,504.">
+            <Field
+              label="Retryable Status Codes"
+              hint="Comma-separated HTTP status codes to retry on. Default: 502,503,504."
+            >
               <input
                 value={str('retryableStatuses', '502,503,504')}
                 onChange={(e) => set('retryableStatuses', e.target.value)}
@@ -1134,7 +1156,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
                 placeholder="502,503,504"
               />
             </Field>
-            <Field label="Retryable Methods" hint="Comma-separated safe HTTP methods always retried. Default: GET,HEAD,OPTIONS.">
+            <Field
+              label="Retryable Methods"
+              hint="Comma-separated safe HTTP methods always retried. Default: GET,HEAD,OPTIONS."
+            >
               <input
                 value={str('retryableMethods', 'GET,HEAD,OPTIONS')}
                 onChange={(e) => set('retryableMethods', e.target.value)}
@@ -1184,10 +1209,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 leading-relaxed">
             Deduplicates write requests using a client-provided{' '}
-            <strong className="text-yellow-300">idempotency key</strong> (per the emerging IETF standard).
-            On first request: execute and cache the response in{' '}
-            <strong className="text-yellow-300">Redis</strong>. On replay: return the cached response
-            without forwarding to upstream. Concurrent duplicates are rejected with{' '}
+            <strong className="text-yellow-300">idempotency key</strong> (per the emerging IETF standard). On first
+            request: execute and cache the response in <strong className="text-yellow-300">Redis</strong>. On replay:
+            return the cached response without forwarding to upstream. Concurrent duplicates are rejected with{' '}
             <code className="font-mono text-yellow-300">409 Conflict</code>.
           </p>
 
@@ -1212,7 +1236,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Enforced Methods" hint="Comma-separated HTTP methods to enforce idempotency on. Default: POST,PUT,PATCH.">
+            <Field
+              label="Enforced Methods"
+              hint="Comma-separated HTTP methods to enforce idempotency on. Default: POST,PUT,PATCH."
+            >
               <input
                 value={str('methods', 'POST,PUT,PATCH')}
                 onChange={(e) => set('methods', e.target.value)}
@@ -1242,10 +1269,11 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <span className="mt-0.5 shrink-0">ℹ</span>
             <span>
               Redis key format:{' '}
-              <code className="font-mono text-blue-300">routify:idempotency:{'{'}&lt;routeId&gt;{'}'}:{'{'}&lt;key&gt;{'}'}</code>.
-              Injects <code className="font-mono text-blue-300">Idempotency-Key-Status: HIT</code> or{' '}
-              <code className="font-mono text-blue-300">MISS</code> on every processed response.
-              Metrics:{' '}
+              <code className="font-mono text-blue-300">
+                routify:idempotency:{'{'}&lt;routeId&gt;{'}'}:{'{'}&lt;key&gt;{'}'}
+              </code>
+              . Injects <code className="font-mono text-blue-300">Idempotency-Key-Status: HIT</code> or{' '}
+              <code className="font-mono text-blue-300">MISS</code> on every processed response. Metrics:{' '}
               <code className="font-mono text-blue-300">routify.filter.idempotency.hit</code>,{' '}
               <code className="font-mono text-blue-300">routify.filter.idempotency.miss</code>,{' '}
               <code className="font-mono text-blue-300">routify.filter.idempotency.conflict</code>.
@@ -1420,14 +1448,13 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2">
             Sensitive headers (<code className="font-mono text-indigo-300">Authorization</code>,{' '}
             <code className="font-mono text-indigo-300">X-Api-Key</code>,{' '}
-            <code className="font-mono text-indigo-300">Cookie</code>) are redacted by default.
-            Use <strong>Header Denylist</strong> to customise which headers are redacted.
-            Structured MDC logging emits <code className="font-mono text-indigo-300">method</code>,{' '}
+            <code className="font-mono text-indigo-300">Cookie</code>) are redacted by default. Use{' '}
+            <strong>Header Denylist</strong> to customise which headers are redacted. Structured MDC logging emits{' '}
+            <code className="font-mono text-indigo-300">method</code>,{' '}
             <code className="font-mono text-indigo-300">path</code>,{' '}
             <code className="font-mono text-indigo-300">status</code>,{' '}
             <code className="font-mono text-indigo-300">elapsedMs</code>,{' '}
-            <code className="font-mono text-indigo-300">correlationId</code> as MDC keys.
-            Telemetry is published to the{' '}
+            <code className="font-mono text-indigo-300">correlationId</code> as MDC keys. Telemetry is published to the{' '}
             <code className="font-mono text-indigo-300">routify.request.telemetry</code> Kafka topic.
           </p>
         </div>
@@ -1522,10 +1549,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
             <span className="mt-0.5 shrink-0">ℹ</span>
             <span>
-              Metrics:{' '}
-              <code className="font-mono text-blue-300">routify.request.body.size</code> (tagged: routeId, method) and{' '}
-              <code className="font-mono text-blue-300">routify.response.body.size</code> (tagged: routeId, method,
-              status). Body content is <strong>never buffered or read</strong> — only byte counts are recorded.
+              Metrics: <code className="font-mono text-blue-300">routify.request.body.size</code> (tagged: routeId,
+              method) and <code className="font-mono text-blue-300">routify.response.body.size</code> (tagged: routeId,
+              method, status). Body content is <strong>never buffered or read</strong> — only byte counts are recorded.
             </span>
           </div>
         </div>
@@ -1720,10 +1746,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       return (
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 leading-relaxed">
-            Fires a <strong className="text-yellow-300">non-blocking webhook POST</strong> when a request
-            matches configurable conditions (status codes, header values). The webhook is dispatched
-            asynchronously and <strong className="text-yellow-300">never blocks</strong> the client response.
-            Supports HMAC-SHA256 signing and per-route cooldown to prevent notification storms.
+            Fires a <strong className="text-yellow-300">non-blocking webhook POST</strong> when a request matches
+            configurable conditions (status codes, header values). The webhook is dispatched asynchronously and{' '}
+            <strong className="text-yellow-300">never blocks</strong> the client response. Supports HMAC-SHA256 signing
+            and per-route cooldown to prevent notification storms.
           </p>
 
           <Field label="Webhook URL" hint="URL to POST the notification to. Required.">
@@ -1838,12 +1864,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <span>
               Payload format:{' '}
               <code className="font-mono text-blue-300">
-                {'{'}&quot;routeId&quot;, &quot;correlationId&quot;, &quot;method&quot;, &quot;path&quot;, &quot;status&quot;, &quot;timestamp&quot;, &quot;headers&quot;{'}'}
-              </code>.
-              The webhook is signed with{' '}
-              <code className="font-mono text-blue-300">X-Routify-Signature: sha256=&lt;hmac&gt;</code>{' '}
-              when a secret is configured. Dispatch timeout: 5 seconds. Failures are logged but never
-              affect the client response.
+                {'{'}&quot;routeId&quot;, &quot;correlationId&quot;, &quot;method&quot;, &quot;path&quot;,
+                &quot;status&quot;, &quot;timestamp&quot;, &quot;headers&quot;{'}'}
+              </code>
+              . The webhook is signed with{' '}
+              <code className="font-mono text-blue-300">X-Routify-Signature: sha256=&lt;hmac&gt;</code> when a secret is
+              configured. Dispatch timeout: 5 seconds. Failures are logged but never affect the client response.
             </span>
           </div>
         </div>
@@ -1854,10 +1880,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       return (
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 leading-relaxed">
-            Returns a <strong className="text-emerald-300">static response</strong> without forwarding to any
-            upstream service. Supports <strong className="text-emerald-300">template interpolation</strong> with
-            request attributes, simulated latency for timeout testing, and conditional activation via header.
-            Ideal for API stubbing, contract-first development, and maintenance mode.
+            Returns a <strong className="text-emerald-300">static response</strong> without forwarding to any upstream
+            service. Supports <strong className="text-emerald-300">template interpolation</strong> with request
+            attributes, simulated latency for timeout testing, and conditional activation via header. Ideal for API
+            stubbing, contract-first development, and maintenance mode.
           </p>
 
           <div className="grid grid-cols-2 gap-3">
@@ -2004,10 +2030,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
             <span className="mt-0.5 shrink-0">ℹ</span>
             <span>
-              The request is <strong>short-circuited</strong> — no upstream call is made.
-              Apply as a <strong>global filter entry</strong> to put the entire gateway
-              in maintenance mode. Use <code className="font-mono text-blue-300">conditionHeader</code>{' '}
-              to toggle mock per-request without changing the filter configuration.
+              The request is <strong>short-circuited</strong> — no upstream call is made. Apply as a{' '}
+              <strong>global filter entry</strong> to put the entire gateway in maintenance mode. Use{' '}
+              <code className="font-mono text-blue-300">conditionHeader</code> to toggle mock per-request without
+              changing the filter configuration.
             </span>
           </div>
         </div>
@@ -2024,8 +2050,8 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <code className="font-mono text-indigo-300 mx-1">#path</code>,
             <code className="font-mono text-indigo-300 mx-1">#contentType</code>,
             <code className="font-mono text-indigo-300 mx-1">#clientIp</code>. Returning{' '}
-            <code className="font-mono text-indigo-300">false</code> rejects the request with 403.
-            Type references, constructors, and arbitrary method calls are blocked.
+            <code className="font-mono text-indigo-300">false</code> rejects the request with 403. Type references,
+            constructors, and arbitrary method calls are blocked.
           </p>
           <Field label="SpEL Expression" hint="e.g. #headers['X-Feature-Flag'] == 'enabled'">
             <textarea
@@ -2079,9 +2105,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
             <span className="mt-0.5 shrink-0">🔒</span>
             <span>
-              Every evaluation emits a <strong>CUSTOM_SPEL_EVALUATED</strong> audit event.
-              The <code className="font-mono text-emerald-300">#request</code> variable has been removed for security.
-              Use <code className="font-mono text-emerald-300">#clientIp</code> and{' '}
+              Every evaluation emits a <strong>CUSTOM_SPEL_EVALUATED</strong> audit event. The{' '}
+              <code className="font-mono text-emerald-300">#request</code> variable has been removed for security. Use{' '}
+              <code className="font-mono text-emerald-300">#clientIp</code> and{' '}
               <code className="font-mono text-emerald-300">#contentType</code> as replacements.
             </span>
           </div>
@@ -2273,7 +2299,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           </div>
 
           <SectionTitle>Caching &amp; Fallback</SectionTitle>
-          <Field label="Cache TTL (seconds)" hint="Exchanged tokens are cached in-process. TTL = min(this value, token.expires_in - 30s). Default: 300.">
+          <Field
+            label="Cache TTL (seconds)"
+            hint="Exchanged tokens are cached in-process. TTL = min(this value, token.expires_in - 30s). Default: 300."
+          >
             <input
               type="number"
               min={0}
@@ -2289,7 +2318,11 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               onChange={(v) => set('fallbackMode', v)}
               options={[
                 { value: 'REJECT', label: 'Reject (401)', description: 'Return 401 Unauthorized to the caller' },
-                { value: 'PASS_THROUGH', label: 'Pass Through', description: 'Forward the original bearer token unchanged' },
+                {
+                  value: 'PASS_THROUGH',
+                  label: 'Pass Through',
+                  description: 'Forward the original bearer token unchanged',
+                },
                 { value: 'STRIP', label: 'Strip', description: 'Remove the Authorization header entirely' },
               ]}
             />
@@ -2357,10 +2390,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       return (
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 leading-relaxed">
-            Evaluates the client IP address against a configurable allowlist or denylist.
-            Supports individual IPs, CIDR ranges (IPv4 and IPv6), and{' '}
-            <code className="font-mono text-red-300">X-Forwarded-For</code> parsing for deployments
-            behind load balancers. Runs at <strong className="text-red-300">order −1500</strong> — before
+            Evaluates the client IP address against a configurable allowlist or denylist. Supports individual IPs, CIDR
+            ranges (IPv4 and IPv6), and <code className="font-mono text-red-300">X-Forwarded-For</code> parsing for
+            deployments behind load balancers. Runs at <strong className="text-red-300">order −1500</strong> — before
             all authentication filters.
           </p>
 
@@ -2445,11 +2477,11 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
             <span className="mt-0.5 shrink-0">ℹ</span>
             <span>
-              CIDR ranges are compiled once when the filter is applied — there is no per-request overhead.
-              Changes propagate via the standard Kafka hot-reload pipeline without gateway restart.
-              Metrics: <code className="font-mono text-blue-300">routify.filter.ip_access_control.allowed</code> and{' '}
-              <code className="font-mono text-blue-300">routify.filter.ip_access_control.blocked</code> counters
-              (tagged by routeId).
+              CIDR ranges are compiled once when the filter is applied — there is no per-request overhead. Changes
+              propagate via the standard Kafka hot-reload pipeline without gateway restart. Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.ip_access_control.allowed</code> and{' '}
+              <code className="font-mono text-blue-300">routify.filter.ip_access_control.blocked</code> counters (tagged
+              by routeId).
             </span>
           </div>
         </div>
@@ -2460,9 +2492,9 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       return (
         <div className="space-y-4">
           <p className="text-xs text-gray-500 bg-sky-500/10 border border-sky-500/20 rounded-lg px-3 py-2 leading-relaxed">
-            Routes requests to <strong className="text-sky-300">geographically closest upstream</strong> endpoints
-            using MaxMind GeoIP2 database lookups. Resolves client IP → country → region → upstream URI.
-            Injects <code className="font-mono text-sky-300">X-Geo-Region</code> header for downstream observability.
+            Routes requests to <strong className="text-sky-300">geographically closest upstream</strong> endpoints using
+            MaxMind GeoIP2 database lookups. Resolves client IP → country → region → upstream URI. Injects{' '}
+            <code className="font-mono text-sky-300">X-Geo-Region</code> header for downstream observability.
           </p>
 
           <Field
@@ -2520,10 +2552,10 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/6 border-blue-500/20 text-blue-400/80">
             <span className="mt-0.5 shrink-0">ℹ</span>
             <span>
-              The MaxMind database is loaded once when the filter is applied. IP → country lookups are cached in
-              a Caffeine LRU cache to avoid per-request disk I/O. A default country → region mapping covers
-              NA, EU, and APAC countries. Countries not in the mapping fall back to the default region.
-              Requires a <strong>GeoLite2-Country.mmdb</strong> file — sign up at{' '}
+              The MaxMind database is loaded once when the filter is applied. IP → country lookups are cached in a
+              Caffeine LRU cache to avoid per-request disk I/O. A default country → region mapping covers NA, EU, and
+              APAC countries. Countries not in the mapping fall back to the default region. Requires a{' '}
+              <strong>GeoLite2-Country.mmdb</strong> file — sign up at{' '}
               <a
                 href="https://www.maxmind.com/en/geolite2/signup"
                 target="_blank"

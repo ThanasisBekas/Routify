@@ -258,7 +258,8 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     value: 'GRAPHQL_DEPTH_LIMIT',
     label: 'GraphQL Depth Limit',
     category: 'Validation',
-    description: 'Parses GraphQL queries and rejects those exceeding depth, complexity, or alias limits. Optionally blocks introspection and batched queries.',
+    description:
+      'Parses GraphQL queries and rejects those exceeding depth, complexity, or alias limits. Optionally blocks introspection and batched queries.',
     color: 'text-cyan-300',
     bg: 'bg-cyan-300/10',
     border: 'border-cyan-300/20',
@@ -341,7 +342,8 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     value: 'REQUEST_LOGGER',
     label: 'Request Logger',
     category: 'Observability',
-    description: 'Log requests/responses with sampling, header allow/denylists, path exclusions, and structured MDC logging',
+    description:
+      'Log requests/responses with sampling, header allow/denylists, path exclusions, and structured MDC logging',
     color: 'text-gray-300',
     bg: 'bg-gray-300/10',
     border: 'border-gray-300/20',
@@ -484,7 +486,8 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     value: 'CUSTOM_SPEL',
     label: 'Custom (SpEL)',
     category: 'Custom',
-    description: 'Sandboxed SpEL expression evaluation — returning false rejects with 403. Audited, complexity-limited.',
+    description:
+      'Sandboxed SpEL expression evaluation — returning false rejects with 403. Audited, complexity-limited.',
     color: 'text-gray-400',
     bg: 'bg-gray-400/10',
     border: 'border-gray-400/20',
