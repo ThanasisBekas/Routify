@@ -440,6 +440,24 @@ public final class RabbitTopology {
     public static final String QUEUE_AUDIT_AI_FILTER_QUERY  = "routify.audit-service.ai-filter.query";
     public static final String RK_AUDIT_AI_FILTER_QUERY     = "audit.ai-filter.query";
 
+    // ─── routify-audit-service AI prompt versions ─────────────────────────────
+
+    /** Queue: audit-service serves paginated AI prompt version list queries from admin-api */
+    public static final String QUEUE_AI_PROMPT_VERSIONS_QUERY = "routify.audit-service.ai-prompt.versions.query";
+    public static final String RK_AI_PROMPT_VERSIONS_QUERY    = "ai-prompt.versions.query";
+
+    /** Queue: audit-service serves single AI prompt version GET queries from admin-api */
+    public static final String QUEUE_AI_PROMPT_VERSIONS_GET   = "routify.audit-service.ai-prompt.versions.get";
+    public static final String RK_AI_PROMPT_VERSIONS_GET      = "ai-prompt.versions.get";
+
+    /** Queue: audit-service handles AI prompt version save (create draft / activate / archive) from admin-api */
+    public static final String QUEUE_AI_PROMPT_VERSIONS_SAVE  = "routify.audit-service.ai-prompt.versions.save";
+    public static final String RK_AI_PROMPT_VERSIONS_SAVE     = "ai-prompt.versions.save";
+
+    /** Queue: audit-service handles AI decision labelling (ground-truth feedback) from admin-api */
+    public static final String QUEUE_AI_DECISION_LABEL        = "routify.audit-service.ai-decision.label";
+    public static final String RK_AI_DECISION_LABEL           = "ai-decision.label";
+
     // ─── routify-audit-service route health stats ──────────────────────────────
 
     /**

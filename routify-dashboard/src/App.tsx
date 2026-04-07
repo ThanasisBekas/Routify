@@ -29,6 +29,8 @@ const ApiKeysPage = lazy(() => import('./modules/api-keys/ApiKeysPage'))
 const WebhooksPage = lazy(() => import('./modules/webhooks/WebhooksPage'))
 const RolesPage = lazy(() => import('./modules/roles/RolesPage'))
 const GitOpsPage = lazy(() => import('./modules/gitops/GitOpsPage'))
+const AiPlaygroundPage = lazy(() => import('./modules/ai/AiPlaygroundPage'))
+const VersionComparisonPage = lazy(() => import('./modules/ai/VersionComparisonPage'))
 
 /** Minimal full-screen spinner shown while a lazy chunk is loading. */
 function PageLoader() {
@@ -218,6 +220,30 @@ function AppRoutes() {
             <ErrorBoundary label="GitOps">
               <Suspense fallback={<PageLoader />}>
                 <GitOpsPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* AI Playground — prompt versioning & interactive testing */}
+        <Route
+          path="ai-playground"
+          element={
+            <ErrorBoundary label="AI Playground">
+              <Suspense fallback={<PageLoader />}>
+                <AiPlaygroundPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* AI Version Comparison — side-by-side prompt version metrics */}
+        <Route
+          path="ai-playground/compare"
+          element={
+            <ErrorBoundary label="Version Comparison">
+              <Suspense fallback={<PageLoader />}>
+                <VersionComparisonPage />
               </Suspense>
             </ErrorBoundary>
           }

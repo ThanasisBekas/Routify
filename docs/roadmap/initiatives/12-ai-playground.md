@@ -47,9 +47,9 @@ CREATE INDEX idx_prompt_version_filter ON routify_audit.ai_prompt_version(filter
 ```
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Create entity and repository
-- [ ] Create MapStruct mapper
+- [x] Create Flyway migration
+- [x] Create entity and repository
+- [x] Create MapStruct mapper
 
 ---
 
@@ -74,10 +74,10 @@ QUEUE_AI_PROMPT_VERSIONS_SAVE  = "routify.audit-service.ai-prompt.versions.save"
 **Activation flow:** Activating a version archives the currently active one and updates the filter's config `promptText` to the new version's text (via Kafka `UpdateFilter` command to route-service).
 
 **Task list:**
-- [ ] Add RabbitMQ topology constants
-- [ ] Implement query handlers in audit-service
-- [ ] Create admin-api controller endpoints
-- [ ] Implement activation → filter config update pipeline
+- [x] Add RabbitMQ topology constants
+- [x] Implement query handlers in audit-service
+- [x] Create admin-api controller endpoints
+- [x] Implement activation → filter config update pipeline
 
 ---
 
@@ -116,14 +116,14 @@ QUEUE_AI_PROMPT_VERSIONS_SAVE  = "routify.audit-service.ai-prompt.versions.save"
 **"Run Test"** calls existing `POST /api/v1/admin/ai-filter/test-policy` with the draft prompt text (not the saved filter config).
 
 **Task list:**
-- [ ] Create playground page with split-pane layout
-- [ ] Create prompt editor with syntax highlighting (monospace textarea)
-- [ ] Create test request builder (method, path, headers, body fields)
-- [ ] Create verdict display component
-- [ ] Wire to existing test-policy endpoint (add `promptOverride` parameter)
-- [ ] Create version history sidebar
-- [ ] Add React Router route
-- [ ] Add sidebar navigation entry
+- [x] Create playground page with split-pane layout
+- [x] Create prompt editor with syntax highlighting (monospace textarea)
+- [x] Create test request builder (method, path, headers, body fields)
+- [x] Create verdict display component
+- [x] Wire to existing test-policy endpoint (add `promptOverride` parameter)
+- [x] Create version history sidebar
+- [x] Add React Router route
+- [x] Add sidebar navigation entry
 
 ---
 
@@ -146,10 +146,10 @@ Body: { "label": "CORRECT" | "INCORRECT" | "UNCLEAR" }
 **Dashboard integration:** In the AI Filter Stats page (`AiFilterStatsPage.tsx`), each decision row gets a thumbs-up/thumbs-down button for quick labelling.
 
 **Task list:**
-- [ ] Add `operator_label` column to `ai_filter_decision` table (Flyway)
-- [ ] Create labelling endpoint
-- [ ] Implement accuracy recalculation
-- [ ] Add labelling buttons to AI filter stats page
+- [x] Add `operator_label` column to `ai_filter_decision` table (Flyway)
+- [x] Create labelling endpoint
+- [x] Implement accuracy recalculation
+- [x] Add labelling buttons to AI filter stats page
 
 ---
 
@@ -178,12 +178,12 @@ Body: { "label": "CORRECT" | "INCORRECT" | "UNCLEAR" }
 5. The `AiFilterDecisionEvent` published to Kafka includes `promptVersion` for audit attribution.
 
 **Task list:**
-- [ ] Add `promptVersionSplit` config parsing to `AiGatewayFilterFactory`
-- [ ] Implement weighted version selection
-- [ ] Cache prompt version texts in gateway (populated from filter config events)
-- [ ] Pass version ID to ai-service RPC
-- [ ] Include version ID in `AiFilterDecisionEvent`
-- [ ] Add version-tagged accuracy comparison to dashboard
+- [x] Add `promptVersionSplit` config parsing to `AiGatewayFilterFactory`
+- [x] Implement weighted version selection
+- [x] Cache prompt version texts in gateway (populated from filter config events)
+- [x] Pass version ID to ai-service RPC
+- [x] Include version ID in `AiFilterDecisionEvent`
+- [x] Add version-tagged accuracy comparison to dashboard
 
 ---
 
@@ -200,19 +200,18 @@ Body: { "label": "CORRECT" | "INCORRECT" | "UNCLEAR" }
 - "Promote" button to activate the better-performing version
 
 **Task list:**
-- [ ] Create comparison page
-- [ ] Add version selection dropdowns
-- [ ] Add accuracy/latency/block-rate charts (Recharts)
-- [ ] Wire to audit-service stats endpoints (extend existing `QUEUE_AUDIT_AI_FILTER_STATS` with version filter)
+- [x] Create comparison page
+- [x] Add version selection dropdowns
+- [x] Add accuracy/latency/block-rate charts (Recharts)
+- [x] Wire to audit-service stats endpoints (extend existing `QUEUE_AUDIT_AI_FILTER_STATS` with version filter)
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Operator can create a new prompt version, test it in the playground, and see the verdict
-- [ ] Activating a version updates the live filter config without manual filter editing
-- [ ] A/B split testing routes 10% of traffic to a new prompt version
-- [ ] Operator can label decisions as correct/incorrect, and accuracy score updates
-- [ ] Version comparison dashboard shows side-by-side metrics for two versions
-- [ ] Archived versions are preserved for auditing but cannot be activated
-
+- [x] Operator can create a new prompt version, test it in the playground, and see the verdict
+- [x] Activating a version updates the live filter config without manual filter editing
+- [x] A/B split testing routes 10% of traffic to a new prompt version
+- [x] Operator can label decisions as correct/incorrect, and accuracy score updates
+- [x] Version comparison dashboard shows side-by-side metrics for two versions
+- [x] Archived versions are preserved for auditing but cannot be activated

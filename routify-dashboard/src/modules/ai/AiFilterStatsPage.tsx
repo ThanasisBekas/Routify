@@ -11,8 +11,12 @@
  */
 import { useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { cn } from '../../lib/utils'
+import { ThumbsUp, ThumbsDown } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { cn, extractApiError } from '../../lib/utils'
 import { useAiFilterStats, useAiFilterDecisions } from './useAiFilterStats'
+import { aiApi } from '../../api/aiApi'
 
 const VERDICT_COLORS: Record<string, string> = {
   ALLOW: '#34d399',
@@ -28,12 +32,23 @@ interface Props {
 export default function AiFilterStatsPage({ routeId, routeName }: Props) {
   const [page, setPage] = useState(0)
   const [actionFilter, setActionFilter] = useState<string>('')
+  const queryClient = useQueryClient()
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useAiFilterStats(routeId)
   const { data: decisions, isLoading: decisionsLoading } = useAiFilterDecisions(routeId, {
     page,
     size: 20,
     action: actionFilter || undefined,
+  })
+
+  const labelMutation = useMutation({
+    mutationFn: ({ evaluationId, label }: { evaluationId: string; label: string }) =>
+      aiApi.labelDecision(evaluationId, label),
+    onSuccess: () => {
+      toast.success('Decision labelled')
+      queryClient.invalidateQueries({ queryKey: ['ai-filter-decisions', routeId] })
+    },
+    onError: (err) => toast.error(extractApiError(err)),
   })
 
   if (statsLoading) return <LoadingState />
@@ -198,6 +213,23 @@ export default function AiFilterStatsPage({ routeId, routeName }: Props) {
                 <span className="text-[10px] text-gray-600 shrink-0">
                   {new Date(d.evaluatedAt).toLocaleTimeString()}
                 </span>
+                {/* Ground-truth labelling buttons */}
+                <div className="flex gap-1 shrink-0 ml-1">
+                  <button
+                    title="Mark as correct"
+                    onClick={() => labelMutation.mutate({ evaluationId: d.evaluationId, label: 'CORRECT' })}
+                    className="p-1 rounded hover:bg-emerald-500/10 text-gray-600 hover:text-emerald-400 transition-colors"
+                  >
+                    <ThumbsUp className="w-3 h-3" />
+                  </button>
+                  <button
+                    title="Mark as incorrect"
+                    onClick={() => labelMutation.mutate({ evaluationId: d.evaluationId, label: 'INCORRECT' })}
+                    className="p-1 rounded hover:bg-red-500/10 text-gray-600 hover:text-red-400 transition-colors"
+                  >
+                    <ThumbsDown className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

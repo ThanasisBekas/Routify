@@ -856,6 +856,7 @@ export interface AiFilterDecisionEntry {
   method: string
   path: string
   evaluatedAt: string
+  labels?: DecisionLabel[]
 }
 
 /** A single AI modification decision audit entry. */
@@ -1150,3 +1151,43 @@ export interface FleetStatusResponse {
   instances: GatewayInstanceInfo[]
 }
 
+// ─── AI Prompt Versioning ─────────────────────────────────────────────────────
+
+export type PromptVersionStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
+
+export interface AiPromptVersion {
+  id: string
+  filterId: string
+  tenantId: string
+  version: number
+  promptText: string
+  description?: string
+  status: PromptVersionStatus
+  accuracyScore?: number
+  totalDecisions: number
+  correctCount: number
+  createdBy?: string
+  createdAt: string
+  activatedAt?: string
+  archivedAt?: string
+}
+
+export interface AiPromptVersionSummary {
+  id: string
+  filterId: string
+  version: number
+  status: PromptVersionStatus
+  description?: string
+  accuracyScore?: number
+  totalDecisions: number
+  createdAt: string
+  activatedAt?: string
+}
+
+export type DecisionLabel = 'CORRECT' | 'INCORRECT' | 'UNCLEAR'
+
+export interface AiDecisionLabelResult {
+  success: boolean
+  promptVersionId?: string
+  newAccuracy?: number
+}

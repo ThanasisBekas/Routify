@@ -23,6 +23,8 @@ import reactor.core.scheduler.Schedulers;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -91,6 +93,20 @@ public class AiGatewayFilterFactory
     );
 
     private final AiServiceClient aiServiceClient;
+
+    /**
+     * In-memory cache: prompt version ID → prompt text.
+     * Populated from filter config when {@code promptVersionSplit} is set.
+     * This allows A/B testing between prompt versions at the gateway.
+     */
+    private static final ConcurrentHashMap<String, String> PROMPT_VERSION_CACHE = new ConcurrentHashMap<>();
+
+    /** Registers a prompt version text for gateway-side A/B selection. */
+    public static void cachePromptVersion(String versionId, String promptText) {
+        if (versionId != null && promptText != null) {
+            PROMPT_VERSION_CACHE.put(versionId, promptText);
+        }
+    }
 
     public AiGatewayFilterFactory(AiServiceClient aiServiceClient) {
         super(Config.class);
@@ -225,13 +241,28 @@ public class AiGatewayFilterFactory
     private QueryRequest.AiFilterEvaluate buildRpcRequest(ServerWebExchange exchange, Config config) {
         ServerHttpRequest request = exchange.getRequest();
 
+        // A/B split: if promptVersionSplit is configured, select a version by weight
+        String effectivePolicy = config.getPolicyDescription();
+        String selectedVersionId = null;
+        if (config.getPromptVersionSplit() != null && !config.getPromptVersionSplit().isEmpty()) {
+            selectedVersionId = selectWeightedVersion(config.getPromptVersionSplit());
+            if (selectedVersionId != null) {
+                String cachedPrompt = PROMPT_VERSION_CACHE.get(selectedVersionId);
+                if (cachedPrompt != null) {
+                    effectivePolicy = cachedPrompt;
+                } else {
+                    log.warn("Prompt version {} not in cache — using default policy", selectedVersionId);
+                }
+            }
+        }
+
         return new QueryRequest.AiFilterEvaluate(
                 // Route identity
                 config.getRouteId(),
                 config.getRouteName(),
                 config.getTenantId(),
                 // AI filter config
-                config.getPolicyDescription(),
+                effectivePolicy,
                 config.getEvaluationMode(),
                 config.isIncludeBody(),
                 config.getMaxBodyBytes(),
@@ -250,8 +281,26 @@ public class AiGatewayFilterFactory
                 request.getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID),
                 request.getHeaders().getFirst(RoutifyHeaders.AUTH_ROLE),
                 // Correlation ID for distributed tracing
-                request.getHeaders().getFirst(RoutifyHeaders.CORRELATION_ID)
+                request.getHeaders().getFirst(RoutifyHeaders.CORRELATION_ID),
+                // A/B prompt version selection
+                selectedVersionId
         );
+    }
+
+    /**
+     * Weighted random version selection for A/B prompt version split testing.
+     * Weights are integers (e.g. {"v3": 90, "v4": 10}) representing relative traffic share.
+     */
+    private String selectWeightedVersion(Map<String, Integer> split) {
+        int totalWeight = split.values().stream().mapToInt(Integer::intValue).sum();
+        if (totalWeight <= 0) return null;
+        int random = ThreadLocalRandom.current().nextInt(totalWeight);
+        int cumulative = 0;
+        for (var entry : split.entrySet()) {
+            cumulative += entry.getValue();
+            if (random < cumulative) return entry.getKey();
+        }
+        return split.keySet().iterator().next();
     }
 
     /**
@@ -349,6 +398,13 @@ public class AiGatewayFilterFactory
          * Acts as a second safety net beyond the RabbitTemplate's own reply timeout.
          */
         private int     timeoutMs           = 3000;
+
+        /**
+         * A/B split testing: maps prompt version ID → traffic weight (integer, e.g. 90/10).
+         * When set, the gateway probabilistically selects a prompt version per request.
+         * Null or empty → no split, use {@link #policyDescription} directly.
+         */
+        private Map<String, Integer> promptVersionSplit;
 
         // ── Fields set programmatically by RouteDefinitionBuilder from route metadata ──
         // These are NOT expected in the filter's JSONB config — they are injected from

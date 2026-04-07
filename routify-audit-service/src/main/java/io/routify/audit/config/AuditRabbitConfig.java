@@ -60,6 +60,24 @@ public class AuditRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_AI_FILTER_QUERY).build();
     }
 
+    // ─── AI prompt version queues ──────────────────────────────────────────────
+
+    @Bean public Queue aiPromptVersionsQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_QUERY).build();
+    }
+
+    @Bean public Queue aiPromptVersionsGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_GET).build();
+    }
+
+    @Bean public Queue aiPromptVersionsSaveQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_SAVE).build();
+    }
+
+    @Bean public Queue aiDecisionLabelQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AI_DECISION_LABEL).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -115,6 +133,30 @@ public class AuditRabbitConfig {
     public Binding aiFilterQueryBinding(Queue aiFilterQueryQueue, DirectExchange auditServiceExchange) {
         return BindingBuilder.bind(aiFilterQueryQueue)
                 .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_AI_FILTER_QUERY);
+    }
+
+    @Bean
+    public Binding aiPromptVersionsQueryBinding(Queue aiPromptVersionsQueryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiPromptVersionsQueryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AI_PROMPT_VERSIONS_QUERY);
+    }
+
+    @Bean
+    public Binding aiPromptVersionsGetBinding(Queue aiPromptVersionsGetQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiPromptVersionsGetQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AI_PROMPT_VERSIONS_GET);
+    }
+
+    @Bean
+    public Binding aiPromptVersionsSaveBinding(Queue aiPromptVersionsSaveQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiPromptVersionsSaveQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AI_PROMPT_VERSIONS_SAVE);
+    }
+
+    @Bean
+    public Binding aiDecisionLabelBinding(Queue aiDecisionLabelQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiDecisionLabelQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AI_DECISION_LABEL);
     }
 
     // ─── Message converter & template ─────────────────────────────────────────
