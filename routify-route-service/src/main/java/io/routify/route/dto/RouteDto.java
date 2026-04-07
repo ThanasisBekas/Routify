@@ -96,7 +96,10 @@ public final class RouteDto {
             String createdBy,
             Instant createdAt,
             Instant updatedAt,
-            Instant activatedAt
+            Instant activatedAt,
+            int trafficWeight,
+            UUID canaryRouteId,
+            java.math.BigDecimal canaryAutoRollbackThreshold
     ) {}
 
     public record FilterRef(
@@ -121,7 +124,9 @@ public final class RouteDto {
             Integer version,
             int filterCount,
             Instant createdAt,
-            Instant activatedAt
+            Instant activatedAt,
+            int trafficWeight,
+            UUID canaryRouteId
     ) {}
 
     /**
@@ -140,7 +145,9 @@ public final class RouteDto {
             Integer version,
             String environment,
             List<FilterSnapshot> filters,
-            Map<String, Object> extraConfig
+            Map<String, Object> extraConfig,
+            int trafficWeight,
+            UUID canaryRouteId
     ) {
         public record FilterSnapshot(
                 UUID filterId,

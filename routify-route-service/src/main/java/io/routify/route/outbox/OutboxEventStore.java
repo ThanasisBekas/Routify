@@ -91,6 +91,9 @@ public class OutboxEventStore {
             case DomainEvent.GatewayConfigChanged g   -> "GatewayConfig";
             case DomainEvent.ApiKeyCreated ignored     -> "ApiKey";
             case DomainEvent.ApiKeyRevoked ignored     -> "ApiKey";
+            case DomainEvent.CanaryDeployed ignored     -> "Route";
+            case DomainEvent.CanaryPromoted ignored     -> "Route";
+            case DomainEvent.CanaryRolledBack ignored   -> "Route";
             case DomainEvent.Unknown unknown -> "Unknown";
         };
     }
@@ -131,6 +134,9 @@ public class OutboxEventStore {
             case DomainEvent.GatewayConfigChanged g   -> g.section() != null ? g.section() : "global";
             case DomainEvent.ApiKeyCreated e           -> e.apiKeyId().toString();
             case DomainEvent.ApiKeyRevoked e           -> e.apiKeyId().toString();
+            case DomainEvent.CanaryDeployed e          -> e.primaryRouteId().toString();
+            case DomainEvent.CanaryPromoted e          -> e.primaryRouteId().toString();
+            case DomainEvent.CanaryRolledBack e        -> e.primaryRouteId().toString();
             case DomainEvent.Unknown u -> u.tenantId() != null ? u.tenantId().toString() : "platform";
         };
     }

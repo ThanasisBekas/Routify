@@ -7,6 +7,9 @@ import type {
   UpdateRouteRequest,
   AttachFilterRequest,
   AsyncAcknowledgement,
+  DeployCanaryRequest,
+  AdjustCanaryWeightRequest,
+  CanaryStatusResponse,
 } from '../types'
 
 // All dashboard requests go through routify-admin-api (the BFF).
@@ -44,4 +47,21 @@ export const routesApi = {
 
   detachFilter: (routeId: string, filterId: string) =>
     apiClient.delete<RouteDto>(`${BASE}/${routeId}/filters/${filterId}`).then((r) => r.data),
+
+  // ─── Canary Routing ──────────────────────────────────────────────────────
+
+  deployCanary: (routeId: string, req: DeployCanaryRequest) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/canary`, req).then((r) => r.data),
+
+  getCanaryStatus: (routeId: string) =>
+    apiClient.get<CanaryStatusResponse>(`${BASE}/${routeId}/canary/status`).then((r) => r.data),
+
+  promoteCanary: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/canary/promote`).then((r) => r.data),
+
+  rollbackCanary: (routeId: string, reason?: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/canary/rollback`, { reason }).then((r) => r.data),
+
+  adjustCanaryWeight: (routeId: string, req: AdjustCanaryWeightRequest) =>
+    apiClient.put<AsyncAcknowledgement>(`${BASE}/${routeId}/canary/weight`, req).then((r) => r.data),
 }

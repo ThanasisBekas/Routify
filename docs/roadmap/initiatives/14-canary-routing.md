@@ -36,10 +36,10 @@ ALTER TABLE routify.route ADD CONSTRAINT chk_traffic_weight
 ```
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Add fields to `Route` entity
-- [ ] Update `RouteMapper` and DTOs
-- [ ] Update TypeScript `RouteDto` type
+- [x] Create Flyway migration
+- [x] Add fields to `Route` entity
+- [x] Update `RouteMapper` and DTOs
+- [x] Update TypeScript `RouteDto` type
 
 ---
 
@@ -64,8 +64,8 @@ record AdjustCanaryWeight(UUID commandId, UUID tenantId, UUID routeId,
 ```
 
 **Task list:**
-- [ ] Add command records to `CommandEvent`
-- [ ] Add TypeScript request types
+- [x] Add command records to `CommandEvent`
+- [x] Add TypeScript request types
 
 ---
 
@@ -99,12 +99,12 @@ record AdjustCanaryWeight(UUID commandId, UUID tenantId, UUID routeId,
 3. Publish route events.
 
 **Task list:**
-- [ ] Implement `deployCanary()` in `RouteService`
-- [ ] Implement `promoteCanary()` 
-- [ ] Implement `rollbackCanary()`
-- [ ] Implement `adjustCanaryWeight()`
-- [ ] Add all cases to `RouteCommandConsumer` switch
-- [ ] Publish appropriate domain events and outbox entries
+- [x] Implement `deployCanary()` in `RouteService`
+- [x] Implement `promoteCanary()` 
+- [x] Implement `rollbackCanary()`
+- [x] Implement `adjustCanaryWeight()`
+- [x] Add all cases to `RouteCommandConsumer` switch
+- [x] Publish appropriate domain events and outbox entries
 
 ---
 
@@ -125,10 +125,10 @@ predicates.add(new PredicateDefinition(
 Both the primary (e.g., weight=90) and canary (e.g., weight=10) routes get `Weight` predicates in the same group. The gateway's `WeightRoutePredicateFactory` handles probabilistic selection.
 
 **Task list:**
-- [ ] Add weight predicate to `RouteDefinitionBuilder` when `trafficWeight < 100`
-- [ ] Group primary and canary routes by shared path pattern
-- [ ] Verify weight predicates work with existing route predicates (path, method, headers)
-- [ ] Test weighted distribution accuracy
+- [x] Add weight predicate to `RouteDefinitionBuilder` when `trafficWeight < 100`
+- [x] Group primary and canary routes by shared path pattern
+- [x] Verify weight predicates work with existing route predicates (path, method, headers)
+- [x] Test weighted distribution accuracy
 
 ---
 
@@ -146,12 +146,12 @@ Both the primary (e.g., weight=90) and canary (e.g., weight=10) routes get `Weig
 **State tracking:** `ConcurrentHashMap<UUID, Integer>` tracking consecutive breach count per canary. Reset on any non-breach check.
 
 **Task list:**
-- [ ] Create monitor service
-- [ ] Implement error rate query to audit-service
-- [ ] Implement 3-consecutive-breach rule
-- [ ] Publish rollback command on breach
-- [ ] Add `CANARY_DEPLOYED`, `CANARY_PROMOTED`, `CANARY_ROLLBACK` to `WebhookEventType`
-- [ ] Add metrics: `routify.canary.deployments` counter, `routify.canary.rollbacks` counter
+- [x] Create monitor service
+- [x] Implement error rate query to audit-service
+- [x] Implement 3-consecutive-breach rule
+- [x] Publish rollback command on breach
+- [x] Add `CANARY_DEPLOYED`, `CANARY_PROMOTED`, `CANARY_ROLLBACK` to `WebhookEventType`
+- [x] Add metrics: `routify.canary.deployments` counter, `routify.canary.rollbacks` counter
 
 ---
 
@@ -183,8 +183,8 @@ Both the primary (e.g., weight=90) and canary (e.g., weight=10) routes get `Weig
 ```
 
 **Task list:**
-- [ ] Create endpoints in `AdminRoutesController` (or new `AdminCanaryController`)
-- [ ] Wire to Kafka commands and RabbitMQ queries
+- [x] Create endpoints in `AdminRoutesController` (or new `AdminCanaryController`)
+- [x] Wire to Kafka commands and RabbitMQ queries
 
 ---
 
@@ -201,20 +201,20 @@ Both the primary (e.g., weight=90) and canary (e.g., weight=10) routes get `Weig
 - Canary badge on route card in list view.
 
 **Task list:**
-- [ ] Create canary deploy modal
-- [ ] Create canary status panel with error rate chart
-- [ ] Create traffic weight slider component
-- [ ] Wire promote/rollback/adjust actions
-- [ ] Add MSW mock handlers
+- [x] Create canary deploy modal
+- [x] Create canary status panel with error rate chart
+- [x] Create traffic weight slider component
+- [x] Wire promote/rollback/adjust actions
+- [x] Add MSW mock handlers
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Deploying a canary splits traffic 90/10 between primary and canary upstreams
-- [ ] Adjusting weight to 70/30 takes effect within one gateway reload cycle
-- [ ] Canary with error rate above threshold for 90s is automatically rolled back
-- [ ] Promoting a canary makes the canary upstream the new primary and removes the canary
-- [ ] Dashboard shows live error rate comparison between primary and canary
-- [ ] Canary deployment/promotion/rollback events appear in audit log and trigger webhooks
+- [x] Deploying a canary splits traffic 90/10 between primary and canary upstreams
+- [x] Adjusting weight to 70/30 takes effect within one gateway reload cycle
+- [x] Canary with error rate above threshold for 90s is automatically rolled back
+- [x] Promoting a canary makes the canary upstream the new primary and removes the canary
+- [x] Dashboard shows live error rate comparison between primary and canary
+- [x] Canary deployment/promotion/rollback events appear in audit log and trigger webhooks
 

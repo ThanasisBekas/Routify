@@ -131,6 +131,16 @@ public class RouteCommandKafkaConsumer {
                     c.phase() != null ? c.phase() : "PRE", c.tenantId());
             case CommandEvent.DetachFilter    c -> routeService.detachFilter(
                     c.routeId(), c.filterId(), c.tenantId());
+            case CommandEvent.DeployCanary    c -> routeService.deployCanary(
+                    c.routeId(), c.tenantId(), c.canaryUpstreamUri(),
+                    c.trafficWeight(), c.autoRollbackThreshold(),
+                    c.canaryExtraConfig(), c.requestedBy());
+            case CommandEvent.PromoteCanary   c -> routeService.promoteCanary(
+                    c.routeId(), c.tenantId(), c.requestedBy());
+            case CommandEvent.RollbackCanary  c -> routeService.rollbackCanary(
+                    c.routeId(), c.tenantId(), c.reason(), c.requestedBy());
+            case CommandEvent.AdjustCanaryWeight c -> routeService.adjustCanaryWeight(
+                    c.routeId(), c.tenantId(), c.newWeight(), c.requestedBy());
             default -> log.warn("Unexpected command type on route topic: {}",
                     cmd.getClass().getSimpleName());
         }

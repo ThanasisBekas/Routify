@@ -47,6 +47,11 @@ public enum WebhookEventType {
     /** Triggered when a tenant reaches 80% of any quota (routes, filters, or requests). */
     QUOTA_WARNING,
     /** Triggered when a tenant reaches 100% of any quota (routes, filters, or requests). */
-    QUOTA_EXCEEDED
+    QUOTA_EXCEEDED,
+
+    // ─── Canary routing events (Initiative 14) ──────────────────────────────────
+    CANARY_DEPLOYED,
+    CANARY_PROMOTED,
+    CANARY_ROLLBACK
 }
 

@@ -483,6 +483,214 @@ public class RouteService {
 
     // ─── Filter Management ────────────────────────────────────────────────────
 
+    // ─── Canary Routing ────────────────────────────────────────────────────────
+
+    /**
+     * Deploys a canary route for weighted traffic splitting.
+     * Creates a sibling route with the canary upstream and specified weight.
+     */
+    @Transactional
+    public Route deployCanary(UUID routeId, UUID tenantId, String canaryUpstreamUri,
+                              int canaryWeight, double autoRollbackThreshold,
+                              java.util.Map<String, Object> canaryExtraConfig, String actor) {
+        Route primary = findByIdWithFilters(routeId, tenantId);
+
+        if (primary.getStatus() != RouteStatus.ACTIVE) {
+            throw new RoutifyException.Validation(
+                    "Route '%s' must be ACTIVE to deploy a canary (current: %s)".formatted(primary.getName(), primary.getStatus()));
+        }
+        if (primary.getEnvironment() != io.routify.common.domain.RouteEnvironment.PRODUCTION) {
+            throw new RoutifyException.Validation(
+                    "Canary deployment is only supported for PRODUCTION routes");
+        }
+        if (primary.getCanaryRouteId() != null) {
+            throw new RoutifyException.Conflict(
+                    "Route '%s' already has an active canary deployment".formatted(primary.getName()));
+        }
+        if (canaryWeight < 1 || canaryWeight > 50) {
+            throw new RoutifyException.Validation("Canary traffic weight must be between 1 and 50");
+        }
+
+        // ── Quota check ────────────────────────────────────────────────────
+        enforceRouteQuota(tenantId);
+
+        // Create canary sibling route
+        String canaryName = primary.getName() + "-canary";
+        Route canary = Route.builder()
+                .tenantId(tenantId)
+                .name(canaryName)
+                .description("Canary for " + primary.getName())
+                .pathPattern(primary.getPathPattern())
+                .methods(primary.getMethods())
+                .upstreamUri(canaryUpstreamUri)
+                .stripPrefix(primary.getStripPrefix())
+                .createdBy(actor)
+                .extraConfig(canaryExtraConfig != null ? new java.util.HashMap<>(canaryExtraConfig) : new java.util.HashMap<>(primary.getExtraConfig()))
+                .environment(io.routify.common.domain.RouteEnvironment.PRODUCTION)
+                .build();
+
+        Route savedCanary = routeRepository.save(canary);
+
+        // Set canaryPrimaryRouteId in extraConfig so the gateway groups this with the primary
+        // in the same Weight predicate group. Must be done after initial save to get the primary ID.
+        var canaryExtra = new java.util.HashMap<>(savedCanary.getExtraConfig() != null ? savedCanary.getExtraConfig() : java.util.Map.<String, Object>of());
+        canaryExtra.put("canaryPrimaryRouteId", routeId.toString());
+        savedCanary.setExtraConfig(canaryExtra);
+
+        // Copy filter chain from primary
+        for (RouteFilter rf : primary.getFilters()) {
+            savedCanary.attachFilter(rf.getFilterDefinition(), rf.getFilterOrder(), rf.getPhase());
+        }
+
+        // Activate canary and set weight
+        savedCanary.activate();
+        savedCanary.setTrafficWeight(canaryWeight);
+        savedCanary = routeRepository.save(savedCanary);
+
+        // Update primary weight and link
+        primary.setTrafficWeight(100 - canaryWeight);
+        primary.setCanaryRouteId(savedCanary.getId());
+        primary.setCanaryAutoRollbackThreshold(java.math.BigDecimal.valueOf(autoRollbackThreshold));
+        routeRepository.save(primary);
+
+        // Publish events
+        outboxStore.store(
+                new DomainEvent.CanaryDeployed(
+                        UUID.randomUUID(), tenantId, primary.getId(), savedCanary.getId(),
+                        primary.getName(), canaryWeight, canaryUpstreamUri,
+                        Instant.now(), null, actor),
+                KafkaTopics.ROUTE_EVENTS, tenantId);
+
+        triggerGatewayReload(tenantId,
+                "Canary deployed for route %s (weight=%d%%)".formatted(primary.getName(), canaryWeight));
+
+        log.info("Canary deployed: primary={} canary={} weight={} threshold={}%",
+                primary.getId(), savedCanary.getId(), canaryWeight, autoRollbackThreshold);
+        return savedCanary;
+    }
+
+    /**
+     * Promotes the canary — copies canary upstream to primary, removes canary route.
+     */
+    @Transactional
+    public Route promoteCanary(UUID routeId, UUID tenantId, String actor) {
+        Route primary = findById(routeId, tenantId);
+
+        if (primary.getCanaryRouteId() == null) {
+            throw new RoutifyException.Validation(
+                    "Route '%s' has no active canary deployment".formatted(primary.getName()));
+        }
+
+        Route canary = findById(primary.getCanaryRouteId(), tenantId);
+
+        // Copy canary config to primary
+        primary.setUpstreamUri(canary.getUpstreamUri());
+        if (canary.getExtraConfig() != null) {
+            primary.setExtraConfig(new java.util.HashMap<>(canary.getExtraConfig()));
+        }
+        primary.setTrafficWeight(100);
+        primary.setCanaryRouteId(null);
+        primary.setCanaryAutoRollbackThreshold(null);
+        routeRepository.save(primary);
+
+        // Archive canary
+        canary.archive();
+        canary.setTrafficWeight(0);
+        routeRepository.save(canary);
+
+        // Publish events
+        outboxStore.store(
+                new DomainEvent.CanaryPromoted(
+                        UUID.randomUUID(), tenantId, primary.getId(), canary.getId(),
+                        primary.getName(), Instant.now(), null, actor),
+                KafkaTopics.ROUTE_EVENTS, tenantId);
+
+        triggerGatewayReload(tenantId,
+                "Canary promoted for route %s".formatted(primary.getName()));
+
+        log.info("Canary promoted: primary={} canary={} (archived)", primary.getId(), canary.getId());
+        return primary;
+    }
+
+    /**
+     * Rolls back the canary — archives canary, restores primary to 100%.
+     */
+    @Transactional
+    public Route rollbackCanary(UUID routeId, UUID tenantId, String reason, String actor) {
+        Route primary = findById(routeId, tenantId);
+
+        if (primary.getCanaryRouteId() == null) {
+            throw new RoutifyException.Validation(
+                    "Route '%s' has no active canary deployment".formatted(primary.getName()));
+        }
+
+        Route canary = findById(primary.getCanaryRouteId(), tenantId);
+
+        // Restore primary
+        primary.setTrafficWeight(100);
+        UUID canaryId = primary.getCanaryRouteId();
+        primary.setCanaryRouteId(null);
+        primary.setCanaryAutoRollbackThreshold(null);
+        routeRepository.save(primary);
+
+        // Archive canary
+        canary.archive();
+        canary.setTrafficWeight(0);
+        routeRepository.save(canary);
+
+        // Publish events
+        outboxStore.store(
+                new DomainEvent.CanaryRolledBack(
+                        UUID.randomUUID(), tenantId, primary.getId(), canaryId,
+                        primary.getName(), reason,
+                        Instant.now(), null, actor),
+                KafkaTopics.ROUTE_EVENTS, tenantId);
+
+        triggerGatewayReload(tenantId,
+                "Canary rolled back for route %s: %s".formatted(primary.getName(), reason));
+
+        log.info("Canary rolled back: primary={} canary={} reason={}", primary.getId(), canaryId, reason);
+        return primary;
+    }
+
+    /**
+     * Adjusts the traffic weight split between primary and canary.
+     */
+    @Transactional
+    public void adjustCanaryWeight(UUID routeId, UUID tenantId, int newCanaryWeight, String actor) {
+        Route primary = findById(routeId, tenantId);
+
+        if (primary.getCanaryRouteId() == null) {
+            throw new RoutifyException.Validation(
+                    "Route '%s' has no active canary deployment".formatted(primary.getName()));
+        }
+        if (newCanaryWeight < 1 || newCanaryWeight > 50) {
+            throw new RoutifyException.Validation("Canary traffic weight must be between 1 and 50");
+        }
+
+        Route canary = findById(primary.getCanaryRouteId(), tenantId);
+
+        canary.setTrafficWeight(newCanaryWeight);
+        primary.setTrafficWeight(100 - newCanaryWeight);
+
+        routeRepository.save(canary);
+        routeRepository.save(primary);
+
+        // Publish route updated events for both routes
+        outboxStore.store(
+                new DomainEvent.RouteUpdated(
+                        UUID.randomUUID(), tenantId, primary.getId(),
+                        primary.getName(), Instant.now(), null, actor),
+                KafkaTopics.ROUTE_EVENTS, tenantId);
+
+        triggerGatewayReload(tenantId,
+                "Canary weight adjusted for route %s: %d/%d".formatted(primary.getName(), 100 - newCanaryWeight, newCanaryWeight));
+
+        log.info("Canary weight adjusted: primary={} canary={} newWeight={}", primary.getId(), canary.getId(), newCanaryWeight);
+    }
+
+    // ─── Filter Management (original) ──────────────────────────────────────────
+
     /**
      * Attaches a filter to a route.
      * If the route is ACTIVE, triggers an immediate gateway reload.
@@ -591,6 +799,9 @@ public class RouteService {
      * (pathPattern, methods) combination.  A duplicate would make request routing
      * ambiguous — the gateway cannot deterministically decide which route to use.
      *
+     * <p>Canary routes are allowed to share a path pattern with their primary route —
+     * the gateway uses weighted predicates to split traffic between them.
+     *
      * @param excludeId when non-null, the route with this ID is excluded from the check
      *                  (used during updates so a route may keep its own path/methods).
      * @throws RoutifyException.Conflict if a conflicting route exists
@@ -599,7 +810,25 @@ public class RouteService {
         boolean duplicate = excludeId == null
                 ? routeRepository.existsActiveByPathPatternAndMethodsAndTenantId(tenantId, pathPattern, methods)
                 : routeRepository.existsActiveByPathPatternAndMethodsAndTenantIdExcluding(tenantId, pathPattern, methods, excludeId);
+
         if (duplicate) {
+            // Check if the conflicting route is a canary pair — if so, allow it
+            if (excludeId != null) {
+                var conflicting = routeRepository.findActiveByPathPatternAndMethodsAndTenantIdExcluding(
+                        tenantId, pathPattern, methods, excludeId);
+                if (conflicting.isPresent()) {
+                    Route other = conflicting.get();
+                    Route self = routeRepository.findById(excludeId).orElse(null);
+                    // Allow if self is canary of other, or other is canary of self
+                    if (self != null && (
+                            (self.getCanaryRouteId() != null && self.getCanaryRouteId().equals(other.getId())) ||
+                            (other.getCanaryRouteId() != null && other.getCanaryRouteId().equals(self.getId())) ||
+                            self.getName().endsWith("-canary"))) {
+                        return; // Canary pair — allowed
+                    }
+                }
+            }
+
             throw new RoutifyException.Conflict(
                     "A route with path pattern '%s' and methods '%s' already exists for this tenant"
                             .formatted(pathPattern, methods));

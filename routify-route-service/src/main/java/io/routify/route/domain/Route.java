@@ -124,6 +124,20 @@ public class Route {
     @Column(name = "extra_config", columnDefinition = "jsonb")
     private Map<String, Object> extraConfig = new HashMap<>();
 
+    // ─── Canary Routing ────────────────────────────────────────────────────────
+
+    /** Traffic weight percentage (0–100). Default 100 means all traffic goes to this route. */
+    @Column(name = "traffic_weight", nullable = false)
+    private int trafficWeight = 100;
+
+    /** FK to the canary sibling route, set on the primary route when a canary is deployed. */
+    @Column(name = "canary_route_id")
+    private UUID canaryRouteId;
+
+    /** Error rate % threshold above which the canary should be auto-rolled back. */
+    @Column(name = "canary_auto_rollback_threshold")
+    private java.math.BigDecimal canaryAutoRollbackThreshold;
+
     // ─── Metadata ─────────────────────────────────────────────────────────────
 
     /** User who created this route */
@@ -240,6 +254,9 @@ public class Route {
     public String getCreatedBy()   { return createdBy; }
     public Instant getCreatedAt()  { return createdAt; }
     public Instant getUpdatedAt()  { return updatedAt; }
+    public int getTrafficWeight()  { return trafficWeight; }
+    public UUID getCanaryRouteId() { return canaryRouteId; }
+    public java.math.BigDecimal getCanaryAutoRollbackThreshold() { return canaryAutoRollbackThreshold; }
 
     // ─── Setters (package-private for service layer) ──────────────────────────
 
@@ -251,6 +268,9 @@ public class Route {
     public void setStripPrefix(String stripPrefix) { this.stripPrefix = stripPrefix; }
     public void setExtraConfig(Map<String, Object> extraConfig) { this.extraConfig = extraConfig; }
     public void setEnvironment(RouteEnvironment environment) { this.environment = environment; }
+    public void setTrafficWeight(int trafficWeight)       { this.trafficWeight = trafficWeight; }
+    public void setCanaryRouteId(UUID canaryRouteId)      { this.canaryRouteId = canaryRouteId; }
+    public void setCanaryAutoRollbackThreshold(java.math.BigDecimal threshold) { this.canaryAutoRollbackThreshold = threshold; }
 
     // ─── Builder ──────────────────────────────────────────────────────────────
 
@@ -281,4 +301,3 @@ public class Route {
         public Route build()                            { return new Route(this); }
     }
 }
-
