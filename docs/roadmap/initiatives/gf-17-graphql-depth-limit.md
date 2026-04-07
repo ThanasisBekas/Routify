@@ -3,7 +3,8 @@
 > **Parent:** [Gateway Filters Backlog Roadmap](../GATEWAY-FILTERS-ROADMAP.md) · **Wave:** 5 (Extensions) · **Owner:** Gateway team  
 > **Category:** Validation · **Priority:** Medium  
 > **Filter type:** `GRAPHQL_DEPTH_LIMIT`  
-> **Dependencies:** GF-02 (Unified Error Response Builder)
+> **Dependencies:** GF-02 (Unified Error Response Builder)  
+> **Status:** ✅ **COMPLETED**
 
 ---
 
@@ -34,9 +35,9 @@ A filter that parses incoming GraphQL query documents, computes query depth and 
 ```
 
 **Task list:**
-- [ ] Add `graphql-java` dependency to gateway POM
-- [ ] Verify no conflict with existing dependencies
-- [ ] Lazy-initialize parser on first GraphQL request (avoid startup latency)
+- [x] Add `graphql-java` dependency to gateway POM
+- [x] Verify no conflict with existing dependencies
+- [x] Lazy-initialize parser on first GraphQL request (avoid startup latency)
 
 ---
 
@@ -69,14 +70,14 @@ A filter that parses incoming GraphQL query documents, computes query depth and 
 - If the body doesn't contain a `query` field, pass through unchanged.
 
 **Task list:**
-- [ ] Create `GraphQLQueryAnalyzer` with AST traversal
-- [ ] Create filter factory
-- [ ] Parse request body for GraphQL query
-- [ ] Compute depth via recursive AST traversal
-- [ ] Compute complexity (1 per field, configurable multiplier for lists)
-- [ ] Count aliases
-- [ ] Detect and optionally block introspection queries
-- [ ] Re-emit body for downstream
+- [x] Create `GraphQLQueryAnalyzer` with AST traversal
+- [x] Create filter factory
+- [x] Parse request body for GraphQL query
+- [x] Compute depth via recursive AST traversal
+- [x] Compute complexity (1 per field, configurable multiplier for lists)
+- [x] Count aliases
+- [x] Detect and optionally block introspection queries
+- [x] Re-emit body for downstream
 
 ---
 
@@ -86,9 +87,9 @@ A filter that parses incoming GraphQL query documents, computes query depth and 
 If the request body is a JSON array (batched query), enforce `maxBatchSize` and evaluate each operation independently. The query is rejected if any single operation exceeds the depth/complexity limits.
 
 **Task list:**
-- [ ] Detect JSON array (batched query)
-- [ ] Enforce `maxBatchSize`
-- [ ] Evaluate each operation independently
+- [x] Detect JSON array (batched query)
+- [x] Enforce `maxBatchSize`
+- [x] Evaluate each operation independently
 
 ---
 
@@ -99,9 +100,9 @@ If the request body is a JSON array (batched query), enforce `maxBatchSize` and 
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `GRAPHQL_DEPTH_LIMIT` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `GRAPHQL_DEPTH_LIMIT` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -126,20 +127,19 @@ If the request body is a JSON array (batched query), enforce `maxBatchSize` and 
 - Invalid GraphQL query → 400 with parse error
 
 **Task list:**
-- [ ] Write `GraphQLQueryAnalyzer` unit tests
-- [ ] Write filter factory integration tests
-- [ ] Write batch query tests
-- [ ] Write non-GraphQL passthrough tests
+- [x] Write `GraphQLQueryAnalyzer` unit tests
+- [x] Write filter factory integration tests
+- [x] Write batch query tests
+- [x] Write non-GraphQL passthrough tests
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] GraphQL queries exceeding depth limit rejected with 400
-- [ ] Complexity scoring with configurable field costs
-- [ ] Alias limiting prevents resource exhaustion
-- [ ] Introspection queries optionally blocked
-- [ ] Batch query size limiting
-- [ ] Non-GraphQL requests pass through unchanged
-- [ ] Parser lazy-initialized (no startup latency impact)
-
+- [x] GraphQL queries exceeding depth limit rejected with 400
+- [x] Complexity scoring with configurable field costs
+- [x] Alias limiting prevents resource exhaustion
+- [x] Introspection queries optionally blocked
+- [x] Batch query size limiting
+- [x] Non-GraphQL requests pass through unchanged
+- [x] Parser lazy-initialized (no startup latency impact)

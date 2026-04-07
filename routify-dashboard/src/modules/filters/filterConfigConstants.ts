@@ -54,6 +54,7 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Validation
   VALIDATE_JSON_SCHEMA: { schema: '{}', specVersion: 'V7' },
   REQUEST_SIZE_LIMIT: { maxSize: '5MB', checkContentLength: true, checkActualSize: true, tenantAware: false },
+  GRAPHQL_DEPTH_LIMIT: { maxDepth: 10, maxComplexity: 100, maxAliases: 5, introspectionAllowed: false, maxBatchSize: 5 },
   // Performance
   RESPONSE_CACHE: {
     ttlSeconds: 60,

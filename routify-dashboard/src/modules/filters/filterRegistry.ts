@@ -238,6 +238,15 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-cyan-300/10',
     border: 'border-cyan-300/20',
   },
+  {
+    value: 'GRAPHQL_DEPTH_LIMIT',
+    label: 'GraphQL Depth Limit',
+    category: 'Validation',
+    description: 'Parses GraphQL queries and rejects those exceeding depth, complexity, or alias limits. Optionally blocks introspection and batched queries.',
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-300/10',
+    border: 'border-cyan-300/20',
+  },
 
   // ── Performance ────────────────────────────────────────────────────────────
   {
