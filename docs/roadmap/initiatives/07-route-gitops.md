@@ -79,8 +79,8 @@ gatewayConfig:               # optional section
 - `apiVersion` enables future schema evolution.
 
 **Task list:**
-- [ ] Define and document the YAML schema
-- [ ] Create Java records for serialization/deserialization
+- [x] Define and document the YAML schema
+- [x] Create Java records for serialization/deserialization
 
 ---
 
@@ -112,8 +112,8 @@ public record GatewayExportV1(
 ```
 
 **Task list:**
-- [ ] Create export DTO records
-- [ ] Add SnakeYAML serialization utilities
+- [x] Create export DTO records
+- [x] Add SnakeYAML serialization utilities
 
 ---
 
@@ -140,12 +140,12 @@ Authorization: SUPER_ADMIN, TENANT_ADMIN
 7. Return with `Content-Disposition: attachment; filename="routify-export-{tenant}-{date}.yaml"`.
 
 **Task list:**
-- [ ] Create `ExportService`
-- [ ] Create `AdminExportController`
-- [ ] Add SnakeYAML explicit dependency to `routify-admin-api/pom.xml`
-- [ ] Implement YAML serialization with block-style formatting
-- [ ] Apply sensitive field masking
-- [ ] Add JSON format option (via `Accept` header or query param)
+- [x] Create `ExportService`
+- [x] Create `AdminExportController`
+- [x] Add SnakeYAML explicit dependency to `routify-admin-api/pom.xml`
+- [x] Implement YAML serialization with block-style formatting
+- [x] Apply sensitive field masking
+- [x] Add JSON format option (via `Accept` header or query param)
 
 ---
 
@@ -197,11 +197,11 @@ Authorization: SUPER_ADMIN, TENANT_ADMIN
 5. Skip masked config values in comparison.
 
 **Task list:**
-- [ ] Create `ImportService` with diff logic
-- [ ] Create YAML deserialization (SnakeYAML → `GatewayExportV1`)
-- [ ] Implement field-level diff comparison
-- [ ] Add validation (schema version, filter types, required fields)
-- [ ] Create preview endpoint
+- [x] Create `ImportService` with diff logic
+- [x] Create YAML deserialization (SnakeYAML → `GatewayExportV1`)
+- [x] Implement field-level diff comparison
+- [x] Add validation (schema version, filter types, required fields)
+- [x] Create preview endpoint
 
 ---
 
@@ -230,10 +230,10 @@ Response: 202 AsyncAcknowledgement
 - Route-service deduplicates by `commandId` (existing behavior).
 
 **Task list:**
-- [ ] Create apply endpoint
-- [ ] Generate Kafka commands from diff
-- [ ] Implement idempotent commandId generation
-- [ ] Add audit event for import action (with filename, change summary)
+- [x] Create apply endpoint
+- [x] Generate Kafka commands from diff
+- [x] Implement idempotent commandId generation
+- [x] Add audit event for import action (with filename, change summary)
 
 ---
 
@@ -257,12 +257,12 @@ Response: 202 AsyncAcknowledgement
 - "Apply" button sends the import request. Progress toast via SSE/WebSocket events.
 
 **Task list:**
-- [ ] Create export button component
-- [ ] Create import modal with file drop zone
-- [ ] Create diff preview table component
-- [ ] Wire to API endpoints
-- [ ] Add success/error toasts
-- [ ] Add MSW mock handlers
+- [x] Create export button component
+- [x] Create import modal with file drop zone
+- [x] Create diff preview table component
+- [x] Wire to API endpoints
+- [x] Add success/error toasts
+- [x] Add MSW mock handlers
 
 ---
 
@@ -296,20 +296,20 @@ curl -X POST \
 ```
 
 **Task list:**
-- [ ] Write CLI documentation with examples
-- [ ] Document API key auth for CI pipelines (depends on Initiative 01)
+- [x] Write CLI documentation with examples
+- [x] Document API key auth for CI pipelines (depends on Initiative 01)
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Export produces a valid YAML file containing all routes, filters, and gateway config
-- [ ] Sensitive fields are masked in the export (`***MASKED***`)
-- [ ] Import preview shows correct diff (create/update/unchanged) without applying changes
-- [ ] Import apply creates/updates resources via existing Kafka command pipeline
-- [ ] Importing the same file twice is idempotent (no duplicate resources)
-- [ ] Export → Import round-trip preserves all non-sensitive configuration
-- [ ] CLI examples work with `curl` and an API key
+- [x] Export produces a valid YAML file containing all routes, filters, and gateway config
+- [x] Sensitive fields are masked in the export (`***MASKED***`)
+- [x] Import preview shows correct diff (create/update/unchanged) without applying changes
+- [x] Import apply creates/updates resources via existing Kafka command pipeline
+- [x] Importing the same file twice is idempotent (no duplicate resources)
+- [x] Export → Import round-trip preserves all non-sensitive configuration
+- [x] CLI examples work with `curl` and an API key
 
 ---
 
