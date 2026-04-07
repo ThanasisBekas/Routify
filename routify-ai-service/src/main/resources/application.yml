@@ -124,7 +124,6 @@ management:
     port: 9086
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus,circuitbreakers
   endpoint:

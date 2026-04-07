@@ -55,7 +55,6 @@ management:
     port: 9082
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus
   endpoint:
@@ -77,18 +76,6 @@ management:
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 routify:
-  # HTTP URLs below are kept for future reference and external tooling only.
-  # All internal service-to-service communication uses RabbitMQ (sync) and Kafka (async).
-  route-service:
-    url: ${ROUTE_SERVICE_URL:http://localhost:8081}
-  identity-service:
-    url: ${IDENTITY_SERVICE_URL:http://localhost:8083}
-  audit-service:
-    url: ${AUDIT_SERVICE_URL:http://localhost:8084}
-  cert-vault:
-    url: ${CERT_VAULT_URL:http://localhost:8085}
-  gateway:
-    url: ${GATEWAY_URL:http://localhost:8080}
 
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-
