@@ -32,6 +32,7 @@ export type FilterCategory =
   | 'Security'
   | 'Versioning'
   | 'Routing'
+  | 'Integration'
   | 'Developer Experience'
   | 'Custom'
   | 'AI'
@@ -49,6 +50,7 @@ export const CATEGORY_ORDER: FilterCategory[] = [
   'Security',
   'Versioning',
   'Routing',
+  'Integration',
   'Developer Experience',
   'Custom',
   'AI',
@@ -68,6 +70,7 @@ export const CATEGORY_COLORS: Record<FilterCategory, string> = {
   Security: 'text-red-400 bg-red-400/10 border-red-400/20',
   Versioning: 'text-teal-400 bg-teal-400/10 border-teal-400/20',
   Routing: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
+  Integration: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
   'Developer Experience': 'text-emerald-300 bg-emerald-300/10 border-emerald-300/20',
   Custom: 'text-gray-400 bg-gray-400/10 border-gray-400/20',
   AI: 'text-fuchsia-400 bg-fuchsia-400/10 border-fuchsia-400/20',
@@ -450,6 +453,18 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     color: 'text-sky-400',
     bg: 'bg-sky-400/10',
     border: 'border-sky-400/20',
+  },
+
+  // ── Integration ─────────────────────────────────────────────────────────────
+  {
+    value: 'WEBHOOK_NOTIFY',
+    label: 'Webhook Notification',
+    category: 'Integration',
+    description:
+      'Fires a non-blocking webhook HTTP POST when a request matches configurable conditions (status codes, header values). Supports HMAC-SHA256 signing, per-route cooldown to prevent notification storms, and fire-and-forget dispatch that never blocks the client response.',
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-400/10',
+    border: 'border-yellow-400/20',
   },
 
   // ── Developer Experience ─────────────────────────────────────────────────────

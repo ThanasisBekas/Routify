@@ -38,7 +38,6 @@ import {
   Timer,
   Layers,
   Sliders,
-  Tag,
   Eye,
   Activity,
   Hash,
@@ -49,6 +48,18 @@ import {
   FlaskConical,
   Brain,
   Wand2,
+  Repeat2,
+  Database,
+  FileArchive,
+  MapPin,
+  BarChart3,
+  FlaskRound,
+  Bell,
+  ShieldBan,
+  Ruler,
+  Network,
+  Replace,
+  KeyRound,
 } from 'lucide-react'
 import { MarkerType } from '@xyflow/react'
 import { FILTER_REGISTRY_MAP } from '../../filters/filterRegistry'
@@ -76,33 +87,40 @@ const FILTER_ICONS: Record<string, React.ReactNode> = {
   AUTH_CERT_VAULT: <ShieldCheck className="w-4 h-4" />,
   DOWNSTREAM_BASIC_AUTH: <ArrowRightLeft className="w-4 h-4" />,
   DOWNSTREAM_BEARER_CC: <ChevronsRight className="w-4 h-4" />,
+  OAUTH2_TOKEN_RELAY: <Repeat2 className="w-4 h-4" />,
   RATE_LIMIT_FIXED_WINDOW: <Gauge className="w-4 h-4" />,
   RATE_LIMIT_SLIDING_WINDOW: <Gauge className="w-4 h-4" />,
-  RATE_LIMIT_TOKEN_BUCKET: <Gauge className="w-4 h-4" />,
-  CIRCUIT_BREAKER: <AlertTriangle className="w-4 h-4" />,
-  RETRY: <RotateCcw className="w-4 h-4" />,
   TIMEOUT: <Timer className="w-4 h-4" />,
+  CIRCUIT_BREAKER_V2: <AlertTriangle className="w-4 h-4" />,
+  RETRY_V2: <RotateCcw className="w-4 h-4" />,
+  IDEMPOTENCY_KEY: <KeyRound className="w-4 h-4" />,
+  RESPONSE_CACHE: <Database className="w-4 h-4" />,
+  REQUEST_DECOMPRESS: <FileArchive className="w-4 h-4" />,
   BODY_JOLT_TRANSFORM: <Code2 className="w-4 h-4" />,
-  BODY_JSONATA_TRANSFORM: <Code2 className="w-4 h-4" />,
-  SPEL_TRANSFORM: <Brackets className="w-4 h-4" />,
   REQUEST_HEADER_MODIFY: <Sliders className="w-4 h-4" />,
   RESPONSE_HEADER_MODIFY: <Sliders className="w-4 h-4" />,
+  RESPONSE_HEADER_REWRITE: <Replace className="w-4 h-4" />,
   VALIDATE_JSON_SCHEMA: <CheckCircle className="w-4 h-4" />,
-  VALIDATE_REGEX: <Tag className="w-4 h-4" />,
+  REQUEST_SIZE_LIMIT: <Ruler className="w-4 h-4" />,
+  GRAPHQL_DEPTH_LIMIT: <Network className="w-4 h-4" />,
   CONDITIONAL_ROUTE: <GitBranch className="w-4 h-4" />,
   USER_ID_PAYLOAD_ROUTING: <FlaskConical className="w-4 h-4" />,
+  GEO_ROUTE: <MapPin className="w-4 h-4" />,
   API_VERSIONING: <ToggleLeft className="w-4 h-4" />,
   SECURITY_HEADERS: <Layers className="w-4 h-4" />,
   CERT_ROTATION: <RefreshCw className="w-4 h-4" />,
   CERT_VAULT_EXPIRY_CHECK: <ShieldCheck className="w-4 h-4" />,
+  IP_ACCESS_CONTROL: <ShieldBan className="w-4 h-4" />,
   CORRELATION_ID: <Hash className="w-4 h-4" />,
   REQUEST_LOGGER: <Eye className="w-4 h-4" />,
   TENANT_CONTEXT: <Layers className="w-4 h-4" />,
   CUSTOM_METRIC: <Activity className="w-4 h-4" />,
+  BODY_SIZE_METRIC: <BarChart3 className="w-4 h-4" />,
   CUSTOM_SPEL: <Brackets className="w-4 h-4" />,
+  MOCK_RESPONSE: <FlaskRound className="w-4 h-4" />,
+  WEBHOOK_NOTIFY: <Bell className="w-4 h-4" />,
   AI_FILTER: <Brain className="w-4 h-4" />,
   AI_MODIFIER: <Wand2 className="w-4 h-4" />,
-  AUTH_NONE: <Shield className="w-4 h-4" />,
 }
 
 /** Build FILTER_META by merging registry color/bg/border with local icons */
@@ -117,51 +135,8 @@ export const FILTER_META: Record<string, FilterMeta> = (() => {
       border: entry.border.replace('/20', '/25'),
     }
   })
-  // Legacy / deprecated types not in registry — keep backward compat
-  const legacy: Record<string, FilterMeta> = {
-    AUTH_NONE: {
-      icon: <Shield className="w-4 h-4" />,
-      color: 'text-gray-400',
-      bg: 'bg-gray-400/10',
-      border: 'border-gray-400/25',
-    },
-    RATE_LIMIT_TOKEN_BUCKET: {
-      icon: <Gauge className="w-4 h-4" />,
-      color: 'text-yellow-400',
-      bg: 'bg-yellow-400/10',
-      border: 'border-yellow-400/25',
-    },
-    CIRCUIT_BREAKER: {
-      icon: <AlertTriangle className="w-4 h-4" />,
-      color: 'text-orange-400',
-      bg: 'bg-orange-400/10',
-      border: 'border-orange-400/25',
-    },
-    RETRY: {
-      icon: <RotateCcw className="w-4 h-4" />,
-      color: 'text-amber-400',
-      bg: 'bg-amber-400/10',
-      border: 'border-amber-400/25',
-    },
-    BODY_JSONATA_TRANSFORM: {
-      icon: <Code2 className="w-4 h-4" />,
-      color: 'text-violet-400',
-      bg: 'bg-violet-400/10',
-      border: 'border-violet-400/25',
-    },
-    SPEL_TRANSFORM: {
-      icon: <Brackets className="w-4 h-4" />,
-      color: 'text-fuchsia-400',
-      bg: 'bg-fuchsia-400/10',
-      border: 'border-fuchsia-400/25',
-    },
-    VALIDATE_REGEX: {
-      icon: <Tag className="w-4 h-4" />,
-      color: 'text-teal-300',
-      bg: 'bg-teal-300/10',
-      border: 'border-teal-300/25',
-    },
-  }
+  // Legacy / deprecated types not in registry — keep backward compat for existing data
+  const legacy: Record<string, FilterMeta> = {}
   Object.assign(meta, legacy)
   return meta
 })() as Record<string, FilterMeta>
@@ -205,7 +180,10 @@ export interface PaletteNodeDef {
     | 'Security'
     | 'Validation'
     | 'Modification'
+    | 'Performance'
     | 'Observability'
+    | 'Integration'
+    | 'Developer Experience'
     | 'Custom'
     | 'AI'
   singleUse?: boolean
@@ -361,6 +339,17 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     border: 'border-purple-400/20',
     category: 'Downstream Auth',
   },
+  {
+    type: 'filterNode',
+    filterType: 'OAUTH2_TOKEN_RELAY',
+    label: 'OAuth2 Token Relay',
+    description: 'RFC 8693 Token Exchange — exchange incoming bearer for a downstream-specific token',
+    icon: <Repeat2 className="w-4 h-4" />,
+    color: 'text-amber-400',
+    bg: 'bg-amber-400/10',
+    border: 'border-amber-400/20',
+    category: 'Downstream Auth',
+  },
 
   // ── Rate Limiting ─────────────────────────────────────────────────────────────
   {
@@ -385,41 +374,8 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     border: 'border-amber-400/20',
     category: 'Rate Limiting',
   },
-  {
-    type: 'filterNode',
-    filterType: 'RATE_LIMIT_TOKEN_BUCKET',
-    label: 'Token Bucket',
-    description: 'Token-bucket burst-tolerant rate limiter (legacy)',
-    icon: <Gauge className="w-4 h-4" />,
-    color: 'text-yellow-400',
-    bg: 'bg-yellow-400/10',
-    border: 'border-yellow-400/20',
-    category: 'Rate Limiting',
-  },
 
   // ── Resilience ────────────────────────────────────────────────────────────────
-  {
-    type: 'filterNode',
-    filterType: 'CIRCUIT_BREAKER',
-    label: 'Circuit Breaker',
-    description: 'Resilience4j circuit breaker for upstream protection (legacy)',
-    icon: <AlertTriangle className="w-4 h-4" />,
-    color: 'text-orange-400',
-    bg: 'bg-orange-400/10',
-    border: 'border-orange-400/20',
-    category: 'Resilience',
-  },
-  {
-    type: 'filterNode',
-    filterType: 'RETRY',
-    label: 'Retry',
-    description: 'Automatic retry with backoff on upstream failures (legacy)',
-    icon: <RotateCcw className="w-4 h-4" />,
-    color: 'text-amber-400',
-    bg: 'bg-amber-400/10',
-    border: 'border-amber-400/20',
-    category: 'Resilience',
-  },
   {
     type: 'filterNode',
     filterType: 'TIMEOUT',
@@ -429,6 +385,39 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     color: 'text-rose-400',
     bg: 'bg-rose-400/10',
     border: 'border-rose-400/20',
+    category: 'Resilience',
+  },
+  {
+    type: 'filterNode',
+    filterType: 'CIRCUIT_BREAKER_V2',
+    label: 'Circuit Breaker v2',
+    description: 'Per-route Resilience4j circuit breaker with configurable thresholds and manual override',
+    icon: <AlertTriangle className="w-4 h-4" />,
+    color: 'text-orange-400',
+    bg: 'bg-orange-400/10',
+    border: 'border-orange-400/20',
+    category: 'Resilience',
+  },
+  {
+    type: 'filterNode',
+    filterType: 'RETRY_V2',
+    label: 'Retry v2',
+    description: 'Per-route retry with exponential backoff, jitter, and idempotency-aware logic',
+    icon: <RotateCcw className="w-4 h-4" />,
+    color: 'text-amber-400',
+    bg: 'bg-amber-400/10',
+    border: 'border-amber-400/20',
+    category: 'Resilience',
+  },
+  {
+    type: 'filterNode',
+    filterType: 'IDEMPOTENCY_KEY',
+    label: 'Idempotency Key',
+    description: 'Deduplicate write requests using a client-provided idempotency key (Redis)',
+    icon: <KeyRound className="w-4 h-4" />,
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-400/10',
+    border: 'border-yellow-400/20',
     category: 'Resilience',
   },
 
@@ -442,28 +431,6 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     color: 'text-purple-400',
     bg: 'bg-purple-400/10',
     border: 'border-purple-400/20',
-    category: 'Transformation',
-  },
-  {
-    type: 'filterNode',
-    filterType: 'BODY_JSONATA_TRANSFORM',
-    label: 'JSONata Transform',
-    description: 'JSON-to-JSON transformation via JSONata expression (legacy)',
-    icon: <Code2 className="w-4 h-4" />,
-    color: 'text-violet-400',
-    bg: 'bg-violet-400/10',
-    border: 'border-violet-400/20',
-    category: 'Transformation',
-  },
-  {
-    type: 'filterNode',
-    filterType: 'SPEL_TRANSFORM',
-    label: 'SpEL Transform',
-    description: 'Spring Expression Language body/header transform (legacy)',
-    icon: <Brackets className="w-4 h-4" />,
-    color: 'text-fuchsia-400',
-    bg: 'bg-fuchsia-400/10',
-    border: 'border-fuchsia-400/20',
     category: 'Transformation',
   },
 
@@ -490,6 +457,17 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     border: 'border-purple-300/20',
     category: 'Modification',
   },
+  {
+    type: 'filterNode',
+    filterType: 'RESPONSE_HEADER_REWRITE',
+    label: 'Response Header Rewrite',
+    description: 'Regex-based response header value rewriting with capture group references',
+    icon: <Replace className="w-4 h-4" />,
+    color: 'text-blue-300',
+    bg: 'bg-blue-300/10',
+    border: 'border-blue-300/20',
+    category: 'Modification',
+  },
 
   // ── Routing ───────────────────────────────────────────────────────────────────
   {
@@ -512,6 +490,17 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     color: 'text-rose-400',
     bg: 'bg-rose-400/10',
     border: 'border-rose-400/20',
+    category: 'Routing',
+  },
+  {
+    type: 'filterNode',
+    filterType: 'GEO_ROUTE',
+    label: 'Geographic Routing',
+    description: 'Route requests to geographically closest upstream using GeoIP2 lookups',
+    icon: <MapPin className="w-4 h-4" />,
+    color: 'text-sky-400',
+    bg: 'bg-sky-400/10',
+    border: 'border-sky-400/20',
     category: 'Routing',
   },
   {
@@ -560,6 +549,17 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     border: 'border-rose-300/20',
     category: 'Security',
   },
+  {
+    type: 'filterNode',
+    filterType: 'IP_ACCESS_CONTROL',
+    label: 'IP Access Control',
+    description: 'Block or allow requests by client IP address or CIDR range',
+    icon: <ShieldBan className="w-4 h-4" />,
+    color: 'text-red-300',
+    bg: 'bg-red-300/10',
+    border: 'border-red-300/20',
+    category: 'Security',
+  },
 
   // ── Validation ────────────────────────────────────────────────────────────────
   {
@@ -575,14 +575,49 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
   },
   {
     type: 'filterNode',
-    filterType: 'VALIDATE_REGEX',
-    label: 'Regex Validate',
-    description: 'Validate path / header values against a regex (legacy)',
-    icon: <Tag className="w-4 h-4" />,
-    color: 'text-teal-300',
-    bg: 'bg-teal-300/10',
-    border: 'border-teal-300/20',
+    filterType: 'REQUEST_SIZE_LIMIT',
+    label: 'Request Size Limit',
+    description: 'Enforce per-route maximum request body size; rejects with HTTP 413',
+    icon: <Ruler className="w-4 h-4" />,
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-300/10',
+    border: 'border-cyan-300/20',
     category: 'Validation',
+  },
+  {
+    type: 'filterNode',
+    filterType: 'GRAPHQL_DEPTH_LIMIT',
+    label: 'GraphQL Depth Limit',
+    description: 'Reject GraphQL queries exceeding depth, complexity, or alias limits',
+    icon: <Network className="w-4 h-4" />,
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-300/10',
+    border: 'border-cyan-300/20',
+    category: 'Validation',
+  },
+
+  // ── Performance ───────────────────────────────────────────────────────────────
+  {
+    type: 'filterNode',
+    filterType: 'RESPONSE_CACHE',
+    label: 'Response Cache',
+    description: 'Redis-backed response caching with configurable TTL and cache key strategies',
+    icon: <Database className="w-4 h-4" />,
+    color: 'text-lime-400',
+    bg: 'bg-lime-400/10',
+    border: 'border-lime-400/20',
+    category: 'Performance',
+  },
+  {
+    type: 'filterNode',
+    filterType: 'REQUEST_DECOMPRESS',
+    label: 'Request Decompression',
+    description: 'Decompress gzip, Brotli, and Zstandard request bodies with zip bomb protection',
+    icon: <FileArchive className="w-4 h-4" />,
+    color: 'text-green-400',
+    bg: 'bg-green-400/10',
+    border: 'border-green-400/20',
+    category: 'Performance',
   },
 
   // ── Observability ─────────────────────────────────────────────────────────────
@@ -629,6 +664,43 @@ export const PALETTE_NODES: PaletteNodeDef[] = [
     bg: 'bg-pink-400/10',
     border: 'border-pink-400/20',
     category: 'Observability',
+  },
+  {
+    type: 'filterNode',
+    filterType: 'BODY_SIZE_METRIC',
+    label: 'Body Size Metric',
+    description: 'Record request and response body sizes as Micrometer distribution summaries',
+    icon: <BarChart3 className="w-4 h-4" />,
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-400/10',
+    border: 'border-indigo-400/20',
+    category: 'Observability',
+  },
+
+  // ── Integration ───────────────────────────────────────────────────────────────
+  {
+    type: 'filterNode',
+    filterType: 'WEBHOOK_NOTIFY',
+    label: 'Webhook Notification',
+    description: 'Fire non-blocking webhook HTTP POST on configurable conditions',
+    icon: <Bell className="w-4 h-4" />,
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-400/10',
+    border: 'border-yellow-400/20',
+    category: 'Integration',
+  },
+
+  // ── Developer Experience ──────────────────────────────────────────────────────
+  {
+    type: 'filterNode',
+    filterType: 'MOCK_RESPONSE',
+    label: 'Mock Response',
+    description: 'Return a static response without forwarding to upstream — API stubbing & maintenance mode',
+    icon: <FlaskRound className="w-4 h-4" />,
+    color: 'text-emerald-300',
+    bg: 'bg-emerald-300/10',
+    border: 'border-emerald-300/20',
+    category: 'Developer Experience',
   },
 
   // ── Custom ────────────────────────────────────────────────────────────────────
@@ -685,7 +757,7 @@ export function edgeStyle(type: 'pre' | 'post' | 'route' | 'default') {
 
 export function filterCategory(type: string): string {
   if (type.startsWith('AUTH_')) return 'Authentication'
-  if (type.startsWith('DOWNSTREAM_')) return 'Downstream Auth'
+  if (type.startsWith('DOWNSTREAM_') || type === 'OAUTH2_TOKEN_RELAY') return 'Downstream Auth'
   if (type.startsWith('RATE_LIMIT_')) return 'Rate Limiting'
   if (
     type.startsWith('REQUEST_HEADER_') ||
@@ -694,13 +766,21 @@ export function filterCategory(type: string): string {
     type.startsWith('QUERY_')
   )
     return 'Modification'
-  if (type.startsWith('BODY_')) return 'Transformation'
-  if (type.startsWith('VALIDATE_')) return 'Validation'
-  if (['CIRCUIT_BREAKER', 'RETRY', 'TIMEOUT'].includes(type)) return 'Resilience'
-  if (['SECURITY_HEADERS', 'CERT_ROTATION', 'CERT_VAULT_EXPIRY_CHECK'].includes(type)) return 'Security'
+  if (type.startsWith('BODY_JOLT') || type.startsWith('BODY_JSONATA') || type.startsWith('BODY_SPEL'))
+    return 'Transformation'
+  if (type.startsWith('VALIDATE_') || type === 'REQUEST_SIZE_LIMIT' || type === 'GRAPHQL_DEPTH_LIMIT')
+    return 'Validation'
+  if (['RESPONSE_CACHE', 'REQUEST_DECOMPRESS'].includes(type)) return 'Performance'
+  if (['CIRCUIT_BREAKER', 'CIRCUIT_BREAKER_V2', 'RETRY', 'RETRY_V2', 'TIMEOUT', 'IDEMPOTENCY_KEY'].includes(type))
+    return 'Resilience'
+  if (['SECURITY_HEADERS', 'CERT_ROTATION', 'CERT_VAULT_EXPIRY_CHECK', 'IP_ACCESS_CONTROL'].includes(type))
+    return 'Security'
   if (type === 'API_VERSIONING') return 'Routing'
-  if (['CONDITIONAL_ROUTE', 'USER_ID_PAYLOAD_ROUTING'].includes(type)) return 'Routing'
-  if (['CORRELATION_ID', 'REQUEST_LOGGER', 'TENANT_CONTEXT', 'CUSTOM_METRIC'].includes(type)) return 'Observability'
+  if (['CONDITIONAL_ROUTE', 'USER_ID_PAYLOAD_ROUTING', 'GEO_ROUTE'].includes(type)) return 'Routing'
+  if (['CORRELATION_ID', 'REQUEST_LOGGER', 'TENANT_CONTEXT', 'CUSTOM_METRIC', 'BODY_SIZE_METRIC'].includes(type))
+    return 'Observability'
+  if (type === 'WEBHOOK_NOTIFY') return 'Integration'
+  if (type === 'MOCK_RESPONSE') return 'Developer Experience'
   if (type === 'CUSTOM_SPEL') return 'Custom'
   if (type.startsWith('AI_')) return 'AI'
   return 'Observability'
@@ -719,7 +799,10 @@ export const CATEGORY_ORDER = [
   'Routing',
   'Security',
   'Validation',
+  'Performance',
   'Observability',
+  'Integration',
+  'Developer Experience',
   'Custom',
   'AI',
 ] as const
