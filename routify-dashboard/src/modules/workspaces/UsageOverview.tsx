@@ -35,7 +35,9 @@ function QuotaBar({ label, icon: Icon, dim }: { label: string; icon: React.Eleme
           {label}
         </div>
         <span className={cn('font-semibold', isUnlimited ? 'text-gray-500' : textColor(pct))}>
-          {isUnlimited ? `${dim.used.toLocaleString()} / ∞` : `${dim.used.toLocaleString()} / ${dim.limit.toLocaleString()}`}
+          {isUnlimited
+            ? `${dim.used.toLocaleString()} / ∞`
+            : `${dim.used.toLocaleString()} / ${dim.limit.toLocaleString()}`}
         </span>
       </div>
       <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
@@ -44,9 +46,7 @@ function QuotaBar({ label, icon: Icon, dim }: { label: string; icon: React.Eleme
           style={{ width: `${isUnlimited ? 0 : Math.min(100, pct)}%` }}
         />
       </div>
-      {!isUnlimited && (
-        <p className="text-[10px] text-gray-600 text-right">{pct}% used</p>
-      )}
+      {!isUnlimited && <p className="text-[10px] text-gray-600 text-right">{pct}% used</p>}
     </div>
   )
 }
@@ -100,4 +100,3 @@ export default function UsageOverview({ tenantId }: UsageOverviewProps) {
     </div>
   )
 }
-

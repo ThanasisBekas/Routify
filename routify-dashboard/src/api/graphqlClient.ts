@@ -28,10 +28,7 @@ export interface GraphQLResponse<T> {
  * @returns The typed response data
  * @throws Error if the response contains GraphQL errors
  */
-export async function graphqlQuery<T>(
-  query: string,
-  variables?: Record<string, unknown>,
-): Promise<T> {
+export async function graphqlQuery<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   const response = await apiClient.post<GraphQLResponse<T>>(GRAPHQL_ENDPOINT, {
     query,
     variables,
@@ -166,4 +163,3 @@ export const AI_FILTER_ANALYTICS_QUERY = `
     }
   }
 `
-

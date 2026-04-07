@@ -78,4 +78,3 @@ export const gitopsHandlers = [
     return HttpResponse.json({ status: 'triggered', outcome: 'APPLIED' })
   }),
 ]
-

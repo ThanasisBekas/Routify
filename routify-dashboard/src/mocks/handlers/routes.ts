@@ -1,6 +1,15 @@
 import { http, HttpResponse, delay } from 'msw'
 import { routes, buildPage, MOCK_TENANT_ID } from '../db'
-import type { RouteDto, RouteSummary, CreateRouteRequest, UpdateRouteRequest, AttachFilterRequest, DeployCanaryRequest, AdjustCanaryWeightRequest, CanaryStatusResponse } from '../../types'
+import type {
+  RouteDto,
+  RouteSummary,
+  CreateRouteRequest,
+  UpdateRouteRequest,
+  AttachFilterRequest,
+  DeployCanaryRequest,
+  AdjustCanaryWeightRequest,
+  CanaryStatusResponse,
+} from '../../types'
 import { filters } from '../db'
 
 function toSummary(r: RouteDto): RouteSummary {
@@ -286,7 +295,8 @@ export const routeHandlers = [
   http.get(`${BASE}/:id/canary/status`, async ({ params }) => {
     await delay(200)
     const route = routes.get(params.id as string)
-    if (!route || !route.canaryRouteId) return HttpResponse.json({ status: 404, detail: 'No active canary' }, { status: 404 })
+    if (!route || !route.canaryRouteId)
+      return HttpResponse.json({ status: 404, detail: 'No active canary' }, { status: 404 })
     const canary = routes.get(route.canaryRouteId)
     const response: CanaryStatusResponse = {
       routeId: route.id,

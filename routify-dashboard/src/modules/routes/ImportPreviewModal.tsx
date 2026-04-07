@@ -77,12 +77,12 @@ export default function ImportPreviewModal({ isOpen, onClose, onApplied, file }:
 
   if (!isOpen) return null
 
-  const hasChanges = preview && (
-    preview.changes.filters.create.length > 0 ||
-    preview.changes.filters.update.length > 0 ||
-    preview.changes.routes.create.length > 0 ||
-    preview.changes.routes.update.length > 0
-  )
+  const hasChanges =
+    preview &&
+    (preview.changes.filters.create.length > 0 ||
+      preview.changes.filters.update.length > 0 ||
+      preview.changes.routes.create.length > 0 ||
+      preview.changes.routes.update.length > 0)
 
   const totalChanges = preview
     ? preview.changes.filters.create.length +
@@ -94,7 +94,14 @@ export default function ImportPreviewModal({ isOpen, onClose, onApplied, file }:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" role="presentation" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        role="presentation"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose()
+        }}
+      />
 
       {/* Modal */}
       <div className="relative w-full max-w-2xl max-h-[80vh] bg-[#12141c] border border-white/[0.08] rounded-xl shadow-2xl flex flex-col">
@@ -104,12 +111,13 @@ export default function ImportPreviewModal({ isOpen, onClose, onApplied, file }:
             <FileCode className="w-5 h-5 text-indigo-400" />
             <div>
               <h2 className="text-base font-semibold text-white">Import Configuration</h2>
-              {file && (
-                <p className="text-xs text-gray-500 mt-0.5">{file.name}</p>
-              )}
+              {file && <p className="text-xs text-gray-500 mt-0.5">{file.name}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.05]">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-white/[0.05]"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -147,7 +155,9 @@ export default function ImportPreviewModal({ isOpen, onClose, onApplied, file }:
                     <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
                     <div className="space-y-1">
                       {preview.warnings.map((w, i) => (
-                        <p key={i} className="text-xs text-amber-300">{w}</p>
+                        <p key={i} className="text-xs text-amber-300">
+                          {w}
+                        </p>
                       ))}
                     </div>
                   </div>
@@ -218,7 +228,10 @@ function DiffSectionView({ title, section }: { title: string; section: ImportPre
       <div className="space-y-1">
         {/* Creates — green */}
         {section.create.map((item: DiffCreateEntry) => (
-          <div key={item.name} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-500/8 border border-emerald-500/15">
+          <div
+            key={item.name}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-500/8 border border-emerald-500/15"
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <span className="text-xs font-medium text-emerald-300">NEW</span>
             <span className="text-sm text-gray-200">{item.name}</span>
@@ -228,7 +241,10 @@ function DiffSectionView({ title, section }: { title: string; section: ImportPre
 
         {/* Updates — yellow */}
         {section.update.map((item: DiffUpdateEntry) => (
-          <div key={item.name} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/8 border border-amber-500/15">
+          <div
+            key={item.name}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/8 border border-amber-500/15"
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
             <span className="text-xs font-medium text-amber-300">UPD</span>
             <span className="text-sm text-gray-200">{item.name}</span>
@@ -241,7 +257,10 @@ function DiffSectionView({ title, section }: { title: string; section: ImportPre
 
         {/* Unchanged — gray */}
         {section.unchanged.map((name: string) => (
-          <div key={name} className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/[0.02] border border-white/[0.04]">
+          <div
+            key={name}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/[0.02] border border-white/[0.04]"
+          >
             <Check className="w-3 h-3 text-gray-600" />
             <span className="text-sm text-gray-500">{name}</span>
             <span className="text-xs text-gray-600 ml-auto">unchanged</span>
@@ -251,4 +270,3 @@ function DiffSectionView({ title, section }: { title: string; section: ImportPre
     </div>
   )
 }
-

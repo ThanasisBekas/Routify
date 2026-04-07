@@ -33,8 +33,7 @@ export function CanaryDeployModal({ routeId, routeName, open, onClose }: CanaryD
       onClose()
     },
     onError: (err) => {
-      const apiErr = extractApiError(err)
-      toast.error(apiErr.detail || 'Failed to deploy canary')
+      toast.error(extractApiError(err, 'Failed to deploy canary'))
     },
   })
 
@@ -54,13 +53,15 @@ export function CanaryDeployModal({ routeId, routeName, open, onClose }: CanaryD
         </div>
 
         <p className="mb-4 text-sm text-muted-foreground">
-          Deploy a canary for <strong>{routeName}</strong>. A portion of traffic will be routed to the
-          canary upstream. If the error rate exceeds the threshold, it will automatically roll back.
+          Deploy a canary for <strong>{routeName}</strong>. A portion of traffic will be routed to the canary upstream.
+          If the error rate exceeds the threshold, it will automatically roll back.
         </p>
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="canary-upstream-uri" className="mb-1 block text-sm font-medium">Canary Upstream URI</label>
+            <label htmlFor="canary-upstream-uri" className="mb-1 block text-sm font-medium">
+              Canary Upstream URI
+            </label>
             <input
               id="canary-upstream-uri"
               type="text"
@@ -72,12 +73,16 @@ export function CanaryDeployModal({ routeId, routeName, open, onClose }: CanaryD
           </div>
 
           <div>
-            <label htmlFor="canary-traffic-weight" className="mb-1 block text-sm font-medium">Traffic Weight</label>
+            <label htmlFor="canary-traffic-weight" className="mb-1 block text-sm font-medium">
+              Traffic Weight
+            </label>
             <TrafficWeightSlider value={trafficWeight} onChange={setTrafficWeight} />
           </div>
 
           <div>
-            <label htmlFor="canary-rollback-threshold" className="mb-1 block text-sm font-medium">Auto-Rollback Threshold (%)</label>
+            <label htmlFor="canary-rollback-threshold" className="mb-1 block text-sm font-medium">
+              Auto-Rollback Threshold (%)
+            </label>
             <input
               id="canary-rollback-threshold"
               type="number"
@@ -89,8 +94,7 @@ export function CanaryDeployModal({ routeId, routeName, open, onClose }: CanaryD
               className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              If the canary error rate exceeds this threshold for 90 seconds, it will be automatically rolled
-              back.
+              If the canary error rate exceeds this threshold for 90 seconds, it will be automatically rolled back.
             </p>
           </div>
         </div>
@@ -114,4 +118,3 @@ export function CanaryDeployModal({ routeId, routeName, open, onClose }: CanaryD
     </div>
   )
 }
-

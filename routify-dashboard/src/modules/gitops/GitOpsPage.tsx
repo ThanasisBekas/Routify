@@ -104,8 +104,8 @@ export default function GitOpsPage() {
                 <div>
                   <p className="text-sm font-medium text-amber-300">Configuration drift detected</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    The agent is running in dry-run mode. Changes were detected in Git but not applied.
-                    Disable dry-run mode or manually import the configuration.
+                    The agent is running in dry-run mode. Changes were detected in Git but not applied. Disable dry-run
+                    mode or manually import the configuration.
                   </p>
                 </div>
               </div>
@@ -117,10 +117,7 @@ export default function GitOpsPage() {
               <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
                 <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
                   <span
-                    className={cn(
-                      'w-2 h-2 rounded-full',
-                      isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500',
-                    )}
+                    className={cn('w-2 h-2 rounded-full', isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500')}
                   />
                   Agent Status
                 </div>
@@ -168,12 +165,7 @@ export default function GitOpsPage() {
                   <Eye className="w-3.5 h-3.5" />
                   Mode
                 </div>
-                <div
-                  className={cn(
-                    'text-sm font-medium',
-                    status?.dryRun ? 'text-amber-400' : 'text-indigo-400',
-                  )}
-                >
+                <div className={cn('text-sm font-medium', status?.dryRun ? 'text-amber-400' : 'text-indigo-400')}>
                   {status?.dryRun ? 'Dry Run (observe only)' : 'Active (auto-apply)'}
                 </div>
               </div>
@@ -187,9 +179,7 @@ export default function GitOpsPage() {
                   <FolderGit2 className="w-4 h-4 text-gray-500 shrink-0" />
                   <div>
                     <div className="text-[10px] text-gray-600 uppercase tracking-wider">Repository</div>
-                    <div className="text-gray-300 font-mono text-xs break-all">
-                      {status?.repositoryUrl || '—'}
-                    </div>
+                    <div className="text-gray-300 font-mono text-xs break-all">{status?.repositoryUrl || '—'}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -238,4 +228,3 @@ export default function GitOpsPage() {
     </div>
   )
 }
-

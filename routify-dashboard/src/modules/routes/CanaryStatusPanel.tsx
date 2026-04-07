@@ -28,7 +28,7 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['route', routeId] })
       queryClient.invalidateQueries({ queryKey: ['canary-status', routeId] })
     },
-    onError: (err) => toast.error(extractApiError(err).detail || 'Failed to promote canary'),
+    onError: (err) => toast.error(extractApiError(err, 'Failed to promote canary')),
   })
 
   const rollbackMutation = useMutation({
@@ -39,7 +39,7 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
       queryClient.invalidateQueries({ queryKey: ['route', routeId] })
       queryClient.invalidateQueries({ queryKey: ['canary-status', routeId] })
     },
-    onError: (err) => toast.error(extractApiError(err).detail || 'Failed to rollback canary'),
+    onError: (err) => toast.error(extractApiError(err, 'Failed to rollback canary')),
   })
 
   const adjustMutation = useMutation({
@@ -49,7 +49,7 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
       setAdjustWeight(null)
       queryClient.invalidateQueries({ queryKey: ['canary-status', routeId] })
     },
-    onError: (err) => toast.error(extractApiError(err).detail || 'Failed to adjust weight'),
+    onError: (err) => toast.error(extractApiError(err, 'Failed to adjust weight')),
   })
 
   if (isLoading) {
@@ -75,9 +75,7 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
           )}
         </div>
         {status.deployedAt && (
-          <span className="text-xs text-muted-foreground">
-            Deployed {new Date(status.deployedAt).toLocaleString()}
-          </span>
+          <span className="text-xs text-muted-foreground">Deployed {new Date(status.deployedAt).toLocaleString()}</span>
         )}
       </div>
 
@@ -112,9 +110,7 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
             )}
             <span className="text-lg font-semibold">{status.canaryErrorRate.toFixed(2)}%</span>
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            Threshold: {status.autoRollbackThreshold}%
-          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">Threshold: {status.autoRollbackThreshold}%</div>
         </div>
       </div>
 
@@ -173,4 +169,3 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
     </div>
   )
 }
-

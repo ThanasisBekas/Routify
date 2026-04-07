@@ -88,18 +88,10 @@ export default function ReconciliationHistoryTable({ history }: Props) {
                   '—'
                 ) : (
                   <span>
-                    {entry.routesCreated > 0 && (
-                      <span className="text-emerald-400">+{entry.routesCreated}R </span>
-                    )}
-                    {entry.routesUpdated > 0 && (
-                      <span className="text-amber-400">~{entry.routesUpdated}R </span>
-                    )}
-                    {entry.filtersCreated > 0 && (
-                      <span className="text-emerald-400">+{entry.filtersCreated}F </span>
-                    )}
-                    {entry.filtersUpdated > 0 && (
-                      <span className="text-amber-400">~{entry.filtersUpdated}F </span>
-                    )}
+                    {entry.routesCreated > 0 && <span className="text-emerald-400">+{entry.routesCreated}R </span>}
+                    {entry.routesUpdated > 0 && <span className="text-amber-400">~{entry.routesUpdated}R </span>}
+                    {entry.filtersCreated > 0 && <span className="text-emerald-400">+{entry.filtersCreated}F </span>}
+                    {entry.filtersUpdated > 0 && <span className="text-amber-400">~{entry.filtersUpdated}F </span>}
                     {entry.routesCreated + entry.routesUpdated + entry.filtersCreated + entry.filtersUpdated === 0 &&
                       '—'}
                   </span>
@@ -121,4 +113,3 @@ export default function ReconciliationHistoryTable({ history }: Props) {
     </div>
   )
 }
-

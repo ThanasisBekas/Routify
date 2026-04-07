@@ -82,9 +82,19 @@ const TABS: {
   description: string
 }[] = [
   { id: 'overview', label: 'Overview', icon: Activity, description: 'Live health and KPI stats' },
-  { id: 'routes-health', label: 'Routes Health', icon: HeartPulse, description: 'Per-route latency heatmap and error rates' },
+  {
+    id: 'routes-health',
+    label: 'Routes Health',
+    icon: HeartPulse,
+    description: 'Per-route latency heatmap and error rates',
+  },
   { id: 'slos', label: 'SLOs', icon: Target, description: 'SLO targets and error budget tracking' },
-  { id: 'circuit-breakers', label: 'Circuit Breakers', icon: Zap, description: 'Live circuit breaker state and history' },
+  {
+    id: 'circuit-breakers',
+    label: 'Circuit Breakers',
+    icon: Zap,
+    description: 'Live circuit breaker state and history',
+  },
   { id: 'fleet', label: 'Fleet', icon: Server, description: 'Multi-gateway cluster instances and config versions' },
   { id: 'cors', label: 'CORS', icon: Globe, description: 'Cross-origin request policies' },
   { id: 'security', label: 'Security Headers', icon: Shield, description: 'OWASP response headers' },

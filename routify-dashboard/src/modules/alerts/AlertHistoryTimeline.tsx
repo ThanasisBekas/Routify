@@ -35,18 +35,12 @@ export default function AlertHistoryTimeline({ ruleId }: Props) {
   }
 
   if (events.length === 0) {
-    return (
-      <div className="text-center py-4 text-xs text-gray-600">
-        No state transitions yet.
-      </div>
-    )
+    return <div className="text-center py-4 text-xs text-gray-600">No state transitions yet.</div>
   }
 
   return (
     <div className="space-y-3">
-      <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-        State Transition History
-      </h3>
+      <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">State Transition History</h3>
       <div className="relative">
         {/* Timeline line */}
         <div className="absolute left-3 top-3 bottom-3 w-px bg-white/[0.06]" />
@@ -78,13 +72,9 @@ export default function AlertHistoryTimeline({ ruleId }: Props) {
                   <span className="text-xs font-medium text-white">
                     {TRANSITION_LABELS[event.transition] ?? event.transition}
                   </span>
-                  <span className="text-[10px] text-gray-600">
-                    {new Date(event.occurredAt).toLocaleString()}
-                  </span>
+                  <span className="text-[10px] text-gray-600">{new Date(event.occurredAt).toLocaleString()}</span>
                 </div>
-                {event.message && (
-                  <p className="text-[11px] text-gray-500 mt-0.5 truncate">{event.message}</p>
-                )}
+                {event.message && <p className="text-[11px] text-gray-500 mt-0.5 truncate">{event.message}</p>}
                 {event.metricValue != null && (
                   <div className="text-[10px] text-gray-600 mt-0.5">
                     Value: {event.metricValue} · Threshold: {event.threshold}
@@ -98,4 +88,3 @@ export default function AlertHistoryTimeline({ ruleId }: Props) {
     </div>
   )
 }
-

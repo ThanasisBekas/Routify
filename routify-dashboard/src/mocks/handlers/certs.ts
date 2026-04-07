@@ -275,9 +275,7 @@ export const certHandlers = [
         updatedAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
       },
     ]
-    return HttpResponse.json(
-      buildPage(mockOrders, page, size),
-    )
+    return HttpResponse.json(buildPage(mockOrders, page, size))
   }),
 
   http.get('/api/v1/admin/certs/acme/orders/:id', async ({ params }) => {

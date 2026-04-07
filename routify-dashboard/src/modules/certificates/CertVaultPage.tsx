@@ -44,9 +44,7 @@ export default function CertVaultPage() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden">
-        {activeTab === 'groups' ? <CertGroupsPage /> : <AcmeTab />}
-      </div>
+      <div className="flex-1 overflow-hidden">{activeTab === 'groups' ? <CertGroupsPage /> : <AcmeTab />}</div>
     </div>
   )
 }

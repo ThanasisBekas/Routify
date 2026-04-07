@@ -95,4 +95,3 @@ export default function UsageTrendChart({ tenantId, days = 30 }: UsageTrendChart
     </div>
   )
 }
-

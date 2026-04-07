@@ -64,8 +64,7 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateAlertRuleRequest }) =>
-      alertsApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateAlertRuleRequest }) => alertsApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alerts'] })
       toast.success('Alert rule updated')
@@ -107,9 +106,7 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
       <div className="w-full max-w-lg mx-4 bg-[#0d0f14] border border-white/10 rounded-2xl shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-          <h2 className="text-base font-semibold text-white">
-            {isEdit ? 'Edit Alert Rule' : 'Create Alert Rule'}
-          </h2>
+          <h2 className="text-base font-semibold text-white">{isEdit ? 'Edit Alert Rule' : 'Create Alert Rule'}</h2>
           <button onClick={onClose} className="p-1 text-gray-500 hover:text-white transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -257,4 +254,3 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
     </div>
   )
 }
-
