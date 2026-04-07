@@ -171,9 +171,11 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <code className="font-mono text-blue-300">X-Auth-Tenant-Id</code>,{' '}
             <code className="font-mono text-blue-300">X-Auth-Role</code> and{' '}
             <code className="font-mono text-blue-300">X-Auth-Email</code> downstream.
+            Supports static RSA public key or <strong>JWKS URI</strong> for automatic key rotation.
+            RS256 only. Issuer/audience claims are enforced when configured.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Issuer" hint="Expected iss claim value — leave blank to skip" optional>
+            <Field label="Issuer" hint="Expected iss claim value — leave blank to skip validation" optional>
               <input
                 value={str('issuer')}
                 onChange={(e) => set('issuer', e.target.value)}
@@ -181,7 +183,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
                 placeholder="https://auth.example.com"
               />
             </Field>
-            <Field label="Audience" hint="Expected aud claim value — leave blank to skip" optional>
+            <Field label="Audience" hint="Expected aud claim value — leave blank to skip validation" optional>
               <input
                 value={str('audience')}
                 onChange={(e) => set('audience', e.target.value)}
@@ -190,18 +192,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               />
             </Field>
           </div>
-          <Field label="Algorithm" hint="JWT signature algorithm used by the identity provider">
-            <Select
-              value={str('algorithm', 'RS256')}
-              onChange={(v) => set('algorithm', v)}
-              options={[
-                { value: 'RS256', label: 'RS256 — RSA + SHA-256 (recommended)' },
-                { value: 'RS384', label: 'RS384 — RSA + SHA-384' },
-                { value: 'RS512', label: 'RS512 — RSA + SHA-512' },
-                { value: 'HS256', label: 'HS256 — HMAC + SHA-256 (shared secret)' },
-              ]}
-            />
-          </Field>
+          <Toggle
+            label="Require JTI claim"
+            description="When enabled, tokens without a jti claim are rejected (recommended for blocklist enforcement)"
+            checked={bool('requireJti', true)}
+            onChange={(v) => set('requireJti', v)}
+          />
         </div>
       )
 

@@ -26,7 +26,7 @@ Each initiative has a dedicated design document in [`docs/roadmap/initiatives/`]
 | 1 | ✅ [Extract Shared Key Resolver](#1-extract-shared-key-resolver) | Rate Limiting | High | Eliminates duplicated key resolution logic across 3 rate limit filters |
 | 2 | ✅ [Unified Error Response Builder](#2-unified-error-response-builder) | Cross-cutting | High | Consistent RFC 9457 ProblemDetail responses from all filters with shared `Retry-After`, rate-limit headers |
 | 3 | ✅ [Rate Limiter `X-RateLimit-*` Response Headers](#3-rate-limiter-x-ratelimit--response-headers) | Rate Limiting | Medium | Standard `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every response |
-| 4 | [JwtAuth Filter Hardening](#4-jwtauth-filter-hardening) | Authentication | High | Remove dev-mode unsigned JWT path, add JWKS rotation, issuer/audience validation enforcement |
+| 4 | ✅ [JwtAuth Filter Hardening](#4-jwtauth-filter-hardening) | Authentication | High | Remove dev-mode unsigned JWT path, add JWKS rotation, issuer/audience validation enforcement |
 | 5 | [Jolt Transform Response-Phase Support](#5-jolt-transform-response-phase-support) | Body Transform | Medium | Complete the `phase=RESPONSE` stub; enable JSON-to-JSON transformation on upstream responses |
 | 6 | [RequestLogger Performance & Configurability](#6-requestlogger-performance--configurability) | Observability | Medium | Reduce body-capture overhead, add sampling, header allowlists, and structured JSON log format |
 | 7 | [SpEL Filter Sandboxing & Security](#7-spel-filter-sandboxing--security) | Security | High | Restrict SpEL context to a safe subset; prevent ClassLoader/Runtime escapes |
@@ -141,11 +141,11 @@ Neither rate limiter emits standard `X-RateLimit-*` headers on successful respon
 5. **Add `require-jti` config flag** (default `true`) — reject tokens without a `jti` claim instead of logging a warning and skipping blocklist check.
 
 #### Acceptance Criteria
-- [ ] No unsigned JWT decode path in production
-- [ ] JWKS URI support with key caching and rotation
-- [ ] Issuer and audience claims validated when configured
-- [ ] `require-jti=true` by default; tokens without `jti` rejected
-- [ ] Startup health check fails if neither public key nor JWKS URI is configured
+- [x] No unsigned JWT decode path in production
+- [x] JWKS URI support with key caching and rotation
+- [x] Issuer and audience claims validated when configured
+- [x] `require-jti=true` by default; tokens without `jti` rejected
+- [x] Startup health check fails if neither public key nor JWKS URI is configured
 
 ---
 

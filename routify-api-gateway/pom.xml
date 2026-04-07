@@ -182,6 +182,13 @@
             <artifactId>reactor-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- MockWebServer — mock JWKS endpoint in JwtAuth hardening tests -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver3-junit5</artifactId>
+            <version>5.2.1</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 

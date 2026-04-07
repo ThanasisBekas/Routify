@@ -1,5 +1,9 @@
 package io.routify.gateway.filter;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.routify.common.security.RedisKeys;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -8,30 +12,46 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
-import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
+import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Gateway filter for JWT authentication (RS256/HS256).
+ * Gateway filter for JWT authentication (RS256 only).
  *
  * <p>Validates the JWT bearer token from the Authorization header
  * or {@code ?token=} query param (for WebSocket/SSE connections).
+ *
+ * <p><b>Security hardening (GF-04):</b>
+ * <ul>
+ *   <li>No unsigned JWT decode path — fail-closed if neither public key nor JWKS URI is configured</li>
+ *   <li>JWKS URI support with Caffeine-cached key resolution (key rotation without restart)</li>
+ *   <li>Issuer and audience claim validation when configured</li>
+ *   <li>RS256-only — HS256 no longer supported</li>
+ *   <li>{@code require-jti=true} by default — tokens without a {@code jti} claim are rejected</li>
+ * </ul>
  *
  * <p>On success: injects auth claims as request headers for downstream services:
  * <ul>
@@ -45,7 +65,7 @@ import java.util.Map;
  * <ul>
  *   <li>{@code issuer} — expected JWT issuer (optional, validates iss claim)</li>
  *   <li>{@code audience} — expected audience (optional, validates aud claim)</li>
- *   <li>{@code algorithm} — RS256 (default) or HS256</li>
+ *   <li>{@code requireJti} — override global require-jti setting per filter (default: uses global)</li>
  * </ul>
  */
 @Slf4j
@@ -56,16 +76,112 @@ public class JwtAuthGatewayFilterFactory
     @Value("${routify.jwt.public-key:}")
     private String publicKeyBase64;
 
-    private final ReactiveStringRedisTemplate redisTemplate;
+    @Value("${routify.jwt.jwks-uri:}")
+    private String jwksUri;
 
-    public JwtAuthGatewayFilterFactory(ReactiveStringRedisTemplate redisTemplate) {
+    @Value("${routify.jwt.jwks-cache-minutes:5}")
+    private int jwksCacheMinutes;
+
+    @Value("${routify.jwt.require-jti:true}")
+    private boolean globalRequireJti;
+
+    private final ReactiveStringRedisTemplate redisTemplate;
+    private final WebClient webClient;
+    private final ObjectMapper objectMapper;
+
+    /** Static public key parsed from Base64 config at startup. Null if not configured. */
+    private volatile PublicKey staticPublicKey;
+
+    /** Whether the filter is misconfigured (neither public key nor JWKS URI). */
+    private volatile boolean misconfigured;
+
+    /**
+     * Caffeine cache for JWKS keys, keyed by {@code kid} (Key ID).
+     * TTL matches {@code routify.jwt.jwks-cache-minutes}.
+     */
+    private Cache<String, PublicKey> jwksKeyCache;
+
+    /** Guards concurrent JWKS fetches — only one in-flight per kid. */
+    private final Map<String, Mono<PublicKey>> inflightJwksFetches = new ConcurrentHashMap<>();
+
+    /** Sentinel key used when JWTs don't have a kid and JWKS has only one key. */
+    private static final String DEFAULT_KID = "__default__";
+
+    public JwtAuthGatewayFilterFactory(ReactiveStringRedisTemplate redisTemplate,
+                                       WebClient.Builder webClientBuilder,
+                                       ObjectMapper objectMapper) {
         super(Config.class);
         this.redisTemplate = redisTemplate;
+        this.webClient = webClientBuilder.build();
+        this.objectMapper = objectMapper;
+    }
+
+    @PostConstruct
+    public void validateKeySource() {
+        // Parse static public key if configured
+        if (publicKeyBase64 != null && !publicKeyBase64.isBlank()) {
+            try {
+                byte[] keyBytes = Base64.getDecoder().decode(publicKeyBase64);
+                staticPublicKey = KeyFactory.getInstance("RSA")
+                        .generatePublic(new X509EncodedKeySpec(keyBytes));
+                log.info("JWT static public key loaded successfully (RS256)");
+            } catch (Exception e) {
+                log.error("Failed to parse JWT static public key: {}", e.getMessage());
+                staticPublicKey = null;
+            }
+        }
+
+        // Initialise JWKS key cache
+        jwksKeyCache = Caffeine.newBuilder()
+                .maximumSize(50)
+                .expireAfterWrite(Duration.ofMinutes(Math.max(1, jwksCacheMinutes)))
+                .build();
+
+        // Validate: at least one key source must be configured
+        boolean hasStaticKey = staticPublicKey != null;
+        boolean hasJwksUri = jwksUri != null && !jwksUri.isBlank();
+
+        if (!hasStaticKey && !hasJwksUri) {
+            log.error("╔════════════════════════════════════════════════════════════════╗");
+            log.error("║  JWT MISCONFIGURED — neither public key nor JWKS URI set!     ║");
+            log.error("║                                                                ║");
+            log.error("║  All JWT authentication requests will be REJECTED (500).       ║");
+            log.error("║                                                                ║");
+            log.error("║  Fix: set one of:                                              ║");
+            log.error("║    • routify.jwt.public-key  (Base64-encoded RSA public key)   ║");
+            log.error("║    • routify.jwt.jwks-uri    (JWKS endpoint URL)               ║");
+            log.error("╚════════════════════════════════════════════════════════════════╝");
+            misconfigured = true;
+        } else {
+            misconfigured = false;
+            if (hasJwksUri) {
+                log.info("JWT JWKS URI configured: {} (cache TTL: {} min)", jwksUri, jwksCacheMinutes);
+            }
+            if (hasStaticKey && hasJwksUri) {
+                log.info("Both static key and JWKS URI configured — JWKS takes precedence, static key is fallback");
+            }
+        }
     }
 
     @Override
     public GatewayFilter apply(Config config) {
+        // Warn if HS256 is configured (no longer supported)
+        if ("HS256".equalsIgnoreCase(config.getAlgorithm())) {
+            log.warn("HS256 is no longer supported — Routify uses RS256 exclusively. "
+                    + "Ignoring algorithm config and using RS256.");
+        }
+
         return (exchange, chain) -> {
+            // ── Fail-closed: reject all requests if misconfigured ────────────
+            if (misconfigured) {
+                return GatewayProblemResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .errorCode("SERVER_MISCONFIGURED")
+                        .detail("JWT authentication is not configured — "
+                                + "neither public key nor JWKS URI is set. "
+                                + "Contact the platform administrator.")
+                        .write(exchange);
+            }
+
             ServerHttpRequest request = exchange.getRequest();
 
             // Extract token from Authorization header or ?token= query param
@@ -75,53 +191,97 @@ public class JwtAuthGatewayFilterFactory
                         "Authorization header or token parameter is required");
             }
 
-            Claims claims;
-            try {
-                claims = parseAndValidate(token, config);
-            } catch (ExpiredJwtException e) {
-                return unauthorized(exchange, "TOKEN_EXPIRED", "JWT token has expired");
-            } catch (SignatureException | MalformedJwtException | UnsupportedJwtException e) {
-                return unauthorized(exchange, "INVALID_TOKEN", "JWT token is invalid");
-            } catch (Exception e) {
-                log.error("JWT validation error: {}", e.getMessage());
-                return unauthorized(exchange, "TOKEN_VALIDATION_FAILED", "Token validation failed");
-            }
+            // Resolve the signing key (potentially async for JWKS) then validate
+            return resolveSigningKey(token)
+                    .flatMap(key -> {
+                        Claims claims;
+                        try {
+                            claims = parseAndValidate(token, key);
+                        } catch (ExpiredJwtException e) {
+                            return unauthorized(exchange, "TOKEN_EXPIRED", "JWT token has expired");
+                        } catch (SignatureException | MalformedJwtException | UnsupportedJwtException e) {
+                            return unauthorized(exchange, "INVALID_TOKEN", "JWT token is invalid");
+                        } catch (Exception e) {
+                            log.error("JWT validation error: {}", e.getMessage());
+                            return unauthorized(exchange, "TOKEN_VALIDATION_FAILED",
+                                    "Token validation failed");
+                        }
 
-            // ── Blocklist check (H1) ──────────────────────────────────────────
-            // After a logout or password change the identity-service stores
-            // "routify:token:blocklist:<jti> = 1" in Redis with a TTL equal to
-            // the token's remaining lifetime.  We must honour that revocation.
-            String jti = claims.getId();
-            if (jti != null && !jti.isBlank()) {
-                final Claims resolvedClaims = claims;
-                return redisTemplate.hasKey(RedisKeys.BLOCKLIST_PREFIX + jti)
-                        .flatMap(blocked -> {
-                            if (Boolean.TRUE.equals(blocked)) {
-                                log.debug("JWT rejected — token revoked: jti={}", jti);
-                                return unauthorized(exchange, "TOKEN_REVOKED",
-                                        "Token has been revoked");
+                        // ── Issuer validation ────────────────────────────────
+                        if (config.getIssuer() != null && !config.getIssuer().isBlank()) {
+                            String tokenIssuer = claims.getIssuer();
+                            if (tokenIssuer == null || !tokenIssuer.equals(config.getIssuer())) {
+                                log.debug("JWT rejected — issuer mismatch: expected={}, got={}",
+                                        config.getIssuer(), tokenIssuer);
+                                return unauthorized(exchange, "INVALID_ISSUER",
+                                        "JWT issuer does not match expected value");
                             }
-                            ServerHttpRequest mutatedRequest =
-                                    injectAuthHeaders(exchange.getRequest(), resolvedClaims);
-                            log.debug("JWT validated: sub={} tenant={} role={}",
-                                    resolvedClaims.getSubject(),
-                                    resolvedClaims.get("tenantId"),
-                                    resolvedClaims.get("role"));
-                            return chain.filter(
-                                    exchange.mutate().request(mutatedRequest).build());
-                        });
-            }
+                        }
 
-            // No jti — proceed without blocklist check (should not happen with well-formed tokens)
-            log.warn("JWT has no jti claim — skipping blocklist check (sub={})", claims.getSubject());
-            ServerHttpRequest mutatedRequest = injectAuthHeaders(request, claims);
-            log.debug("JWT validated: sub={} tenant={} role={}",
-                    claims.getSubject(),
-                    claims.get("tenantId"),
-                    claims.get("role"));
-            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                        // ── Audience validation ──────────────────────────────
+                        if (config.getAudience() != null && !config.getAudience().isBlank()) {
+                            var audience = claims.getAudience();
+                            if (audience == null || !audience.contains(config.getAudience())) {
+                                log.debug("JWT rejected — audience mismatch: expected={}, got={}",
+                                        config.getAudience(), audience);
+                                return unauthorized(exchange, "INVALID_AUDIENCE",
+                                        "JWT audience does not contain expected value");
+                            }
+                        }
+
+                        // ── Determine require-jti (per-filter override or global) ─
+                        boolean requireJti = config.getRequireJti() != null
+                                ? config.getRequireJti()
+                                : globalRequireJti;
+
+                        // ── JTI + Blocklist check ────────────────────────────
+                        String jti = claims.getId();
+                        if (jti != null && !jti.isBlank()) {
+                            final Claims resolvedClaims = claims;
+                            return redisTemplate.hasKey(RedisKeys.BLOCKLIST_PREFIX + jti)
+                                    .flatMap(blocked -> {
+                                        if (Boolean.TRUE.equals(blocked)) {
+                                            log.debug("JWT rejected — token revoked: jti={}", jti);
+                                            return unauthorized(exchange, "TOKEN_REVOKED",
+                                                    "Token has been revoked");
+                                        }
+                                        ServerHttpRequest mutatedRequest =
+                                                injectAuthHeaders(exchange.getRequest(), resolvedClaims);
+                                        log.debug("JWT validated: sub={} tenant={} role={}",
+                                                resolvedClaims.getSubject(),
+                                                resolvedClaims.get("tenantId"),
+                                                resolvedClaims.get("role"));
+                                        return chain.filter(
+                                                exchange.mutate().request(mutatedRequest).build());
+                                    });
+                        }
+
+                        // No jti claim
+                        if (requireJti) {
+                            log.debug("JWT rejected — missing jti claim (sub={})", claims.getSubject());
+                            return unauthorized(exchange, "MISSING_JTI",
+                                    "Token must contain a jti claim");
+                        }
+
+                        // require-jti=false: proceed without blocklist check (with warning)
+                        log.warn("JWT has no jti claim — skipping blocklist check (sub={})",
+                                claims.getSubject());
+                        ServerHttpRequest mutatedRequest = injectAuthHeaders(request, claims);
+                        log.debug("JWT validated: sub={} tenant={} role={}",
+                                claims.getSubject(),
+                                claims.get("tenantId"),
+                                claims.get("role"));
+                        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                    })
+                    .onErrorResume(e -> {
+                        log.error("JWT signing key resolution failed: {}", e.getMessage());
+                        return unauthorized(exchange, "TOKEN_VALIDATION_FAILED",
+                                "Failed to resolve JWT signing key");
+                    });
         };
     }
+
+    // ─── Token extraction ──────────────────────────────────────────────────────
 
     private String extractToken(ServerHttpRequest request) {
         // 1. Authorization: Bearer <token>
@@ -137,40 +297,167 @@ public class JwtAuthGatewayFilterFactory
         return null;
     }
 
-    private Claims parseAndValidate(String token, Config config) throws Exception {
-        if (publicKeyBase64 != null && !publicKeyBase64.isBlank()) {
-            byte[] keyBytes = Base64.getDecoder().decode(publicKeyBase64);
-            PublicKey publicKey = KeyFactory.getInstance("RSA")
-                    .generatePublic(new X509EncodedKeySpec(keyBytes));
-            JwtParser parser = Jwts.parser().verifyWith(publicKey).build();
-            return parser.parseSignedClaims(token).getPayload();
-        } else {
-            // Dev mode: decode claims without signature verification.
-            // The token IS signed (RS256) by the identity service's ephemeral key,
-            // but the gateway doesn't have the public key, so we skip verification.
-            log.warn("JWT public key not configured — signature SKIPPED (dev mode only!)");
+    // ─── Signing key resolution ────────────────────────────────────────────────
+
+    /**
+     * Resolves the RSA public key for JWT signature verification.
+     *
+     * <p>Resolution order:
+     * <ol>
+     *   <li>If JWKS URI is configured: extract {@code kid} from JWT header, look up in cache,
+     *       fetch from JWKS endpoint if not cached, return resolved key.</li>
+     *   <li>If JWKS lookup fails and static key is available: fall back to static key.</li>
+     *   <li>If only static key is configured: return it directly.</li>
+     * </ol>
+     */
+    private Mono<PublicKey> resolveSigningKey(String token) {
+        boolean hasJwks = jwksUri != null && !jwksUri.isBlank();
+
+        if (!hasJwks) {
+            // Static key only
+            return Mono.justOrEmpty(staticPublicKey);
+        }
+
+        // Extract kid from JWT header
+        String kid = extractKidFromHeader(token);
+        String cacheKey = kid != null ? kid : DEFAULT_KID;
+
+        // Check Caffeine cache first
+        PublicKey cached = jwksKeyCache.getIfPresent(cacheKey);
+        if (cached != null) {
+            return Mono.just(cached);
+        }
+
+        // Fetch from JWKS endpoint (single-flight per kid)
+        return inflightJwksFetches.computeIfAbsent(cacheKey, k ->
+                fetchJwksKey(kid)
+                        .doOnNext(key -> jwksKeyCache.put(cacheKey, key))
+                        .doFinally(signal -> inflightJwksFetches.remove(cacheKey))
+                        .cache()
+        ).onErrorResume(e -> {
+            // Fallback to static key if JWKS fetch fails
+            if (staticPublicKey != null) {
+                log.warn("JWKS fetch failed, falling back to static public key: {}", e.getMessage());
+                return Mono.just(staticPublicKey);
+            }
+            return Mono.error(e);
+        });
+    }
+
+    /**
+     * Extracts the {@code kid} (Key ID) from the JWT header without verifying the signature.
+     */
+    private String extractKidFromHeader(String token) {
+        try {
             String[] parts = token.split("\\.");
-            if (parts.length < 2) {
-                throw new MalformedJwtException("JWT must have at least 2 parts");
-            }
-            String payload = new String(Base64.getUrlDecoder().decode(parts[1]),
-                    java.nio.charset.StandardCharsets.UTF_8);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> claimsMap = new com.fasterxml.jackson.databind.ObjectMapper()
-                    .readValue(payload, Map.class);
-
-            // Check expiration manually since jjwt won't do it for us
-            Object exp = claimsMap.get("exp");
-            if (exp instanceof Number) {
-                long expSeconds = ((Number) exp).longValue();
-                if (java.time.Instant.ofEpochSecond(expSeconds).isBefore(java.time.Instant.now())) {
-                    throw new ExpiredJwtException(null, null, "JWT token has expired");
-                }
-            }
-
-            return Jwts.claims().add(claimsMap).build();
+            if (parts.length < 2) return null;
+            String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
+            JsonNode header = objectMapper.readTree(headerJson);
+            JsonNode kidNode = header.get("kid");
+            return kidNode != null && !kidNode.isNull() ? kidNode.asText() : null;
+        } catch (Exception e) {
+            log.debug("Failed to extract kid from JWT header: {}", e.getMessage());
+            return null;
         }
     }
+
+    /**
+     * Fetches the JWKS from the configured URI and resolves the RSA public key matching the given kid.
+     */
+    private Mono<PublicKey> fetchJwksKey(String kid) {
+        return webClient.get()
+                .uri(jwksUri)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(body -> {
+                    try {
+                        JsonNode jwks = objectMapper.readTree(body);
+                        JsonNode keys = jwks.get("keys");
+                        if (keys == null || !keys.isArray() || keys.isEmpty()) {
+                            return Mono.error(new IllegalStateException("JWKS endpoint returned no keys"));
+                        }
+
+                        // Find the matching key by kid, or use the first RSA key if no kid specified
+                        JsonNode matchedKey = null;
+                        for (JsonNode keyNode : keys) {
+                            String keyType = keyNode.has("kty") ? keyNode.get("kty").asText() : "";
+                            if (!"RSA".equals(keyType)) continue;
+
+                            if (kid == null) {
+                                // No kid in token — use first RSA key
+                                matchedKey = keyNode;
+                                break;
+                            }
+                            String keyKid = keyNode.has("kid") ? keyNode.get("kid").asText() : null;
+                            if (kid.equals(keyKid)) {
+                                matchedKey = keyNode;
+                                break;
+                            }
+                        }
+
+                        if (matchedKey == null) {
+                            return Mono.error(new IllegalStateException(
+                                    "No matching RSA key found in JWKS for kid: " + kid));
+                        }
+
+                        // Parse RSA public key from JWK (n, e modulus/exponent)
+                        PublicKey publicKey = parseRsaPublicKeyFromJwk(matchedKey);
+
+                        // Cache all keys from the JWKS response while we're at it
+                        cacheAllJwksKeys(keys);
+
+                        return Mono.just(publicKey);
+                    } catch (Exception e) {
+                        return Mono.error(new IllegalStateException("Failed to parse JWKS response", e));
+                    }
+                });
+    }
+
+    /**
+     * Parses an RSA public key from a JWK JSON node containing {@code n} (modulus) and {@code e} (exponent).
+     */
+    private PublicKey parseRsaPublicKeyFromJwk(JsonNode jwk) throws Exception {
+        String n = jwk.get("n").asText();
+        String e = jwk.get("e").asText();
+
+        byte[] modulusBytes = Base64.getUrlDecoder().decode(n);
+        byte[] exponentBytes = Base64.getUrlDecoder().decode(e);
+
+        BigInteger modulus = new BigInteger(1, modulusBytes);
+        BigInteger exponent = new BigInteger(1, exponentBytes);
+
+        RSAPublicKeySpec spec = new RSAPublicKeySpec(modulus, exponent);
+        return KeyFactory.getInstance("RSA").generatePublic(spec);
+    }
+
+    /**
+     * Populates the Caffeine cache with all RSA keys from a JWKS response for faster subsequent lookups.
+     */
+    private void cacheAllJwksKeys(JsonNode keys) {
+        for (JsonNode keyNode : keys) {
+            try {
+                String keyType = keyNode.has("kty") ? keyNode.get("kty").asText() : "";
+                if (!"RSA".equals(keyType)) continue;
+
+                String keyKid = keyNode.has("kid") ? keyNode.get("kid").asText() : null;
+                if (keyKid == null) continue;
+
+                PublicKey pk = parseRsaPublicKeyFromJwk(keyNode);
+                jwksKeyCache.put(keyKid, pk);
+            } catch (Exception e) {
+                log.debug("Failed to cache JWKS key: {}", e.getMessage());
+            }
+        }
+    }
+
+    // ─── JWT parsing and validation ────────────────────────────────────────────
+
+    private Claims parseAndValidate(String token, PublicKey key) {
+        JwtParser parser = Jwts.parser().verifyWith(key).build();
+        return parser.parseSignedClaims(token).getPayload();
+    }
+
+    // ─── Header injection ──────────────────────────────────────────────────────
 
     private ServerHttpRequest injectAuthHeaders(ServerHttpRequest request, Claims claims) {
         ServerHttpRequest.Builder builder = request.mutate()
@@ -209,13 +496,17 @@ public class JwtAuthGatewayFilterFactory
         private String issuer;
         private String audience;
         private String algorithm = "RS256";
+        private Boolean requireJti;
 
-        public String getIssuer()                 { return issuer; }
-        public void setIssuer(String issuer)       { this.issuer = issuer; }
-        public String getAudience()                { return audience; }
-        public void setAudience(String audience)   { this.audience = audience; }
-        public String getAlgorithm()               { return algorithm; }
-        public void setAlgorithm(String algorithm) { this.algorithm = algorithm; }
+        public String getIssuer()                       { return issuer; }
+        public void setIssuer(String issuer)             { this.issuer = issuer; }
+        public String getAudience()                      { return audience; }
+        public void setAudience(String audience)         { this.audience = audience; }
+        public String getAlgorithm()                     { return algorithm; }
+        public void setAlgorithm(String algorithm)       { this.algorithm = algorithm; }
+        /** Per-filter override — null means use global {@code routify.jwt.require-jti}. */
+        public Boolean getRequireJti()                   { return requireJti; }
+        public void setRequireJti(Boolean requireJti)    { this.requireJti = requireJti; }
     }
 }
 

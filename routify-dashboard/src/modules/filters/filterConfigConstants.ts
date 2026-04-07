@@ -17,7 +17,7 @@ export type FilterConfig = Record<string, unknown>
 
 export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Authentication — field names match backend Config classes exactly
-  AUTH_JWT: { issuer: '', audience: '', algorithm: 'RS256' },
+  AUTH_JWT: { issuer: '', audience: '', requireJti: true },
   AUTH_API_KEY: { headerName: 'X-API-Key', queryParam: '', validationMode: 'REDIS' },
   AUTH_BASIC: { username: '', password: '' },
   AUTH_OAUTH2: { providerName: '', claimsToHeaderMapping: {} },
