@@ -449,6 +449,16 @@ public final class RabbitTopology {
     public static final String QUEUE_AUDIT_ROUTE_HEALTH     = "routify.audit-service.route.health";
     public static final String RK_AUDIT_ROUTE_HEALTH        = "audit.route.health";
 
+    // ─── routify-audit-service tenant usage ──────────────────────────────────
+
+    /** Queue: audit-service serves current-period tenant usage (route/filter/request counts vs plan limits) */
+    public static final String QUEUE_AUDIT_USAGE_CURRENT     = "routify.audit-service.usage.current";
+    public static final String RK_AUDIT_USAGE_CURRENT        = "audit.usage.current";
+
+    /** Queue: audit-service serves daily usage history for a tenant (last N days) */
+    public static final String QUEUE_AUDIT_USAGE_HISTORY     = "routify.audit-service.usage.history";
+    public static final String RK_AUDIT_USAGE_HISTORY        = "audit.usage.history";
+
     // ─── routify-route-service SLO queues & routing keys ──────────────────────
 
     /** Queue: route-service serves route SLO config GET queries from admin-api */

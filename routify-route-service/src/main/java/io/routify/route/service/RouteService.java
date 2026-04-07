@@ -2,6 +2,7 @@ package io.routify.route.service;
 
 import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
+import io.routify.common.domain.TenantPlan;
 import io.routify.common.event.DomainEvent;
 import io.routify.common.event.KafkaTopics;
 import io.routify.common.exception.RoutifyException;
@@ -44,6 +45,7 @@ public class RouteService {
     private final RouteRepository routeRepository;
     private final FilterDefinitionRepository filterRepository;
     private final OutboxEventStore outboxStore;
+    private final TenantPlanCache tenantPlanCache;
 
     // ─── Queries ──────────────────────────────────────────────────────────────
 
@@ -139,6 +141,9 @@ public class RouteService {
      */
     @Transactional
     public Route create(Route route, UUID tenantId, String createdBy) {
+        // ── Quota check ────────────────────────────────────────────────────
+        enforceRouteQuota(tenantId);
+
         if (routeRepository.existsByNameAndTenantIdAndEnvironment(route.getName(), tenantId, route.getEnvironment())) {
             throw new RoutifyException.Conflict(
                     "Route with name '%s' already exists in %s".formatted(route.getName(), route.getEnvironment()));
@@ -166,6 +171,9 @@ public class RouteService {
      */
     @Transactional
     public Route clone(UUID sourceId, UUID tenantId, String createdBy) {
+        // ── Quota check ────────────────────────────────────────────────────
+        enforceRouteQuota(tenantId);
+
         Route source = findByIdWithFilters(sourceId, tenantId);
 
         String clonedName = source.getName() + " (copy)";
@@ -558,6 +566,24 @@ public class RouteService {
                 new DomainEvent.GatewayReloadRequested(
                         UUID.randomUUID(), tenantId, reason, Instant.now(), null, null),
                 KafkaTopics.GATEWAY_RELOAD, tenantId);
+    }
+
+    /**
+     * Enforces the tenant's route quota based on their plan.
+     * ENTERPRISE plans have unlimited routes (Integer.MAX_VALUE) and are effectively bypassed.
+     *
+     * @throws RoutifyException.QuotaExceeded if the tenant has reached their route limit
+     */
+    private void enforceRouteQuota(UUID tenantId) {
+        TenantPlan plan = tenantPlanCache.getPlan(tenantId);
+        if (plan.maxRoutes() == Integer.MAX_VALUE) return; // ENTERPRISE — unlimited
+
+        long currentCount = routeRepository.countActiveByTenantId(tenantId);
+        if (currentCount >= plan.maxRoutes()) {
+            throw new RoutifyException.QuotaExceeded(
+                    "Route limit reached (%d/%d) for plan %s. Upgrade to create more routes."
+                            .formatted(currentCount, plan.maxRoutes(), plan.name()));
+        }
     }
 
     /**

@@ -181,6 +181,11 @@ auth:
   oauth2: {}
   oauth2Verification: {}
 
+# ─── Routify Gateway Features ────────────────────────────────────────────────
+routify:
+  gateway:
+    quota:
+      enabled: true   # Set to false to disable monthly request quota enforcement
 
 
 logging:

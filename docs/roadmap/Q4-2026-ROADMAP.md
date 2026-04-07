@@ -12,7 +12,7 @@
 | # | Initiative | Theme | Target Sprint | Impact |
 |---|-----------|-------|---------------|--------|
 | 1 | ✅ [GitOps Reconciliation Agent](#1-gitops-reconciliation-agent) | Developer Experience | Weeks 1–4 | Closes the GitOps loop: Git merges auto-apply gateway config changes |
-| 2 | [Tenant Quota Enforcement & Usage Analytics](#2-tenant-quota-enforcement--usage-analytics) | Multi-tenancy | Weeks 1–4 | `TenantPlan` quotas enforced at gateway and service layers with live usage dashboards |
+| 2 | ✅ [Tenant Quota Enforcement & Usage Analytics](#2-tenant-quota-enforcement--usage-analytics) | Multi-tenancy | Weeks 1–4 | `TenantPlan` quotas enforced at gateway and service layers with live usage dashboards |
 | 3 | [Multi-Gateway Cluster Awareness](#3-multi-gateway-cluster-awareness) | Scalability | Weeks 3–6 | Multiple gateway instances share consistent route state with leader-aware config sync |
 | 4 | [AI Policy Playground & Prompt Versioning](#4-ai-policy-playground--prompt-versioning) | AI / Intelligence | Weeks 4–7 | Visual prompt editor with version history, A/B testing, and accuracy scoring |
 | 5 | [GraphQL Analytics API](#5-graphql-analytics-api) | Integration | Weeks 5–8 | Flexible, composable analytics queries replace the fixed-schema REST stats endpoints |

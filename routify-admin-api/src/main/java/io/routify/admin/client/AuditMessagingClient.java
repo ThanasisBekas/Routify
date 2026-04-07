@@ -210,4 +210,19 @@ public class AuditMessagingClient extends AmqpServiceClientSupport {
         log.warn("queryRouteHealth circuit open or timed out: {}", t.getMessage());
         return new QueryResponse.RouteHealthResponse(List.of());
     }
+
+    // ─── Tenant Usage Analytics ──────────────────────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryUsageHistoryFallback")
+    public QueryResponse.UsageHistoryResult queryUsageHistory(UUID tenantId, int days) {
+        return rpc(RabbitTopology.RK_AUDIT_USAGE_HISTORY,
+                new QueryRequest.UsageHistory(tenantId, days),
+                QueryResponse.UsageHistoryResult.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.UsageHistoryResult queryUsageHistoryFallback(UUID tenantId, int days, Throwable t) {
+        log.warn("queryUsageHistory circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.UsageHistoryResult(tenantId, List.of());
+    }
 }

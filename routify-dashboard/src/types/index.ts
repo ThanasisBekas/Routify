@@ -165,6 +165,37 @@ export interface TenantDto {
   createdAt: string
 }
 
+// ─── Tenant Usage Analytics ─────────────────────────────────────────────────
+
+export interface QuotaDimension {
+  used: number
+  limit: number
+  percentage: number
+}
+
+export interface TenantUsageCurrent {
+  tenantId: string
+  plan: TenantPlan
+  routes: QuotaDimension
+  filters: QuotaDimension
+  requests: QuotaDimension
+  periodStart: string
+  periodEnd: string
+}
+
+export interface DailyUsage {
+  date: string
+  routeCount: number
+  filterCount: number
+  requestCount: number
+  errorCount: number
+}
+
+export interface TenantUsageHistory {
+  tenantId: string
+  entries: DailyUsage[]
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 export type RouteStatus = 'DRAFT' | 'ACTIVE' | 'DISABLED' | 'ARCHIVED'
@@ -917,6 +948,8 @@ export type WebhookEventType =
   | 'AI_FILTER_FLAGGED'
   | 'DLQ_OVERFLOW'
   | 'GATEWAY_RELOAD_FAILED'
+  | 'QUOTA_WARNING'
+  | 'QUOTA_EXCEEDED'
 
 export type WebhookSubscriptionStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
 

@@ -1,5 +1,6 @@
 package io.routify.route.service;
 
+import io.routify.common.domain.TenantPlan;
 import io.routify.common.event.DomainEvent;
 import io.routify.common.event.KafkaTopics;
 import io.routify.common.exception.RoutifyException;
@@ -30,6 +31,7 @@ public class FilterDefinitionService {
 
     private final FilterDefinitionRepository repository;
     private final OutboxEventStore outboxStore;
+    private final TenantPlanCache tenantPlanCache;
 
     @Transactional(readOnly = true)
     public Page<FilterDefinition> findAll(UUID tenantId, Pageable pageable) {
@@ -44,6 +46,17 @@ public class FilterDefinitionService {
 
     @Transactional
     public FilterDefinition create(FilterDefinition filter, UUID tenantId) {
+        // ── Quota check ────────────────────────────────────────────────────
+        TenantPlan plan = tenantPlanCache.getPlan(tenantId);
+        if (plan.maxFilters() != Integer.MAX_VALUE) {
+            long currentCount = repository.countByTenantId(tenantId);
+            if (currentCount >= plan.maxFilters()) {
+                throw new RoutifyException.QuotaExceeded(
+                        "Filter limit reached (%d/%d) for plan %s. Upgrade to create more filters."
+                                .formatted(currentCount, plan.maxFilters(), plan.name()));
+            }
+        }
+
         if (repository.existsByNameAndTenantId(filter.getName(), tenantId)) {
             throw new RoutifyException.Conflict(
                     "FilterDefinition with name '%s' already exists".formatted(filter.getName()));

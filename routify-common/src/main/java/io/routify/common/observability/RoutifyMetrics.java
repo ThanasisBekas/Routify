@@ -42,6 +42,10 @@ public class RoutifyMetrics {
     private final Counter gatewayRequestsRateLimited;
     private final Counter authFailures;
 
+    // ─── Quota ────────────────────────────────────────────────────────────────
+
+    private final Counter gatewayRequestsQuotaExceeded;
+
     // ─── Timers ───────────────────────────────────────────────────────────────
 
     private final Timer gatewayRequestDuration;
@@ -86,6 +90,10 @@ public class RoutifyMetrics {
         gatewayRequestsRateLimited = Counter.builder("routify.gateway.requests.rate_limited").register(registry);
         authFailures       = Counter.builder("routify.auth.failures").register(registry);
 
+        gatewayRequestsQuotaExceeded = Counter.builder("routify.gateway.requests.quota_exceeded")
+                .description("Requests rejected due to monthly tenant quota exceeded")
+                .register(registry);
+
         gatewayRequestDuration = Timer.builder("routify.gateway.request.duration")
                 .description("End-to-end gateway request duration")
                 .register(registry);
@@ -116,6 +124,7 @@ public class RoutifyMetrics {
     public void recordGatewayRequestBlocked() { gatewayRequestsBlocked.increment(); }
     public void recordRateLimited()           { gatewayRequestsRateLimited.increment(); }
     public void recordAuthFailure()           { authFailures.increment(); }
+    public void recordQuotaExceeded()         { gatewayRequestsQuotaExceeded.increment(); }
 
     public Timer gatewayRequestDuration() { return gatewayRequestDuration; }
     public Timer filterChainDuration()    { return filterChainDuration; }
