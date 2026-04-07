@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { TenantDto } from '../types'
+import type { TenantDto, TenantUsageCurrent, TenantUsageHistory } from '../types'
 
 export interface WorkspaceOption {
   name: string
@@ -59,4 +59,14 @@ export const tenantsApi = {
 
   /** Reactivate workspace. */
   reactivate: (id: string) => apiClient.post<TenantDto>(`/api/v1/admin/tenants/${id}/reactivate`).then((r) => r.data),
+
+  /** Current usage vs plan limits — requires auth. */
+  getUsage: (id: string) =>
+    apiClient.get<TenantUsageCurrent>(`/api/v1/admin/tenants/${id}/usage`).then((r) => r.data),
+
+  /** Daily usage history (default 30 days) — requires auth. */
+  getUsageHistory: (id: string, days = 30) =>
+    apiClient
+      .get<TenantUsageHistory>(`/api/v1/admin/tenants/${id}/usage/history`, { params: { days } })
+      .then((r) => r.data),
 }

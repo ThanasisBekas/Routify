@@ -106,6 +106,9 @@ import java.util.UUID;
     // ─── routify-route-service SLO ──────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.RouteSloGet.class,           name = "ROUTE_SLO_GET"),
     @JsonSubTypes.Type(value = QueryRequest.RouteSloSave.class,          name = "ROUTE_SLO_SAVE"),
+    // ─── routify-audit-service tenant usage ────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.UsageCurrent.class,          name = "USAGE_CURRENT"),
+    @JsonSubTypes.Type(value = QueryRequest.UsageHistory.class,          name = "USAGE_HISTORY"),
 })
 public sealed interface QueryRequest
         permits
@@ -167,6 +170,8 @@ public sealed interface QueryRequest
             QueryRequest.RouteHealthQuery,
             QueryRequest.RouteSloGet,
             QueryRequest.RouteSloSave,
+            QueryRequest.UsageCurrent,
+            QueryRequest.UsageHistory,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -578,6 +583,14 @@ public sealed interface QueryRequest
             int    latencyP99TargetMs,
             int    evaluationWindowHours
     ) implements QueryRequest {}
+
+    // ─── routify-audit-service tenant usage ──────────────────────────────────
+
+    /** Fetch current-period usage vs plan limits for a tenant. */
+    record UsageCurrent(UUID tenantId) implements QueryRequest {}
+
+    /** Fetch daily usage history for a tenant over the last N days. */
+    record UsageHistory(UUID tenantId, int days) implements QueryRequest {}
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

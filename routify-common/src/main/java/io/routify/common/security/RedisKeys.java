@@ -49,4 +49,28 @@ public final class RedisKeys {
      * <p>Read by {@code ApiKeyAuthGatewayFilterFactory} on every API-key-authenticated request.
      */
     public static final String APIKEY_PREFIX = "routify:apikeys:";
+
+    /**
+     * Prefix for tenant monthly request quota counters.
+     *
+     * <p>Full key format: {@code routify:quota:<tenantId>:<YYYY-MM>}
+     *
+     * <p>Atomically incremented by the gateway's
+     * {@code TenantContextGatewayFilterFactory} on every request with a resolved
+     * tenant ID. When the counter exceeds the tenant's
+     * {@code TenantPlan.monthlyRequestQuota()}, the gateway returns HTTP 429.
+     *
+     * <p>TTL is set to end-of-month + 1 day on the first increment of each month.
+     */
+    public static final String QUOTA_PREFIX = "routify:quota:";
+
+    /**
+     * Prefix for tenant quota warning flags (prevents duplicate webhooks).
+     *
+     * <p>Full key format: {@code routify:quota:warned:<tenantId>:<YYYY-MM>}
+     *
+     * <p>Set to {@code "1"} when the 80% warning webhook is fired. Prevents
+     * the same warning from being published on every subsequent request.
+     */
+    public static final String QUOTA_WARNED_PREFIX = "routify:quota:warned:";
 }

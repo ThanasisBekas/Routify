@@ -262,6 +262,7 @@ public sealed interface DomainEvent
             UUID eventId,
             UUID tenantId,
             String tenantName,
+            String plan,
             Instant occurredAt,
             String correlationId,
             String actor

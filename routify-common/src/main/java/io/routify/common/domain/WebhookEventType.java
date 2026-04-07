@@ -39,6 +39,12 @@ public enum WebhookEventType {
     // ─── Infrastructure events ────────────────────────────────────────────────
     /** Triggered when more than N DLQ events are observed in a time window. */
     DLQ_OVERFLOW,
-    GATEWAY_RELOAD_FAILED
+    GATEWAY_RELOAD_FAILED,
+
+    // ─── Quota events ──────────────────────────────────────────────────────────
+    /** Triggered when a tenant reaches 80% of any quota (routes, filters, or requests). */
+    QUOTA_WARNING,
+    /** Triggered when a tenant reaches 100% of any quota (routes, filters, or requests). */
+    QUOTA_EXCEEDED
 }
 

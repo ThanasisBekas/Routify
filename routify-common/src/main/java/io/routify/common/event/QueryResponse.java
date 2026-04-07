@@ -99,6 +99,9 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.RouteHealthResponse.class,     name = "ROUTE_HEALTH_RESPONSE"),
     // ─── routify-route-service SLO ──────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.RouteSloResult.class,          name = "ROUTE_SLO_RESULT"),
+    // ─── routify-audit-service tenant usage ────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.UsageCurrentResult.class,     name = "USAGE_CURRENT_RESULT"),
+    @JsonSubTypes.Type(value = QueryResponse.UsageHistoryResult.class,     name = "USAGE_HISTORY_RESULT"),
     // ─── routify-api-gateway ─────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.GatewayStatus.class,        name = "GATEWAY_STATUS"),
     @JsonSubTypes.Type(value = QueryResponse.CertRegistrySnapshot.class, name = "CERT_REGISTRY_SNAPSHOT"),
@@ -152,6 +155,8 @@ public sealed interface QueryResponse
             QueryResponse.AiFilterDecisionsPage,
             QueryResponse.RouteHealthResponse,
             QueryResponse.RouteSloResult,
+            QueryResponse.UsageCurrentResult,
+            QueryResponse.UsageHistoryResult,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1093,6 +1098,36 @@ public sealed interface QueryResponse
             int    evaluationWindowHours,
             boolean found
     ) implements QueryResponse {}
+
+    // ─── routify-audit-service tenant usage ──────────────────────────────────
+
+    /**
+     * Current-period usage for a tenant: resource counts and monthly request count vs plan limits.
+     */
+    record UsageCurrentResult(
+            UUID tenantId,
+            String plan,
+            QuotaDimension routes,
+            QuotaDimension filters,
+            QuotaDimension requests,
+            String periodStart,
+            String periodEnd
+    ) implements QueryResponse {
+        /** A single quota dimension: used / limit / percentage. */
+        public record QuotaDimension(long used, long limit, int percentage) {}
+    }
+
+    /**
+     * Daily usage history for a tenant over a number of days.
+     */
+    record UsageHistoryResult(
+            UUID tenantId,
+            List<DailyUsage> entries
+    ) implements QueryResponse {
+        /** A single day's snapshot. */
+        public record DailyUsage(String date, int routeCount, int filterCount,
+                                  long requestCount, long errorCount) {}
+    }
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

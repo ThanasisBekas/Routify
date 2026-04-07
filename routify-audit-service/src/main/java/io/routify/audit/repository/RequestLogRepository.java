@@ -171,6 +171,26 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, UUID> {
             @Param("tenantId") UUID tenantId,
             @Param("routeId") UUID routeId,
             @Param("since") Instant since);
+
+    // ─── Tenant Usage Analytics ─────────────────────────────────────────────────
+
+    /**
+     * Aggregates request count and error count per tenant for a time period.
+     * Returns rows of [tenant_id, request_count, error_count].
+     */
+    @Query(value = """
+            SELECT r.tenant_id,
+                   COUNT(*),
+                   SUM(CASE WHEN r.response_status >= 400 THEN 1 ELSE 0 END)
+            FROM routify_audit.request_log r
+            WHERE r.requested_at >= :dayStart
+              AND r.requested_at < :dayEnd
+              AND r.tenant_id IS NOT NULL
+            GROUP BY r.tenant_id
+            """, nativeQuery = true)
+    List<Object[]> countRequestsByTenantForPeriod(
+            @Param("dayStart") Instant dayStart,
+            @Param("dayEnd") Instant dayEnd);
 }
 
 

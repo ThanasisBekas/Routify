@@ -42,11 +42,11 @@ Same pattern for filter creation against `plan.maxFilters()`.
 - Prefer (B) for decoupling — route-service maintains a local `ConcurrentHashMap<UUID, TenantPlan>` refreshed on tenant events.
 
 **Task list:**
-- [ ] Add tenant plan cache in route-service (populate from `TENANT_EVENTS`)
-- [ ] Add quota check in `RouteService.createRoute()`
-- [ ] Add quota check in filter creation logic
-- [ ] Throw `RoutifyException.QuotaExceeded` with plan details in error message
-- [ ] Add unit tests for quota boundary conditions
+- [x] Add tenant plan cache in route-service (populate from `TENANT_EVENTS`)
+- [x] Add quota check in `RouteService.createRoute()`
+- [x] Add quota check in filter creation logic
+- [x] Throw `RoutifyException.QuotaExceeded` with plan details in error message
+- [x] Add unit tests for quota boundary conditions
 
 ---
 
@@ -75,12 +75,12 @@ if (currentCount > plan.monthlyRequestQuota()) {
 **Plan resolution at gateway:** Gateway already consumes `TENANT_EVENTS` for tenant context. Extend to cache `tenantId → TenantPlan` mapping.
 
 **Task list:**
-- [ ] Add `RedisKeys.QUOTA_PREFIX = "routify:quota:"` to `routify-common`
-- [ ] Implement monthly counter increment in `TenantContextGatewayFilterFactory`
-- [ ] Implement quota check with HTTP 429 + `Retry-After`
-- [ ] Cache tenant plans in gateway from `TENANT_EVENTS`
-- [ ] Add `routify.gateway.quota.enabled: true` feature flag
-- [ ] Add `routify.gateway.requests.quota_exceeded` counter to `RoutifyMetrics`
+- [x] Add `RedisKeys.QUOTA_PREFIX = "routify:quota:"` to `routify-common`
+- [x] Implement monthly counter increment in `TenantContextGatewayFilterFactory`
+- [x] Implement quota check with HTTP 429 + `Retry-After`
+- [x] Cache tenant plans in gateway from `TENANT_EVENTS`
+- [x] Add `routify.gateway.quota.enabled: true` feature flag
+- [x] Add `routify.gateway.requests.quota_exceeded` counter to `RoutifyMetrics`
 
 ---
 
@@ -114,10 +114,10 @@ CREATE INDEX idx_tenant_usage_tenant_date ON routify_audit.tenant_usage_daily(te
 3. Upsert into `tenant_usage_daily`.
 
 **Task list:**
-- [ ] Create Flyway migration
-- [ ] Create entity and repository
-- [ ] Create daily snapshot scheduler
-- [ ] Add RabbitMQ query handler for usage data
+- [x] Create Flyway migration
+- [x] Create entity and repository
+- [x] Create daily snapshot scheduler
+- [x] Add RabbitMQ query handler for usage data
 
 ---
 
@@ -144,11 +144,11 @@ CREATE INDEX idx_tenant_usage_tenant_date ON routify_audit.tenant_usage_daily(te
 ```
 
 **Task list:**
-- [ ] Add usage endpoint to tenants controller
-- [ ] Add usage history endpoint
-- [ ] Query Redis for current-month request count
-- [ ] Query route-service for route/filter counts via RabbitMQ
-- [ ] Return plan limits from identity-service
+- [x] Add usage endpoint to tenants controller
+- [x] Add usage history endpoint
+- [x] Query Redis for current-month request count
+- [x] Query route-service for route/filter counts via RabbitMQ
+- [x] Return plan limits from identity-service
 
 ---
 
@@ -164,12 +164,12 @@ CREATE INDEX idx_tenant_usage_tenant_date ON routify_audit.tenant_usage_daily(te
 - "Upgrade Plan" button (TENANT_ADMIN only) — opens upgrade request form.
 
 **Task list:**
-- [ ] Create usage overview component
-- [ ] Create trend chart component
-- [ ] Add TypeScript types for usage response
-- [ ] Add API functions to `tenantsApi.ts`
-- [ ] Integrate into workspace detail page
-- [ ] Add MSW mock handlers
+- [x] Create usage overview component
+- [x] Create trend chart component
+- [x] Add TypeScript types for usage response
+- [x] Add API functions to `tenantsApi.ts`
+- [x] Integrate into workspace detail page
+- [x] Add MSW mock handlers
 
 ---
 
@@ -182,19 +182,18 @@ QUOTA_EXCEEDED    // 100% of any quota reached
 ```
 
 **Task list:**
-- [ ] Add event types to `WebhookEventType` enum
-- [ ] Publish events from gateway (request quota) and route-service (resource quota)
-- [ ] Add dashboard TypeScript types
+- [x] Add event types to `WebhookEventType` enum
+- [x] Publish events from gateway (request quota) and route-service (resource quota)
+- [x] Add dashboard TypeScript types
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] A FREE tenant (10 routes) receives HTTP 429 when creating an 11th route
-- [ ] A FREE tenant (1,000 requests/month) receives HTTP 429 with `Retry-After` when exceeding quota
-- [ ] Tenant usage dashboard shows accurate progress bars for all three quota dimensions
-- [ ] Daily usage history chart shows 30-day trend
-- [ ] Quota warning webhooks fire at 80% threshold
-- [ ] Quota checks are bypassed for ENTERPRISE plan (unlimited)
-- [ ] Feature flag `routify.gateway.quota.enabled` can disable request counting
-
+- [x] A FREE tenant (10 routes) receives HTTP 429 when creating an 11th route
+- [x] A FREE tenant (1,000 requests/month) receives HTTP 429 with `Retry-After` when exceeding quota
+- [x] Tenant usage dashboard shows accurate progress bars for all three quota dimensions
+- [x] Daily usage history chart shows 30-day trend
+- [x] Quota warning webhooks fire at 80% threshold
+- [x] Quota checks are bypassed for ENTERPRISE plan (unlimited)
+- [x] Feature flag `routify.gateway.quota.enabled` can disable request counting

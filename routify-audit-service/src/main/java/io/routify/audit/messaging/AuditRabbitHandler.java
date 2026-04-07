@@ -8,6 +8,7 @@ import io.routify.audit.replay.FailedRequestReplayService;
 import io.routify.audit.repository.AiFilterDecisionRepository;
 import io.routify.audit.repository.AuditLogRepository;
 import io.routify.audit.repository.RequestLogRepository;
+import io.routify.audit.repository.TenantUsageDailyRepository;
 import io.routify.common.event.KafkaTopics;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
@@ -43,6 +44,7 @@ public class AuditRabbitHandler {
     private final AuditLogRepository         auditLogRepository;
     private final RequestLogRepository       requestLogRepository;
     private final AiFilterDecisionRepository aiFilterDecisionRepository;
+    private final TenantUsageDailyRepository tenantUsageDailyRepository;
     private final FailedRequestReplayService replayService;
     private final ObjectMapper               objectMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -381,5 +383,25 @@ public class AuditRabbitHandler {
                 r.getRequestBody(), r.getResponseBody(),
                 r.getReplayStatus(), r.getReplayCount(), r.getReplayedAt(),
                 r.getReplayResponseStatus(), r.getReplayError(), r.getRequestedAt());
+    }
+
+    // ─── Tenant Usage Analytics ──────────────────────────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_AUDIT_USAGE_HISTORY)
+    public QueryResponse.UsageHistoryResult handleUsageHistory(QueryRequest.UsageHistory req) {
+        log.debug("RabbitMQ: received usage history request: tenantId={} days={}", req.tenantId(), req.days());
+        int days = req.days() > 0 ? req.days() : 30;
+        var to = java.time.LocalDate.now(java.time.ZoneOffset.UTC).minusDays(1);
+        var from = to.minusDays(days - 1);
+
+        var entries = tenantUsageDailyRepository
+                .findByTenantIdAndDateBetweenOrderByDateDesc(req.tenantId(), from, to)
+                .stream()
+                .map(u -> new QueryResponse.UsageHistoryResult.DailyUsage(
+                        u.getDate().toString(), u.getRouteCount(), u.getFilterCount(),
+                        u.getRequestCount(), u.getErrorCount()))
+                .toList();
+
+        return new QueryResponse.UsageHistoryResult(req.tenantId(), entries);
     }
 }

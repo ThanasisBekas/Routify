@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { tenantsApi } from '../../api/tenantsApi'
 import type { CreateWorkspaceRequest, UpdateWorkspaceRequest } from '../../api/tenantsApi'
@@ -19,8 +19,11 @@ import {
   Edit,
   Save,
   CircleDot,
+  ChevronDown,
 } from 'lucide-react'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import UsageOverview from './UsageOverview'
+import UsageTrendChart from './UsageTrendChart'
 
 // ─── Plan badge ───────────────────────────────────────────────────────────────
 
@@ -379,6 +382,7 @@ export default function WorkspacesPage() {
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [editTenant, setEditTenant] = useState<TenantDto | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data, isLoading } = useRealtimeQuery({
     queryKey: ['tenants'],
@@ -461,16 +465,24 @@ export default function WorkspacesPage() {
                   ))
                 : tenants.map((t) => {
                     const isCurrent = t.id === currentTenantId
+                    const isExpanded = expandedId === t.id
                     return (
+                      <React.Fragment key={t.id}>
                       <tr
-                        key={t.id}
                         className={cn(
-                          'transition-colors',
+                          'transition-colors cursor-pointer',
                           isCurrent ? 'bg-indigo-500/[0.04] hover:bg-indigo-500/[0.07]' : 'hover:bg-white/[0.02]',
                         )}
+                        onClick={() => setExpandedId(isExpanded ? null : t.id)}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
+                            <ChevronDown
+                              className={cn(
+                                'w-3.5 h-3.5 text-gray-500 transition-transform duration-200',
+                                isExpanded && 'rotate-180',
+                              )}
+                            />
                             <span className="text-white font-medium">{t.name}</span>
                             {isCurrent && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
@@ -493,7 +505,8 @@ export default function WorkspacesPage() {
                           {new Date(t.createdAt).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 justify-end">
+                          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                          <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                             {/* Edit button */}
                             <button
                               onClick={() => setEditTenant(t)}
@@ -525,6 +538,17 @@ export default function WorkspacesPage() {
                           </div>
                         </td>
                       </tr>
+                      {isExpanded && (
+                        <tr key={`${t.id}-usage`}>
+                          <td colSpan={6} className="px-6 py-5 bg-white/[0.01] border-b border-white/[0.04]">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-3xl">
+                              <UsageOverview tenantId={t.id} />
+                              <UsageTrendChart tenantId={t.id} />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     )
                   })}
             </tbody>
