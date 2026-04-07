@@ -33,9 +33,9 @@ A filter that resolves client IP → country → region using MaxMind GeoIP2 dat
 ```
 
 **Task list:**
-- [ ] Add `geoip2` dependency to gateway POM
-- [ ] Document MaxMind GeoLite2 account signup requirement
-- [ ] Add `GeoLite2-Country.mmdb` to `.gitignore` (binary file, not committed)
+- [x] Add `geoip2` dependency to gateway POM
+- [x] Document MaxMind GeoLite2 account signup requirement
+- [x] Add `GeoLite2-Country.mmdb` to `.gitignore` (binary file, not committed)
 
 ---
 
@@ -65,11 +65,11 @@ A filter that resolves client IP → country → region using MaxMind GeoIP2 dat
 - `defaultRegion` not in `regions` map → pass through to route's original upstream
 
 **Task list:**
-- [ ] Create `GeoIpResolver` with MaxMind database loader
-- [ ] Create `GeoRouteGatewayFilterFactory`
-- [ ] Implement client IP → country → region → URI resolution
-- [ ] Implement fallback chain
-- [ ] Inject `X-Geo-Region` header
+- [x] Create `GeoIpResolver` with MaxMind database loader
+- [x] Create `GeoRouteGatewayFilterFactory`
+- [x] Implement client IP → country → region → URI resolution
+- [x] Implement fallback chain
+- [x] Inject `X-Geo-Region` header
 
 ---
 
@@ -81,9 +81,9 @@ A filter that resolves client IP → country → region using MaxMind GeoIP2 dat
 - No TTL (GeoIP data changes infrequently; cache clears on gateway restart).
 
 **Task list:**
-- [ ] Add Caffeine cache for IP → region lookups
-- [ ] Configure cache size from `cacheSize` param
-- [ ] Log cache hit rate periodically (TRACE level)
+- [x] Add Caffeine cache for IP → region lookups
+- [x] Configure cache size from `cacheSize` param
+- [x] Log cache hit rate periodically (TRACE level)
 
 ---
 
@@ -94,9 +94,9 @@ A filter that resolves client IP → country → region using MaxMind GeoIP2 dat
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `GEO_ROUTE` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form with region map editor in dashboard
+- [x] Add `GEO_ROUTE` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form with region map editor in dashboard
 
 ---
 
@@ -115,17 +115,17 @@ A filter that resolves client IP → country → region using MaxMind GeoIP2 dat
 - Missing GeoIP database → all requests fall back to default
 
 **Task list:**
-- [ ] Write tests with mock GeoIP database
-- [ ] Write fallback chain tests
-- [ ] Write cache behavior tests
+- [x] Write tests with mock GeoIP database
+- [x] Write fallback chain tests
+- [x] Write cache behavior tests
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Requests routed to correct upstream based on client IP geolocation
-- [ ] `X-Geo-Region` header injected on every response
-- [ ] LRU cache avoids per-request disk I/O
-- [ ] Graceful fallback when GeoIP lookup fails
-- [ ] MaxMind database loaded once at startup
+- [x] Requests routed to correct upstream based on client IP geolocation
+- [x] `X-Geo-Region` header injected on every response
+- [x] LRU cache avoids per-request disk I/O
+- [x] Graceful fallback when GeoIP lookup fails
+- [x] MaxMind database loaded once at startup
 

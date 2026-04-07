@@ -335,6 +335,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-rose-400/10',
     border: 'border-rose-400/20',
   },
+  {
+    value: 'GEO_ROUTE',
+    label: 'Geographic Routing',
+    category: 'Routing',
+    description:
+      'Route requests to geographically closest upstream using MaxMind GeoIP2 lookups. Injects X-Geo-Region header for downstream observability.',
+    color: 'text-sky-400',
+    bg: 'bg-sky-400/10',
+    border: 'border-sky-400/20',
+  },
 
   // ── Custom ────────────────────────────────────────────────────────────────────
   {

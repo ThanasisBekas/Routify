@@ -115,6 +115,13 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- MaxMind GeoIP2 — geographic IP lookups for GEO_ROUTE filter -->
+        <dependency>
+            <groupId>com.maxmind.geoip2</groupId>
+            <artifactId>geoip2</artifactId>
+            <version>4.2.1</version>
+        </dependency>
+
         <!-- WebClient — call routify-route-service for snapshot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

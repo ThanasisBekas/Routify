@@ -339,6 +339,7 @@ public class RouteDefinitionBuilder {
             // ─── Routing ─────────────────────────────────────────────────────────
             case "CONDITIONAL_ROUTE"        -> customFilter("ConditionalRoute", cfg);
             case "USER_ID_PAYLOAD_ROUTING"  -> customFilter("UserIdPayloadRouting", cfg);
+            case "GEO_ROUTE"                -> customFilter("GeoRoute", cfg);
 
             // ─── Security ──────────────────────────────────────────────────────
             case "IP_ACCESS_CONTROL"         -> customFilter("IpAccessControl", cfg);

@@ -76,6 +76,8 @@ public enum FilterType {
     CONDITIONAL_ROUTE,
     /** Route to an alternative upstream when userId in request body is in an allowlist — UserIdPayloadRoutingGatewayFilterFactory */
     USER_ID_PAYLOAD_ROUTING,
+    /** Route to geographically closest upstream using MaxMind GeoIP2 lookups — GeoRouteGatewayFilterFactory */
+    GEO_ROUTE,
 
     // ─── Security ──────────────────────────────────────────────────────────────
 
