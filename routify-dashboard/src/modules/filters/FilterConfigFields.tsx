@@ -404,6 +404,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               ]}
             />
           </Field>
+          <Toggle
+            label="Include X-RateLimit-* Headers"
+            description="Inject X-RateLimit-Limit, X-RateLimit-Remaining, and X-RateLimit-Reset headers on every response. Retry-After is always included on 429 regardless."
+            checked={bool('includeHeaders', true)}
+            onChange={(v) => set('includeHeaders', v)}
+          />
         </div>
       )
     }

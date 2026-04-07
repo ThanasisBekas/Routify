@@ -25,7 +25,7 @@ Each initiative has a dedicated design document in [`docs/roadmap/initiatives/`]
 |---|-----------|----------|----------|--------|
 | 1 | ✅ [Extract Shared Key Resolver](#1-extract-shared-key-resolver) | Rate Limiting | High | Eliminates duplicated key resolution logic across 3 rate limit filters |
 | 2 | ✅ [Unified Error Response Builder](#2-unified-error-response-builder) | Cross-cutting | High | Consistent RFC 9457 ProblemDetail responses from all filters with shared `Retry-After`, rate-limit headers |
-| 3 | [Rate Limiter `X-RateLimit-*` Response Headers](#3-rate-limiter-x-ratelimit--response-headers) | Rate Limiting | Medium | Standard `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every response |
+| 3 | ✅ [Rate Limiter `X-RateLimit-*` Response Headers](#3-rate-limiter-x-ratelimit--response-headers) | Rate Limiting | Medium | Standard `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every response |
 | 4 | [JwtAuth Filter Hardening](#4-jwtauth-filter-hardening) | Authentication | High | Remove dev-mode unsigned JWT path, add JWKS rotation, issuer/audience validation enforcement |
 | 5 | [Jolt Transform Response-Phase Support](#5-jolt-transform-response-phase-support) | Body Transform | Medium | Complete the `phase=RESPONSE` stub; enable JSON-to-JSON transformation on upstream responses |
 | 6 | [RequestLogger Performance & Configurability](#6-requestlogger-performance--configurability) | Observability | Medium | Reduce body-capture overhead, add sampling, header allowlists, and structured JSON log format |
@@ -113,11 +113,11 @@ Neither rate limiter emits standard `X-RateLimit-*` headers on successful respon
 4. **Emit `Retry-After` on 429** with the number of seconds until the window resets.
 
 #### Acceptance Criteria
-- [ ] `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every 2xx/4xx response
-- [ ] `Retry-After` on 429 responses
-- [ ] Lua scripts return `{count, ttl}` tuple
-- [ ] `includeHeaders=false` suppresses all rate limit headers
-- [ ] Integration test validates header values against Redis state
+- [x] `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` on every 2xx/4xx response
+- [x] `Retry-After` on 429 responses
+- [x] Lua scripts return `{count, ttl}` tuple
+- [x] `includeHeaders=false` suppresses all rate limit headers
+- [x] Integration test validates header values against Redis state
 
 ---
 
