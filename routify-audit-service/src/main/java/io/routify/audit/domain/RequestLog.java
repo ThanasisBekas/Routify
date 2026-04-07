@@ -211,10 +211,10 @@ public class RequestLog {
         public Builder path(String v)            { log.path = v; return this; }
         public Builder queryString(String v)     { log.queryString = v; return this; }
         public Builder upstreamUri(String v)     { log.upstreamUri = v; return this; }
-        public Builder responseStatus(int v)     { log.responseStatus = v; return this; }
-        public Builder durationMs(long v)        { log.durationMs = v; return this; }
-        public Builder requestSizeBytes(long v)  { log.requestSizeBytes = v; return this; }
-        public Builder responseSizeBytes(long v) { log.responseSizeBytes = v; return this; }
+        public Builder responseStatus(Integer v)  { log.responseStatus = v; return this; }
+        public Builder durationMs(Long v)        { log.durationMs = v; return this; }
+        public Builder requestSizeBytes(Long v)  { log.requestSizeBytes = v; return this; }
+        public Builder responseSizeBytes(Long v) { log.responseSizeBytes = v; return this; }
         public Builder clientIp(String v)        { log.clientIp = v; return this; }
         public Builder userId(String v)          { log.userId = v; return this; }
         public Builder errorMessage(String v)    { log.errorMessage = v; return this; }

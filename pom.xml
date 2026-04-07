@@ -40,7 +40,7 @@
         <jjwt.version>0.13.0</jjwt.version>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
         <resilience4j.version>2.2.0</resilience4j.version>
-        <spring-ai.version>1.1.4</spring-ai.version>
+        <spring-ai.version>2.0.0-M4</spring-ai.version>
 
         <!-- Testing -->
         <!-- Integration tests (*IT.java) disabled globally (Testcontainers + Docker Engine 29.x incompatibility).

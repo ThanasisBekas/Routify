@@ -19,14 +19,14 @@ public interface WebhookSubscriptionRepository extends JpaRepository<WebhookSubs
 
     /**
      * Finds all ACTIVE subscriptions for a given tenant that include the specified event type.
-     * Uses a PostgreSQL array containment check.
+     * Uses a native PostgreSQL array containment check ({@code = ANY(...)}).
      */
-    @Query("""
-            SELECT ws FROM WebhookSubscription ws
-            WHERE ws.tenantId = :tenantId
+    @Query(value = """
+            SELECT * FROM routify_identity.webhook_subscription ws
+            WHERE ws.tenant_id = :tenantId
               AND ws.status = 'ACTIVE'
-              AND :eventType = ANY(ws.eventTypes)
-            """)
+              AND :eventType = ANY(ws.event_types)
+            """, nativeQuery = true)
     List<WebhookSubscription> findActiveByTenantIdAndEventType(
             @Param("tenantId") UUID tenantId,
             @Param("eventType") String eventType);

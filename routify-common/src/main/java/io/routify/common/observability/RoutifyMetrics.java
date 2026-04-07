@@ -5,7 +5,6 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.routify.common.client.AmqpServiceClientSupport;
-import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,8 +23,10 @@ import java.util.concurrent.atomic.AtomicLong;
  *   <li><b>DLQ</b>     — {@code routify.dlq.events} counter per DLQ topic</li>
  *   <li><b>Cert</b>    — {@code routify.cert.expiry.days} gauge per logical cert ID</li>
  * </ul>
+ *
+ * <p>Registered as a bean via {@link RoutifyMetricsAutoConfiguration} — services that
+ * depend on {@code routify-common} get this bean automatically.
  */
-@Component
 public class RoutifyMetrics {
 
     private final MeterRegistry registry;
