@@ -74,7 +74,9 @@ public class RouteServiceClient extends AmqpServiceClientSupport {
                                             f.filterId(), f.filterType(), f.order(), f.phase(),
                                             f.config(), f.gatewayConfigRef()))
                                     .toList(),
-                            r.extraConfig()))
+                            r.extraConfig(),
+                            r.trafficWeight(),
+                            r.canaryRouteId()))
                     .toList();
 
             log.info("Fetched {} active routes via RabbitMQ", snapshots.size());

@@ -1,6 +1,6 @@
 import { http, HttpResponse, delay } from 'msw'
 import { routes, buildPage, MOCK_TENANT_ID } from '../db'
-import type { RouteDto, RouteSummary, CreateRouteRequest, UpdateRouteRequest, AttachFilterRequest } from '../../types'
+import type { RouteDto, RouteSummary, CreateRouteRequest, UpdateRouteRequest, AttachFilterRequest, DeployCanaryRequest, AdjustCanaryWeightRequest, CanaryStatusResponse } from '../../types'
 import { filters } from '../db'
 
 function toSummary(r: RouteDto): RouteSummary {
@@ -21,6 +21,8 @@ function toSummary(r: RouteDto): RouteSummary {
     postFilterCount: post,
     createdAt: r.createdAt,
     activatedAt: r.activatedAt,
+    trafficWeight: r.trafficWeight ?? 100,
+    canaryRouteId: r.canaryRouteId,
   }
 }
 
@@ -72,6 +74,7 @@ export const routeHandlers = [
       status: 'DRAFT',
       environment: body.environment ?? 'PRODUCTION',
       version: 1,
+      trafficWeight: 100,
       filters: [],
       extraConfig: body.extraConfig,
       createdBy: 'admin',
@@ -239,5 +242,120 @@ export const routeHandlers = [
     }
     routes.set(route.id, updated)
     return HttpResponse.json(updated)
+  }),
+
+  // ─── Deploy Canary ──────────────────────────────────────────────────────────
+  http.post(`${BASE}/:id/canary`, async ({ params, request }) => {
+    await delay(400)
+    const route = routes.get(params.id as string)
+    if (!route) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
+    if (route.status !== 'ACTIVE')
+      return HttpResponse.json({ status: 400, detail: 'Route must be ACTIVE' }, { status: 400 })
+    const body = (await request.json()) as DeployCanaryRequest
+    const now = new Date().toISOString()
+
+    // Create canary route
+    const canaryId = genId()
+    const canary: RouteDto = {
+      ...route,
+      id: canaryId,
+      name: `${route.name}-canary`,
+      upstreamUri: body.canaryUpstreamUri,
+      status: 'ACTIVE',
+      version: 1,
+      trafficWeight: body.trafficWeight,
+      createdAt: now,
+      updatedAt: now,
+      activatedAt: now,
+    }
+    routes.set(canaryId, canary)
+
+    // Update primary
+    const updated: RouteDto = {
+      ...route,
+      trafficWeight: 100 - body.trafficWeight,
+      canaryRouteId: canaryId,
+      canaryAutoRollbackThreshold: body.autoRollbackThreshold,
+      updatedAt: now,
+    }
+    routes.set(route.id, updated)
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Canary deployment in progress' }, { status: 202 })
+  }),
+
+  // ─── Canary Status ──────────────────────────────────────────────────────────
+  http.get(`${BASE}/:id/canary/status`, async ({ params }) => {
+    await delay(200)
+    const route = routes.get(params.id as string)
+    if (!route || !route.canaryRouteId) return HttpResponse.json({ status: 404, detail: 'No active canary' }, { status: 404 })
+    const canary = routes.get(route.canaryRouteId)
+    const response: CanaryStatusResponse = {
+      routeId: route.id,
+      canaryRouteId: route.canaryRouteId,
+      primaryWeight: route.trafficWeight,
+      canaryWeight: canary?.trafficWeight ?? 0,
+      canaryUpstreamUri: canary?.upstreamUri ?? '',
+      autoRollbackThreshold: route.canaryAutoRollbackThreshold ?? 5.0,
+      primaryErrorRate: Math.random() * 2,
+      canaryErrorRate: Math.random() * 4,
+      deployedAt: canary?.activatedAt,
+      breachCount: 0,
+    }
+    return HttpResponse.json(response)
+  }),
+
+  // ─── Promote Canary ─────────────────────────────────────────────────────────
+  http.post(`${BASE}/:id/canary/promote`, async ({ params }) => {
+    await delay(400)
+    const route = routes.get(params.id as string)
+    if (!route || !route.canaryRouteId)
+      return HttpResponse.json({ status: 400, detail: 'No active canary' }, { status: 400 })
+    const canary = routes.get(route.canaryRouteId)
+    const now = new Date().toISOString()
+
+    // Promote: copy canary upstream to primary
+    const updated: RouteDto = {
+      ...route,
+      upstreamUri: canary?.upstreamUri ?? route.upstreamUri,
+      trafficWeight: 100,
+      canaryRouteId: undefined,
+      canaryAutoRollbackThreshold: undefined,
+      updatedAt: now,
+    }
+    routes.set(route.id, updated)
+    if (route.canaryRouteId) routes.delete(route.canaryRouteId)
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Canary promotion in progress' }, { status: 202 })
+  }),
+
+  // ─── Rollback Canary ────────────────────────────────────────────────────────
+  http.post(`${BASE}/:id/canary/rollback`, async ({ params }) => {
+    await delay(400)
+    const route = routes.get(params.id as string)
+    if (!route || !route.canaryRouteId)
+      return HttpResponse.json({ status: 400, detail: 'No active canary' }, { status: 400 })
+    const now = new Date().toISOString()
+    const updated: RouteDto = {
+      ...route,
+      trafficWeight: 100,
+      canaryRouteId: undefined,
+      canaryAutoRollbackThreshold: undefined,
+      updatedAt: now,
+    }
+    routes.set(route.id, updated)
+    if (route.canaryRouteId) routes.delete(route.canaryRouteId)
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Canary rollback in progress' }, { status: 202 })
+  }),
+
+  // ─── Adjust Canary Weight ───────────────────────────────────────────────────
+  http.put(`${BASE}/:id/canary/weight`, async ({ params, request }) => {
+    await delay(300)
+    const route = routes.get(params.id as string)
+    if (!route || !route.canaryRouteId)
+      return HttpResponse.json({ status: 400, detail: 'No active canary' }, { status: 400 })
+    const body = (await request.json()) as AdjustCanaryWeightRequest
+    const now = new Date().toISOString()
+    const canary = routes.get(route.canaryRouteId)
+    if (canary) routes.set(canary.id, { ...canary, trafficWeight: body.weight, updatedAt: now })
+    routes.set(route.id, { ...route, trafficWeight: 100 - body.weight, updatedAt: now })
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Weight adjusted' }, { status: 202 })
   }),
 ]

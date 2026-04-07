@@ -186,6 +186,32 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.PromoteRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
     }
 
+    // ─── Canary Commands (Kafka) ───────────────────────────────────────────────
+
+    public void sendDeployCanary(UUID routeId, UUID tenantId, String actor,
+                                 String canaryUpstreamUri, int trafficWeight,
+                                 double autoRollbackThreshold,
+                                 java.util.Map<String, Object> canaryExtraConfig) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.DeployCanary(UUID.randomUUID(), tenantId, actor, Instant.now(),
+                        routeId, canaryUpstreamUri, trafficWeight, autoRollbackThreshold, canaryExtraConfig));
+    }
+
+    public void sendPromoteCanary(UUID routeId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.PromoteCanary(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
+    }
+
+    public void sendRollbackCanary(UUID routeId, UUID tenantId, String actor, String reason) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.RollbackCanary(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId, reason));
+    }
+
+    public void sendAdjustCanaryWeight(UUID routeId, UUID tenantId, String actor, int newWeight) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.AdjustCanaryWeight(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId, newWeight));
+    }
+
     public void sendAttachFilter(UUID routeId, UUID filterId, int order, String phase,
                                  UUID tenantId, String actor) {
         kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,

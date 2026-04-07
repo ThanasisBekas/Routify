@@ -66,6 +66,10 @@ import java.util.UUID;
     // ─── API Key Events ────────────────────────────────────────────────────────
     @JsonSubTypes.Type(value = DomainEvent.ApiKeyCreated.class,  name = "API_KEY_CREATED"),
     @JsonSubTypes.Type(value = DomainEvent.ApiKeyRevoked.class,  name = "API_KEY_REVOKED"),
+    // ─── Canary Routing Events (Initiative 14) ────────────────────────────────
+    @JsonSubTypes.Type(value = DomainEvent.CanaryDeployed.class,  name = "CANARY_DEPLOYED"),
+    @JsonSubTypes.Type(value = DomainEvent.CanaryPromoted.class,  name = "CANARY_PROMOTED"),
+    @JsonSubTypes.Type(value = DomainEvent.CanaryRolledBack.class,name = "CANARY_ROLLED_BACK"),
 })
 public sealed interface DomainEvent
         permits
@@ -103,6 +107,9 @@ public sealed interface DomainEvent
             DomainEvent.GatewayConfigChanged,
             DomainEvent.ApiKeyCreated,
             DomainEvent.ApiKeyRevoked,
+            DomainEvent.CanaryDeployed,
+            DomainEvent.CanaryPromoted,
+            DomainEvent.CanaryRolledBack,
             DomainEvent.Unknown {
 
     UUID eventId();
@@ -531,6 +538,47 @@ public sealed interface DomainEvent
             UUID apiKeyId,
             String name,
             String keyPrefix,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    // ─── Canary Routing Events (Initiative 14) ────────────────────────────────
+
+    /** Published when a canary route is deployed for weighted traffic splitting. */
+    record CanaryDeployed(
+            UUID eventId,
+            UUID tenantId,
+            UUID primaryRouteId,
+            UUID canaryRouteId,
+            String routeName,
+            int canaryWeight,
+            String canaryUpstreamUri,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published when a canary route is promoted to become the new primary. */
+    record CanaryPromoted(
+            UUID eventId,
+            UUID tenantId,
+            UUID primaryRouteId,
+            UUID canaryRouteId,
+            String routeName,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published when a canary route is rolled back (manual or auto). */
+    record CanaryRolledBack(
+            UUID eventId,
+            UUID tenantId,
+            UUID primaryRouteId,
+            UUID canaryRouteId,
+            String routeName,
+            String reason,
             Instant occurredAt,
             String correlationId,
             String actor

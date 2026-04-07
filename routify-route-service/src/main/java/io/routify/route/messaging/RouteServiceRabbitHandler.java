@@ -53,7 +53,8 @@ public class RouteServiceRabbitHandler {
                     return new QueryResponse.GatewaySnapshotList.RouteSnapshot(
                             dto.routeId(), dto.tenantId(), dto.name(), dto.pathPattern(),
                             dto.methods(), dto.upstreamUri(), dto.stripPrefix(), dto.version(),
-                            dto.environment(), filters, dto.extraConfig());
+                            dto.environment(), filters, dto.extraConfig(),
+                            dto.trafficWeight(), dto.canaryRouteId());
                 })
                 .toList();
         log.debug("RabbitMQ: returning {} active routes in snapshot", snapshots.size());
@@ -114,7 +115,7 @@ public class RouteServiceRabbitHandler {
                 new QueryResponse.RoutesPage.RouteSummary(
                         s.id(), s.name(), s.description(), s.pathPattern(), s.methods(),
                         s.upstreamUri(), s.status(), s.environment(), s.version(), s.filterCount(),
-                        s.createdAt(), s.activatedAt()))
+                        s.createdAt(), s.activatedAt(), s.trafficWeight(), s.canaryRouteId()))
                 .toList();
         return new QueryResponse.RoutesPage(content, result.getTotalElements(),
                 result.getTotalPages(), result.getNumber(), result.getSize());
@@ -132,7 +133,8 @@ public class RouteServiceRabbitHandler {
         return new QueryResponse.RouteDetail(
                 r.id(), r.tenantId(), r.name(), r.description(), r.pathPattern(),
                 r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.environment(), r.version(),
-                filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt());
+                filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt(),
+                r.trafficWeight(), r.canaryRouteId(), r.canaryAutoRollbackThreshold());
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_ROUTES_CLONE)
@@ -148,7 +150,8 @@ public class RouteServiceRabbitHandler {
         return new QueryResponse.RouteDetail(
                 r.id(), r.tenantId(), r.name(), r.description(), r.pathPattern(),
                 r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.environment(), r.version(),
-                filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt());
+                filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt(),
+                r.trafficWeight(), r.canaryRouteId(), r.canaryAutoRollbackThreshold());
     }
 
     // ─── Admin-API: Filter Queries ────────────────────────────────────────────

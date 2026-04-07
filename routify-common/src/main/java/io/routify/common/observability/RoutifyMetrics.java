@@ -81,6 +81,11 @@ public class RoutifyMetrics {
 
     private final AtomicLong gatewayConfigVersion = new AtomicLong(0);
 
+    // ─── Canary Routing ──────────────────────────────────────────────────────
+
+    private final Counter canaryDeployments;
+    private final Counter canaryRollbacks;
+
     public RoutifyMetrics(MeterRegistry registry) {
         this.registry = registry;
 
@@ -118,6 +123,13 @@ public class RoutifyMetrics {
 
         Gauge.builder("routify.gateway.cluster.config-version", gatewayConfigVersion, AtomicLong::get)
                 .description("Local config version counter for this gateway instance")
+                .register(registry);
+
+        canaryDeployments = Counter.builder("routify.canary.deployments")
+                .description("Number of canary route deployments")
+                .register(registry);
+        canaryRollbacks = Counter.builder("routify.canary.rollbacks")
+                .description("Number of canary route rollbacks (manual + auto)")
                 .register(registry);
     }
 
@@ -237,5 +249,10 @@ public class RoutifyMetrics {
                         .register(registry)
         ).increment();
     }
+
+    // ─── Canary Routing ──────────────────────────────────────────────────────
+
+    public void recordCanaryDeployment() { canaryDeployments.increment(); }
+    public void recordCanaryRollback()   { canaryRollbacks.increment(); }
 }
 

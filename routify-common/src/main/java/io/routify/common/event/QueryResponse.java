@@ -111,6 +111,8 @@ import java.util.UUID;
     // ─── routify-api-gateway ─────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.GatewayStatus.class,        name = "GATEWAY_STATUS"),
     @JsonSubTypes.Type(value = QueryResponse.CertRegistrySnapshot.class, name = "CERT_REGISTRY_SNAPSHOT"),
+    // ─── Canary routing (Initiative 14) ───────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryResponse.CanaryStatusResult.class,   name = "CANARY_STATUS_RESULT"),
 })
 public sealed interface QueryResponse
         permits
@@ -167,6 +169,7 @@ public sealed interface QueryResponse
             QueryResponse.PromptVersionDetail,
             QueryResponse.AiDecisionLabelResult,
             QueryResponse.TimeSeriesResult,
+            QueryResponse.CanaryStatusResult,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -188,7 +191,9 @@ public sealed interface QueryResponse
                 Integer version,
                 String environment,
                 List<FilterSnapshot> filters,
-                Map<String, Object> extraConfig
+                Map<String, Object> extraConfig,
+                int trafficWeight,
+                UUID canaryRouteId
         ) {
             public record FilterSnapshot(
                     UUID filterId,
@@ -234,7 +239,9 @@ public sealed interface QueryResponse
                 Integer version,
                 int filterCount,
                 Instant createdAt,
-                Instant activatedAt
+                Instant activatedAt,
+                int trafficWeight,
+                UUID canaryRouteId
         ) {}
     }
 
@@ -256,7 +263,10 @@ public sealed interface QueryResponse
             String createdBy,
             Instant createdAt,
             Instant updatedAt,
-            Instant activatedAt
+            Instant activatedAt,
+            int trafficWeight,
+            UUID canaryRouteId,
+            java.math.BigDecimal canaryAutoRollbackThreshold
     ) implements QueryResponse {
 
         public record FilterRef(
@@ -1227,6 +1237,24 @@ public sealed interface QueryResponse
                 Map<Integer, Long> statusCodes
         ) {}
     }
+
+    // ─── Canary Routing (Initiative 14) ─────────────────────────────────────
+
+    /**
+     * Canary status response — composed by admin-api from route-service and audit-service data.
+     */
+    record CanaryStatusResult(
+            UUID   routeId,
+            UUID   canaryRouteId,
+            int    primaryWeight,
+            int    canaryWeight,
+            String canaryUpstreamUri,
+            double autoRollbackThreshold,
+            double primaryErrorRate,
+            double canaryErrorRate,
+            String deployedAt,
+            int    breachCount
+    ) implements QueryResponse {}
 
     /**
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.

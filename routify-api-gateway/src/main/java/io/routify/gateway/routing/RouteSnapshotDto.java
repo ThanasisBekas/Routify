@@ -22,7 +22,9 @@ public record RouteSnapshotDto(
         @JsonProperty("version")     Integer version,
         @JsonProperty("environment") String environment,
         @JsonProperty("filters")     List<FilterSnapshotDto> filters,
-        @JsonProperty("extraConfig") Map<String, Object> extraConfig
+        @JsonProperty("extraConfig") Map<String, Object> extraConfig,
+        @JsonProperty("trafficWeight") int trafficWeight,
+        @JsonProperty("canaryRouteId") UUID canaryRouteId
 ) {
     public record FilterSnapshotDto(
             @JsonProperty("filterId")          UUID filterId,

@@ -34,6 +34,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'ACTIVE',
     environment: 'PRODUCTION',
     version: 3,
+    trafficWeight: 100,
     filters: [
       {
         filterId: FILTER_JWT_ID,
@@ -85,6 +86,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'ACTIVE',
     environment: 'PRODUCTION',
     version: 2,
+    trafficWeight: 100,
     filters: [
       {
         filterId: FILTER_JWT_ID,
@@ -127,6 +129,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'ACTIVE',
     environment: 'PRODUCTION',
     version: 1,
+    trafficWeight: 100,
     filters: [
       {
         filterId: FILTER_APIKEY_ID,
@@ -169,6 +172,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'ACTIVE',
     environment: 'PRODUCTION',
     version: 1,
+    trafficWeight: 100,
     filters: [
       {
         filterId: FILTER_RATELIMIT_ID,
@@ -194,6 +198,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'ACTIVE',
     environment: 'PRODUCTION',
     version: 2,
+    trafficWeight: 100,
     filters: [
       {
         filterId: FILTER_JWT_ID,
@@ -227,6 +232,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'ACTIVE',
     environment: 'PRODUCTION',
     version: 1,
+    trafficWeight: 100,
     filters: [
       {
         filterId: FILTER_JWT_ID,
@@ -252,6 +258,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'DRAFT',
     environment: 'PRODUCTION',
     version: 1,
+    trafficWeight: 100,
     filters: [],
     createdBy: 'operator',
     createdAt: '2026-03-20T09:00:00Z',
@@ -268,6 +275,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'DISABLED',
     environment: 'PRODUCTION',
     version: 5,
+    trafficWeight: 100,
     filters: [],
     createdAt: '2024-06-01T10:00:00Z',
     updatedAt: '2025-12-01T08:00:00Z',
@@ -284,6 +292,7 @@ export const seedRoutes: RouteDto[] = [
     status: 'ACTIVE',
     environment: 'STAGING',
     version: 1,
+    trafficWeight: 100,
     filters: [
       {
         filterId: FILTER_JWT_ID,

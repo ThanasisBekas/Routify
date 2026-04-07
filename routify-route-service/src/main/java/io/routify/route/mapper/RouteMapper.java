@@ -67,7 +67,9 @@ public interface RouteMapper {
                 route.getVersion(),
                 route.getEnvironment() != null ? route.getEnvironment().name() : "PRODUCTION",
                 filterSnapshots,
-                route.getExtraConfig());
+                route.getExtraConfig(),
+                route.getTrafficWeight(),
+                route.getCanaryRouteId());
     }
 
     // ─── FilterDefinition ─────────────────────────────────────────────────────

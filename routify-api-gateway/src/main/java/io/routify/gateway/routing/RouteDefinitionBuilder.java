@@ -109,6 +109,27 @@ public class RouteDefinitionBuilder {
                     snapshot.routeId(), staging.headerName());
         }
 
+        // ─── Canary / Weighted routing predicate ──────────────────────────────
+        // When a route participates in a canary deployment (trafficWeight < 100),
+        // add a Weight predicate. Both primary (e.g. 90) and canary (e.g. 10)
+        // routes get a Weight predicate in the same group. Spring Cloud Gateway's
+        // WeightRoutePredicateFactory handles probabilistic selection.
+        if (snapshot.trafficWeight() < 100) {
+            // The weight group is derived from the primary route's ID.
+            // For the primary route: canaryRouteId is set, so use own routeId.
+            // For the canary route: canaryRouteId is null, check extraConfig for primaryRouteId.
+            UUID groupRouteId = snapshot.canaryRouteId() != null
+                    ? snapshot.routeId()   // This is the primary — group by own ID
+                    : (snapshot.extraConfig() != null && snapshot.extraConfig().get("canaryPrimaryRouteId") != null
+                        ? UUID.fromString(snapshot.extraConfig().get("canaryPrimaryRouteId").toString())
+                        : snapshot.routeId());
+            String weightGroup = "canary-" + groupRouteId;
+            predicates.add(new PredicateDefinition(
+                    "Weight=%s, %d".formatted(weightGroup, snapshot.trafficWeight())));
+            log.debug("Weight predicate added for route {}: group={} weight={}",
+                    snapshot.routeId(), weightGroup, snapshot.trafficWeight());
+        }
+
         definition.setPredicates(predicates);
 
         // ─── Filters ─────────────────────────────────────────────────────────

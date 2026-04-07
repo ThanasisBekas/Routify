@@ -228,6 +228,9 @@ export interface RouteDto {
   createdAt: string
   updatedAt: string
   activatedAt?: string
+  trafficWeight: number
+  canaryRouteId?: string
+  canaryAutoRollbackThreshold?: number
 }
 
 export interface RouteSummary {
@@ -245,6 +248,8 @@ export interface RouteSummary {
   postFilterCount: number
   createdAt: string
   activatedAt?: string
+  trafficWeight: number
+  canaryRouteId?: string
 }
 
 export interface CreateRouteRequest {
@@ -272,6 +277,32 @@ export interface AttachFilterRequest {
   filterId: string
   order: number
   phase: 'PRE' | 'POST'
+}
+
+// ─── Canary Routing ───────────────────────────────────────────────────────────
+
+export interface DeployCanaryRequest {
+  canaryUpstreamUri: string
+  trafficWeight: number
+  autoRollbackThreshold: number
+  canaryExtraConfig?: Record<string, unknown>
+}
+
+export interface AdjustCanaryWeightRequest {
+  weight: number
+}
+
+export interface CanaryStatusResponse {
+  routeId: string
+  canaryRouteId: string
+  primaryWeight: number
+  canaryWeight: number
+  canaryUpstreamUri: string
+  autoRollbackThreshold: number
+  primaryErrorRate: number
+  canaryErrorRate: number
+  deployedAt?: string
+  breachCount: number
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
@@ -952,6 +983,9 @@ export type WebhookEventType =
   | 'GATEWAY_CONFIG_DRIFT'
   | 'QUOTA_WARNING'
   | 'QUOTA_EXCEEDED'
+  | 'CANARY_DEPLOYED'
+  | 'CANARY_PROMOTED'
+  | 'CANARY_ROLLBACK'
 
 export type WebhookSubscriptionStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
 
