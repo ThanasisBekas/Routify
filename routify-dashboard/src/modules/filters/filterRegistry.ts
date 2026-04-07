@@ -207,6 +207,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-purple-300/10',
     border: 'border-purple-300/20',
   },
+  {
+    value: 'RESPONSE_HEADER_REWRITE',
+    label: 'Response Header Rewrite',
+    category: 'Modification',
+    description:
+      'Regex-based response header value rewriting with capture group references ($1, $2). Ideal for Location URL rewriting, Set-Cookie domain rewriting, and CORS origin normalization.',
+    color: 'text-blue-300',
+    bg: 'bg-blue-300/10',
+    border: 'border-blue-300/20',
+  },
 
   // ── Transformation ────────────────────────────────────────────────────────────
   {

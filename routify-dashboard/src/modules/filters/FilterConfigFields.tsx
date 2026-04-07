@@ -421,6 +421,118 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         />
       )
 
+    case 'RESPONSE_HEADER_REWRITE':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Performs <strong className="text-blue-300">regex-based rewriting</strong> of response header values.
+            Supports Java regex patterns with <code className="font-mono text-blue-300">$1</code>,{' '}
+            <code className="font-mono text-blue-300">$2</code> capture group references.
+            Common use cases: rewriting <code className="font-mono text-blue-300">Location</code> redirect headers
+            from internal to external URLs, rewriting <code className="font-mono text-blue-300">Set-Cookie</code>{' '}
+            domain attributes, normalizing CORS origins.
+          </p>
+
+          <Field label="Header Name" hint="Response header to rewrite (e.g. Location, Set-Cookie, Access-Control-Allow-Origin)">
+            <input
+              value={str('headerName')}
+              onChange={(e) => set('headerName', e.target.value)}
+              className={inputCls}
+              placeholder="Location"
+            />
+          </Field>
+
+          <Field
+            label="Regex Pattern"
+            hint="Java regex pattern to match against the header value. Use capture groups for substitution."
+          >
+            <input
+              value={str('pattern')}
+              onChange={(e) => set('pattern', e.target.value)}
+              className={monoInputCls}
+              placeholder="https://internal\.service\.local:8080(.*)"
+            />
+          </Field>
+
+          <Field
+            label="Replacement"
+            hint="Replacement string — use $1, $2, etc. for capture group references"
+          >
+            <input
+              value={str('replacement')}
+              onChange={(e) => set('replacement', e.target.value)}
+              className={monoInputCls}
+              placeholder="https://api.example.com$1"
+            />
+          </Field>
+
+          <Toggle
+            label="Replace All Occurrences"
+            description="When enabled, replaces all matches in the header value. When disabled, only the first match is replaced."
+            checked={bool('replaceAll', false)}
+            onChange={(v) => set('replaceAll', v)}
+          />
+
+          <SectionTitle>Common Presets</SectionTitle>
+          <div className="space-y-2">
+            {[
+              {
+                label: 'Location URL Rewrite',
+                headerName: 'Location',
+                pattern: 'https://internal\\.service\\.local:8080(.*)',
+                replacement: 'https://api.example.com$1',
+                replaceAll: false,
+              },
+              {
+                label: 'Set-Cookie Domain Rewrite',
+                headerName: 'Set-Cookie',
+                pattern: 'domain=\\.internal\\.local',
+                replacement: 'domain=.example.com',
+                replaceAll: true,
+              },
+              {
+                label: 'CORS Origin Normalization',
+                headerName: 'Access-Control-Allow-Origin',
+                pattern: 'https?://localhost:\\d+',
+                replacement: 'https://app.example.com',
+                replaceAll: false,
+              },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    headerName: preset.headerName,
+                    pattern: preset.pattern,
+                    replacement: preset.replacement,
+                    replaceAll: preset.replaceAll,
+                  })
+                }
+                className="w-full text-left px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] transition-all group"
+              >
+                <div className="text-xs font-medium text-gray-300 group-hover:text-white">{preset.label}</div>
+                <div className="text-[10px] text-gray-600 font-mono mt-0.5 truncate">
+                  {preset.headerName}: s/{preset.pattern}/{preset.replacement}/
+                  {preset.replaceAll ? 'g' : ''}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-amber-500/[0.06] border-amber-500/20 text-amber-400/80">
+            <span className="mt-0.5 shrink-0">⚠</span>
+            <span>
+              Regex patterns are <strong>pre-compiled</strong> at filter bind time for performance.
+              Pathological patterns with nested quantifiers (e.g.{' '}
+              <code className="font-mono text-amber-300">(a+)+</code>) are automatically rejected
+              to prevent catastrophic backtracking. Match operations are bounded by a 100ms timeout.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Body Transformation ───────────────────────────────────────────────────
     case 'BODY_JOLT_TRANSFORM':
       return (

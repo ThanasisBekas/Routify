@@ -272,7 +272,7 @@ When `includeBody=true`, the AI filter reads the body excerpt from an exchange a
 | 15 | ✅ [Request/Response Body Size Logging Filter](#15-requestresponse-body-size-logging-filter) | Observability | Low | Lightweight filter that emits Micrometer metrics for body sizes without capturing content |
 | 16 | ✅ [OAuth2 Token Relay Filter](#16-oauth2-token-relay-filter) | Authentication | Medium | Exchange incoming token for a downstream-specific token via token exchange (RFC 8693) |
 | 17 | ✅ [GraphQL Depth Limit Filter](#17-graphql-depth-limit-filter) | Validation | Medium | Parses GraphQL queries and rejects those exceeding configurable depth/complexity limits |
-| 18 | [Response Header Rewrite Filter](#18-response-header-rewrite-filter) | Modification | Medium | Regex-based response header value rewriting (e.g., rewrite `Location` headers for proxy URLs) |
+| 18 | ✅ [Response Header Rewrite Filter](#18-response-header-rewrite-filter) | Modification | Medium | Regex-based response header value rewriting (e.g., rewrite `Location` headers for proxy URLs) |
 | 19 | [Idempotency Key Filter](#19-idempotency-key-filter) | Reliability | High | Deduplicates write requests using a client-provided idempotency key stored in Redis |
 | 20 | [Request Decompression Filter](#20-request-decompression-filter) | Performance | Medium | Transparently decompresses `gzip`/`br`/`zstd` request bodies before forwarding upstream |
 | 21 | [Mock Response Filter](#21-mock-response-filter) | Developer Experience | Medium | Returns a configurable static JSON/XML response without forwarding to upstream — enables API stubbing |
@@ -549,12 +549,13 @@ Parses incoming GraphQL query documents and rejects queries that exceed configur
 
 ---
 
-### 18. Response Header Rewrite Filter
+### 18. Response Header Rewrite Filter ✅
 
 **Design doc:** [`initiatives/gf-18-response-header-rewrite.md`](./initiatives/gf-18-response-header-rewrite.md)  
 **Filter type:** `RESPONSE_HEADER_REWRITE`  
 **Category:** Modification  
-**Priority:** Medium
+**Priority:** Medium  
+**Status:** ✅ **COMPLETED**
 
 #### Description
 Performs regex-based response header value rewriting. Primary use case: rewriting `Location` redirect headers from upstream internal URLs to external proxy-facing URLs, and rewriting `Set-Cookie` domain attributes.

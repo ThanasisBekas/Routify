@@ -38,11 +38,11 @@ A filter that performs regex-based response header value rewriting with pre-comp
 4. If the header has multiple values, rewrite each independently.
 
 **Task list:**
-- [ ] Create filter factory
-- [ ] Pre-compile regex at config bind time
-- [ ] Implement `ServerHttpResponseDecorator` for lazy header rewriting
-- [ ] Support `replaceFirst` and `replaceAll` modes
-- [ ] Support multi-value headers
+- [x] Create filter factory
+- [x] Pre-compile regex at config bind time
+- [x] Implement `ServerHttpResponseDecorator` for lazy header rewriting
+- [x] Support `replaceFirst` and `replaceAll` modes
+- [x] Support multi-value headers
 
 ---
 
@@ -54,9 +54,9 @@ A filter that performs regex-based response header value rewriting with pre-comp
 - Add a configurable `matchTimeoutMs` param (default 100ms) — if matching takes longer, abort and pass through original value.
 
 **Task list:**
-- [ ] Detect and reject pathological regex patterns at config time
-- [ ] Implement match timeout
-- [ ] Pass through original value on timeout
+- [x] Detect and reject pathological regex patterns at config time
+- [x] Implement match timeout
+- [x] Pass through original value on timeout
 
 ---
 
@@ -67,9 +67,9 @@ A filter that performs regex-based response header value rewriting with pre-comp
 - `routify-dashboard/src/types/index.ts` — add to `FilterType` union
 
 **Task list:**
-- [ ] Add `RESPONSE_HEADER_REWRITE` to `FilterType` enum
-- [ ] Add to TypeScript `FilterType` union
-- [ ] Add filter config form in dashboard
+- [x] Add `RESPONSE_HEADER_REWRITE` to `FilterType` enum
+- [x] Add to TypeScript `FilterType` union
+- [x] Add filter config form in dashboard
 
 ---
 
@@ -102,8 +102,8 @@ replaceAll: false
 ```
 
 **Task list:**
-- [ ] Document common preset configurations
-- [ ] Add inline help tooltips in dashboard filter form
+- [x] Document common preset configurations
+- [x] Add inline help tooltips in dashboard filter form
 
 ---
 
@@ -123,19 +123,19 @@ replaceAll: false
 - Match timeout → original value preserved
 
 **Task list:**
-- [ ] Write regex rewriting tests
-- [ ] Write capture group tests
-- [ ] Write multi-value header tests
-- [ ] Write security tests (regex DoS prevention)
+- [x] Write regex rewriting tests
+- [x] Write capture group tests
+- [x] Write multi-value header tests
+- [x] Write security tests (regex DoS prevention)
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Regex-based response header value rewriting
-- [ ] Pre-compiled patterns for performance
-- [ ] Capture group references (`$1`, `$2`) in replacement
-- [ ] Multi-value headers rewritten independently
-- [ ] Catastrophic backtracking protection
-- [ ] Common preset configurations documented
+- [x] Regex-based response header value rewriting
+- [x] Pre-compiled patterns for performance
+- [x] Capture group references (`$1`, `$2`) in replacement
+- [x] Multi-value headers rewritten independently
+- [x] Catastrophic backtracking protection
+- [x] Common preset configurations documented
 
