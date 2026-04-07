@@ -32,6 +32,17 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
   // Downstream Auth
   DOWNSTREAM_BASIC_AUTH: { username: '', password: '' },
   DOWNSTREAM_BEARER_CC: { oauth2ProviderName: '', forwardCallerAuth: false },
+  OAUTH2_TOKEN_RELAY: {
+    tokenEndpoint: '',
+    clientId: '',
+    clientSecret: '',
+    subjectTokenType: 'urn:ietf:params:oauth:token-type:access_token',
+    requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token',
+    scope: '',
+    audience: '',
+    cacheTtlSeconds: 300,
+    fallbackMode: 'REJECT',
+  },
   // Rate Limiting
   RATE_LIMIT_FIXED_WINDOW: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP', includeHeaders: true },
   RATE_LIMIT_SLIDING_WINDOW: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP', includeHeaders: true },
