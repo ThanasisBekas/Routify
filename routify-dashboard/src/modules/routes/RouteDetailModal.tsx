@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { X, Play, Pause, Zap, Terminal, Pencil, Network, List, RefreshCw, Trash2 } from 'lucide-react'
+import { X, Play, Pause, Zap, Terminal, Pencil, Network, List, RefreshCw, Trash2, Rocket } from 'lucide-react'
 import { routesApi } from '../../api/routesApi'
 import { cn } from '../../lib/utils'
 import { toast } from 'sonner'
 import RouteFlowCanvas from './RouteFlowCanvas'
 import RouteCurlModal from './RouteCurlModal'
 import RouteFormModal from './RouteFormModal'
+import { CanaryStatusPanel } from './CanaryStatusPanel'
+import { CanaryDeployModal } from './CanaryDeployModal'
 import { useRouteActions } from './useRouteActions'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 
@@ -17,6 +19,7 @@ export default function RouteDetailModal({ routeId, onClose }: { routeId: string
   const [view, setView] = useState<'flow' | 'config'>('flow')
   const [curlOpen, setCurlOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [canaryDeployOpen, setCanaryDeployOpen] = useState(false)
 
   const { data: route, isLoading } = useRealtimeQuery({
     queryKey: ['route', routeId],
@@ -121,6 +124,16 @@ export default function RouteDetailModal({ routeId, onClose }: { routeId: string
                   </button>
                 )}
 
+                {/* Deploy Canary — only for active production routes without an existing canary */}
+                {route.status === 'ACTIVE' && route.environment === 'PRODUCTION' && !route.canaryRouteId && (
+                  <button
+                    onClick={() => setCanaryDeployOpen(true)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-all"
+                  >
+                    <Rocket className="w-3 h-3" /> Canary
+                  </button>
+                )}
+
                 {/* Flow ↔ Config toggle */}
                 <div className="flex items-center bg-white/[0.04] border border-white/[0.07] rounded-lg p-0.5">
                   <button
@@ -170,6 +183,9 @@ export default function RouteDetailModal({ routeId, onClose }: { routeId: string
                   </span>
                 </div>
               )}
+
+              {/* Canary status panel — shown when this route has an active canary deployment */}
+              {route.canaryRouteId && <CanaryStatusPanel routeId={routeId} />}
 
               {/* FLOW VIEW — interactive canvas with Add Filter panel */}
               {view === 'flow' && <RouteFlowCanvas route={route} height={520} />}
@@ -237,6 +253,14 @@ export default function RouteDetailModal({ routeId, onClose }: { routeId: string
       </div>
 
       {curlOpen && route && <RouteCurlModal route={route} onClose={() => setCurlOpen(false)} />}
+      {canaryDeployOpen && route && (
+        <CanaryDeployModal
+          routeId={routeId}
+          routeName={route.name}
+          open={true}
+          onClose={() => setCanaryDeployOpen(false)}
+        />
+      )}
       {editOpen && (
         <RouteFormModal
           editingId={routeId}
