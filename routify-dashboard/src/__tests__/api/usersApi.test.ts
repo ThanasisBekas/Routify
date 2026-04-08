@@ -96,4 +96,3 @@ describe('usersApi', () => {
     expect(result.success).toBe(true)
   })
 })
-

@@ -147,4 +147,3 @@ describe('tenantsApi', () => {
     expect(capturedParams).toEqual({ days: 7 })
   })
 })
-

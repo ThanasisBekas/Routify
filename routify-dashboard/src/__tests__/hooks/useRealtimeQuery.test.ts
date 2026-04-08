@@ -118,4 +118,3 @@ describe('useRealtimeQuery', () => {
     expect(callCount).toBe(initialCount)
   })
 })
-

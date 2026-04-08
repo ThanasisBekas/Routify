@@ -46,9 +46,7 @@ describe('GitOpsPage', () => {
       if (config.url?.includes('/gitops/history')) {
         return {
           status: 200,
-          data: [
-            { outcome: 'SUCCESS', syncedAt: '2025-01-01T12:00:00Z', changes: 2 },
-          ],
+          data: [{ outcome: 'SUCCESS', syncedAt: '2025-01-01T12:00:00Z', changes: 2 }],
         }
       }
       return { status: 200, data: {} }

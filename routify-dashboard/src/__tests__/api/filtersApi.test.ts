@@ -75,4 +75,3 @@ describe('filtersApi', () => {
     expect(capturedUrl).toBe('/api/v1/admin/filters/f1')
   })
 })
-

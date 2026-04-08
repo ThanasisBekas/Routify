@@ -63,4 +63,3 @@ describe('LoginPage', () => {
     expect(document.title).toContain('Login')
   })
 })
-

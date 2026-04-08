@@ -71,4 +71,3 @@ describe('authStore', () => {
     expect(useAuthStore.persist.getOptions().partialize?.(useAuthStore.getState())).toEqual({})
   })
 })
-

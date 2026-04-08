@@ -34,7 +34,13 @@ describe('RolesPage', () => {
       data: {
         content: [
           { id: 'r1', name: 'SUPER_ADMIN', description: 'Full access', builtIn: true, permissions: [] },
-          { id: 'r2', name: 'Custom Ops', description: 'Custom operator role', builtIn: false, permissions: ['ROUTES_READ'] },
+          {
+            id: 'r2',
+            name: 'Custom Ops',
+            description: 'Custom operator role',
+            builtIn: false,
+            permissions: ['ROUTES_READ'],
+          },
         ],
         totalElements: 2,
         page: 0,

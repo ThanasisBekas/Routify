@@ -171,4 +171,3 @@ describe('certVaultApi', () => {
     expect(capturedUrl).toBe('/api/v1/admin/certs/acme/orders/order-1/renew')
   })
 })
-

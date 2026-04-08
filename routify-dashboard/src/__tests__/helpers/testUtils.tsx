@@ -74,4 +74,3 @@ export function createQueryWrapper() {
     return <QueryClientProvider client={qc}>{children}</QueryClientProvider>
   }
 }
-

@@ -224,8 +224,8 @@ export function GatewayConfigRefPanel({ filterType, value, onChange }: GatewayCo
           <span className="mt-0.5 shrink-0">✓</span>
           <span>
             Linked to <strong>{spec.label}</strong> — the gateway will merge the global{' '}
-            {spec.refType === 'CIRCUIT_BREAKER_DEFAULTS' ? 'circuit breaker' : 'resilience'} defaults from Gateway Config
-            into this filter's configuration. Per-filter values override the defaults.
+            {spec.refType === 'CIRCUIT_BREAKER_DEFAULTS' ? 'circuit breaker' : 'resilience'} defaults from Gateway
+            Config into this filter's configuration. Per-filter values override the defaults.
           </span>
         </div>
       )}
@@ -378,9 +378,7 @@ function RateLimitPolicyRefPicker({
           onSelect(id, policy?.name)
         }}
         options={
-          refId && !resolved
-            ? [{ value: refId, label: refId, description: '(policy not found)' }, ...options]
-            : options
+          refId && !resolved ? [{ value: refId, label: refId, description: '(policy not found)' }, ...options] : options
         }
         placeholder={isLoading ? 'Loading policies…' : 'Select a Rate Limit Policy…'}
         disabled={isLoading}
@@ -574,4 +572,3 @@ function RefResolutionStatus({
     </div>
   )
 }
-

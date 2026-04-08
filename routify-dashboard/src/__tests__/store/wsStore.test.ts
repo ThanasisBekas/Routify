@@ -61,9 +61,7 @@ describe('wsStore', () => {
     })
 
     it('connected type updates connectedClients', () => {
-      useWsStore
-        .getState()
-        .pushEvent({ type: 'connected', occurredAt: '2025-01-01T00:00:00Z', connectedClients: 5 })
+      useWsStore.getState().pushEvent({ type: 'connected', occurredAt: '2025-01-01T00:00:00Z', connectedClients: 5 })
       expect(useWsStore.getState().connectedClients).toBe(5)
     })
   })
@@ -132,4 +130,3 @@ describe('wsStore', () => {
     })
   })
 })
-

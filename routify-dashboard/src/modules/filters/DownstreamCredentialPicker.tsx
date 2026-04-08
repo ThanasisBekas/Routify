@@ -80,7 +80,7 @@ export function DownstreamCredentialPicker({
             ? [{ value, label: value, description: '(credential not found — may have been removed)' }, ...options]
             : options
         }
-        placeholder={isLoading ? 'Loading credentials…' : placeholder ?? 'Select a Downstream Credential…'}
+        placeholder={isLoading ? 'Loading credentials…' : (placeholder ?? 'Select a Downstream Credential…')}
         disabled={isLoading}
         searchable
       />
@@ -124,4 +124,3 @@ function Field({
     </div>
   )
 }
-

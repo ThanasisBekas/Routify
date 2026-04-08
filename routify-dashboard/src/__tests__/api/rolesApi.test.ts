@@ -84,4 +84,3 @@ describe('rolesApi', () => {
     expect(result).toEqual(['ROUTES_READ', 'ROUTES_WRITE'])
   })
 })
-
