@@ -96,6 +96,10 @@ public class RoutifyMetrics {
 
     private final Counter cachePurges;
 
+    // ─── Webhook Delivery Cleanup ─────────────────────────────────────────────
+
+    private final Counter webhookDeliveryCleanup;
+
     public RoutifyMetrics(MeterRegistry registry) {
         this.registry = registry;
 
@@ -151,6 +155,10 @@ public class RoutifyMetrics {
 
         cachePurges = Counter.builder("routify.filter.response_cache.purges")
                 .description("Number of response cache purge operations")
+                .register(registry);
+
+        webhookDeliveryCleanup = Counter.builder("routify.webhooks.delivery.cleanup")
+                .description("Number of expired webhook delivery records purged")
                 .register(registry);
     }
 
@@ -284,5 +292,16 @@ public class RoutifyMetrics {
     // ─── Response Cache ──────────────────────────────────────────────────────
 
     public void recordCachePurge() { cachePurges.increment(); }
+
+    // ─── Webhook Delivery Cleanup ─────────────────────────────────────────────
+
+    /**
+     * Records the number of expired webhook delivery records purged in a cleanup cycle.
+     *
+     * @param count number of records deleted
+     */
+    public void recordWebhookDeliveryCleanup(int count) {
+        webhookDeliveryCleanup.increment(count);
+    }
 }
 

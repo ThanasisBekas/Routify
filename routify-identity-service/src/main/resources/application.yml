@@ -108,6 +108,7 @@ routify:
 
   webhooks:
     delivery-retention-days: ${WEBHOOK_RETENTION_DAYS:7}
+    cleanup-batch-size: ${WEBHOOK_CLEANUP_BATCH_SIZE:1000}
 
   # ─── Startup secret validation ────────────────────────────────────────────────
   # SecretValidator (registered in RoutifyIdentityServiceApplication) checks these

@@ -112,7 +112,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | Webhook subscriptions | ✅ | CRUD + event consumer + HMAC dispatch |
 | Role management (RBAC) | ✅ | Built-in + custom tenant-scoped roles |
 | Auth operations | ✅ | Login, refresh, change password, logout blocklist |
-| Webhook delivery cleanup | ⚠️ | Retention configurable but no active scheduler found — see [P-17](#p-17-webhook-delivery-cleanup-scheduler) |
+| Webhook delivery cleanup | ✅ | Nightly `@Scheduled` cleanup (3:00 AM), batched deletion (`cleanup-batch-size`, default 1000), configurable retention (`delivery-retention-days`, default 7), Micrometer metric (`routify.webhooks.delivery.cleanup`) — [P-17](#p-17-webhook-delivery-cleanup-scheduler) ✅ completed |
 
 ### routify-audit-service (port 8084)
 
@@ -526,34 +526,47 @@ Missing features and UX improvements that round out the platform.
 
 ---
 
-#### P-15: Jolt Transform Response-Phase Support
+#### P-15: Jolt Transform Response-Phase Support ✅ COMPLETED
 
 **Overlaps with:** [gf-05 (Gateway Filters Roadmap)](./GATEWAY-FILTERS-ROADMAP.md#5-jolt-transform-response-phase-support)  
 **Affected services:** `routify-api-gateway`  
 **Complexity:** M  
-**Files:** `JoltTransformGatewayFilterFactory.java`
+**Files:** `JoltTransformGatewayFilterFactory.java`, `JoltTransformResponseTest.java`  
+**Status:** ✅ Completed — full response-phase and BOTH-phase support with `ServerHttpResponseDecorator`, `maxBodySize` limit, and `responseSpec` config. 12 dedicated tests passing.
 
 **Problem:** The `phase` config param accepts `RESPONSE` but the implementation only handles `REQUEST`. Response transformation silently falls through.
 
-**Changes:**
-- **Backend:** Implement `ServerHttpResponseDecorator` that intercepts `writeWith()`, joins the response body, applies the Jolt `Chainr`, and rewrites the body. Update `Content-Length`. Only transform `application/json` responses.
-- **Backend:** Add `maxBodySize` config (default 1 MB) — skip transformation for oversized bodies.
-- **Frontend:** None (filter form already has `phase` dropdown with `REQUEST`/`RESPONSE` options).
+**Implementation summary:**
+- **Response-phase transformation:** `ServerHttpResponseDecorator` overrides `writeWith()`, joins the response body via `DataBufferUtils.join()`, applies the Jolt `Chainr`, and rewrites the body. `Content-Length` header is updated to match the transformed body size. Only `application/json` responses are transformed — all others pass through unchanged. Malformed JSON responses produce a 502 error via `GatewayProblemResponse` with `JOLT_TRANSFORM_FAILED` error code.
+- **BOTH phase:** Combines request transformation (using `spec`) with response transformation (using `responseSpec`). Request body is transformed via `ServerHttpRequestDecorator` (existing pattern), then a `ServerHttpResponseDecorator` is attached to the mutated exchange. Falls back to request-only when `responseSpec` is not configured.
+- **`maxBodySize` config:** Default 1 MB (1,048,576 bytes). Response bodies exceeding this limit pass through unchanged with a warning log. Prevents OOM on large upstream responses.
+- **`responseSpec` config:** Separate Jolt spec for response transformation. When `phase=RESPONSE`, uses `responseSpec` if set, otherwise falls back to `spec`. When `phase=BOTH`, `responseSpec` is required for the response side.
+- **Empty body handling:** Empty response bodies (0 bytes) pass through unchanged gracefully.
+- **Mutable headers:** The response decorator uses a mutable `HttpHeaders` copy to allow `Content-Length` updates even when the delegate response returns `ReadOnlyHttpHeaders`.
+- **Tests:** `JoltTransformResponseTest.java` (12 tests): RESPONSE transforms JSON body, Content-Length updated, non-JSON passes through, oversized body passes through, empty body handled, malformed JSON → 502, responseSpec used, BOTH transforms both request and response, BOTH fallback to request-only, REQUEST existing behaviour, REQUEST non-JSON passes through, no spec passes through.
+- **Frontend:** None (filter form already has `phase` dropdown with `REQUEST`/`RESPONSE`/`BOTH` options).
 
 ---
 
-#### P-16: RequestLogger Performance Improvements
+#### P-16: RequestLogger Performance Improvements ✅ COMPLETED
 
 **Overlaps with:** [gf-06 (Gateway Filters Roadmap)](./GATEWAY-FILTERS-ROADMAP.md#6-requestlogger-performance--configurability)  
 **Affected services:** `routify-api-gateway`  
 **Complexity:** M  
-**Files:** `RequestLoggerGatewayFilterFactory.java`
+**Files:** `RequestLoggerGatewayFilterFactory.java`, `FilterConfigFields.tsx`, `filterConfigConstants.ts`, `RequestLoggerConfigTest.java`  
+**Status:** ✅ Completed — all 4 performance/configurability improvements implemented, 12 dedicated tests passing.
 
 **Problem:** Body capture buffers entire body (OOM risk); no sampling; hardcoded header redaction list; flat log format.
 
-**Changes:**
-- **Backend:** Add `maxBodyCaptureBytes` (default 4096, hard limit 64 KB), `samplingRate` (default 1.0), `headerAllowlist`/`headerDenylist`, `skipPaths` (regex patterns).
-- **Frontend:** Update `REQUEST_LOGGER` filter config form to expose new fields.
+**Implementation summary:**
+- **`maxBodyCaptureBytes`** (default 4096, hard limit 64 KB): New config param replaces the deprecated `maxBodyLogSize`. Body capture uses `DataBufferUtils.join()` with truncation at the configured limit — bodies exceeding the limit are captured up to the threshold with a `[TRUNCATED at N bytes]` marker appended. The full body is re-wrapped via `ServerHttpRequestDecorator` / `ServerHttpResponseDecorator` so downstream filters and upstream services still receive the complete payload. `resolveMaxBodyCaptureBytes()` falls back to `maxBodyLogSize` for backward compatibility when `maxBodyCaptureBytes` is 0.
+- **`samplingRate`** (default 1.0): Probabilistic sampling via `ThreadLocalRandom.current().nextDouble() < samplingRate`. When `samplingRate < 1.0`, only a random fraction of requests generate telemetry events. The `sampled` flag is propagated to `handleSignal()` to conditionally skip `publishTelemetry()`. Logging (MDC-enriched structured logs) still occurs for all requests regardless of sampling — only Kafka telemetry publishing is throttled.
+- **`headerAllowlist` / `headerDenylist`**: Fine-grained header capture control. When `headerAllowlist` is non-empty, only listed headers are included in telemetry. `headerDenylist` redacts specified headers as `[REDACTED]`. Deny always overrides allow. Both lists are pre-computed to lowercase `Set<String>` at config bind time for O(1) lookup. Default denylist (when no custom denylist is provided): `Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`, `X-Auth-Token`, `X-Routify-Replay`.
+- **`skipPaths`** (glob patterns): Path exclusion patterns compiled to `java.util.regex.Pattern` at config bind time via `compileSkipPatterns()`. Glob syntax: `**` → `.*`, `*` → `[^/]*`, `.` → `\\.`. Matching requests bypass both logging and telemetry entirely. Example: `["/actuator/**", "/health", "/favicon.ico"]`.
+- **Structured MDC logging**: Every request completion enriches SLF4J MDC with `method`, `path`, `status`, `elapsedMs`, `correlationId`, `routeId`, `clientIp` — enabling JSON log aggregation via Logstash/Loki without parsing. MDC is cleared after each log statement to prevent leakage across Reactor scheduler threads.
+- **Frontend (`FilterConfigFields.tsx`):** `REQUEST_LOGGER` filter form expanded with 5 sections: "What to log" (4 toggles: request/response headers/body), "Body capture" (`maxBodyCaptureBytes` number input capped at 65536, `failedStatusThreshold` quick-pick buttons + custom input), "Sampling" (`samplingRate` range slider 0–100% with percentage label), "Header capture" (`headerAllowlist` and `headerDenylist` tag inputs), "Path exclusions" (`skipPaths` tag input). Informational banners explain default redaction behavior and MDC key names.
+- **Frontend (`filterConfigConstants.ts`):** `REQUEST_LOGGER` default config includes all new fields: `maxBodyCaptureBytes: 4096`, `samplingRate: 1.0`, `headerAllowlist: []`, `headerDenylist: []`, `skipPaths: []`.
+- **Tests:** `RequestLoggerConfigTest.java` (12 tests): hard upper bound caps above 64 KB, legacy `maxBodyLogSize` fallback, sampling at 0% (zero events), 100% (all events), 10% (statistical ~100±70 of 1000), allowlist-only capture (excludes unlisted headers), denylist redaction (`[REDACTED]`), deny-overrides-allow, skipPaths exact match + glob nested path, default config backward compatibility (all logged), default Authorization redaction, replay header skip.
 
 ---
 
@@ -563,16 +576,22 @@ Testing, cleanup, and operational improvements.
 
 ---
 
-#### P-17: Webhook Delivery Cleanup Scheduler
+#### P-17: Webhook Delivery Cleanup Scheduler ✅ COMPLETED
 
 **Affected services:** `routify-identity-service`  
 **Complexity:** S  
-**Files:** Identity-service webhook package
+**Files:** `WebhookService.java`, `WebhookDeliveryRepository.java`, `RoutifyMetrics.java`, `application.yml`, `V10__webhook_delivery_cleanup_index.sql`, `WebhookDeliveryCleanupTest.java`  
+**Status:** ✅ Completed — batched deletion with configurable batch size, dedicated cleanup index, Micrometer metrics, 8 tests passing.
 
-**Problem:** Webhook delivery log retention is configurable via `routify.webhooks.delivery-retention-days` (default 7) but the cleanup may rely on manual DB maintenance rather than an active scheduled task.
+**Problem:** Webhook delivery log retention is configurable via `routify.webhooks.delivery-retention-days` (default 7) but the cleanup deleted all matching records in a single transaction, risking long-held table locks on high-volume deployments.
 
-**Changes:**
-- **Backend:** Verify or add a `@Scheduled` task that runs daily and deletes webhook delivery records older than the configured retention period. Use `DELETE FROM webhook_deliveries WHERE created_at < NOW() - interval '? days'` with batch size limit.
+**Implementation summary:**
+- **Batched deletion:** `cleanupOldDeliveries()` now loops, deleting `routify.webhooks.cleanup-batch-size` (default 1000) rows per iteration until fewer than batch size remain. Each batch runs in its own transaction via `TransactionTemplate` (avoids Spring AOP self-invocation pitfall). PostgreSQL native query uses `DELETE ... WHERE id IN (SELECT id ... ORDER BY created_at ASC LIMIT :batchSize)` for bounded, index-friendly deletion.
+- **Dedicated cleanup index:** Flyway migration `V10__webhook_delivery_cleanup_index.sql` adds `idx_webhook_delivery_created_at ON routify_identity.webhook_delivery(created_at ASC)` — the existing composite index on `(subscription_id, created_at DESC)` is not optimal for the cleanup query which filters only on `created_at`.
+- **Configurable batch size:** `routify.webhooks.cleanup-batch-size` (default 1000, env: `WEBHOOK_CLEANUP_BATCH_SIZE`) — controls max rows deleted per transaction batch. Tune down for low-IOPS databases, up for fast SSDs.
+- **Micrometer metrics:** `routify.webhooks.delivery.cleanup` counter in `RoutifyMetrics` — incremented by the total number of records purged per cycle. Enables monitoring cleanup effectiveness via Prometheus/Grafana.
+- **Logging:** Structured `INFO`-level log on start (retention, cutoff, batch size), on completion (total deleted, batch count), and `DEBUG` when no expired records found.
+- **Tests:** `WebhookDeliveryCleanupTest.java` (8 tests): no expired records, single batch, multiple batches (2250 across 3 batches), exact batch boundary (extra iteration confirms exhaustion), custom batch size, custom retention days (cutoff validation), metrics always recorded, default 7-day retention.
 
 ---
 
@@ -792,11 +811,11 @@ Phase 3 (P2 — Completeness)
   P-12 Workspace Create & Plan Management ─────────── ✅ COMPLETED
   P-13 Settings Module Completion ─────────────────── ✅ COMPLETED
   P-14 Filter gatewayConfigRef Validation ─────────── ✅ COMPLETED
-  P-15 Jolt Response-Phase ────────────────────────── standalone
-  P-16 RequestLogger Improvements ─────────────────── standalone
+  P-15 Jolt Response-Phase ────────────────────────── ✅ COMPLETED
+  P-16 RequestLogger Improvements ─────────────────── ✅ COMPLETED
 
 Phase 4 (P3 — Quality)
-  P-17 Webhook Delivery Cleanup ───────────────────── standalone
+  P-17 Webhook Delivery Cleanup ───────────────────── ✅ COMPLETED
   P-18 Gateway Filter Test Expansion ──────────────── depends on P-01, P-02 (test post-fix)
   P-19 Backend Service IT Expansion ───────────────── standalone
   P-20 Frontend Unit Test Expansion ───────────────── standalone
