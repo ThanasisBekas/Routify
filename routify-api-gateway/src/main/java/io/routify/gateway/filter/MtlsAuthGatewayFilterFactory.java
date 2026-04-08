@@ -5,6 +5,7 @@ import io.routify.gateway.certificate.CertificateRegistry;
 import io.routify.gateway.certificate.PemCertificateParser;
 import io.routify.gateway.certificate.VersionedCertificate;
 import io.routify.gateway.filter.shared.GatewayProblemResponse;
+import io.routify.gateway.routing.GatewayConfigRefResolver;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
@@ -25,6 +26,17 @@ import java.util.regex.Pattern;
  * {@code X-Client-Certificate} header against the {@link CertificateRegistry}.
  * On success injects {@code organization-common-name} (cert Subject CN) downstream.
  * Returns 401 on mismatch.
+ *
+ * <h3>Config sources (dual-path)</h3>
+ * <ul>
+ *   <li><strong>Dynamic (recommended):</strong> Link the filter to a gateway config
+ *       auth provider of type {@code MTLS} via a {@code gatewayConfigRef} with
+ *       {@code refType=MTLS_CLIENT_MAPPING}. The {@link GatewayConfigRefResolver}
+ *       resolves the provider's {@code clientMappings} into the {@code values} list.</li>
+ *   <li><strong>Legacy (static YAML):</strong> Configure the {@code values} list
+ *       directly in the filter's JSONB config. Backward-compatible with existing
+ *       deployments that use {@link CertificateValuesConfig} binding from YAML.</li>
+ * </ul>
  */
 @Slf4j
 @Component

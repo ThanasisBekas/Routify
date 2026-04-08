@@ -19,6 +19,19 @@ function genGroupId() {
 }
 
 export const certHandlers = [
+  // ─── Logical ID picker (lightweight list for filter config forms) ──────────────
+  http.get(`${CERT_BASE}/logical-ids`, async () => {
+    await delay(150)
+    const groups = Array.from(certGroups.values())
+    return HttpResponse.json(
+      groups.map((g) => ({
+        logicalId: g.logicalId,
+        alias: g.alias,
+        status: g.status,
+      })),
+    )
+  }),
+
   // ─── List certificates ────────────────────────────────────────────────────────
   http.get(CERT_BASE, async ({ request }) => {
     await delay(200)

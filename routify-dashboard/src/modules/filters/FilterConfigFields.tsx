@@ -12,6 +12,7 @@ import { inputCls, monoInputCls } from './filterConfigConstants'
 import type { FilterConfig } from './filterConfigConstants'
 import { aiApi } from '../../api/aiApi'
 import { gatewayApi } from '../../api/gatewayApi'
+import { certVaultApi } from '../../api/certVaultApi'
 
 function Field({
   label,
@@ -297,18 +298,13 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             </span>
           </p>
 
-          <Field
+          <CertLogicalIdPicker
+            value={str('logicalId')}
+            onChange={(v) => set('logicalId', v)}
             label="Group Logical ID"
             hint="The logicalId of the Certificate Group to scope the registry lookup to. Leave blank to scan all registered groups by fingerprint (useful for dynamic client registration)."
             optional
-          >
-            <input
-              value={str('logicalId')}
-              onChange={(e) => set('logicalId', e.target.value)}
-              className={monoInputCls}
-              placeholder="my-client-cert-group"
-            />
-          </Field>
+          />
 
           <Field label="Certificate Header" hint="Request header that carries the PEM-encoded client certificate">
             <input
@@ -1639,17 +1635,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <strong className="text-blue-300">Certificate Group</strong>. Requests with revoked or unknown certificates
             are rejected with 401.
           </p>
-          <Field
+          <CertLogicalIdPicker
+            value={str('logicalId')}
+            onChange={(v) => set('logicalId', v)}
             label="Group Logical ID"
             hint="logicalId of the Certificate Group — must be registered in the gateway's Certificate Registry"
-          >
-            <input
-              value={str('logicalId')}
-              onChange={(e) => set('logicalId', e.target.value)}
-              className={monoInputCls}
-              placeholder="my-client-cert-group"
-            />
-          </Field>
+          />
           <Field
             label="Certificate Header"
             hint="Request header that carries the PEM-encoded client certificate"
@@ -1678,17 +1669,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <code className="font-mono text-red-300">X-Cert-Days-Remaining</code>, and{' '}
             <code className="font-mono text-red-300">X-Cert-Fingerprint</code> headers downstream on success.
           </p>
-          <Field
+          <CertLogicalIdPicker
+            value={str('logicalId')}
+            onChange={(v) => set('logicalId', v)}
             label="Group Logical ID"
             hint="logicalId of the Certificate Group to check — must be registered in the gateway's Certificate Registry"
-          >
-            <input
-              value={str('logicalId')}
-              onChange={(e) => set('logicalId', e.target.value)}
-              className={monoInputCls}
-              placeholder="my-signing-cert-group"
-            />
-          </Field>
+          />
           <SectionTitle>Expiry Policy</SectionTitle>
           <Field
             label="Warning Window (days)"
@@ -2567,6 +2553,72 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
   }
 }
 
+// ─── Cert Vault Logical ID Picker (P-06) ───────────────────────────────────────
+
+function CertLogicalIdPicker({
+  value,
+  onChange,
+  label,
+  hint,
+  optional,
+}: {
+  value: string
+  onChange: (v: string) => void
+  label: string
+  hint?: string
+  optional?: boolean
+}) {
+  const { data: logicalIds = [], isLoading } = useQuery({
+    queryKey: ['certs', 'logical-ids'],
+    queryFn: () => certVaultApi.listLogicalIds(),
+    staleTime: 30_000,
+  })
+
+  const activeEntries = logicalIds.filter((e) => e.status === 'ACTIVE')
+
+  const options = [
+    ...(optional ? [{ value: '', label: '— None (scan all groups)', description: 'Leave blank for fingerprint-based lookup' }] : []),
+    ...activeEntries.map((e) => ({
+      value: e.logicalId,
+      label: e.logicalId,
+      description: e.alias,
+    })),
+  ]
+
+  // If the current value isn't in the dropdown options (e.g. typed manually), show it
+  const hasCurrentValue = value && !activeEntries.some((e) => e.logicalId === value)
+
+  return (
+    <Field label={label} hint={hint} optional={optional}>
+      <Select
+        value={value}
+        onChange={onChange}
+        options={
+          hasCurrentValue
+            ? [{ value, label: value, description: '(custom — not found in cert vault)' }, ...options]
+            : options
+        }
+        placeholder={isLoading ? 'Loading cert groups…' : 'Select a Certificate Group…'}
+        disabled={isLoading}
+        searchable
+      />
+      {value && !isLoading && (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          {activeEntries.some((e) => e.logicalId === value) ? (
+            <span className="text-[10px] text-emerald-400/80 flex items-center gap-1">
+              <span>✓</span> Resolved from cert vault
+            </span>
+          ) : (
+            <span className="text-[10px] text-amber-400/80 flex items-center gap-1">
+              <span>⚠</span> Not found in cert vault — may be created later
+            </span>
+          )}
+        </div>
+      )}
+    </Field>
+  )
+}
+
 // ─── mTLS Mapping Fields ──────────────────────────────────────────────────────
 // Matches backend: MtlsAuthGatewayFilterFactory uses CertificateValuesConfig
 // with a `values` list of { clientIdValue, clientIdRequestHeader,
@@ -2766,6 +2818,48 @@ interface MtlsMapping {
 function MtlsMappingFields({ config, onChange }: { config: FilterConfig; onChange: (c: FilterConfig) => void }) {
   const values: MtlsMapping[] = (config.values as MtlsMapping[]) ?? []
 
+  // ─── Gateway Auth Provider picker (MTLS type) ──────────────────────────────
+  const { data: authProviders = [], isLoading: isLoadingProviders } = useQuery({
+    queryKey: ['gateway', 'auth-providers'],
+    queryFn: () => gatewayApi.getAuthProviders(),
+    staleTime: 30_000,
+  })
+
+  const mtlsProviders = authProviders.filter((p) => p.type === 'MTLS' && p.enabled)
+
+  const providerOptions = [
+    { value: '', label: 'None — configure mappings manually below', description: 'Direct config' },
+    ...mtlsProviders.map((p) => ({
+      value: p.id,
+      label: p.name,
+      description: `${(p.clientMappings ?? []).length} mapping(s)`,
+    })),
+  ]
+
+  const selectedProviderId = (config._selectedMtlsProviderId as string) ?? ''
+
+  const handleProviderSelect = (providerId: string) => {
+    if (!providerId) {
+      onChange({ ...config, _selectedMtlsProviderId: '' })
+      return
+    }
+
+    const provider = authProviders.find((p) => p.id === providerId)
+    if (!provider || !provider.clientMappings) return
+
+    // Auto-populate values from the selected MTLS auth provider
+    onChange({
+      ...config,
+      _selectedMtlsProviderId: providerId,
+      values: provider.clientMappings.map((m) => ({
+        clientIdRequestHeader: m.clientIdRequestHeader,
+        clientIdValue: m.clientIdValue,
+        clientCertificateRequestHeader: m.clientCertificateRequestHeader,
+        clientCertificateValue: m.clientCertificateValue,
+      })),
+    })
+  }
+
   const add = () =>
     onChange({
       ...config,
@@ -2795,6 +2889,36 @@ function MtlsMappingFields({ config, onChange }: { config: FilterConfig; onChang
         certificate is matched against an active version in the Certificate Registry. On success injects{' '}
         <code className="font-mono text-blue-300 mx-0.5">organization-common-name</code> downstream.
       </p>
+
+      <SectionTitle>Gateway Config Provider</SectionTitle>
+
+      <Field
+        label="MTLS Auth Provider"
+        hint="Select an MTLS provider from Gateway Settings → Auth Providers to auto-populate mappings, or configure them manually below."
+        optional
+      >
+        <Select
+          value={selectedProviderId}
+          onChange={handleProviderSelect}
+          options={providerOptions}
+          placeholder={isLoadingProviders ? 'Loading providers…' : 'Select an MTLS Provider…'}
+          disabled={isLoadingProviders}
+          searchable
+        />
+      </Field>
+
+      {selectedProviderId && (
+        <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+          <span className="mt-0.5 shrink-0">✓</span>
+          <span>
+            Mappings imported from gateway auth provider. You can still edit or add mappings below. At runtime, the
+            gateway resolves the provider's config via <code className="font-mono text-emerald-300">gatewayConfigRef</code>.
+          </span>
+        </div>
+      )}
+
+      <SectionTitle>Client Mappings</SectionTitle>
+
       {values.length === 0 && (
         <div className="text-xs text-gray-600 py-2 px-3 bg-white/[0.02] rounded-lg border border-dashed border-white/10">
           No mappings yet — click "+ Add Mapping" to start
@@ -2868,6 +2992,44 @@ interface ClientIdEntry {
 function ClientIdMappingFields({ config, onChange }: { config: FilterConfig; onChange: (c: FilterConfig) => void }) {
   const values: ClientIdEntry[] = (config.values as ClientIdEntry[]) ?? []
 
+  // ─── Gateway Auth Provider picker (CLIENT_ID type) ─────────────────────────
+  const { data: authProviders = [], isLoading: isLoadingProviders } = useQuery({
+    queryKey: ['gateway', 'auth-providers'],
+    queryFn: () => gatewayApi.getAuthProviders(),
+    staleTime: 30_000,
+  })
+
+  const clientIdProviders = authProviders.filter((p) => p.type === 'CLIENT_ID' && p.enabled)
+
+  const providerOptions = [
+    { value: '', label: 'None — configure entries manually below', description: 'Direct config' },
+    ...clientIdProviders.map((p) => ({
+      value: p.id,
+      label: p.name,
+      description: `${(p.clientEntries ?? []).length} entry(ies)`,
+    })),
+  ]
+
+  const selectedProviderId = (config._selectedClientIdProviderId as string) ?? ''
+
+  const handleProviderSelect = (providerId: string) => {
+    if (!providerId) {
+      onChange({ ...config, _selectedClientIdProviderId: '' })
+      return
+    }
+
+    const provider = authProviders.find((p) => p.id === providerId)
+    if (!provider || !provider.clientEntries) return
+
+    // Auto-populate values and clientIdMapping from the selected CLIENT_ID auth provider
+    onChange({
+      ...config,
+      _selectedClientIdProviderId: providerId,
+      values: provider.clientEntries.map((e) => ({ name: e.name, value: e.value })),
+      clientIdMapping: provider.clientIdMapping ?? {},
+    })
+  }
+
   const add = () => onChange({ ...config, values: [...values, { name: 'X-Client-Id', value: '' }] })
 
   const update = (i: number, field: keyof ClientIdEntry, val: string) => {
@@ -2885,6 +3047,36 @@ function ClientIdMappingFields({ config, onChange }: { config: FilterConfig; onC
         client is authenticated and <code className="font-mono text-blue-300 mx-0.5">organization-id</code> is resolved
         from the client ID mapping and injected downstream.
       </p>
+
+      <SectionTitle>Gateway Config Provider</SectionTitle>
+
+      <Field
+        label="Client ID Auth Provider"
+        hint="Select a CLIENT_ID provider from Gateway Settings → Auth Providers to auto-populate entries and org-ID mappings, or configure them manually below."
+        optional
+      >
+        <Select
+          value={selectedProviderId}
+          onChange={handleProviderSelect}
+          options={providerOptions}
+          placeholder={isLoadingProviders ? 'Loading providers…' : 'Select a Client ID Provider…'}
+          disabled={isLoadingProviders}
+          searchable
+        />
+      </Field>
+
+      {selectedProviderId && (
+        <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+          <span className="mt-0.5 shrink-0">✓</span>
+          <span>
+            Entries imported from gateway auth provider. You can still edit entries below. At runtime, the gateway
+            resolves the provider's config via <code className="font-mono text-emerald-300">gatewayConfigRef</code>.
+          </span>
+        </div>
+      )}
+
+      <SectionTitle>Client ID Entries</SectionTitle>
+
       {values.length === 0 && (
         <div className="text-xs text-gray-600 py-2 px-3 bg-white/[0.02] rounded-lg border border-dashed border-white/10">
           No entries yet — click "+ Add Entry" to start

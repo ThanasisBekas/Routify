@@ -400,6 +400,9 @@ public class RouteDefinitionBuilder {
      * {@code values} entry — which must be a {@link java.util.List} of {@link java.util.Map}s —
      * into indexed args: {@code values[0].name}, {@code values[0].value}, etc.
      *
+     * <p>Similarly, a {@code clientIdMapping} entry (used by {@code AUTH_CLIENT_ID}) is
+     * expanded into indexed args: {@code clientIdMapping[orgId]}.
+     *
      * <p>All other config entries are serialised as flat strings via the usual
      * {@link #customFilter} path.
      *
@@ -413,26 +416,36 @@ public class RouteDefinitionBuilder {
         var args = new LinkedHashMap<String, String>();
 
         cfg.forEach((k, v) -> {
-            if (!"values".equals(k)) {
-                args.put(k, v != null ? v.toString() : "");
-                return;
-            }
-            // Expand values list into indexed args: values[i].fieldName = fieldValue
-            if (v instanceof List<?> list) {
-                for (int i = 0; i < list.size(); i++) {
-                    Object entry = list.get(i);
-                    if (entry instanceof Map<?, ?> entryMap) {
-                        for (Map.Entry<?, ?> e : entryMap.entrySet()) {
-                            args.put("values[" + i + "]." + e.getKey(),
-                                    e.getValue() != null ? e.getValue().toString() : "");
+            if ("values".equals(k)) {
+                // Expand values list into indexed args: values[i].fieldName = fieldValue
+                if (v instanceof List<?> list) {
+                    for (int i = 0; i < list.size(); i++) {
+                        Object entry = list.get(i);
+                        if (entry instanceof Map<?, ?> entryMap) {
+                            for (Map.Entry<?, ?> e : entryMap.entrySet()) {
+                                args.put("values[" + i + "]." + e.getKey(),
+                                        e.getValue() != null ? e.getValue().toString() : "");
+                            }
                         }
                     }
+                } else if (v != null) {
+                    // Fallback: store as-is (should not happen in normal operation)
+                    log.warn("indexedValuesFilter({}): 'values' is not a List — storing as flat string. " +
+                            "This will likely cause a BindException.", name);
+                    args.put(k, v.toString());
                 }
-            } else if (v != null) {
-                // Fallback: store as-is (should not happen in normal operation)
-                log.warn("indexedValuesFilter({}): 'values' is not a List — storing as flat string. " +
-                        "This will likely cause a BindException.", name);
-                args.put(k, v.toString());
+            } else if ("clientIdMapping".equals(k)) {
+                // Expand clientIdMapping into indexed args: clientIdMapping[orgId] = clientId
+                if (v instanceof Map<?, ?> mappingMap) {
+                    for (Map.Entry<?, ?> e : mappingMap.entrySet()) {
+                        args.put("clientIdMapping[" + e.getKey() + "]",
+                                e.getValue() != null ? e.getValue().toString() : "");
+                    }
+                } else if (v != null) {
+                    args.put(k, v.toString());
+                }
+            } else {
+                args.put(k, v != null ? v.toString() : "");
             }
         });
 
