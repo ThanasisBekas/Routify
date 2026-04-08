@@ -365,7 +365,7 @@ Bridge the gap between statically-configured auth providers and the dynamic gate
 
 ---
 
-#### P-07: Auth Provider Picker for Filter Forms
+#### P-07: Auth Provider Picker for Filter Forms ✅ COMPLETED
 
 **Affected services:** `routify-dashboard`  
 **Complexity:** S  
@@ -752,7 +752,7 @@ Phase 2 (P1 — Config Integration)
   P-04 OAuth2 Dynamic Config Bridge ───────────────── ✅ COMPLETED
   P-05 mTLS/ClientID Dynamic Config ──────────────── ✅ COMPLETED
   P-06 Cert Vault Picker ─────────────────────────── ✅ COMPLETED
-  P-07 Auth Provider Picker ──────────────────────── standalone (enables P-04)
+  P-07 Auth Provider Picker ──────────────────────── ✅ COMPLETED
   P-08 Downstream Credential Picker ──────────────── standalone
   P-09 Rate Limit Policy Picker ──────────────────── standalone
 

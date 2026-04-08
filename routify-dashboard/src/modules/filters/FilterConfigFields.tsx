@@ -13,6 +13,7 @@ import type { FilterConfig } from './filterConfigConstants'
 import { aiApi } from '../../api/aiApi'
 import { gatewayApi } from '../../api/gatewayApi'
 import { certVaultApi } from '../../api/certVaultApi'
+import { AuthProviderPicker } from './AuthProviderPicker'
 
 function Field({
   label,
@@ -2163,14 +2164,57 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             provider and injects it as <code className="font-mono text-violet-300">Authorization: Bearer …</code>{' '}
             downstream.
           </p>
-          <Field label="OAuth2 Provider Name" hint="Logical name of the OAuth2 client-credentials provider">
-            <input
-              value={str('oauth2ProviderName')}
-              onChange={(e) => set('oauth2ProviderName', e.target.value)}
-              className={inputCls}
-              placeholder="my-cc-provider"
-            />
-          </Field>
+
+          <SectionTitle>Auth Provider</SectionTitle>
+
+          <AuthProviderPicker
+            value={(config._selectedCCProviderId as string) ?? ''}
+            onChange={(providerId, provider) => {
+              if (!providerId || !provider) {
+                onChange({ ...config, _selectedCCProviderId: '', oauth2ProviderName: '' })
+                return
+              }
+              onChange({
+                ...config,
+                _selectedCCProviderId: providerId,
+                oauth2ProviderName: provider.name ?? '',
+              })
+            }}
+            typeFilter={(t) => t === 'OAUTH2_CLIENT_CREDENTIALS'}
+            label="OAuth2 Client-Credentials Provider"
+            hint="Select a client-credentials provider from Gateway Settings → Auth Providers, or enter a name manually below."
+            optional
+            noneLabel="None — enter provider name manually"
+            noneDescription="Type a provider name in the field below"
+            placeholder="Select a CC Provider…"
+          />
+
+          {!(config._selectedCCProviderId as string) && (
+            <Field
+              label="OAuth2 Provider Name"
+              hint="Logical name of the OAuth2 client-credentials provider (from gateway YAML config). Used when no gateway auth provider is selected above."
+            >
+              <input
+                value={str('oauth2ProviderName')}
+                onChange={(e) => set('oauth2ProviderName', e.target.value)}
+                className={inputCls}
+                placeholder="my-cc-provider"
+              />
+            </Field>
+          )}
+
+          {!!(config._selectedCCProviderId as string) && str('oauth2ProviderName') && (
+            <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+              <span className="mt-0.5 shrink-0">✓</span>
+              <span>
+                Provider name set to <code className="font-mono text-emerald-300">{str('oauth2ProviderName')}</code> from
+                gateway config.
+              </span>
+            </div>
+          )}
+
+          <SectionTitle>Behaviour</SectionTitle>
+
           <Toggle
             label="Forward Caller Auth"
             description="Forward the caller's own Authorization header to the token endpoint (uncached) instead of using stored client credentials"
@@ -2624,36 +2668,18 @@ function CertLogicalIdPicker({
 // with a `values` list of { clientIdValue, clientIdRequestHeader,
 //   clientCertificateRequestHeader, clientCertificateValue } entries.
 
-// ─── OAuth2 Auth Provider picker + config (P-04) ──────────────────────────────
+// ─── OAuth2 Auth Provider picker + config (P-04 + P-07) ───────────────────────
 
 function OAuth2ConfigFields({ config, onChange }: { config: FilterConfig; onChange: (c: FilterConfig) => void }) {
   const str = (key: string, fallback = '') => (config[key] as string) ?? fallback
 
   const set = (key: string, value: unknown) => onChange({ ...config, [key]: value })
 
-  const { data: authProviders = [], isLoading: isLoadingProviders } = useQuery({
-    queryKey: ['gateway', 'auth-providers'],
-    queryFn: () => gatewayApi.getAuthProviders(),
-    staleTime: 30_000,
-  })
-
-  // Only show OAUTH2_* providers in the picker
-  const oauth2Providers = authProviders.filter((p) => p.type.startsWith('OAUTH2') && p.enabled)
-
-  const providerOptions = [
-    { value: '', label: 'None — use manual provider name below', description: 'Legacy YAML config path' },
-    ...oauth2Providers.map((p) => ({
-      value: p.id,
-      label: p.name,
-      description: `${p.type} · ${p.uri ?? '—'}`,
-    })),
-  ]
-
   // Track which provider is selected (by id)
   const selectedProviderId = (config._selectedAuthProviderId as string) ?? ''
 
-  const handleProviderSelect = (providerId: string) => {
-    if (!providerId) {
+  const handleProviderSelect = (providerId: string, provider?: { uri?: string; clientId?: string; clientSecret?: string; parameterStyle?: string; parameterName?: string; name?: string }) => {
+    if (!providerId || !provider) {
       // Clear dynamic config fields when "None" is selected
       onChange({
         ...config,
@@ -2668,14 +2694,11 @@ function OAuth2ConfigFields({ config, onChange }: { config: FilterConfig; onChan
       return
     }
 
-    const provider = authProviders.find((p) => p.id === providerId)
-    if (!provider) return
-
     // Auto-populate direct config fields from the selected gateway auth provider
     onChange({
       ...config,
       _selectedAuthProviderId: providerId,
-      providerName: provider.name,
+      providerName: provider.name ?? '',
       introspectUri: provider.uri ?? '',
       clientId: provider.clientId ?? '',
       clientSecret: provider.clientSecret ?? '',
@@ -2696,20 +2719,16 @@ function OAuth2ConfigFields({ config, onChange }: { config: FilterConfig; onChan
 
       <SectionTitle>Auth Provider</SectionTitle>
 
-      <Field
+      <AuthProviderPicker
+        value={selectedProviderId}
+        onChange={handleProviderSelect}
+        typeFilter={(t) => t.startsWith('OAUTH2')}
         label="Gateway Auth Provider"
         hint="Select a gateway-managed OAuth2 provider to auto-populate introspection config, or use the manual provider name below for static YAML config."
         optional
-      >
-        <Select
-          value={selectedProviderId}
-          onChange={handleProviderSelect}
-          options={providerOptions}
-          placeholder={isLoadingProviders ? 'Loading providers…' : 'Select an Auth Provider…'}
-          disabled={isLoadingProviders}
-          searchable
-        />
-      </Field>
+        noneLabel="None — use manual provider name below"
+        noneDescription="Legacy YAML config path"
+      />
 
       {hasDirectConfig && (
         <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
