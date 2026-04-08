@@ -71,7 +71,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | Telemetry publishing | ✅ | `RequestLoggerGatewayFilterFactory` → Kafka `REQUEST_TELEMETRY` |
 | JWT issuer/audience validation | ✅ | Issuer + audience claim validation, fail-closed misconfiguration, require-jti enforcement, JWKS URI support — [P-01](#p-01-jwt-auth-filter-hardening) ✅ completed |
 | OAuth2 dynamic config bridge | ✅ | Dual-path introspection: direct config from `gatewayConfigRef` + legacy `providerName` → `AuthProperties` fallback. Dashboard Auth Provider picker auto-populates config. — [P-04](#p-04-oauth2-auth-provider-dynamic-config-bridge) ✅ completed |
-| mTLS/ClientID dynamic config | ❌ | Use legacy static `CertificateValuesConfig`/`ClientProperties` — see [P-05](#p-05-mtlsclientid-migration-to-dynamic-gateway-config) |
+| mTLS/ClientID dynamic config | ✅ | Dual-path: direct config from `gatewayConfigRef` (`MTLS_CLIENT_MAPPING` / `CLIENT_ID_MAPPING` ref types) + legacy static `CertificateValuesConfig` / `ClientProperties` YAML fallback. Dashboard Auth Provider picker auto-populates config. — [P-05](#p-05-mtlsclientid-migration-to-dynamic-gateway-config) ✅ completed |
 | SpEL sandboxing | ✅ | `SimpleEvaluationContext` with read-only data binding, `#request` removed, expression length + depth limits — [P-02](#p-02-spel-filter-sandboxing) ✅ completed |
 
 ### routify-admin-api (port 8082)
@@ -166,7 +166,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | Module | CRUD | Status | Gap |
 |--------|------|--------|-----|
 | Routes | Full | ✅ | — |
-| Filters | Full | ✅ | Missing cert vault picker, OAuth2 provider picker |
+| Filters | Full | ✅ | Missing OAuth2 provider picker |
 | Gateway Config | 13 tabs | ✅ | — |
 | Certificates | Full | ✅ | — |
 | API Keys | Full | ✅ | — |
@@ -193,18 +193,18 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | ~~3~~ | ~~`JwtAuthGatewayFilterFactory`~~ | ~~`Config.algorithm` supports `HS256` but only RS256 is implemented.~~ **Resolved in P-01:** HS256 config is logged as warning and ignored (RS256 only). | ~~**Low**~~ ✅ |
 | ~~4~~ | ~~`SpelCustomGatewayFilterFactory`~~ | ~~Uses `StandardEvaluationContext` which exposes `#request`.~~ **Resolved in P-02:** replaced with `SimpleEvaluationContext.forReadOnlyDataBinding()`, `#request` removed, expression length + depth limits enforced. | ~~**High**~~ ✅ |
 | 5 | `OAuth2TokenIntrospectGatewayFilterFactory` | ~~Reads `providerName` from `Config`, then looks it up in `AuthProperties.oauth2Verification` (static YAML map). The bridge is broken.~~ Dual-path: direct config from `gatewayConfigRef` (introspectUri/clientId/clientSecret) + legacy `providerName` → `AuthProperties` fallback. — [P-04](#p-04-oauth2-auth-provider-dynamic-config-bridge) ✅ completed | **Resolved** |
-| 6 | `MtlsAuthGatewayFilterFactory` | Config class is `CertificateValuesConfig` (from `auth.properties` YAML). No `GatewayConfigRefResolver` mapping exists for `AUTH_MTLS`. Filter cannot import cert mappings from dynamic gateway config. | **Medium** |
-| 7 | `ClientIdAuthGatewayFilterFactory` | Config class is `NameValuesConfig` backed by `ClientProperties` YAML. No `GatewayConfigRefResolver` mapping for `AUTH_CLIENT_ID`. Same static-config limitation as mTLS. | **Medium** |
+| 6 | `MtlsAuthGatewayFilterFactory` | ~~Config class is `CertificateValuesConfig` (from `auth.properties` YAML). No `GatewayConfigRefResolver` mapping exists for `AUTH_MTLS`. Filter cannot import cert mappings from dynamic gateway config.~~ Dual-path: `MTLS_CLIENT_MAPPING` ref type resolves from MTLS auth providers + legacy `CertificateValuesConfig` YAML fallback. Dashboard MTLS Provider picker auto-populates config. — [P-05](#p-05-mtlsclientid-migration-to-dynamic-gateway-config) ✅ completed | **Resolved** |
+| 7 | `ClientIdAuthGatewayFilterFactory` | ~~Config class is `NameValuesConfig` backed by `ClientProperties` YAML. No `GatewayConfigRefResolver` mapping for `AUTH_CLIENT_ID`. Same static-config limitation as mTLS.~~ Dual-path: `CLIENT_ID_MAPPING` ref type resolves from CLIENT_ID auth providers + legacy `ClientProperties` YAML fallback. Dashboard Client ID Provider picker auto-populates config. — [P-05](#p-05-mtlsclientid-migration-to-dynamic-gateway-config) ✅ completed | **Resolved** |
 | 8 | `DownstreamOAuth2BearerGatewayFilterFactory` | `Config.oauth2ProviderName` maps to `Oauth2AccessTokenProvider` static config. Not integrated with the `DOWNSTREAM_CREDENTIAL` ref type or dynamic auth provider config. | **Medium** |
 | 9 | `BasicAuthGatewayFilterFactory` | ~~Password comparison is plain-text `equals()`.~~ BCrypt-hashed at rest, `BCryptPasswordEncoder.matches()` in gateway. Backward-compatible with legacy plain-text configs. — [P-03](#p-03-basicauth-password-hashing-in-gateway-config) ✅ completed | **Resolved** |
-| 10 | Cert-related filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK`) | `VAULT_CERT` ref type correctly injects `logicalId`, but the dashboard filter form requires manual `logicalId` text entry. No cert picker dropdown populated from cert-vault. | **Medium** |
+| 10 | Cert-related filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK`) | ~~`VAULT_CERT` ref type correctly injects `logicalId`, but the dashboard filter form requires manual `logicalId` text entry. No cert picker dropdown populated from cert-vault.~~ Dashboard `CertLogicalIdPicker` dropdown populated from `GET /certificates/logical-ids` — [P-06](#p-06-cert-vault-picker-for-filter-config-forms) ✅ completed | **Resolved** |
 
 ### 3b. Cross-Service Config Resolution Gaps
 
 | # | Gap | Details |
 |---|-----|---------|
 | 1 | ~~**OAuth2 provider config disconnect**~~ | ~~Auth providers defined in gateway config cannot be consumed by `OAuth2TokenIntrospectGatewayFilterFactory`.~~ **Resolved in P-04:** Filter now reads direct config fields (`introspectUri`, `clientId`, `clientSecret`) from `gatewayConfigRef` resolution and calls the introspection endpoint directly. Legacy `providerName` → `AuthProperties` YAML path preserved for backward compatibility. |
-| 2 | **mTLS static config island** | `MtlsAuthGatewayFilterFactory` uses `CertificateValuesConfig` which requires certificate-to-client-ID mappings baked into YAML. These cannot be managed through the dashboard. The `VAULT_CERT` ref type exists but doesn't map to mTLS's `values[].clientCertificateValue` / `values[].clientIdValue` structure. |
+| 2 | ~~**mTLS static config island**~~ | ~~`MtlsAuthGatewayFilterFactory` uses `CertificateValuesConfig` which requires certificate-to-client-ID mappings baked into YAML.~~ **Resolved in P-05:** `MTLS_CLIENT_MAPPING` ref type resolves client mappings from MTLS auth providers in the dynamic gateway config. Legacy YAML path preserved for backward compatibility. |
 | 3 | **Downstream OAuth2 provider disconnect** | `DownstreamOAuth2BearerGatewayFilterFactory.Config.oauth2ProviderName` maps to `Oauth2AccessTokenProvider` YAML config. The `DOWNSTREAM_CREDENTIAL` ref type maps `username`/`password`/`headerName`/`headerValue` but these aren't the fields the downstream OAuth2 filter reads (`oauth2ProviderName`, `forwardCallerAuth`). |
 | 4 | **No `gatewayConfigRef` validation on save** | When creating or updating a filter with a `gatewayConfigRef`, the route-service persists the ref without validating that the referenced gateway config entry (e.g., auth provider with that `refId`) actually exists. The error surfaces only at gateway route-build time. |
 
@@ -212,7 +212,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 
 | # | Module | Gap | Impact |
 |---|--------|-----|--------|
-| 1 | Filters | No **cert vault picker** for `AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK` — `logicalId` is a free-text input | Operator must manually type the exact logical ID |
+| ~~1~~ | ~~Filters~~ | ~~No **cert vault picker** for `AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK` — `logicalId` is a free-text input~~ **Resolved in P-06:** `CertLogicalIdPicker` dropdown populated from `GET /certificates/logical-ids`. | ~~Operator must manually type the exact logical ID~~ ✅ |
 | 2 | Filters | No **OAuth2 auth provider picker** for `AUTH_OAUTH2` — `providerName` is free-text | Operators don't know which providers are configured |
 | 3 | Filters | No **downstream credential picker** for `DOWNSTREAM_BASIC_AUTH`, `DOWNSTREAM_BEARER_CC` | Must manually type credential names |
 | 4 | Filters | No **rate limit policy picker** for `RATE_LIMIT_FIXED_WINDOW`, `RATE_LIMIT_SLIDING_WINDOW` | Must manually configure values instead of selecting a policy |
@@ -325,33 +325,43 @@ Bridge the gap between statically-configured auth providers and the dynamic gate
 
 ---
 
-#### P-05: mTLS/ClientID Migration to Dynamic Gateway Config
+#### P-05: mTLS/ClientID Migration to Dynamic Gateway Config ✅ COMPLETED
 
-**Affected services:** `routify-api-gateway`  
+**Affected services:** `routify-api-gateway`, `routify-dashboard`  
 **Complexity:** M  
-**Files:** `MtlsAuthGatewayFilterFactory.java`, `ClientIdAuthGatewayFilterFactory.java`, `GatewayConfigRefResolver.java`
+**Files:** `MtlsAuthGatewayFilterFactory.java`, `ClientIdAuthGatewayFilterFactory.java`, `GatewayConfigRefResolver.java`, `RouteDefinitionBuilder.java`, `FilterConfigFields.tsx`, `src/types/index.ts`, `src/mocks/db.ts`  
+**Status:** ✅ Completed — dual-path config (dynamic gateway config ref + legacy static YAML), 2 new ref types, dashboard pickers for both filter types.
 
 **Problem:** Both filters use legacy static config classes (`CertificateValuesConfig`, `NameValuesConfig` / `ClientProperties`) loaded from `application.yml`. There's no `GatewayConfigRefResolver` mapping for `AUTH_MTLS` or `AUTH_CLIENT_ID`, so these filters can't benefit from the dynamic gateway config system.
 
-**Changes:**
-- **Backend:** Add a new `GatewayConfigRefResolver` ref type: `MTLS_CLIENT_MAPPING` that resolves a list of client-ID-to-certificate mappings from the gateway config's auth providers section (type `MTLS`).
-- **Backend:** Refactor `MtlsAuthGatewayFilterFactory` to accept a plain `Config` class with a `values` list, populated either from `gatewayConfigRef` resolution or from direct config. Keep backward compatibility with `CertificateValuesConfig` YAML.
-- **Backend:** Similarly refactor `ClientIdAuthGatewayFilterFactory` to accept client mappings from either `gatewayConfigRef` or direct config. Add `CLIENT_ID_MAPPING` ref type.
-- **Frontend:** Add config ref support to `AUTH_MTLS` and `AUTH_CLIENT_ID` filter forms.
+**Implementation summary:**
+- **Backend (gateway — `GatewayConfigRefResolver`):** Added two new ref types to the `resolve()` switch expression:
+  - `MTLS_CLIENT_MAPPING` — finds an auth provider with `type: "MTLS"` by `refId`, extracts its `clientMappings` list (each containing `clientIdRequestHeader`, `clientIdValue`, `clientCertificateRequestHeader`, `clientCertificateValue`), and returns them as the `values` key for `CertificateValuesConfig` binding via `indexedValuesFilter`.
+  - `CLIENT_ID_MAPPING` — finds an auth provider with `type: "CLIENT_ID"` by `refId`, extracts its `clientEntries` (name/value pairs) and optional `clientIdMapping` (orgId→clientId map), returning both for `Config` binding.
+- **Backend (gateway — `ClientIdAuthGatewayFilterFactory`):** Refactored from `NameValuesConfig` to a new `Config` inner class extending `NameValuesConfig` with an additional `clientIdMapping` field. The `apply()` method reads `clientIdMapping` from the resolved config first, falling back to the injected `ClientProperties` bean for backward compatibility.
+- **Backend (gateway — `RouteDefinitionBuilder`):** Extended `indexedValuesFilter()` to handle `clientIdMapping` as indexed args (`clientIdMapping[orgId]=clientId`) alongside the existing `values` expansion, so Spring can bind the map correctly.
+- **Backend (gateway — `MtlsAuthGatewayFilterFactory`):** No code changes needed — `CertificateValuesConfig.values` is already populated by the `indexedValuesFilter` + `GatewayConfigRefResolver` pipeline. Updated Javadoc to document dual-path config.
+- **Frontend (types):** Added `'MTLS'` and `'CLIENT_ID'` to the `GatewayAuthProvider.type` union. Added optional fields: `clientMappings` (for MTLS) and `clientEntries` + `clientIdMapping` (for CLIENT_ID).
+- **Frontend (`FilterConfigFields.tsx`):** Both `MtlsMappingFields` and `ClientIdMappingFields` now include a "Gateway Config Provider" section with a dropdown that fetches auth providers via `gatewayApi.getAuthProviders()`, filtered by type `MTLS` or `CLIENT_ID`. Selecting a provider auto-populates the `values` (and `clientIdMapping` for CLIENT_ID) from the provider's config. A status indicator confirms when mappings are imported from a gateway auth provider.
+- **Frontend (mocks):** Added sample MTLS auth provider (`ap-mtls-01` — 2 partner mappings) and CLIENT_ID auth provider (`ap-clientid-01` — 3 entries with org-ID mappings) to the mock database so the picker works in MSW mode.
 
 ---
 
-#### P-06: Cert Vault Picker for Filter Config Forms
+#### P-06: Cert Vault Picker for Filter Config Forms ✅ COMPLETED
 
 **Affected services:** `routify-admin-api`, `routify-dashboard`  
 **Complexity:** S  
-**Files:** `FilterConfigFields.tsx`, `FilterDefinitionForm.tsx`, `certVaultApi.ts`
+**Files:** `AdminCertificatesController.java`, `FilterConfigFields.tsx`, `certVaultApi.ts`, `src/types/index.ts`, `src/mocks/handlers/certs.ts`  
+**Status:** ✅ Completed — cert vault logical-ID picker replaces free-text input on 3 filter types.
 
 **Problem:** Cert-related filters (`AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK`) require a `logicalId` that operators must type manually. The cert vault already exposes `QUEUE_CERTS_ACTIVE_LIST` which returns active certificates with their logical IDs.
 
-**Changes:**
-- **Backend (admin-api):** Expose a lightweight `GET /api/v1/admin/certs/logical-ids` endpoint that returns `[{logicalId, alias, status}]` from the cert vault via existing `CertVaultMessagingClient`.
-- **Frontend:** Create a `CertLogicalIdPicker` component (dropdown with search) that fetches logical IDs from the new endpoint. Use it in `FilterConfigFields.tsx` for `AUTH_CERT_VAULT`, `CERT_ROTATION`, and `CERT_VAULT_EXPIRY_CHECK` filter types, replacing the free-text `logicalId` input.
+**Implementation summary:**
+- **Backend (admin-api):** Added `GET /api/v1/admin/certificates/logical-ids` endpoint on `AdminCertificatesController` that returns `[{logicalId, alias, status}]` by querying cert groups via existing `CertVaultMessagingClient.queryCertGroups()`. Inner DTO: `CertLogicalIdEntry` record.
+- **Frontend (types):** Added `CertLogicalIdEntry` interface (`logicalId`, `alias`, `status`).
+- **Frontend (certVaultApi):** Added `listLogicalIds()` API function calling the new endpoint.
+- **Frontend (FilterConfigFields):** Created `CertLogicalIdPicker` component — a searchable dropdown that fetches cert-group logical IDs from the new endpoint. Shows a validation indicator (✓ resolved / ⚠ not found). Supports custom values for forward compatibility. Replaced the free-text `logicalId` input on `AUTH_CERT_VAULT`, `CERT_ROTATION`, and `CERT_VAULT_EXPIRY_CHECK` filter forms.
+- **Frontend (mocks):** Added MSW handler for `GET /certificates/logical-ids` returning cert group logical IDs from the mock database.
 
 ---
 
@@ -740,8 +750,8 @@ Phase 1 (P0 — Security)
 
 Phase 2 (P1 — Config Integration)
   P-04 OAuth2 Dynamic Config Bridge ───────────────── ✅ COMPLETED
-  P-05 mTLS/ClientID Dynamic Config ──────────────── standalone
-  P-06 Cert Vault Picker ─────────────────────────── standalone
+  P-05 mTLS/ClientID Dynamic Config ──────────────── ✅ COMPLETED
+  P-06 Cert Vault Picker ─────────────────────────── ✅ COMPLETED
   P-07 Auth Provider Picker ──────────────────────── standalone (enables P-04)
   P-08 Downstream Credential Picker ──────────────── standalone
   P-09 Rate Limit Policy Picker ──────────────────── standalone
@@ -780,7 +790,7 @@ Phase 4 (P3 — Quality)
 | ~~**P-02 SpEL sandboxing breaks existing expressions**~~ | ~~Medium~~ | ~~Medium~~ | ✅ **Mitigated.** `#request` removed; `#clientIp` and `#contentType` provided as replacements. Expressions referencing `#request` fail open (pass through with warning). `SimpleEvaluationContext` blocks type references and constructors. |
 | ~~**P-03 BCrypt hashing breaks existing BasicAuth configs**~~ | ~~Medium~~ | ~~Low~~ | ✅ **Mitigated.** Gateway auto-detects unhashed passwords (no `$2` prefix) and falls back to plain-text `equals()` with a WARN log. Re-saving the auth provider via admin API triggers automatic BCrypt hashing. |
 | ~~**P-04 OAuth2 config migration is a breaking change**~~ | ~~Low~~ | ~~Medium~~ | ✅ **Mitigated.** Purely additive — existing `providerName` → YAML path continues to work unchanged. New direct-config path activates only when `introspectUri`+`clientId`+`clientSecret` are all present (from `gatewayConfigRef` resolution). Partial direct config gracefully falls back to `providerName`. |
-| **P-05 mTLS/ClientID refactoring breaks existing deployments** | Medium | High | Keep backward compatibility with `CertificateValuesConfig` YAML. New dynamic config is an additional path, not a replacement. |
+| ~~**P-05 mTLS/ClientID refactoring breaks existing deployments**~~ | ~~Medium~~ | ~~High~~ | ✅ **Mitigated.** Purely additive — existing `CertificateValuesConfig` YAML and `ClientProperties` static config paths continue to work unchanged. New dynamic config paths activate only when a `gatewayConfigRef` with `MTLS_CLIENT_MAPPING` or `CLIENT_ID_MAPPING` ref type is present. `ClientIdAuthGatewayFilterFactory` falls back to injected `ClientProperties` bean when `Config.clientIdMapping` is empty or null. |
 | **P-14 gatewayConfigRef validation blocks valid saves** | Low | Medium | Only validate `refType` is known and `refId` format is valid. Log a warning (don't block) if the referenced entry isn't found — it may be created later. |
 | **P-19 IT expansion delayed by Docker/TC incompatibility** | Medium | Low | Verify `docker-java` 3.7.1 resolves the issue. If not, target unit tests only. |
 | **Test expansion initiatives (P-18 through P-23) are large** | High | Low | Break each into sub-tasks (one test class per PR). Prioritize security-critical paths first. |

@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,6 +34,27 @@ import java.util.UUID;
 public class AdminCertificatesController {
 
     private final CertVaultMessagingClient messagingClient;
+
+    // ─── Lightweight logical-ID list for filter config pickers ─────────────────
+
+    /**
+     * Returns a lightweight list of cert-group logical IDs with alias and status.
+     * Used by the dashboard filter config forms ({@code AUTH_CERT_VAULT}, {@code CERT_ROTATION},
+     * {@code CERT_VAULT_EXPIRY_CHECK}) to populate a dropdown picker instead of free-text input.
+     */
+    public record CertLogicalIdEntry(String logicalId, String alias, String status) {}
+
+    @GetMapping("/logical-ids")
+    @PreAuthorize("hasAuthority('CERTS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    public ResponseEntity<List<CertLogicalIdEntry>> listLogicalIds(
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
+        // Fetch cert groups (which provide the logicalId used by gateway filters)
+        var groupsPage = messagingClient.queryCertGroups(tenantId, null, 0, 1000, "createdAt", "ASC");
+        List<CertLogicalIdEntry> entries = groupsPage.content().stream()
+                .map(g -> new CertLogicalIdEntry(g.logicalId(), g.alias(), g.status()))
+                .toList();
+        return ResponseEntity.ok(entries);
+    }
 
     // ─── List certificates ────────────────────────────────────────────────────
 

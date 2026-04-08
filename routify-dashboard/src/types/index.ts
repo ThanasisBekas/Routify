@@ -605,7 +605,14 @@ export interface GatewayResilienceDefaults {
 export interface GatewayAuthProvider {
   id: string
   name: string
-  type: 'OAUTH2_CLIENT_CREDENTIALS' | 'OAUTH2_PASSWORD' | 'OAUTH2_INTROSPECT' | 'BASIC' | 'JWT_VERIFY'
+  type:
+    | 'OAUTH2_CLIENT_CREDENTIALS'
+    | 'OAUTH2_PASSWORD'
+    | 'OAUTH2_INTROSPECT'
+    | 'BASIC'
+    | 'JWT_VERIFY'
+    | 'MTLS'
+    | 'CLIENT_ID'
   uri?: string
   clientId?: string
   clientSecret?: string
@@ -620,6 +627,16 @@ export interface GatewayAuthProvider {
   issuer?: string
   audience?: string
   algorithm?: string
+  // MTLS-specific: client-ID-to-certificate mappings
+  clientMappings?: {
+    clientIdRequestHeader: string
+    clientIdValue: string
+    clientCertificateRequestHeader: string
+    clientCertificateValue: string
+  }[]
+  // CLIENT_ID-specific: client-ID header-value entries and org-ID mapping
+  clientEntries?: { name: string; value: string }[]
+  clientIdMapping?: Record<string, string>
 }
 
 export interface GatewayProxyConfig {
@@ -775,6 +792,13 @@ export interface CertVaultStats {
   active: number
   expiringSoon: number
   counts: Record<string, number>
+}
+
+/** Lightweight entry for the cert vault logical-ID picker in filter config forms. */
+export interface CertLogicalIdEntry {
+  logicalId: string
+  alias: string
+  status: string
 }
 
 // ─── ACME (Automated Certificate Lifecycle) ──────────────────────────────────

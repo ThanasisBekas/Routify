@@ -37,6 +37,10 @@ import java.util.*;
  *   <li>{@code VAULT_CERT} — resolves the gateway TLS logicalId for vault-backed cert filters
  *       ({@code AUTH_CERT_VAULT}, {@code CERT_ROTATION}, {@code CERT_VAULT_EXPIRY_CHECK})</li>
  *   <li>{@code DOWNSTREAM_CREDENTIAL} — maps downstream credential fields</li>
+ *   <li>{@code MTLS_CLIENT_MAPPING} — resolves client-ID-to-certificate mappings from an
+ *       {@code MTLS} auth provider for {@code AUTH_MTLS} filters</li>
+ *   <li>{@code CLIENT_ID_MAPPING} — resolves client-ID header-value entries and org-ID
+ *       mappings from a {@code CLIENT_ID} auth provider for {@code AUTH_CLIENT_ID} filters</li>
  *   <li>{@code TLS_SOURCE} — <strong>deprecated and removed</strong>: file-based certificate
  *       sources are no longer supported. Migrate to {@code VAULT_CERT} refs.</li>
  * </ul>
@@ -88,6 +92,8 @@ public class GatewayConfigRefResolver {
             case "RESILIENCE_DEFAULTS"     -> resolveResilienceDefaults(gwConfig);
             case "VAULT_CERT"              -> resolveVaultCert(refId);
             case "DOWNSTREAM_CREDENTIAL"   -> resolveDownstreamCredential(refId, gwConfig);
+            case "MTLS_CLIENT_MAPPING"     -> resolveMtlsClientMapping(refId, gwConfig);
+            case "CLIENT_ID_MAPPING"       -> resolveClientIdMapping(refId, gwConfig);
             case "TLS_SOURCE" -> {
                 // TLS_SOURCE refs are no longer supported — file-based certificate sources
                 // have been removed. All certificate management is handled by the Vault.
@@ -270,6 +276,130 @@ public class GatewayConfigRefResolver {
                 putIfPresent(result, "headerValue",    c.get("headerValue"));
                 return result;
             }
+        }
+        return Map.of();
+    }
+
+    /**
+     * Resolves a {@code MTLS_CLIENT_MAPPING} ref for the {@code AUTH_MTLS} filter factory.
+     *
+     * <p>Looks up an auth provider with {@code type: "MTLS"} matching {@code refId} in the
+     * {@code authProviders} section of the gateway config, extracts its {@code clientMappings}
+     * list, and returns them as a {@code values} list ready for
+     * {@link io.routify.gateway.auth.properties.CertificateValuesConfig} binding.
+     *
+     * <p>Each mapping entry contains:
+     * <ul>
+     *   <li>{@code clientIdRequestHeader} — header carrying the client ID</li>
+     *   <li>{@code clientIdValue} — expected client ID value</li>
+     *   <li>{@code clientCertificateRequestHeader} — header carrying the PEM certificate</li>
+     *   <li>{@code clientCertificateValue} — logicalId in the Certificate Registry</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> resolveMtlsClientMapping(String refId, Map<String, Object> gwConfig) {
+        List<Object> providers = (List<Object>) gwConfig.get("authProviders");
+        if (providers == null) return Map.of();
+
+        for (Object raw : providers) {
+            Map<String, Object> p = asMap(raw);
+            if (p == null) continue;
+            if (!"MTLS".equals(str(p.get("type")))) continue;
+            if (!refId.equals(str(p.get("id")))) continue;
+
+            Object rawMappings = p.get("clientMappings");
+            if (!(rawMappings instanceof List<?> mappingsList)) {
+                log.warn("MTLS auth provider '{}' has no clientMappings list — returning empty",
+                        p.get("name"));
+                return Map.of();
+            }
+
+            // Convert to the list-of-maps format expected by indexedValuesFilter → CertificateValuesConfig
+            List<Map<String, Object>> values = new ArrayList<>();
+            for (Object entry : mappingsList) {
+                Map<String, Object> m = asMap(entry);
+                if (m == null) continue;
+                Map<String, Object> mapping = new LinkedHashMap<>();
+                putIfPresent(mapping, "clientIdRequestHeader",          m.get("clientIdRequestHeader"));
+                putIfPresent(mapping, "clientIdValue",                  m.get("clientIdValue"));
+                putIfPresent(mapping, "clientCertificateRequestHeader", m.get("clientCertificateRequestHeader"));
+                putIfPresent(mapping, "clientCertificateValue",         m.get("clientCertificateValue"));
+                values.add(mapping);
+            }
+
+            if (values.isEmpty()) {
+                log.warn("MTLS auth provider '{}' has empty clientMappings — returning empty", p.get("name"));
+                return Map.of();
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("values", values);
+            putIfPresent(result, "_providerName", p.get("name"));
+            putIfPresent(result, "_providerType", "MTLS");
+            log.debug("Resolved MTLS_CLIENT_MAPPING from provider '{}': {} mapping(s)",
+                    p.get("name"), values.size());
+            return result;
+        }
+        return Map.of();
+    }
+
+    /**
+     * Resolves a {@code CLIENT_ID_MAPPING} ref for the {@code AUTH_CLIENT_ID} filter factory.
+     *
+     * <p>Looks up an auth provider with {@code type: "CLIENT_ID"} matching {@code refId} in the
+     * {@code authProviders} section, extracts its {@code clientEntries} (name/value pairs)
+     * and optional {@code clientIdMapping} (orgId→clientId map), and returns them in a
+     * config map with keys {@code values} and {@code clientIdMapping}.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> resolveClientIdMapping(String refId, Map<String, Object> gwConfig) {
+        List<Object> providers = (List<Object>) gwConfig.get("authProviders");
+        if (providers == null) return Map.of();
+
+        for (Object raw : providers) {
+            Map<String, Object> p = asMap(raw);
+            if (p == null) continue;
+            if (!"CLIENT_ID".equals(str(p.get("type")))) continue;
+            if (!refId.equals(str(p.get("id")))) continue;
+
+            Object rawEntries = p.get("clientEntries");
+            if (!(rawEntries instanceof List<?> entriesList)) {
+                log.warn("CLIENT_ID auth provider '{}' has no clientEntries list — returning empty",
+                        p.get("name"));
+                return Map.of();
+            }
+
+            // Convert to the list-of-maps format expected by indexedValuesFilter → NameValuesConfig
+            List<Map<String, Object>> values = new ArrayList<>();
+            for (Object entry : entriesList) {
+                Map<String, Object> m = asMap(entry);
+                if (m == null) continue;
+                Map<String, Object> nameValue = new LinkedHashMap<>();
+                putIfPresent(nameValue, "name",  m.get("name"));
+                putIfPresent(nameValue, "value", m.get("value"));
+                values.add(nameValue);
+            }
+
+            if (values.isEmpty()) {
+                log.warn("CLIENT_ID auth provider '{}' has empty clientEntries — returning empty",
+                        p.get("name"));
+                return Map.of();
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("values", values);
+
+            // Include org→clientId mapping if present
+            Object rawMapping = p.get("clientIdMapping");
+            if (rawMapping instanceof Map<?, ?> mappingMap) {
+                result.put("clientIdMapping", mappingMap);
+            }
+
+            putIfPresent(result, "_providerName", p.get("name"));
+            putIfPresent(result, "_providerType", "CLIENT_ID");
+            log.debug("Resolved CLIENT_ID_MAPPING from provider '{}': {} entry(ies)",
+                    p.get("name"), values.size());
+            return result;
         }
         return Map.of();
     }

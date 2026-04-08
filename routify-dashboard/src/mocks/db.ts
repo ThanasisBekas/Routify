@@ -193,6 +193,42 @@ export const gatewayConfig: GatewayConfig = {
       parameterStyle: 'BODY',
       parameterName: 'token',
     },
+    {
+      id: 'ap-mtls-01',
+      name: 'mTLS — Partner API Clients',
+      type: 'MTLS',
+      enabled: true,
+      clientMappings: [
+        {
+          clientIdRequestHeader: 'X-Client-Id',
+          clientIdValue: 'partner-alpha',
+          clientCertificateRequestHeader: 'X-Client-Certificate',
+          clientCertificateValue: 'partner-alpha-cert',
+        },
+        {
+          clientIdRequestHeader: 'X-Client-Id',
+          clientIdValue: 'partner-beta',
+          clientCertificateRequestHeader: 'X-Client-Certificate',
+          clientCertificateValue: 'partner-beta-cert',
+        },
+      ],
+    },
+    {
+      id: 'ap-clientid-01',
+      name: 'Client ID — Internal Services',
+      type: 'CLIENT_ID',
+      enabled: true,
+      clientEntries: [
+        { name: 'X-Client-Id', value: 'billing-service' },
+        { name: 'X-Client-Id', value: 'notification-service' },
+        { name: 'X-Client-Id', value: 'analytics-service' },
+      ],
+      clientIdMapping: {
+        'org-billing': 'billing-service',
+        'org-notifications': 'notification-service',
+        'org-analytics': 'analytics-service',
+      },
+    },
   ],
   proxyConfig: {
     enabled: false,
