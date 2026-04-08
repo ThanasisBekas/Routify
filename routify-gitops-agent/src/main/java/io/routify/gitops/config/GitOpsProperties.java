@@ -1,6 +1,5 @@
 package io.routify.gitops.config;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,10 +20,9 @@ import org.springframework.validation.annotation.Validated;
 public class GitOpsProperties {
 
     /** Whether the GitOps agent is enabled. */
-    private boolean enabled = true;
+    private boolean enabled;
 
     /** Git repository URL (HTTPS or SSH). */
-    @NotBlank(message = "routify.gitops.repository-url is required")
     private String repositoryUrl;
 
     /** Git branch to track. */
@@ -47,15 +45,12 @@ public class GitOpsProperties {
     private String httpsPassword = "";
 
     /** Admin API base URL. */
-    @NotBlank(message = "routify.gitops.admin-api-url is required")
     private String adminApiUrl = "http://localhost:8082";
 
     /** API key for authenticating to admin-api. */
-    @NotBlank(message = "routify.gitops.api-key is required")
     private String apiKey;
 
     /** Tenant ID scope for import operations. */
-    @NotBlank(message = "routify.gitops.tenant-id is required")
     private String tenantId;
 
     /** Dry-run mode — preview only, no apply. Fires DRIFT_DETECTED webhook. */
