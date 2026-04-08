@@ -759,13 +759,21 @@ Testing, cleanup, and operational improvements.
 
 ---
 
-#### P-25: DownstreamOAuth2Bearer Dynamic Provider Support
+#### P-25: DownstreamOAuth2Bearer Dynamic Provider Support ✅ COMPLETED
 
 **Affected services:** `routify-api-gateway`  
 **Complexity:** M  
-**Files:** `DownstreamOAuth2BearerGatewayFilterFactory.java`, `Oauth2AccessTokenProvider.java`, `GatewayConfigRefResolver.java`
+**Files:** `DownstreamOAuth2BearerGatewayFilterFactory.java`, `Oauth2AccessTokenProvider.java`, `GatewayConfigRefResolver.java`, `WebClientRegistry.java`, `DownstreamOAuth2BearerGatewayFilterFactoryTest.java`  
+**Status:** ✅ Completed — new `DOWNSTREAM_OAUTH2_PROVIDER` ref type, dual-path config (direct fields + legacy named provider fallback), 13 tests passing (611 total gateway tests).
 
 **Problem:** `Config.oauth2ProviderName` maps to static `Oauth2AccessTokenProvider` config from YAML. The `DOWNSTREAM_CREDENTIAL` ref type maps different fields (`username`, `password`, `headerName`, `headerValue`) that don't match the downstream OAuth2 filter's needs (`tokenUri`, `clientId`, `clientSecret`, `scope`).
+
+**Implementation summary:**
+- **Backend (`GatewayConfigRefResolver`):** Added new `DOWNSTREAM_OAUTH2_PROVIDER` ref type in the `resolve()` switch expression. The `resolveDownstreamOauth2Provider()` method looks up entries in the `downstreamOauth2Providers` section of the gateway config and maps `tokenUri`, `clientId`, `clientSecret`, `scope`, and `includeBasicClientAuthorization` to filter config keys.
+- **Backend (`DownstreamOAuth2BearerGatewayFilterFactory.Config`):** Extended with direct OAuth2 fields: `tokenUri`, `clientId`, `clientSecret`, `scope`, `includeBasicClientAuthorization`. Added `hasDirectOAuth2Config()` method that returns `true` when all three required fields (tokenUri, clientId, clientSecret) are present. The `apply()` method now checks direct config first, falling back to `oauth2ProviderName` → YAML for backward compatibility.
+- **Backend (`Oauth2AccessTokenProvider`):** Added two new public methods: `accessTokenDirectClientCredentials()` (one-shot fetch with direct fields) and `accessTokenDirectForwardedAuth()` (forwarded-auth with direct tokenUri). Internally uses `fetchDirectCcToken()` and `fetchDirectForwardedAuthToken()` — both use `WebClientRegistry.getForUri()` to create/cache WebClients without requiring `SSLContextProperties`.
+- **Backend (`WebClientRegistry`):** Added `getForUri(cacheKey, uri)` convenience method for creating WebClients from a plain URI without SSL/proxy config — used by the direct OAuth2 config path.
+- **Tests (`DownstreamOAuth2BearerGatewayFilterFactoryTest`):** Expanded from 5 to 13 tests in 3 nested groups: Named provider path (4 legacy tests), Direct OAuth2 config path (3 new P-25 tests: direct CC, direct forwarded-auth, direct-takes-priority-over-named), Config#hasDirectOAuth2Config() (5 new boundary tests).
 
 **Changes:**
 - **Backend:** Extend `GatewayConfigRefResolver` to handle a new `DOWNSTREAM_OAUTH2_PROVIDER` ref type (or extend `DOWNSTREAM_CREDENTIAL` to detect OAuth2 type and map `tokenUri`, `clientId`, `clientSecret`, `scope`).

@@ -43,6 +43,26 @@ public class WebClientRegistry {
     }
 
     /**
+     * Returns a cached {@link WebClient} for a direct URI, creating it on first access.
+     *
+     * <p>This variant is used when no {@link SSLContextProperties} or proxy config is
+     * available — e.g. for direct OAuth2 provider configs resolved from gateway config
+     * refs (P-25 {@code DOWNSTREAM_OAUTH2_PROVIDER}).
+     *
+     * @param cacheKey unique key (e.g. {@code "direct-cc:clientId"})
+     * @param uri      the full token endpoint URI
+     * @return a configured, cached {@link WebClient}
+     */
+    public WebClient getForUri(String cacheKey, String uri) {
+        return clients.computeIfAbsent(cacheKey, key -> {
+            String baseUrl = extractBaseUrl(uri);
+            log.info("Creating WebClient (direct URI): key='{}', baseUrl='{}'", cacheKey, baseUrl);
+            return WebClientFactory.createWebClient(
+                    null, null, new HttpClientProperties(), baseUrl);
+        });
+    }
+
+    /**
      * Evicts a cached client by its exact key, forcing recreation on the next {@link #get} call.
      *
      * @param cacheKey the key to evict

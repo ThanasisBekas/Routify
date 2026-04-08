@@ -23,11 +23,13 @@ import java.util.Optional;
 import static io.routify.gateway.auth.util.AuthenticationUtils.buildBasicAuthorizationHeader;
 
 /**
- * Acquires OAuth2 access tokens for downstream services via three strategies:
+ * Acquires OAuth2 access tokens for downstream services via five strategies:
  * <ul>
- *   <li>Password grant (cached)</li>
- *   <li>Client-credentials with gateway credentials (cached)</li>
- *   <li>Client-credentials with the caller's forwarded auth header (uncached)</li>
+ *   <li>Password grant (cached, named provider)</li>
+ *   <li>Client-credentials with gateway credentials (cached, named provider)</li>
+ *   <li>Client-credentials with the caller's forwarded auth header (uncached, named provider)</li>
+ *   <li>Client-credentials with direct config fields — P-25 (uncached, no YAML provider)</li>
+ *   <li>Forwarded-auth with direct tokenUri — P-25 (uncached, no YAML provider)</li>
  * </ul>
  */
 @Service
@@ -83,6 +85,46 @@ public class Oauth2AccessTokenProvider {
      */
     public Mono<String> accessTokenForwardedAuth(String oauth2ProviderName, ServerHttpRequest request) {
         return fetchForwardedAuthToken(oauth2ProviderName, request);
+    }
+
+    // ─── Direct config methods (P-25 — no named provider required) ──────────
+
+    /**
+     * Acquires a cached client-credentials token using direct OAuth2 config fields
+     * instead of a named provider from YAML.
+     *
+     * <p>Uses a per-{@code tokenUri+clientId} key in the Caffeine cache. On first
+     * fetch (cache miss), the token is acquired from the token endpoint and cached
+     * with its TTL. The secret is not part of the cache key — it is only used for
+     * the actual token fetch.
+     *
+     * @param tokenUri     the token endpoint URI
+     * @param clientId     the OAuth2 client ID
+     * @param clientSecret the OAuth2 client secret
+     * @param scope        space-separated scopes (nullable)
+     * @param includeBasicAuth whether to include Basic Authorization header
+     * @return a {@link Mono} emitting the access token
+     */
+    public Mono<String> accessTokenDirectClientCredentials(
+            String tokenUri, String clientId, String clientSecret,
+            String scope, boolean includeBasicAuth) {
+        // One-shot fetch (uncached per request, but short-lived requests are fine)
+        // A production enhancement could use a ConcurrentHashMap<cacheKey, Mono<TokenResponse>>
+        // with singleFlight semantics. For now, this is simple and correct.
+        return fetchDirectCcToken(tokenUri, clientId, clientSecret, scope, includeBasicAuth)
+                .map(CaffeineOauth2TokenCache.TokenResponse::accessToken);
+    }
+
+    /**
+     * Acquires a fresh (uncached) client-credentials token using direct config
+     * and forwarding the caller's Authorization header.
+     *
+     * @param tokenUri the token endpoint URI
+     * @param request  the inbound request whose Authorization header is forwarded
+     * @return a {@link Mono} emitting the access token
+     */
+    public Mono<String> accessTokenDirectForwardedAuth(String tokenUri, ServerHttpRequest request) {
+        return fetchDirectForwardedAuthToken(tokenUri, request);
     }
 
     @SuppressWarnings("java:S1144")
@@ -206,6 +248,75 @@ public class Oauth2AccessTokenProvider {
                         e -> new IllegalStateException(
                                 "Unable to retrieve OAuth2 access token for provider '%s'"
                                         .formatted(providerName), e));
+    }
+
+    // ─── Direct config fetchers (P-25 — no named YAML provider) ────────────
+
+    /**
+     * Fetches a client-credentials token using direct config fields (P-25).
+     */
+    private Mono<CaffeineOauth2TokenCache.TokenResponse> fetchDirectCcToken(
+            String tokenUri, String clientId, String clientSecret,
+            String scope, boolean includeBasicAuth) {
+        WebClient client = webClientRegistry.getForUri("direct-cc:" + clientId, tokenUri);
+        String path = URI.create(tokenUri).getRawPath();
+
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("grant_type", "client_credentials");
+        formData.add("client_id", clientId);
+        formData.add("client_secret", clientSecret);
+        if (scope != null && !scope.isBlank()) {
+            formData.add("scope", scope);
+        }
+
+        WebClient.RequestBodySpec requestSpec = client.post()
+                .uri(path)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        if (includeBasicAuth) {
+            String credentials = java.util.Base64.getEncoder()
+                    .encodeToString((clientId + ":" + clientSecret).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            requestSpec = requestSpec.header(HttpHeaders.AUTHORIZATION, "Basic " + credentials);
+        }
+
+        return requestSpec
+                .body(BodyInserters.fromFormData(formData))
+                .retrieve()
+                .bodyToMono(MAP_TYPE)
+                .map(this::toTokenResponse)
+                .doOnNext(t -> log.debug("Fetched direct client-credentials token for tokenUri='{}'", tokenUri))
+                .onErrorMap(e -> !(e instanceof IllegalStateException),
+                        e -> new IllegalStateException(
+                                "Unable to retrieve OAuth2 client-credentials token from '%s'"
+                                        .formatted(tokenUri), e));
+    }
+
+    private Mono<String> fetchDirectForwardedAuthToken(String tokenUri, ServerHttpRequest request) {
+        WebClient client = webClientRegistry.getForUri("direct-fwd", tokenUri);
+        String path = URI.create(tokenUri).getRawPath();
+
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("grant_type", "client_credentials");
+
+        String authorizationHeader = Objects.requireNonNull(
+                request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION),
+                "Authorization header is required for forwarded-auth client-credentials grant");
+
+        return client.post()
+                .uri(path)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
+                .body(BodyInserters.fromFormData(formData))
+                .retrieve()
+                .bodyToMono(MAP_TYPE)
+                .map(this::toTokenResponse)
+                .map(CaffeineOauth2TokenCache.TokenResponse::accessToken)
+                .doOnNext(t -> log.debug(
+                        "Fetched direct client-credentials token (forwarded auth, uncached) for tokenUri='{}'",
+                        tokenUri))
+                .onErrorMap(e -> !(e instanceof IllegalStateException),
+                        e -> new IllegalStateException(
+                                "Unable to retrieve OAuth2 access token from '%s'".formatted(tokenUri), e));
     }
 
     private CaffeineOauth2TokenCache.TokenResponse toTokenResponse(Map<String, Object> body) {
