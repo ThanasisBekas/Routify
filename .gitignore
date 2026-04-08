@@ -39,6 +39,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Application log files (development file appenders)
+logs/
+
 # ========================
 # Frontend (Vite / React)
 # ========================

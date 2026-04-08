@@ -2,7 +2,7 @@
 <configuration>
 
   <property name="LOG_DIR" value="logs"/>
-  <property name="SERVICE" value="identity-service"/>
+  <property name="SERVICE" value="ai-service"/>
 
   <springProfile name="!prod">
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
