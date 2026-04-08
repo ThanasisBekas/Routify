@@ -10,11 +10,12 @@ import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { X, AlertCircle, Filter, ChevronDown } from 'lucide-react'
 import { filtersApi } from '../../api/filtersApi'
-import type { FilterType, CreateFilterRequest, UpdateFilterRequest } from '../../types'
+import type { FilterType, CreateFilterRequest, UpdateFilterRequest, GatewayConfigRefDto } from '../../types'
 import FilterConfigFields from './FilterConfigFields'
 import { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './filterConfigConstants'
 import { cn, extractApiError } from '../../lib/utils'
 import { FILTER_REGISTRY, CATEGORY_ORDER, CATEGORY_COLORS } from './filterRegistry'
+import { GatewayConfigRefPanel, supportsConfigRef } from './GatewayConfigRefPanel'
 
 // ─── Re-shape registry for the picker ────────────────────────────────────────
 
@@ -242,6 +243,7 @@ export default function FilterDefinitionForm({
   const [config, setConfig] = useState<FilterConfig>(
     DEFAULT_CONFIGS[(presetFilterType as FilterType) ?? 'AUTH_JWT'] ?? {},
   )
+  const [gatewayConfigRef, setGatewayConfigRef] = useState<GatewayConfigRefDto | null>(null)
 
   // Populate from existing when editing — adjust state during render
   // (React-endorsed pattern for syncing state from props/derived data).
@@ -252,12 +254,14 @@ export default function FilterDefinitionForm({
     setDescription(existing.description ?? '')
     setFilterType(existing.filterType)
     setConfig(existing.config ?? {})
+    setGatewayConfigRef(existing.gatewayConfigRef ?? null)
   }
 
   // Reset config to defaults when type changes (create mode)
   const handleTypeChange = (t: FilterType) => {
     setFilterType(t)
     setConfig(DEFAULT_CONFIGS[t] ?? {})
+    setGatewayConfigRef(null)
   }
 
   const createMutation = useMutation({
@@ -276,11 +280,16 @@ export default function FilterDefinitionForm({
     e.preventDefault()
     if (!name.trim()) return
 
+    // Only include gatewayConfigRef when it has a valid refType + refId
+    const validRef =
+      gatewayConfigRef && gatewayConfigRef.refType && gatewayConfigRef.refId ? gatewayConfigRef : undefined
+
     if (isEdit) {
       updateMutation.mutate({
         name: name.trim(),
         description: description.trim() || undefined,
         config,
+        gatewayConfigRef: validRef ?? null,
       })
     } else {
       createMutation.mutate({
@@ -288,6 +297,7 @@ export default function FilterDefinitionForm({
         description: description.trim() || undefined,
         filterType,
         config,
+        gatewayConfigRef: validRef,
       })
     }
   }
@@ -411,6 +421,15 @@ export default function FilterDefinitionForm({
                       {isEdit ? filterType.replace(/_/g, ' ') : (selectedMeta?.label ?? filterType)} Configuration
                     </span>
                   </div>
+
+                  {/* Gateway Config Ref panel (P-27) — shown for filter types that support refs */}
+                  {supportsConfigRef(filterType) && (
+                    <GatewayConfigRefPanel
+                      filterType={filterType}
+                      value={gatewayConfigRef}
+                      onChange={setGatewayConfigRef}
+                    />
+                  )}
 
                   {/* Type-specific fields */}
                   <FilterConfigFields filterType={filterType} config={config} onChange={setConfig} />
