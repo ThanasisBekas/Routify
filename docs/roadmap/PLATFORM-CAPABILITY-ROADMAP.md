@@ -215,7 +215,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | ~~1~~ | ~~Filters~~ | ~~No **cert vault picker** for `AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK` — `logicalId` is a free-text input~~ **Resolved in P-06:** `CertLogicalIdPicker` dropdown populated from `GET /certificates/logical-ids`. | ~~Operator must manually type the exact logical ID~~ ✅ |
 | 2 | Filters | No **OAuth2 auth provider picker** for `AUTH_OAUTH2` — `providerName` is free-text | Operators don't know which providers are configured |
 | ~~3~~ | ~~Filters~~ | ~~No **downstream credential picker** for `DOWNSTREAM_BASIC_AUTH`, `DOWNSTREAM_BEARER_CC`~~ **Resolved in P-08:** `DownstreamCredentialPicker` dropdown populated from `GET /downstream-credentials`. | ~~Must manually type credential names~~ ✅ |
-| 4 | Filters | No **rate limit policy picker** for `RATE_LIMIT_FIXED_WINDOW`, `RATE_LIMIT_SLIDING_WINDOW` | Must manually configure values instead of selecting a policy |
+| ~~4~~ | ~~Filters~~ | ~~No **rate limit policy picker** for `RATE_LIMIT_FIXED_WINDOW`, `RATE_LIMIT_SLIDING_WINDOW`~~ **Resolved in P-09:** `RateLimitPolicyPicker` dropdown populated from `GET /rate-limit-policies` with read-only summary + override toggle. | ~~Must manually configure values instead of selecting a policy~~ ✅ |
 | 5 | Workspaces | No **create workspace** action — `WorkspacesPage.tsx` shows usage only | Cannot create tenants from the dashboard |
 | 6 | Workspaces | No **plan upgrade/change** flow | Plan changes require direct API/DB access |
 | 7 | Settings | `SettingsPage.tsx` is a single file — may be a stub | Settings module may be incomplete |
@@ -398,17 +398,19 @@ Bridge the gap between statically-configured auth providers and the dynamic gate
 
 ---
 
-#### P-09: Rate Limit Policy Picker for Filter Forms
+#### P-09: Rate Limit Policy Picker for Filter Forms ✅ COMPLETED
 
 **Affected services:** `routify-dashboard`  
 **Complexity:** S  
-**Files:** `FilterConfigFields.tsx`, `gatewayApi.ts`
+**Files:** `FilterConfigFields.tsx`, `RateLimitPolicyPicker.tsx`, `src/mocks/db.ts`  
+**Status:** ✅ Completed — rate limit policy picker with read-only summary + override toggle on both filter types.
 
 **Problem:** `RATE_LIMIT_FIXED_WINDOW` and `RATE_LIMIT_SLIDING_WINDOW` filter forms require manual entry of `maxRequests`, `windowMs`, `keyResolver`. The gateway config's Rate Limiting tab stores reusable policies (`rateLimitPolicies`) that could be referenced via `gatewayConfigRef`.
 
-**Changes:**
-- **Frontend:** Create a `RateLimitPolicyPicker` that fetches `rateLimitPolicies` from the gateway config and renders a dropdown. When selected, set `gatewayConfigRef.refType = 'RATE_LIMIT_POLICY'` and `refId` to the policy ID. Show the policy's values as read-only fields with an "override" toggle.
-- **Frontend:** Add the picker to both rate limit filter forms alongside the manual entry fields.
+**Implementation summary:**
+- **Frontend (`RateLimitPolicyPicker.tsx`):** Created reusable picker component that fetches `rateLimitPolicies` via the existing `gatewayApi.getRateLimitPolicies()` endpoint. Supports `algorithmFilter` prop for narrowing to compatible policy types (FIXED_WINDOW, SLIDING_WINDOW, TOKEN_BUCKET). Shows policy description with algorithm, rate, window, and key resolver in the dropdown. Follows the `AuthProviderPicker` pattern (P-07) with searchable dropdown, validation indicator, and "not found" fallback.
+- **Frontend (`FilterConfigFields.tsx`):** Both `RATE_LIMIT_FIXED_WINDOW` and `RATE_LIMIT_SLIDING_WINDOW` filter forms now include the `RateLimitPolicyPicker` at the top. When a policy is selected: auto-populates `maxRequests`, `windowMs`, `keyResolver` from the policy; shows a read-only summary card with all three values; provides an "Override Policy Values" toggle. When override is enabled, editable fields reappear with an amber warning and "Revert to policy values" link. Manual entry fields shown when no policy is selected. The `includeHeaders` toggle is always visible regardless of policy selection.
+- **Frontend (mocks):** Added 2 additional mock rate-limit policies: `SLIDING_WINDOW` (500 req/5min, USER key) and a disabled `FIXED_WINDOW` policy, for a total of 4 mock policies covering all algorithm types.
 
 ---
 
@@ -759,7 +761,7 @@ Phase 2 (P1 — Config Integration)
   P-06 Cert Vault Picker ─────────────────────────── ✅ COMPLETED
   P-07 Auth Provider Picker ──────────────────────── ✅ COMPLETED
   P-08 Downstream Credential Picker ──────────────── ✅ COMPLETED
-  P-09 Rate Limit Policy Picker ──────────────────── standalone
+  P-09 Rate Limit Policy Picker ──────────────────── ✅ COMPLETED
 
 Phase 3 (P2 — Completeness)
   P-10 Unified Error Response Builder ─────────────── standalone (enables gf-03, gf-09, gf-11)
