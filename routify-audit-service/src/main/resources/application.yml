@@ -54,6 +54,15 @@ spring:
     password: ${RABBITMQ_PASS:}
     virtual-host: /
 
+  # ─── Redis — alert metric resolution (cert expiry, rate-limit counters) ────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      # No default — must be supplied via REDIS_PASS environment variable.
+      password: ${REDIS_PASS:}
+
 server:
   port: 8084
   shutdown: graceful
@@ -118,6 +127,7 @@ routify:
   required-secrets: >-
     spring.datasource.password,
     spring.rabbitmq.password,
+    spring.data.redis.password,
     routify.field-encryption-key
 
 
