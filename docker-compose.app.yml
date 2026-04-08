@@ -107,6 +107,8 @@ services:
       KAFKA_BOOTSTRAP: kafka:29092
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PASS: ${RABBITMQ_PASS}
+      REDIS_HOST: redis
+      REDIS_PASS: ${REDIS_PASS}
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       ROUTIFY_REPLAY_GATEWAY_BASE_URL: http://api-gateway:8080
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
@@ -116,6 +118,8 @@ services:
       kafka:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9084/actuator/health || exit 1"]
