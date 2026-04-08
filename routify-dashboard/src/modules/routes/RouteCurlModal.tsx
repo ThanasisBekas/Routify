@@ -70,10 +70,10 @@ function buildAuthHint(filterType: string, values: AuthValues): AuthHint {
     case 'AUTH_API_KEY':
       return {
         label: 'API Key',
-        note: 'Send your API key in the X-API-Key header (or configure a custom header).',
+        note: 'Send your API key in the X-API-Key header (or configure a custom header). Create and manage keys on the API Keys page (/api-keys).',
         curlFlags: [],
         headers: [{ key: 'X-API-Key', value: values['apiKey'] ?? '<your-api-key>' }],
-        fields: [{ key: 'apiKey', label: 'API Key', placeholder: 'sk-...', secret: true }],
+        fields: [{ key: 'apiKey', label: 'API Key', placeholder: 'rtfy_...', secret: true }],
       }
     case 'AUTH_OAUTH2':
       return {

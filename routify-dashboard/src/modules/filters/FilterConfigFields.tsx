@@ -4,6 +4,8 @@
  */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import { Key, ExternalLink } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import type { FilterType } from '../../types'
 import type { AiModificationTestRequest, AiModificationTestResult } from '../../types'
@@ -13,9 +15,76 @@ import type { FilterConfig } from './filterConfigConstants'
 import { aiApi } from '../../api/aiApi'
 import { gatewayApi } from '../../api/gatewayApi'
 import { certVaultApi } from '../../api/certVaultApi'
+import { apiKeysApi } from '../../api/apiKeysApi'
 import { AuthProviderPicker } from './AuthProviderPicker'
 import { DownstreamCredentialPicker } from './DownstreamCredentialPicker'
 import { RateLimitPolicyPicker } from './RateLimitPolicyPicker'
+
+/**
+ * ApiKeyStatusBanner — inline status banner for the AUTH_API_KEY filter config panel.
+ * Fetches API key count and displays a contextual message with a link to the API Keys page.
+ */
+function ApiKeyStatusBanner() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['api-keys', 0],
+    queryFn: () => apiKeysApi.list({ page: 0, size: 100 }),
+    staleTime: 30_000,
+  })
+
+  const activeCount = data?.content.filter((k) => k.status === 'ACTIVE').length ?? 0
+  const totalCount = data?.totalElements ?? 0
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-gray-600 bg-white/[0.02] border border-white/[0.06] rounded-lg px-3 py-2">
+        <div className="w-3 h-3 border border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+        Checking API keys…
+      </div>
+    )
+  }
+
+  if (totalCount === 0) {
+    return (
+      <div className="text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2.5">
+        <div className="flex items-start gap-2">
+          <Key className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-amber-400 font-medium">No API keys found</p>
+            <p className="text-amber-500/70 mt-0.5">
+              This filter validates API keys at the gateway, but no keys have been created yet.
+              Create keys on the{' '}
+              <Link to="/api-keys" className="text-amber-300 underline underline-offset-2 hover:text-amber-200 inline-flex items-center gap-0.5">
+                API Keys page <ExternalLink className="w-2.5 h-2.5" />
+              </Link>{' '}
+              so callers can authenticate.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="text-xs bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2.5">
+      <div className="flex items-start gap-2">
+        <Key className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-indigo-300">
+            <span className="font-medium">{activeCount} active</span>
+            {activeCount !== totalCount && <span className="text-indigo-400/60"> of {totalCount} total</span>}
+            {activeCount === 1 ? ' API key' : ' API keys'} available for authentication.
+          </p>
+          <p className="text-indigo-400/60 mt-0.5">
+            Manage keys on the{' '}
+            <Link to="/api-keys" className="text-indigo-300 underline underline-offset-2 hover:text-indigo-200 inline-flex items-center gap-0.5">
+              API Keys page <ExternalLink className="w-2.5 h-2.5" />
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function Field({
   label,
@@ -210,6 +279,19 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
     case 'AUTH_API_KEY':
       return (
         <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2">
+            Validates the caller's API key (from the{' '}
+            <code className="font-mono text-indigo-300">{str('headerName', 'X-API-Key')}</code> header or query
+            parameter) against keys imported via the{' '}
+            <Link to="/api-keys" className="text-indigo-300 underline underline-offset-2 hover:text-indigo-200">
+              API Keys page
+            </Link>
+            . On success injects <code className="font-mono text-indigo-300">X-Auth-User-Id</code>,{' '}
+            <code className="font-mono text-indigo-300">X-Auth-Tenant-Id</code>,{' '}
+            <code className="font-mono text-indigo-300">X-Auth-Role</code>, and{' '}
+            <code className="font-mono text-indigo-300">X-Auth-Type: API_KEY</code> downstream.
+          </p>
+          <ApiKeyStatusBanner />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Header Name" hint="Request header that carries the API key">
               <input
