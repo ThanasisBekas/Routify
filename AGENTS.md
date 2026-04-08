@@ -206,6 +206,8 @@ Chart structure: `deploy/helm/routify/` — umbrella chart with sub-charts per s
 - `AdminApiIntegrationBase` (admin-api) — MockMvc, unsigned JWT generation (`generateTestJwt()`), mock RabbitMQ reply listeners (`mockRabbitReply()`), and Kafka test consumer (`drainTopic()`).
 - `RouteServiceIntegrationBase` (route-service) — Testcontainers for Postgres/Kafka/RabbitMQ, outbox poller, and `ProcessedCommandRepository` cleanup.
 - `IdentityServiceIntegrationBase` (identity-service) — Testcontainers for Postgres/Kafka/RabbitMQ/Redis, JWT service, and auth/user repositories.
+- `AuditServiceIntegrationBase` (audit-service) — Testcontainers for Postgres/Kafka/RabbitMQ/Redis, audit/DLQ/alert repositories, and test cleanup.
+- `CertVaultIntegrationBase` (cert-vault) — Testcontainers for Postgres/Kafka/RabbitMQ, encryption service, outbox poller, and cert/group repositories.
 
 > **ITs disabled by default:** `<skipITs>true</skipITs>` is set globally in the parent POM due to a Docker Engine 29.x / Testcontainers incompatibility. Re-enable with `mvn verify -DskipITs=false`. The `docker-java` client is overridden to **3.7.1** for API version negotiation with Docker Engine 29.x. Testcontainers version is managed by Boot 4.0.5 (TC 2.0.4). TC 2.x renamed artifacts with `testcontainers-` prefix (e.g. `testcontainers-junit-jupiter`, `testcontainers-kafka`).
 

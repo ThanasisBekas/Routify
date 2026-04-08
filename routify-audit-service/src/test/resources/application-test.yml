@@ -1,0 +1,40 @@
+# ─── Test profile overrides for routify-audit-service integration tests ───────
+# Testcontainers dynamically injects datasource, Kafka, and RabbitMQ properties
+# via @DynamicPropertySource. This file handles everything else.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Flyway runs first — same as production
+
+  flyway:
+    enabled: true
+    clean-disabled: false
+
+
+# ─── Bypass SecretValidator startup check — no real secrets in test env ─────────
+routify:
+  required-secrets:
+  jwt:
+    public-key:
+  alerts:
+    evaluation-interval-ms: 999999999   # Disable scheduled alert evaluation in tests
+
+# ─── Actuator ──────────────────────────────────────────────────────────────────
+management:
+  server:
+    port: 0   # Random port
+  tracing:
+    enabled: false
+
+server:
+  port: 0   # Random port
+
+# ─── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    io.routify: DEBUG
+    org.testcontainers: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+
