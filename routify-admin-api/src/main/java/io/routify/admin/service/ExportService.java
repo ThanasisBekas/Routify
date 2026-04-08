@@ -9,7 +9,6 @@ import io.routify.common.dto.export.GatewayExportV1.FilterExportEntry;
 import io.routify.common.dto.export.GatewayExportV1.RouteExportEntry;
 import io.routify.common.dto.export.GatewayExportV1.RouteFilterRefExport;
 import io.routify.common.event.QueryResponse;
-import io.routify.common.web.Sensitive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -120,7 +119,7 @@ public class ExportService {
         // Fetch full detail to get the config map
         QueryResponse.FilterDetail detail = routeFilterClient.getFilter(summary.id(), tenantId);
         Map<String, Object> config = detail != null && detail.config() != null
-                ? maskSensitiveConfig(new LinkedHashMap<>(detail.config()))
+                ? detail.config()
                 : Map.of();
         return new FilterExportEntry(
                 summary.name(),
@@ -186,25 +185,6 @@ public class ExportService {
             log.warn("Failed to fetch gateway config for export: {}", e.getMessage());
             return Map.of();
         }
-    }
-
-    /**
-     * Mask values of known sensitive keys in filter config maps.
-     * This covers common patterns like password, secret, privateKey, apiKey, etc.
-     */
-    private Map<String, Object> maskSensitiveConfig(Map<String, Object> config) {
-        Set<String> sensitiveKeyPatterns = Set.of(
-                "secret", "password", "privatekey", "apikey", "token",
-                "clientsecret", "publickey", "key", "credential"
-        );
-        Map<String, Object> masked = new LinkedHashMap<>(config);
-        for (Map.Entry<String, Object> entry : masked.entrySet()) {
-            String keyLower = entry.getKey().toLowerCase().replaceAll("[_\\-.]", "");
-            if (sensitiveKeyPatterns.contains(keyLower) && entry.getValue() instanceof String s && !s.isBlank()) {
-                masked.put(entry.getKey(), Sensitive.MASK);
-            }
-        }
-        return masked;
     }
 }
 

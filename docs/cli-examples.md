@@ -192,7 +192,6 @@ echo "=== Import submitted ==="
 ## Notes
 
 - **Idempotency**: Importing the same file twice is safe — duplicate commands are deduplicated by the route-service.
-- **Sensitive fields**: Values like passwords, secrets, and API keys are masked as `[REDACTED]` in exports. Importing masked values does not overwrite stored secrets.
 - **Import is additive**: Resources in the database but not in the import file are NOT deleted.
 - **Gateway config**: If the export includes a `gatewayConfig` section, it will be applied on import.
 - **Permissions**: Export requires `ROUTES_READ`; Import requires `ROUTES_WRITE`. Both require `SUPER_ADMIN` or `TENANT_ADMIN` role.
