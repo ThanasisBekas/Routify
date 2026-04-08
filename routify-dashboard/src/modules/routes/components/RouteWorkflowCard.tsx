@@ -13,6 +13,7 @@ import {
   Copy,
   Network,
   ArrowUpRight,
+  GitBranch,
 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary } from '../../../types'
@@ -33,8 +34,10 @@ interface Props {
   onDeactivate: () => void
   onDelete: () => void
   onPromote?: () => void
+  onCreateStagingRevision?: () => void
   isActivating: boolean
   isCloning: boolean
+  isCreatingStagingRevision: boolean
 }
 
 export default function RouteWorkflowCard({
@@ -48,8 +51,10 @@ export default function RouteWorkflowCard({
   onDeactivate,
   onDelete,
   onPromote,
+  onCreateStagingRevision,
   isActivating,
   isCloning,
+  isCreatingStagingRevision,
 }: Props) {
   const sc = STATUS_CONFIG[route.status]
   const methods = route.methods
@@ -256,6 +261,22 @@ export default function RouteWorkflowCard({
             >
               <ArrowUpRight className="w-3 h-3" />
               Promote
+            </button>
+          )}
+
+          {route.environment === 'PRODUCTION' && route.status === 'ACTIVE' && onCreateStagingRevision && (
+            <button
+              onClick={onCreateStagingRevision}
+              disabled={isCreatingStagingRevision}
+              title="Create a staging copy to safely edit this production route"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/20 border border-cyan-400/20 transition-all disabled:opacity-50"
+            >
+              {isCreatingStagingRevision ? (
+                <RefreshCw className="w-3 h-3 animate-spin" />
+              ) : (
+                <GitBranch className="w-3 h-3" />
+              )}
+              New Staging
             </button>
           )}
 

@@ -42,6 +42,9 @@ export const routesApi = {
 
   promote: (id: string) => apiClient.post<AsyncAcknowledgement>(`${BASE}/${id}/promote`).then((r) => r.data),
 
+  createStagingRevision: (id: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${id}/staging-revision`).then((r) => r.data),
+
   attachFilter: (routeId: string, req: AttachFilterRequest) =>
     apiClient.post<RouteDto>(`${BASE}/${routeId}/filters`, req).then((r) => r.data),
 

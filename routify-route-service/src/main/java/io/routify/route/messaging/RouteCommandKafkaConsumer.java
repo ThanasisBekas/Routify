@@ -128,6 +128,8 @@ public class RouteCommandKafkaConsumer {
             case CommandEvent.DeactivateRoute c -> routeService.deactivate(c.id(), c.tenantId());
             case CommandEvent.DeleteRoute     c -> routeService.delete(c.id(), c.tenantId());
             case CommandEvent.PromoteRoute    c -> routeService.promoteRoute(c.routeId(), c.tenantId(), c.requestedBy());
+            case CommandEvent.CreateStagingRevision c -> routeService.createStagingRevision(
+                    c.routeId(), c.tenantId(), c.requestedBy());
             case CommandEvent.AttachFilter    c -> routeService.attachFilter(
                     c.routeId(), c.filterId(), c.order(),
                     c.phase() != null ? c.phase() : "PRE", c.tenantId());

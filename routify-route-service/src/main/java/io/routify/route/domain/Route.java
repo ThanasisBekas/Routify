@@ -27,11 +27,9 @@ import java.util.*;
 @Entity
 @Table(
     name = "route",
-    schema = "routify",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uq_route_name_tenant_env",
-        columnNames = {"name", "tenant_id", "environment"}
-    )
+    schema = "routify"
+    // Uniqueness is enforced by a partial unique index (V9 migration) that excludes ARCHIVED rows,
+    // allowing re-creation of STAGING routes after promotion archives the previous one.
 )
 public class Route {
 
@@ -234,6 +232,15 @@ public class Route {
 
     /** Returns true if this route is currently serving traffic */
     public boolean isActive() { return status == RouteStatus.ACTIVE; }
+
+    /**
+     * Increments the route version without changing status.
+     * Used when an already-ACTIVE production route is updated via promotion
+     * so the gateway detects the change and hot-reloads.
+     */
+    public void incrementVersion() {
+        this.version = this.version + 1;
+    }
 
     // ─── Getters ──────────────────────────────────────────────────────────────
 

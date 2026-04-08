@@ -59,7 +59,7 @@ export default function RouteWorkflowPage() {
     enabled: !!curlRouteId,
   })
 
-  const { activateMutation, deactivateMutation, deleteMutation, cloneMutation } = useRouteActions()
+  const { activateMutation, deactivateMutation, deleteMutation, cloneMutation, createStagingRevisionMutation } = useRouteActions()
 
   // ─── Export / Import ─────────────────────────────────────────────────────
   const exportMutation = useMutation({
@@ -158,8 +158,14 @@ export default function RouteWorkflowPage() {
                     ? () => setPromoteRoute({ id: route.id, name: route.name })
                     : undefined
                 }
+                onCreateStagingRevision={
+                  route.environment === 'PRODUCTION' && route.status === 'ACTIVE'
+                    ? () => createStagingRevisionMutation.mutate(route.id)
+                    : undefined
+                }
                 isActivating={activateMutation.isPending && activateMutation.variables === route.id}
                 isCloning={cloneMutation.isPending && cloneMutation.variables === route.id}
+                isCreatingStagingRevision={createStagingRevisionMutation.isPending && createStagingRevisionMutation.variables === route.id}
               />
             ))}
           </div>
