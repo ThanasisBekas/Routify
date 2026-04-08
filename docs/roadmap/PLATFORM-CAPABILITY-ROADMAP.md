@@ -172,7 +172,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | API Keys | Full | ✅ | — |
 | Webhooks | Full | ✅ | — |
 | Users | Full | ✅ | — |
-| Workspaces | Read + usage | ⚠️ | Missing create workspace flow, plan management |
+| Workspaces | Full | ✅ | Create, edit (name/plan/email), suspend/reactivate, usage analytics |
 | Roles | Full | ✅ | — |
 | Audit | Read + replay | ✅ | — |
 | AI | Full | ✅ | Playground, versions, comparison |
@@ -216,8 +216,8 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | 2 | Filters | No **OAuth2 auth provider picker** for `AUTH_OAUTH2` — `providerName` is free-text | Operators don't know which providers are configured |
 | ~~3~~ | ~~Filters~~ | ~~No **downstream credential picker** for `DOWNSTREAM_BASIC_AUTH`, `DOWNSTREAM_BEARER_CC`~~ **Resolved in P-08:** `DownstreamCredentialPicker` dropdown populated from `GET /downstream-credentials`. | ~~Must manually type credential names~~ ✅ |
 | ~~4~~ | ~~Filters~~ | ~~No **rate limit policy picker** for `RATE_LIMIT_FIXED_WINDOW`, `RATE_LIMIT_SLIDING_WINDOW`~~ **Resolved in P-09:** `RateLimitPolicyPicker` dropdown populated from `GET /rate-limit-policies` with read-only summary + override toggle. | ~~Must manually configure values instead of selecting a policy~~ ✅ |
-| 5 | Workspaces | No **create workspace** action — `WorkspacesPage.tsx` shows usage only | Cannot create tenants from the dashboard |
-| 6 | Workspaces | No **plan upgrade/change** flow | Plan changes require direct API/DB access |
+| ~~5~~ | ~~Workspaces~~ | ~~No **create workspace** action — `WorkspacesPage.tsx` shows usage only~~ **Resolved in P-12:** `CreateWorkspaceModal` with name, slug (auto-generated), plan picker, contact email. "New Workspace" button in header. | ~~Cannot create tenants from the dashboard~~ ✅ |
+| ~~6~~ | ~~Workspaces~~ | ~~No **plan upgrade/change** flow~~ **Resolved in P-12:** `EditWorkspaceModal` with plan grid picker (FREE/STARTER/PRO/ENTERPRISE), name, and contact email. Edit button on each workspace row. | ~~Plan changes require direct API/DB access~~ ✅ |
 | 7 | Settings | `SettingsPage.tsx` is a single file — may be a stub | Settings module may be incomplete |
 
 ### 3d. Testing Gaps
@@ -420,12 +420,13 @@ Missing features and UX improvements that round out the platform.
 
 ---
 
-#### P-10: Unified Gateway Filter Error Response Builder ✅ Completed
+#### P-10: Unified Gateway Filter Error Response Builder ✅ COMPLETED
 
 **Overlaps with:** [gf-02 (Gateway Filters Roadmap)](./GATEWAY-FILTERS-ROADMAP.md#2-unified-error-response-builder)  
 **Affected services:** `routify-api-gateway`  
 **Complexity:** M  
-**Files:** All 12 filter factories that produce error responses
+**Files:** `GatewayProblemResponse.java`, `CertRotationGatewayFilterFactory.java`, `RequestTimeoutGatewayFilterFactory.java`, `CertVaultExpiryCheckGatewayFilterFactory.java`, `CircuitBreakerV2GatewayFilterFactory.java`, `DownstreamOAuth2BearerGatewayFilterFactory.java`, `DownstreamBasicAuthGatewayFilterFactory.java`, `UserIdPayloadRoutingGatewayFilterFactory.java`  
+**Status:** ✅ Completed — shared `GatewayProblemResponse` builder already existed; migrated 7 remaining filter factories from manual JSON / `ResponseStatusException` to the shared builder.
 
 **Problem:** Each filter that short-circuits writes its own RFC 9457 response using `String.formatted()`. Inconsistencies:
 - Some use `application/problem+json`, others use `application/json`
@@ -433,43 +434,56 @@ Missing features and UX improvements that round out the platform.
 - Some include `errorCode`, others don't
 - Rate limit rejections lack `Retry-After` header
 
-**Changes:**
-- **Backend:** Create `GatewayProblemResponse` utility with a reactive builder API. Use Jackson `ObjectMapper` for safe JSON serialization. Standardize `Content-Type: application/problem+json` on all error responses. Add `Retry-After` header on all 429 responses.
-- **Backend:** Migrate all 12 filter factories to use the shared builder (one at a time, non-breaking).
+**Implementation summary:**
+- **`GatewayProblemResponse`** (already existed): Shared RFC 9457 builder at `io.routify.gateway.filter.shared.GatewayProblemResponse` with Jackson `ObjectMapper` for safe JSON serialization. Builder API: `status(HttpStatus)` → `errorCode(String)` → `detail(String)` → `header(name, value)` → `extension(key, value)` → `write(exchange)` → `Mono<Void>`. Always sets `Content-Type: application/problem+json`.
+- **Migrated 7 filter factories** from old patterns (manual `String.formatted()` JSON or `ResponseStatusException`) to `GatewayProblemResponse`:
+  1. `CertRotationGatewayFilterFactory` — replaced manual JSON `unauthorized()` with builder
+  2. `RequestTimeoutGatewayFilterFactory` — replaced manual JSON `gatewayTimeout()` with builder, added `GATEWAY_TIMEOUT` errorCode
+  3. `CertVaultExpiryCheckGatewayFilterFactory` — replaced manual JSON `serviceUnavailable()` with builder
+  4. `CircuitBreakerV2GatewayFilterFactory` — replaced default fallback with builder, preserved custom `fallbackBody` backward-compatible path
+  5. `DownstreamOAuth2BearerGatewayFilterFactory` — replaced `ResponseStatusException` with builder, added `MISSING_OAUTH2_PROVIDER` errorCode
+  6. `DownstreamBasicAuthGatewayFilterFactory` — replaced `ResponseStatusException` with builder, added `DOWNSTREAM_AUTH_MISCONFIGURED` errorCode
+  7. `UserIdPayloadRoutingGatewayFilterFactory` — replaced 2 `ResponseStatusException` calls with builder, added `ROUTING_MISCONFIGURED` errorCode
+- **14 filter factories** already used `GatewayProblemResponse` — no changes needed.
 - **Frontend:** None.
 
 ---
 
-#### P-11: Rate Limiter X-RateLimit-* Response Headers
+#### P-11: Rate Limiter X-RateLimit-* Response Headers ✅ COMPLETED
 
 **Overlaps with:** [gf-03 (Gateway Filters Roadmap)](./GATEWAY-FILTERS-ROADMAP.md#3-rate-limiter-x-ratelimit--response-headers)  
 **Affected services:** `routify-api-gateway`  
 **Complexity:** S  
-**Files:** `FixedWindowRateLimitGatewayFilterFactory.java`, `SlidingWindowRateLimitGatewayFilterFactory.java`
+**Files:** `FixedWindowRateLimitGatewayFilterFactory.java`, `SlidingWindowRateLimitGatewayFilterFactory.java`  
+**Status:** ✅ Completed — all 4 changes implemented, 26 dedicated tests passing (14 fixed-window + 12 sliding-window).
 
 **Problem:** Neither rate limiter emits standard `X-RateLimit-*` headers. API consumers can't proactively slow down before hitting limits.
 
-**Changes:**
-- **Backend:** On every response (allow and reject), inject `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`.
-- **Backend:** Modify Lua scripts to return `{count, ttl}` tuple.
-- **Backend:** Add `includeHeaders` config flag (default `true`).
-- **Backend:** Add `Retry-After` on 429 responses.
-- **Frontend:** None.
+**Implementation summary:**
+- **Lua scripts return `{count, ttl}` tuples:** Fixed-window Lua returns `{current_count, remaining_ttl_seconds}`. Sliding-window Lua returns `{allowed (1/0), current_count, remaining_ttl_seconds}`. Both scripts compute TTL via `PTTL` and convert to ceiling seconds.
+- **X-RateLimit-* headers on every response:** Both factories inject `X-RateLimit-Limit` (max requests), `X-RateLimit-Remaining` (max(0, limit − count)), and `X-RateLimit-Reset` (epoch-second timestamp = now + ttlSeconds) on both allowed and rejected responses via `injectRateLimitHeaders()`.
+- **`includeHeaders` config flag (default `true`):** When `false`, suppresses `X-RateLimit-*` headers on both allow and reject paths. `Retry-After` on 429 responses is always included regardless of this flag (per RFC 6585).
+- **`Retry-After` on 429 responses:** Both factories include `Retry-After` header (in seconds) on every 429 rejection via `GatewayProblemResponse.header("Retry-After", retryAfterSeconds)`. Uses `Math.max(1, ttlSeconds)` to guarantee a minimum 1-second value.
+- **Tests:** `FixedWindowRateLimitGatewayFilterFactoryTest.java` (14 tests): allow within limit, allow at exact limit, reject above limit, default config, X-RateLimit-Limit/Remaining/Reset on allow, Retry-After on 429, X-RateLimit-* on 429, no Retry-After on allow, includeHeaders=false suppresses headers on allow, includeHeaders=false preserves Retry-After on 429, USER/TENANT key resolvers, Redis empty fallback. `SlidingWindowRateLimitGatewayFilterFactoryTest.java` (12 tests): same coverage for sliding-window algorithm.
+- **Frontend:** None (the `includeHeaders` toggle is already exposed in the rate limit filter form via the P-09 `RateLimitPolicyPicker` implementation).
 
 ---
 
-#### P-12: Workspace Create & Plan Management Dashboard Flow
+#### P-12: Workspace Create & Plan Management Dashboard Flow ✅ COMPLETED
 
 **Affected services:** `routify-dashboard`, `routify-admin-api`  
 **Complexity:** M  
-**Files:** `WorkspacesPage.tsx`, `tenantsApi.ts`, `AdminTenantsController.java`
+**Files:** `WorkspacesPage.tsx`, `tenantsApi.ts`, `AdminTenantsController.java`, `CreateTenantRequest.java`, `UpdateTenantRequest.java`, `UsageOverview.tsx`, `UsageTrendChart.tsx`, `src/mocks/handlers/tenants.ts`, `src/mocks/data/tenants.ts`  
+**Status:** ✅ Completed — full workspace CRUD with create modal, edit modal (plan management), suspend/reactivate, and usage analytics.
 
 **Problem:** `WorkspacesPage.tsx` shows usage analytics (UsageOverview, UsageTrendChart) but has no "Create Workspace" action. Plan changes are not exposed in the UI.
 
-**Changes:**
-- **Frontend:** Add "Create Workspace" button and modal with fields: name, slug, plan (FREE/STARTER/PRO/ENTERPRISE), contact email. Use `CommandEvent.CreateTenant` via existing `tenantsApi.ts`.
-- **Frontend:** Add "Edit Plan" button on workspace cards with plan selector and confirmation dialog.
-- **Backend:** Verify `AdminTenantsController` exposes create tenant endpoint (it does via Kafka command). No backend changes needed if the endpoint exists.
+**Implementation summary:**
+- **Frontend (`WorkspacesPage.tsx`):** Full workspace management page with SUPER_ADMIN guard. "New Workspace" button opens `CreateWorkspaceModal` with fields: name, slug (auto-generated from name, URL-safe), plan (4-option grid: FREE/STARTER/PRO/ENTERPRISE), and optional contact email. Creates via `tenantsApi.create()` → `POST /api/v1/admin/tenants`. Success state shows confirmation with slug. Edit button (pencil icon) on each workspace row opens `EditWorkspaceModal` with editable name, read-only slug, plan grid picker, and contact email. Updates via `tenantsApi.update()` → `PUT /api/v1/admin/tenants/{id}`. Suspend/reactivate buttons on each row. Expandable row shows `UsageOverview` (quota bars) and `UsageTrendChart` (daily request volume line chart). "Current" badge on the logged-in tenant's row. Real-time updates via `useRealtimeQuery` with `wsEvents: ['tenant']`.
+- **Frontend (`tenantsApi.ts`):** `CreateWorkspaceRequest` (name, slug, plan, contactEmail?) and `UpdateWorkspaceRequest` (name?, plan?, contactEmail?) types. `create()` and `update()` API functions. Also: `list()`, `get()`, `suspend()`, `reactivate()`, `getUsage()`, `getUsageHistory()`, `listWorkspaces()`.
+- **Backend (`AdminTenantsController.java`):** `POST /api/v1/admin/tenants` (create, SUPER_ADMIN only) accepts `CreateTenantRequest` (name, slug, plan, contactEmail) and delegates to `IdentityMessagingClient.createTenant()`. `PUT /api/v1/admin/tenants/{id}` (update, SUPER_ADMIN only) accepts `UpdateTenantRequest` (name, plan, contactEmail) and delegates to `IdentityMessagingClient.updateTenant()`. Both return `TenantDetail` via sync RabbitMQ RPC.
+- **Backend DTOs:** `CreateTenantRequest` record (name @NotBlank, slug @NotBlank, plan, contactEmail @Email). `UpdateTenantRequest` record (name, plan, contactEmail).
+- **MSW mocks:** Create handler validates duplicate slug (409), generates mock ID, and adds to in-memory tenant map. Update handler merges partial fields. 3 seed tenants (PRO active, ENTERPRISE active, FREE suspended) in `src/mocks/data/tenants.ts`.
 
 ---
 
@@ -764,9 +778,9 @@ Phase 2 (P1 — Config Integration)
   P-09 Rate Limit Policy Picker ──────────────────── ✅ COMPLETED
 
 Phase 3 (P2 — Completeness)
-  P-10 Unified Error Response Builder ─────────────── standalone (enables gf-03, gf-09, gf-11)
-  P-11 Rate Limiter Headers ──────────────────────── depends on P-10
-  P-12 Workspace Create & Plan Management ─────────── standalone
+  P-10 Unified Error Response Builder ─────────────── ✅ COMPLETED
+  P-11 Rate Limiter Headers ──────────────────────── ✅ COMPLETED (depends on P-10)
+  P-12 Workspace Create & Plan Management ─────────── ✅ COMPLETED
   P-13 Settings Module Completion ─────────────────── standalone
   P-14 Filter gatewayConfigRef Validation ─────────── standalone
   P-15 Jolt Response-Phase ────────────────────────── standalone
