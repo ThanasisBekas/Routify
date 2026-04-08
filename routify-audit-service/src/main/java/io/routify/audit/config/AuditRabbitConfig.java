@@ -4,7 +4,7 @@ import io.routify.common.event.RabbitTopology;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -48,6 +48,22 @@ public class AuditRabbitConfig {
     @Bean public Queue auditReplaySingleQueue()       { return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_REPLAY_SINGLE).build(); }
     @Bean public Queue auditReplayBulkQueue()         { return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_REPLAY_BULK).build(); }
 
+    // ─── Route health queue (Gateway Health Dashboard v2) ──────────────────────
+
+    @Bean public Queue auditRouteHealthQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_ROUTE_HEALTH).build();
+    }
+
+    // ─── Tenant usage queues ─────────────────────────────────────────────────
+
+    @Bean public Queue auditUsageCurrentQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_USAGE_CURRENT).build();
+    }
+
+    @Bean public Queue auditUsageHistoryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_USAGE_HISTORY).build();
+    }
+
     // ─── AI filter decision stats + query queues ──────────────────────────────
 
     /** Queue: audit-service serves AI filter stats queries from admin-api */
@@ -58,6 +74,48 @@ public class AuditRabbitConfig {
     /** Queue: audit-service serves paginated AI filter decision log queries from admin-api */
     @Bean public Queue aiFilterQueryQueue() {
         return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_AI_FILTER_QUERY).build();
+    }
+
+    // ─── AI prompt version queues ──────────────────────────────────────────────
+
+    @Bean public Queue aiPromptVersionsQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_QUERY).build();
+    }
+
+    @Bean public Queue aiPromptVersionsGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_GET).build();
+    }
+
+    @Bean public Queue aiPromptVersionsSaveQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AI_PROMPT_VERSIONS_SAVE).build();
+    }
+
+    @Bean public Queue aiDecisionLabelQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AI_DECISION_LABEL).build();
+    }
+
+    // ─── Time-series analytics queue (GraphQL Initiative 13) ────────────────
+
+    @Bean public Queue auditTimeSeriesQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_AUDIT_TIME_SERIES).build();
+    }
+
+    // ─── Alerting engine queues (Initiative 15) ──────────────────────────────
+
+    @Bean public Queue alertRulesQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ALERT_RULES_QUERY).build();
+    }
+
+    @Bean public Queue alertRulesGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ALERT_RULES_GET).build();
+    }
+
+    @Bean public Queue alertEventsQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ALERT_EVENTS_QUERY).build();
+    }
+
+    @Bean public Queue alertRulesCommandQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ALERT_RULES_COMMAND).build();
     }
 
     // ─── Bindings ─────────────────────────────────────────────────────────────
@@ -106,6 +164,24 @@ public class AuditRabbitConfig {
     }
 
     @Bean
+    public Binding auditRouteHealthBinding(Queue auditRouteHealthQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(auditRouteHealthQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_ROUTE_HEALTH);
+    }
+
+    @Bean
+    public Binding auditUsageCurrentBinding(Queue auditUsageCurrentQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(auditUsageCurrentQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_USAGE_CURRENT);
+    }
+
+    @Bean
+    public Binding auditUsageHistoryBinding(Queue auditUsageHistoryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(auditUsageHistoryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_USAGE_HISTORY);
+    }
+
+    @Bean
     public Binding aiFilterStatsBinding(Queue aiFilterStatsQueue, DirectExchange auditServiceExchange) {
         return BindingBuilder.bind(aiFilterStatsQueue)
                 .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_AI_FILTER_STATS);
@@ -117,22 +193,81 @@ public class AuditRabbitConfig {
                 .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_AI_FILTER_QUERY);
     }
 
+    @Bean
+    public Binding aiPromptVersionsQueryBinding(Queue aiPromptVersionsQueryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiPromptVersionsQueryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AI_PROMPT_VERSIONS_QUERY);
+    }
+
+    @Bean
+    public Binding aiPromptVersionsGetBinding(Queue aiPromptVersionsGetQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiPromptVersionsGetQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AI_PROMPT_VERSIONS_GET);
+    }
+
+    @Bean
+    public Binding aiPromptVersionsSaveBinding(Queue aiPromptVersionsSaveQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiPromptVersionsSaveQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AI_PROMPT_VERSIONS_SAVE);
+    }
+
+    @Bean
+    public Binding aiDecisionLabelBinding(Queue aiDecisionLabelQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(aiDecisionLabelQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AI_DECISION_LABEL);
+    }
+
+    // ─── Time-series analytics binding (GraphQL Initiative 13) ──────────────
+
+    @Bean
+    public Binding auditTimeSeriesBinding(Queue auditTimeSeriesQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(auditTimeSeriesQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_AUDIT_TIME_SERIES);
+    }
+
+    // ─── Alerting engine bindings (Initiative 15) ────────────────────────────
+
+    @Bean
+    public Binding alertRulesQueryBinding(Queue alertRulesQueryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(alertRulesQueryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_ALERT_RULES_QUERY);
+    }
+
+    @Bean
+    public Binding alertRulesGetBinding(Queue alertRulesGetQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(alertRulesGetQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_ALERT_RULES_GET);
+    }
+
+    @Bean
+    public Binding alertEventsQueryBinding(Queue alertEventsQueryQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(alertEventsQueryQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_ALERT_EVENTS_QUERY);
+    }
+
+    @Bean
+    public Binding alertRulesCommandBinding(Queue alertRulesCommandQueue, DirectExchange auditServiceExchange) {
+        return BindingBuilder.bind(alertRulesCommandQueue)
+                .to(auditServiceExchange).with(RabbitTopology.RK_ALERT_RULES_COMMAND);
+    }
+
     // ─── Message converter & template ─────────────────────────────────────────
 
     /**
-     * Jackson2JsonMessageConverter is used by the auto-configured listener container factory.
-     * This allows @RabbitListener methods to receive and return strongly-typed objects
-     * (QueryRequest subtypes, response POJOs) without manual ObjectMapper calls.
+     * JacksonJsonMessageConverter (Jackson 3) is used by the auto-configured listener
+     * container factory. This allows @RabbitListener methods to receive and return
+     * strongly-typed objects (QueryRequest subtypes, response POJOs) without manual
+     * ObjectMapper calls.
      */
     @Bean
     public MessageConverter auditJsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     @Bean
     public RabbitTemplate auditRabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
-        template.setMessageConverter(new Jackson2JsonMessageConverter());
+        template.setMessageConverter(new JacksonJsonMessageConverter());
         template.setReplyTimeout(RabbitTopology.REPLY_TIMEOUT_MS);
         template.setObservationEnabled(true);
         return template;

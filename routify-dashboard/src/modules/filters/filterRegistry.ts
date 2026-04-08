@@ -26,11 +26,14 @@ export type FilterCategory =
   | 'Modification'
   | 'Transformation'
   | 'Validation'
+  | 'Performance'
   | 'Resilience'
   | 'Observability'
   | 'Security'
   | 'Versioning'
   | 'Routing'
+  | 'Integration'
+  | 'Developer Experience'
   | 'Custom'
   | 'AI'
 
@@ -41,11 +44,14 @@ export const CATEGORY_ORDER: FilterCategory[] = [
   'Modification',
   'Transformation',
   'Validation',
+  'Performance',
   'Resilience',
   'Observability',
   'Security',
   'Versioning',
   'Routing',
+  'Integration',
+  'Developer Experience',
   'Custom',
   'AI',
 ]
@@ -58,11 +64,14 @@ export const CATEGORY_COLORS: Record<FilterCategory, string> = {
   Modification: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
   Transformation: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
   Validation: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
+  Performance: 'text-lime-400 bg-lime-400/10 border-lime-400/20',
   Resilience: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
   Observability: 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
   Security: 'text-red-400 bg-red-400/10 border-red-400/20',
   Versioning: 'text-teal-400 bg-teal-400/10 border-teal-400/20',
   Routing: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
+  Integration: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
+  'Developer Experience': 'text-emerald-300 bg-emerald-300/10 border-emerald-300/20',
   Custom: 'text-gray-400 bg-gray-400/10 border-gray-400/20',
   AI: 'text-fuchsia-400 bg-fuchsia-400/10 border-fuchsia-400/20',
 }
@@ -154,6 +163,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-purple-400/10',
     border: 'border-purple-400/20',
   },
+  {
+    value: 'OAUTH2_TOKEN_RELAY',
+    label: 'OAuth2 Token Relay',
+    category: 'Downstream Auth',
+    description:
+      'RFC 8693 Token Exchange — exchanges the incoming bearer token for a downstream-specific token via a configured OAuth2 token endpoint. Supports token caching and configurable fallback (REJECT / PASS_THROUGH / STRIP).',
+    color: 'text-amber-400',
+    bg: 'bg-amber-400/10',
+    border: 'border-amber-400/20',
+  },
 
   // ── Rate Limiting ─────────────────────────────────────────────────────────────
   {
@@ -194,13 +213,23 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-purple-300/10',
     border: 'border-purple-300/20',
   },
+  {
+    value: 'RESPONSE_HEADER_REWRITE',
+    label: 'Response Header Rewrite',
+    category: 'Modification',
+    description:
+      'Regex-based response header value rewriting with capture group references ($1, $2). Ideal for Location URL rewriting, Set-Cookie domain rewriting, and CORS origin normalization.',
+    color: 'text-blue-300',
+    bg: 'bg-blue-300/10',
+    border: 'border-blue-300/20',
+  },
 
   // ── Transformation ────────────────────────────────────────────────────────────
   {
     value: 'BODY_JOLT_TRANSFORM',
     label: 'Jolt Transform',
     category: 'Transformation',
-    description: 'Transform JSON request body with a Jolt Chainr specification',
+    description: 'Transform JSON request and/or response body with a Jolt Chainr specification',
     color: 'text-purple-400',
     bg: 'bg-purple-400/10',
     border: 'border-purple-400/20',
@@ -216,6 +245,47 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-cyan-300/10',
     border: 'border-cyan-300/20',
   },
+  {
+    value: 'REQUEST_SIZE_LIMIT',
+    label: 'Request Size Limit',
+    category: 'Validation',
+    description: 'Enforce per-route maximum request body size; rejects with HTTP 413 when exceeded',
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-300/10',
+    border: 'border-cyan-300/20',
+  },
+  {
+    value: 'GRAPHQL_DEPTH_LIMIT',
+    label: 'GraphQL Depth Limit',
+    category: 'Validation',
+    description:
+      'Parses GraphQL queries and rejects those exceeding depth, complexity, or alias limits. Optionally blocks introspection and batched queries.',
+    color: 'text-cyan-300',
+    bg: 'bg-cyan-300/10',
+    border: 'border-cyan-300/20',
+  },
+
+  // ── Performance ────────────────────────────────────────────────────────────
+  {
+    value: 'RESPONSE_CACHE',
+    label: 'Response Cache',
+    category: 'Performance',
+    description:
+      'Per-route Redis-backed response caching with configurable TTL, Cache-Control respect, and cache key strategies. Injects X-Cache: HIT/MISS headers.',
+    color: 'text-lime-400',
+    bg: 'bg-lime-400/10',
+    border: 'border-lime-400/20',
+  },
+  {
+    value: 'REQUEST_DECOMPRESS',
+    label: 'Request Decompression',
+    category: 'Performance',
+    description:
+      'Transparently decompresses gzip, Brotli (br), and Zstandard (zstd) encoded request bodies before forwarding to upstream. Includes zip bomb protection, Content-Encoding removal, and X-Original-Encoding header injection.',
+    color: 'text-green-400',
+    bg: 'bg-green-400/10',
+    border: 'border-green-400/20',
+  },
 
   // ── Resilience ────────────────────────────────────────────────────────────────
   {
@@ -226,6 +296,36 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     color: 'text-rose-400',
     bg: 'bg-rose-400/10',
     border: 'border-rose-400/20',
+  },
+  {
+    value: 'CIRCUIT_BREAKER_V2',
+    label: 'Circuit Breaker v2',
+    category: 'Resilience',
+    description:
+      'Per-route Resilience4j circuit breaker with configurable failure/slow-call thresholds, half-open probing, WebSocket state broadcast, and manual override',
+    color: 'text-orange-400',
+    bg: 'bg-orange-400/10',
+    border: 'border-orange-400/20',
+  },
+  {
+    value: 'RETRY_V2',
+    label: 'Retry v2',
+    category: 'Resilience',
+    description:
+      'Per-route retry with exponential backoff, jitter, idempotency-aware logic (only retries unsafe methods with Idempotency-Key header), and configurable status/timeout retry conditions',
+    color: 'text-amber-400',
+    bg: 'bg-amber-400/10',
+    border: 'border-amber-400/20',
+  },
+  {
+    value: 'IDEMPOTENCY_KEY',
+    label: 'Idempotency Key',
+    category: 'Resilience',
+    description:
+      'Deduplicates write requests using a client-provided idempotency key stored in Redis. First request executes and caches the response; replays return the cached response without forwarding upstream. Concurrent duplicates are rejected with 409 Conflict.',
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-400/10',
+    border: 'border-yellow-400/20',
   },
 
   // ── Observability ─────────────────────────────────────────────────────────────
@@ -242,7 +342,8 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     value: 'REQUEST_LOGGER',
     label: 'Request Logger',
     category: 'Observability',
-    description: 'Log requests/responses and publish telemetry to the routify.request.telemetry Kafka topic',
+    description:
+      'Log requests/responses with sampling, header allow/denylists, path exclusions, and structured MDC logging',
     color: 'text-gray-300',
     bg: 'bg-gray-300/10',
     border: 'border-gray-300/20',
@@ -264,6 +365,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     color: 'text-pink-400',
     bg: 'bg-pink-400/10',
     border: 'border-pink-400/20',
+  },
+  {
+    value: 'BODY_SIZE_METRIC',
+    label: 'Body Size Metric',
+    category: 'Observability',
+    description:
+      'Lightweight, zero-copy filter that records request and response body sizes as Micrometer distribution summaries. Uses Content-Length fast path or non-buffering byte counter for chunked transfers.',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-400/10',
+    border: 'border-indigo-400/20',
   },
 
   // ── Security ─────────────────────────────────────────────────────────────────
@@ -293,6 +404,16 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     color: 'text-rose-300',
     bg: 'bg-rose-300/10',
     border: 'border-rose-300/20',
+  },
+  {
+    value: 'IP_ACCESS_CONTROL',
+    label: 'IP Access Control',
+    category: 'Security',
+    description:
+      'Block or allow requests by client IP address or CIDR range. Supports IPv4/IPv6, X-Forwarded-For, and allowlist/denylist modes. Runs at order −1500 (before all auth filters).',
+    color: 'text-red-300',
+    bg: 'bg-red-300/10',
+    border: 'border-red-300/20',
   },
 
   // ── Versioning ────────────────────────────────────────────────────────────────
@@ -325,13 +446,48 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
     bg: 'bg-rose-400/10',
     border: 'border-rose-400/20',
   },
+  {
+    value: 'GEO_ROUTE',
+    label: 'Geographic Routing',
+    category: 'Routing',
+    description:
+      'Route requests to geographically closest upstream using MaxMind GeoIP2 lookups. Injects X-Geo-Region header for downstream observability.',
+    color: 'text-sky-400',
+    bg: 'bg-sky-400/10',
+    border: 'border-sky-400/20',
+  },
+
+  // ── Integration ─────────────────────────────────────────────────────────────
+  {
+    value: 'WEBHOOK_NOTIFY',
+    label: 'Webhook Notification',
+    category: 'Integration',
+    description:
+      'Fires a non-blocking webhook HTTP POST when a request matches configurable conditions (status codes, header values). Supports HMAC-SHA256 signing, per-route cooldown to prevent notification storms, and fire-and-forget dispatch that never blocks the client response.',
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-400/10',
+    border: 'border-yellow-400/20',
+  },
+
+  // ── Developer Experience ─────────────────────────────────────────────────────
+  {
+    value: 'MOCK_RESPONSE',
+    label: 'Mock Response',
+    category: 'Developer Experience',
+    description:
+      'Returns a configurable static response without forwarding to upstream. Supports template interpolation (${method}, ${path}, ${header:X-Foo}, ${param:id}), simulated latency, and conditional activation via header. Ideal for API stubbing, contract-first development, and maintenance mode.',
+    color: 'text-emerald-300',
+    bg: 'bg-emerald-300/10',
+    border: 'border-emerald-300/20',
+  },
 
   // ── Custom ────────────────────────────────────────────────────────────────────
   {
     value: 'CUSTOM_SPEL',
     label: 'Custom (SpEL)',
     category: 'Custom',
-    description: 'Evaluate a Spring Expression Language expression — returning false rejects with 403',
+    description:
+      'Sandboxed SpEL expression evaluation — returning false rejects with 403. Audited, complexity-limited.',
     color: 'text-gray-400',
     bg: 'bg-gray-400/10',
     border: 'border-gray-400/20',

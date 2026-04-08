@@ -39,7 +39,7 @@ public class AdminUsersController {
     private final IdentityMessagingClient messagingClient;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('USERS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.UsersPage> listUsers(
             @RequestHeader(value = RoutifyHeaders.TENANT_ID, required = false) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
@@ -48,7 +48,7 @@ public class AdminUsersController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('USERS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.UserDetail> getUser(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
@@ -56,7 +56,7 @@ public class AdminUsersController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('USERS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> createUser(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody CreateUserRequest request,
@@ -68,7 +68,7 @@ public class AdminUsersController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('USERS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> updateUser(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -81,7 +81,7 @@ public class AdminUsersController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('USERS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<AsyncAcknowledgement> deleteUser(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
@@ -97,7 +97,7 @@ public class AdminUsersController {
      * the target user to change it on next login ({@code mustChangePassword=true}).
      */
     @PostMapping("/{id}/reset-password")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('USERS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<?> resetPassword(
             @PathVariable UUID id,
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,

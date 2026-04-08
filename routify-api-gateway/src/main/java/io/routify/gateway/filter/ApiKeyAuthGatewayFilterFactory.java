@@ -2,16 +2,15 @@ package io.routify.gateway.filter;
 
 import io.routify.common.security.RedisKeys;
 import io.routify.common.web.RoutifyHeaders;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -154,27 +153,20 @@ public class ApiKeyAuthGatewayFilterFactory
         return apiKey;
     }
 
-    // ─── Error responses (RFC 9457 ProblemDetail JSON) ───────────────────────
+    // ─── Error responses (RFC 9457 ProblemDetail via GatewayProblemResponse) ──
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String errorCode, String detail) {
-        return writeErrorResponse(exchange, HttpStatus.UNAUTHORIZED, errorCode, detail);
+        return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
+                .errorCode(errorCode)
+                .detail(detail)
+                .write(exchange);
     }
 
     private Mono<Void> gatewayError(ServerWebExchange exchange, String errorCode, String detail) {
-        return writeErrorResponse(exchange, HttpStatus.BAD_GATEWAY, errorCode, detail);
-    }
-
-    private Mono<Void> writeErrorResponse(ServerWebExchange exchange, HttpStatus status,
-                                           String errorCode, String detail) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(status);
-        response.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"%s","status":%d,\
-                "errorCode":"%s","detail":"%s"}\
-                """.formatted(status.getReasonPhrase(), status.value(), errorCode, detail);
-        return response.writeWith(
-                Mono.just(response.bufferFactory().wrap(body.getBytes())));
+        return GatewayProblemResponse.status(HttpStatus.BAD_GATEWAY)
+                .errorCode(errorCode)
+                .detail(detail)
+                .write(exchange);
     }
 
     /**

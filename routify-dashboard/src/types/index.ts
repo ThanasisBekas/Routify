@@ -31,13 +31,113 @@ export interface ApiError {
 
 export type UserRole = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'VIEWER' | 'OPERATOR'
 
+/** Fine-grained RBAC permission constants — mirrors `io.routify.common.domain.Permission`. */
+export type Permission =
+  | 'ROUTES_READ'
+  | 'ROUTES_WRITE'
+  | 'ROUTES_ACTIVATE'
+  | 'ROUTES_DELETE'
+  | 'ROUTES_PROMOTE'
+  | 'FILTERS_READ'
+  | 'FILTERS_WRITE'
+  | 'FILTERS_DELETE'
+  | 'USERS_READ'
+  | 'USERS_WRITE'
+  | 'USERS_DELETE'
+  | 'CERTS_READ'
+  | 'CERTS_WRITE'
+  | 'CERTS_ADMIN'
+  | 'AUDIT_READ'
+  | 'AUDIT_REPLAY'
+  | 'GATEWAY_CONFIG_READ'
+  | 'GATEWAY_CONFIG_WRITE'
+  | 'API_KEYS_READ'
+  | 'API_KEYS_ADMIN'
+  | 'WEBHOOKS_READ'
+  | 'WEBHOOKS_ADMIN'
+  | 'AI_POLICY_READ'
+  | 'AI_POLICY_WRITE'
+  | 'TENANTS_READ'
+  | 'TENANTS_WRITE'
+  | 'TENANTS_SUSPEND'
+
+/** All available permissions — useful for form builders. */
+export const ALL_PERMISSIONS: Permission[] = [
+  'ROUTES_READ',
+  'ROUTES_WRITE',
+  'ROUTES_ACTIVATE',
+  'ROUTES_DELETE',
+  'ROUTES_PROMOTE',
+  'FILTERS_READ',
+  'FILTERS_WRITE',
+  'FILTERS_DELETE',
+  'USERS_READ',
+  'USERS_WRITE',
+  'USERS_DELETE',
+  'CERTS_READ',
+  'CERTS_WRITE',
+  'CERTS_ADMIN',
+  'AUDIT_READ',
+  'AUDIT_REPLAY',
+  'GATEWAY_CONFIG_READ',
+  'GATEWAY_CONFIG_WRITE',
+  'API_KEYS_READ',
+  'API_KEYS_ADMIN',
+  'WEBHOOKS_READ',
+  'WEBHOOKS_ADMIN',
+  'AI_POLICY_READ',
+  'AI_POLICY_WRITE',
+  'TENANTS_READ',
+  'TENANTS_WRITE',
+  'TENANTS_SUSPEND',
+]
+
+/** Groups permissions by resource type for form builders. */
+export const PERMISSION_GROUPS: Record<string, Permission[]> = {
+  Routes: ['ROUTES_READ', 'ROUTES_WRITE', 'ROUTES_ACTIVATE', 'ROUTES_DELETE', 'ROUTES_PROMOTE'],
+  Filters: ['FILTERS_READ', 'FILTERS_WRITE', 'FILTERS_DELETE'],
+  Users: ['USERS_READ', 'USERS_WRITE', 'USERS_DELETE'],
+  Certificates: ['CERTS_READ', 'CERTS_WRITE', 'CERTS_ADMIN'],
+  Audit: ['AUDIT_READ', 'AUDIT_REPLAY'],
+  'Gateway Config': ['GATEWAY_CONFIG_READ', 'GATEWAY_CONFIG_WRITE'],
+  'API Keys': ['API_KEYS_READ', 'API_KEYS_ADMIN'],
+  Webhooks: ['WEBHOOKS_READ', 'WEBHOOKS_ADMIN'],
+  AI: ['AI_POLICY_READ', 'AI_POLICY_WRITE'],
+  Tenants: ['TENANTS_READ', 'TENANTS_WRITE', 'TENANTS_SUSPEND'],
+}
+
 export interface UserInfo {
   id: string
   tenantId: string
   username: string
   email: string
   role: UserRole
+  permissions?: Permission[]
   mustChangePassword?: boolean
+}
+
+// ─── Roles & RBAC ────────────────────────────────────────────────────────────
+
+export interface RoleDefinitionDto {
+  id: string
+  tenantId?: string
+  name: string
+  description?: string
+  builtIn: boolean
+  permissions: Permission[]
+  createdAt: string
+}
+
+export interface CreateRoleRequest {
+  name: string
+  description?: string
+  permissions: Permission[]
+}
+
+export interface UpdateRoleRequest {
+  name?: string
+  description?: string
+  permissions?: Permission[]
 }
 
 export interface LoginResponse {
@@ -65,9 +165,41 @@ export interface TenantDto {
   createdAt: string
 }
 
+// ─── Tenant Usage Analytics ─────────────────────────────────────────────────
+
+export interface QuotaDimension {
+  used: number
+  limit: number
+  percentage: number
+}
+
+export interface TenantUsageCurrent {
+  tenantId: string
+  plan: TenantPlan
+  routes: QuotaDimension
+  filters: QuotaDimension
+  requests: QuotaDimension
+  periodStart: string
+  periodEnd: string
+}
+
+export interface DailyUsage {
+  date: string
+  routeCount: number
+  filterCount: number
+  requestCount: number
+  errorCount: number
+}
+
+export interface TenantUsageHistory {
+  tenantId: string
+  entries: DailyUsage[]
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 export type RouteStatus = 'DRAFT' | 'ACTIVE' | 'DISABLED' | 'ARCHIVED'
+export type RouteEnvironment = 'STAGING' | 'PRODUCTION'
 
 export interface RouteFilterRef {
   filterId: string
@@ -88,6 +220,7 @@ export interface RouteDto {
   upstreamUri: string
   stripPrefix?: string
   status: RouteStatus
+  environment: RouteEnvironment
   version: number
   filters: RouteFilterRef[]
   extraConfig?: Record<string, unknown>
@@ -95,6 +228,9 @@ export interface RouteDto {
   createdAt: string
   updatedAt: string
   activatedAt?: string
+  trafficWeight: number
+  canaryRouteId?: string
+  canaryAutoRollbackThreshold?: number
 }
 
 export interface RouteSummary {
@@ -105,12 +241,15 @@ export interface RouteSummary {
   methods: string
   upstreamUri: string
   status: RouteStatus
+  environment: RouteEnvironment
   version: number
   filterCount: number
   preFilterCount: number
   postFilterCount: number
   createdAt: string
   activatedAt?: string
+  trafficWeight: number
+  canaryRouteId?: string
 }
 
 export interface CreateRouteRequest {
@@ -121,6 +260,7 @@ export interface CreateRouteRequest {
   upstreamUri: string
   stripPrefix?: string
   extraConfig?: Record<string, unknown>
+  environment?: RouteEnvironment
 }
 
 export interface UpdateRouteRequest {
@@ -139,6 +279,32 @@ export interface AttachFilterRequest {
   phase: 'PRE' | 'POST'
 }
 
+// ─── Canary Routing ───────────────────────────────────────────────────────────
+
+export interface DeployCanaryRequest {
+  canaryUpstreamUri: string
+  trafficWeight: number
+  autoRollbackThreshold: number
+  canaryExtraConfig?: Record<string, unknown>
+}
+
+export interface AdjustCanaryWeightRequest {
+  weight: number
+}
+
+export interface CanaryStatusResponse {
+  routeId: string
+  canaryRouteId: string
+  primaryWeight: number
+  canaryWeight: number
+  canaryUpstreamUri: string
+  autoRollbackThreshold: number
+  primaryErrorRate: number
+  canaryErrorRate: number
+  deployedAt?: string
+  breachCount: number
+}
+
 // ─── Filters ──────────────────────────────────────────────────────────────────
 
 export type FilterType =
@@ -151,15 +317,27 @@ export type FilterType =
   | 'AUTH_CERT_VAULT'
   | 'DOWNSTREAM_BASIC_AUTH'
   | 'DOWNSTREAM_BEARER_CC'
+  | 'OAUTH2_TOKEN_RELAY'
   | 'RATE_LIMIT_FIXED_WINDOW'
   | 'RATE_LIMIT_SLIDING_WINDOW'
   | 'REQUEST_HEADER_MODIFY'
   | 'RESPONSE_HEADER_MODIFY'
+  | 'RESPONSE_HEADER_REWRITE'
   | 'BODY_JOLT_TRANSFORM'
   | 'VALIDATE_JSON_SCHEMA'
+  | 'REQUEST_SIZE_LIMIT'
+  | 'GRAPHQL_DEPTH_LIMIT'
   | 'TIMEOUT'
+  // ─── Resilience ─────────────────────────────────────────────────────────
+  | 'CIRCUIT_BREAKER_V2'
+  | 'RETRY_V2'
+  | 'IDEMPOTENCY_KEY'
+  // ─── Performance ───────────────────────────────────────────────────────
+  | 'RESPONSE_CACHE'
+  | 'REQUEST_DECOMPRESS'
   | 'CONDITIONAL_ROUTE'
   | 'USER_ID_PAYLOAD_ROUTING'
+  | 'GEO_ROUTE'
   | 'CERT_ROTATION'
   | 'CERT_VAULT_EXPIRY_CHECK'
   | 'API_VERSIONING'
@@ -168,7 +346,14 @@ export type FilterType =
   | 'TENANT_CONTEXT'
   | 'SECURITY_HEADERS'
   | 'CUSTOM_METRIC'
+  | 'BODY_SIZE_METRIC'
   | 'CUSTOM_SPEL'
+  // ─── Developer Experience ──────────────────────────────────────────────────
+  | 'MOCK_RESPONSE'
+  // ─── Integration ──────────────────────────────────────────────────────────
+  | 'WEBHOOK_NOTIFY'
+  // ─── Security ─────────────────────────────────────────────────────────────
+  | 'IP_ACCESS_CONTROL'
   // ─── AI ──────────────────────────────────────────────────────────────────
   | 'AI_FILTER'
   | 'AI_MODIFIER'
@@ -180,6 +365,7 @@ export interface FilterDefinitionDto {
   description?: string
   filterType: FilterType
   config: Record<string, unknown>
+  gatewayConfigRef?: GatewayConfigRefDto | null
   systemManaged: boolean
   enabled: boolean
   usageCount: number
@@ -197,17 +383,25 @@ export interface FilterSummary {
   createdAt: string
 }
 
+export interface GatewayConfigRefDto {
+  refType: string
+  refId: string
+  refName?: string
+}
+
 export interface CreateFilterRequest {
   name: string
   description?: string
   filterType: FilterType
   config: Record<string, unknown>
+  gatewayConfigRef?: GatewayConfigRefDto
 }
 
 export interface UpdateFilterRequest {
   name?: string
   description?: string
   config?: Record<string, unknown>
+  gatewayConfigRef?: GatewayConfigRefDto | null
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
@@ -330,6 +524,9 @@ export interface UserDto {
   mustChangePassword?: boolean
   lastLoginAt?: string
   createdAt: string
+  roleId?: string
+  roleName?: string
+  permissions?: Permission[]
 }
 
 export interface CreateUserRequest {
@@ -417,7 +614,14 @@ export interface GatewayResilienceDefaults {
 export interface GatewayAuthProvider {
   id: string
   name: string
-  type: 'OAUTH2_CLIENT_CREDENTIALS' | 'OAUTH2_PASSWORD' | 'OAUTH2_INTROSPECT' | 'BASIC' | 'JWT_VERIFY'
+  type:
+    | 'OAUTH2_CLIENT_CREDENTIALS'
+    | 'OAUTH2_PASSWORD'
+    | 'OAUTH2_INTROSPECT'
+    | 'BASIC'
+    | 'JWT_VERIFY'
+    | 'MTLS'
+    | 'CLIENT_ID'
   uri?: string
   clientId?: string
   clientSecret?: string
@@ -432,6 +636,16 @@ export interface GatewayAuthProvider {
   issuer?: string
   audience?: string
   algorithm?: string
+  // MTLS-specific: client-ID-to-certificate mappings
+  clientMappings?: {
+    clientIdRequestHeader: string
+    clientIdValue: string
+    clientCertificateRequestHeader: string
+    clientCertificateValue: string
+  }[]
+  // CLIENT_ID-specific: client-ID header-value entries and org-ID mapping
+  clientEntries?: { name: string; value: string }[]
+  clientIdMapping?: Record<string, string>
 }
 
 export interface GatewayProxyConfig {
@@ -472,6 +686,24 @@ export interface GlobalFilterEntry {
   enabled: boolean
 }
 
+/**
+ * A reusable downstream credential entry managed in the Gateway Config's
+ * Downstream Credentials section. Filters reference it via `gatewayConfigRef`
+ * with `refType: 'DOWNSTREAM_CREDENTIAL'` and the credential's `id` as `refId`.
+ */
+export interface GatewayDownstreamCredential {
+  id: string
+  name: string
+  description?: string
+  /** `BASIC` (username/password) or `HEADER` (headerName/headerValue) */
+  type: 'BASIC' | 'HEADER'
+  username?: string
+  password?: string
+  headerName?: string
+  headerValue?: string
+  enabled: boolean
+}
+
 export interface GatewayConfig {
   updatedAt?: string
   updatedBy?: string
@@ -485,6 +717,7 @@ export interface GatewayConfig {
   httpClientConfig: GatewayHttpClientConfig
   tenantIsolation: GatewayTenantIsolationConfig
   globalFilterEntries: GlobalFilterEntry[]
+  downstreamCredentials: GatewayDownstreamCredential[]
 }
 
 export interface GatewayLiveStatus {
@@ -589,6 +822,67 @@ export interface CertVaultStats {
   counts: Record<string, number>
 }
 
+/** Lightweight entry for the cert vault logical-ID picker in filter config forms. */
+export interface CertLogicalIdEntry {
+  logicalId: string
+  alias: string
+  status: string
+}
+
+// ─── ACME (Automated Certificate Lifecycle) ──────────────────────────────────
+
+export type AcmeProvider = 'LETSENCRYPT' | 'ZEROSSSL'
+export type AcmeOrderStatus = 'PENDING' | 'VALIDATING' | 'COMPLETED' | 'FAILED' | 'RENEWAL_FAILED'
+
+export interface AcmeAccountDto {
+  id: string
+  tenantId: string
+  email: string
+  accountUrl?: string
+  provider: AcmeProvider
+  status: string
+  createdAt: string
+}
+
+export interface AcmeOrderDto {
+  id: string
+  tenantId: string
+  domain: string
+  certGroupId?: string
+  challengeType: string
+  status: AcmeOrderStatus
+  orderUrl?: string
+  challengeToken?: string
+  certId?: string
+  autoRenew: boolean
+  lastRenewedAt?: string
+  nextRenewalAt?: string
+  errorMessage?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface AcmeOrdersPage {
+  content: AcmeOrderDto[]
+  totalElements: number
+  totalPages: number
+  page: number
+  size: number
+  first: boolean
+  last: boolean
+}
+
+export interface RegisterAcmeAccountRequest {
+  email: string
+  provider: AcmeProvider
+}
+
+export interface IssueAcmeCertificateRequest {
+  accountId: string
+  domain: string
+  certGroupId?: string
+}
+
 // ─── AI Filter / Modifier types ───────────────────────────────────────────────
 
 export type AiMutationType = 'PII_SCRUB' | 'TRANSLATE' | 'HEADER_REWRITE' | 'CUSTOM' | 'PASSTHROUGH'
@@ -664,6 +958,7 @@ export interface AiFilterDecisionEntry {
   method: string
   path: string
   evaluatedAt: string
+  labels?: DecisionLabel[]
 }
 
 /** A single AI modification decision audit entry. */
@@ -680,4 +975,407 @@ export interface AiModifierDecisionEntry {
   method: string
   path: string
   evaluatedAt: string
+}
+
+// ─── API Key Management ───────────────────────────────────────────────────────
+
+export type ApiKeyStatus = 'ACTIVE' | 'REVOKED' | 'EXPIRED'
+
+export interface ApiKeyDto {
+  id: string
+  tenantId: string
+  name: string
+  keyPrefix: string
+  role: UserRole
+  email?: string
+  status: ApiKeyStatus
+  expiresAt?: string
+  lastUsedAt?: string
+  createdAt: string
+}
+
+export interface ApiKeyDetailDto {
+  id: string
+  tenantId: string
+  userId: string
+  name: string
+  keyPrefix: string
+  role: string
+  email?: string
+  status: ApiKeyStatus
+  expiresAt?: string
+  lastUsedAt?: string
+  createdBy?: string
+  createdAt: string
+  revokedAt?: string
+}
+
+export interface CreateApiKeyRequest {
+  name: string
+  role?: string
+  email?: string
+  expiresAt?: string
+}
+
+/** Returned by create and rotate — contains the raw key shown once. */
+export interface ApiKeyCreatedResponse {
+  id: string
+  rawKey: string
+  keyPrefix: string
+  name: string
+  role: string
+  expiresAt?: string
+  createdAt: string
+}
+
+// ─── Webhook Notifications ────────────────────────────────────────────────────
+
+export type WebhookEventType =
+  | 'ROUTE_CREATED'
+  | 'ROUTE_ACTIVATED'
+  | 'ROUTE_DEACTIVATED'
+  | 'ROUTE_DELETED'
+  | 'ROUTE_PROMOTED'
+  | 'FILTER_CREATED'
+  | 'FILTER_UPDATED'
+  | 'FILTER_DELETED'
+  | 'CERT_UPLOADED'
+  | 'CERT_REVOKED'
+  | 'CERT_EXPIRING'
+  | 'CERT_EXPIRED'
+  | 'USER_CREATED'
+  | 'USER_DELETED'
+  | 'TENANT_SUSPENDED'
+  | 'TENANT_REACTIVATED'
+  | 'AI_FILTER_BLOCKED'
+  | 'AI_FILTER_FLAGGED'
+  | 'DLQ_OVERFLOW'
+  | 'GATEWAY_RELOAD_FAILED'
+  | 'GATEWAY_CONFIG_DRIFT'
+  | 'QUOTA_WARNING'
+  | 'QUOTA_EXCEEDED'
+  | 'CANARY_DEPLOYED'
+  | 'CANARY_PROMOTED'
+  | 'CANARY_ROLLBACK'
+
+export type WebhookSubscriptionStatus = 'ACTIVE' | 'SUSPENDED' | 'DELETED'
+
+export interface WebhookSubscriptionDto {
+  id: string
+  tenantId: string
+  name: string
+  url: string
+  eventTypes: WebhookEventType[]
+  status: WebhookSubscriptionStatus
+  failureCount: number
+  lastDeliveredAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WebhookDetailDto {
+  id: string
+  tenantId: string
+  name: string
+  url: string
+  secret: string
+  eventTypes: WebhookEventType[]
+  status: WebhookSubscriptionStatus
+  failureCount: number
+  lastDeliveredAt?: string
+  createdBy?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateWebhookRequest {
+  name: string
+  url: string
+  eventTypes: WebhookEventType[]
+}
+
+export interface UpdateWebhookRequest {
+  name?: string
+  url?: string
+  eventTypes?: WebhookEventType[]
+}
+
+export type WebhookDeliveryStatus = 'PENDING' | 'DELIVERED' | 'FAILED'
+
+export interface WebhookDeliveryDto {
+  id: string
+  subscriptionId: string
+  eventType: string
+  payload: string
+  responseStatus?: number
+  responseBody?: string
+  attempt: number
+  status: WebhookDeliveryStatus
+  deliveredAt?: string
+  nextRetryAt?: string
+  errorMessage?: string
+  createdAt: string
+}
+
+export interface WebhookTestResult {
+  success: boolean
+  responseStatus?: number
+  message: string
+}
+
+// ─── Gateway Health Dashboard v2 ──────────────────────────────────────────────
+
+export interface RouteHealthEntry {
+  routeId: string
+  routeName: string
+  totalRequests: number
+  errorCount: number
+  errorRate: number
+  p50LatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  avgLatencyMs: number
+  statusCodeDistribution: Record<number, number>
+}
+
+export interface RouteHealthResponse {
+  routes: RouteHealthEntry[]
+}
+
+export type HealthTimeWindow = '1h' | '24h' | '7d'
+
+export interface RouteSloConfig {
+  availabilityTarget: number
+  latencyP99TargetMs: number
+  evaluationWindowHours: number
+  configured?: boolean
+}
+
+export interface SloStatus {
+  routeId: string
+  slo: RouteSloConfig & { configured: boolean }
+  actual: {
+    availability: number
+    latencyP99Ms: number
+    totalRequests: number
+    errorCount: number
+  }
+  errorBudget: {
+    totalBudget: number
+    consumed: number
+    remaining: number
+    percentConsumed: number
+  }
+  latencySloMet: boolean
+  availabilitySloMet: boolean
+}
+
+// ─── Route Import / Export (GitOps) ───────────────────────────────────────────
+
+export interface ImportPreviewResponse {
+  valid: boolean
+  changes: DiffSections
+  warnings: string[]
+}
+
+export interface DiffSections {
+  filters: DiffSection
+  routes: DiffSection
+}
+
+export interface DiffSection {
+  create: DiffCreateEntry[]
+  update: DiffUpdateEntry[]
+  unchanged: string[]
+  delete: string[]
+}
+
+export interface DiffCreateEntry {
+  name: string
+  type: string
+}
+
+export interface DiffUpdateEntry {
+  name: string
+  changes: string[]
+}
+
+// ─── GitOps ───────────────────────────────────────────────────────────────────
+
+export type ReconciliationOutcome = 'APPLIED' | 'DRIFT_DETECTED' | 'FAILED' | 'NO_CHANGE'
+
+export interface ReconciliationResult {
+  timestamp: string
+  commitHash: string | null
+  configHash: string | null
+  outcome: ReconciliationOutcome
+  routesCreated: number
+  routesUpdated: number
+  filtersCreated: number
+  filtersUpdated: number
+  warnings: string[]
+  errorMessage: string | null
+}
+
+export interface GitOpsStatus {
+  enabled: boolean
+  repositoryUrl: string
+  branch: string
+  configPath: string
+  pollIntervalSeconds: number
+  dryRun: boolean
+  tenantId: string
+  lastAppliedHash: string | null
+  lastCommitHash: string | null
+  lastSyncTime: string | null
+  lastOutcome: ReconciliationOutcome | null
+}
+
+// ─── Multi-Gateway Fleet Status ───────────────────────────────────────────────
+
+export type GatewayInstanceStatus = 'HEALTHY' | 'STALE' | 'UNRESPONSIVE'
+
+export interface GatewayInstanceInfo {
+  instanceId: string
+  hostname: string
+  configVersion: number
+  routeCount: number
+  filterCount: number
+  status: GatewayInstanceStatus
+  startedAt: string
+  lastReloadAt: string
+  lastHeartbeatAt: string
+  uptimeHours: number
+}
+
+export interface FleetStatusResponse {
+  globalConfigVersion: number
+  instanceCount: number
+  healthyCount: number
+  staleCount: number
+  instances: GatewayInstanceInfo[]
+}
+
+// ─── AI Prompt Versioning ─────────────────────────────────────────────────────
+
+export type PromptVersionStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
+
+export interface AiPromptVersion {
+  id: string
+  filterId: string
+  tenantId: string
+  version: number
+  promptText: string
+  description?: string
+  status: PromptVersionStatus
+  accuracyScore?: number
+  totalDecisions: number
+  correctCount: number
+  createdBy?: string
+  createdAt: string
+  activatedAt?: string
+  archivedAt?: string
+}
+
+export interface AiPromptVersionSummary {
+  id: string
+  filterId: string
+  version: number
+  status: PromptVersionStatus
+  description?: string
+  accuracyScore?: number
+  totalDecisions: number
+  createdAt: string
+  activatedAt?: string
+}
+
+export type DecisionLabel = 'CORRECT' | 'INCORRECT' | 'UNCLEAR'
+
+export interface AiDecisionLabelResult {
+  success: boolean
+  promptVersionId?: string
+  newAccuracy?: number
+}
+
+// ─── Alerting Engine (Initiative 15) ────────────────────────────────────────
+
+export type AlertMetric =
+  | 'ERROR_RATE'
+  | 'P99_LATENCY'
+  | 'DLQ_DEPTH'
+  | 'CERT_EXPIRY_DAYS'
+  | 'QUOTA_USAGE'
+  | 'SLO_BUDGET'
+  | 'REQUEST_VOLUME'
+  | 'AUTH_FAILURE_RATE'
+
+export type AlertOperator = 'GT' | 'LT' | 'GTE' | 'LTE' | 'EQ'
+
+export type AlertSeverity = 'INFO' | 'WARNING' | 'CRITICAL'
+
+export type AlertState = 'OK' | 'PENDING' | 'FIRING'
+
+export interface AlertRule {
+  id: string
+  tenantId: string
+  name: string
+  description?: string
+  metric: AlertMetric
+  routeId?: string
+  operator: AlertOperator
+  threshold: number
+  windowMinutes: number
+  cooldownMinutes: number
+  severity: AlertSeverity
+  enabled: boolean
+  currentState: AlertState
+  stateChangedAt?: string
+  consecutiveBreaches: number
+  lastEvaluatedAt?: string
+  lastFiredAt?: string
+  mutedUntil?: string
+  createdBy?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface AlertEvent {
+  id: string
+  ruleId: string
+  tenantId: string
+  transition: string
+  metricValue?: number
+  threshold?: number
+  message?: string
+  occurredAt: string
+}
+
+export interface CreateAlertRuleRequest {
+  name: string
+  description?: string
+  metric: AlertMetric
+  routeId?: string
+  operator: AlertOperator
+  threshold: number
+  windowMinutes?: number
+  cooldownMinutes?: number
+  severity?: AlertSeverity
+  enabled?: boolean
+}
+
+export interface UpdateAlertRuleRequest {
+  name?: string
+  description?: string
+  metric?: AlertMetric
+  routeId?: string
+  operator?: AlertOperator
+  threshold?: number
+  windowMinutes?: number
+  cooldownMinutes?: number
+  severity?: AlertSeverity
+  enabled?: boolean
+}
+
+export interface MuteAlertRequest {
+  durationMinutes: number
 }

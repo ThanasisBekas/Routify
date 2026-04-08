@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -20,6 +21,9 @@ import java.util.UUID;
 public interface AiFilterDecisionRepository extends JpaRepository<AiFilterDecision, UUID> {
 
     // ─── Paginated queries for decision log ───────────────────────────────────
+
+    /** Find a single decision by evaluation trace ID (for labelling). */
+    Optional<AiFilterDecision> findByEvaluationIdAndTenantId(String evaluationId, UUID tenantId);
 
     Page<AiFilterDecision> findByTenantIdOrderByEvaluatedAtDesc(UUID tenantId, Pageable pageable);
 
@@ -116,6 +120,31 @@ public interface AiFilterDecisionRepository extends JpaRepository<AiFilterDecisi
             @Param("to")       Instant to);
 
     // ─── Retention cleanup ────────────────────────────────────────────────────
+
+    // ─── Version-filtered stats (for A/B comparison) ────────────────────────
+
+    @Query(value = """
+           SELECT
+               COUNT(*)                                                       AS total,
+               COUNT(*) FILTER (WHERE action = 'ALLOW')                      AS allow_count,
+               COUNT(*) FILTER (WHERE action = 'BLOCK')                      AS block_count,
+               COUNT(*) FILTER (WHERE action = 'FLAG')                       AS flag_count,
+               COUNT(*) FILTER (WHERE confidence = 0.0)                     AS fallback_count,
+               COUNT(*) FILTER (WHERE cached = TRUE)                         AS cache_hit_count,
+               COALESCE(AVG(latency_ms), 0)                                  AS avg_latency,
+               COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0) AS p95_latency,
+               COALESCE(PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY latency_ms), 0) AS p99_latency
+           FROM routify_audit.ai_filter_decision
+           WHERE tenant_id = :tenantId
+             AND prompt_version_id = :versionId
+             AND evaluated_at >= :from
+             AND evaluated_at < :to
+           """, nativeQuery = true)
+    Object[] getStatsByTenantAndVersionAndTimeRange(
+            @Param("tenantId")  UUID    tenantId,
+            @Param("versionId") UUID    versionId,
+            @Param("from")      Instant from,
+            @Param("to")        Instant to);
 
     /** Bulk-delete records older than the given cutoff (called by retention scheduler). */
     @Query("DELETE FROM AiFilterDecision d WHERE d.evaluatedAt < :cutoff")

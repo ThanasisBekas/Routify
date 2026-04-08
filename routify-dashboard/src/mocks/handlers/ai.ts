@@ -7,10 +7,50 @@ import type {
   AiModifierDecisionEntry,
   AiModificationTestRequest,
   AiModificationTestResult,
+  AiPromptVersion,
+  AiPromptVersionSummary,
 } from '../../types'
 
 const AI_BASE = '/api/v1/admin/ai'
 const AUDIT_BASE = '/api/v1/admin/audit'
+
+// ─── Mock prompt versions ─────────────────────────────────────────────────────
+
+const mockVersions: AiPromptVersionSummary[] = [
+  {
+    id: 'ver-4',
+    filterId: 'filter-ai-1',
+    version: 4,
+    status: 'DRAFT',
+    description: 'Added PII detection rules',
+    accuracyScore: undefined,
+    totalDecisions: 0,
+    createdAt: new Date(Date.now() - 3600_000).toISOString(),
+    activatedAt: undefined,
+  },
+  {
+    id: 'ver-3',
+    filterId: 'filter-ai-1',
+    version: 3,
+    status: 'ACTIVE',
+    description: 'Improved SQL injection detection',
+    accuracyScore: 87.5,
+    totalDecisions: 142,
+    createdAt: new Date(Date.now() - 7 * 86400_000).toISOString(),
+    activatedAt: new Date(Date.now() - 5 * 86400_000).toISOString(),
+  },
+  {
+    id: 'ver-2',
+    filterId: 'filter-ai-1',
+    version: 2,
+    status: 'ARCHIVED',
+    description: 'Initial security policy',
+    accuracyScore: 72.3,
+    totalDecisions: 89,
+    createdAt: new Date(Date.now() - 30 * 86400_000).toISOString(),
+    activatedAt: new Date(Date.now() - 14 * 86400_000).toISOString(),
+  },
+]
 
 // ─── Static mock AI decision log entries ─────────────────────────────────────
 
@@ -192,5 +232,66 @@ export const aiHandlers = [
     const routeId = url.searchParams.get('routeId') ?? 'dddddddd-0000-0000-0000-000000000001'
     const decisions = makeModifierDecisions(routeId)
     return HttpResponse.json(buildPage(decisions, page, size))
+  }),
+
+  // ─── Prompt version management ────────────────────────────────────────────────
+
+  http.get(`${AI_BASE}-filter/:filterId/versions`, async ({ request }) => {
+    await delay(150)
+    const url = new URL(request.url)
+    const page = parseInt(url.searchParams.get('page') ?? '0', 10)
+    const size = parseInt(url.searchParams.get('size') ?? '20', 10)
+    return HttpResponse.json(buildPage(mockVersions, page, size))
+  }),
+
+  http.get(`${AI_BASE}-filter/:filterId/versions/:versionId`, async ({ params }) => {
+    await delay(100)
+    const v = mockVersions.find((mv) => mv.id === params.versionId)
+    if (!v) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    const detail: AiPromptVersion = {
+      ...v,
+      tenantId: MOCK_TENANT_ID,
+      promptText: `Block requests that contain SQL injection patterns, XSS payloads, or attempt to access admin endpoints without proper authentication. Version ${v.version}.`,
+      correctCount: Math.floor(((v.accuracyScore ?? 0) * v.totalDecisions) / 100),
+    }
+    return HttpResponse.json(detail)
+  }),
+
+  http.post(`${AI_BASE}-filter/:filterId/versions`, async ({ request }) => {
+    await delay(300)
+    const body = (await request.json()) as { promptText: string; description?: string }
+    const newVersion: AiPromptVersion = {
+      id: `ver-${Date.now()}`,
+      filterId: 'filter-ai-1',
+      tenantId: MOCK_TENANT_ID,
+      version: mockVersions.length + 1,
+      promptText: body.promptText,
+      description: body.description,
+      status: 'DRAFT',
+      totalDecisions: 0,
+      correctCount: 0,
+      createdAt: new Date().toISOString(),
+    }
+    return HttpResponse.json(newVersion, { status: 201 })
+  }),
+
+  http.post(`${AI_BASE}-filter/:filterId/versions/:versionId/activate`, async ({ params }) => {
+    await delay(200)
+    const v = mockVersions.find((mv) => mv.id === params.versionId)
+    if (!v) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    return HttpResponse.json({ ...v, status: 'ACTIVE', activatedAt: new Date().toISOString() })
+  }),
+
+  http.post(`${AI_BASE}-filter/:filterId/versions/:versionId/archive`, async ({ params }) => {
+    await delay(200)
+    const v = mockVersions.find((mv) => mv.id === params.versionId)
+    if (!v) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    return HttpResponse.json({ ...v, status: 'ARCHIVED', archivedAt: new Date().toISOString() })
+  }),
+
+  // ─── Decision labelling ──────────────────────────────────────────────────────
+  http.post(`${AI_BASE}-filter/decisions/:evaluationId/label`, async () => {
+    await delay(150)
+    return HttpResponse.json({ success: true, promptVersionId: 'ver-3', newAccuracy: 88.2 })
   }),
 ]

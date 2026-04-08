@@ -268,6 +268,225 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.DeleteUser(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
     }
 
+    // ─── API Key Queries (RabbitMQ sync) ──────────────────────────────────────
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "queryApiKeysFallback")
+    public QueryResponse.ApiKeysPage queryApiKeys(UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_APIKEYS_QUERY,
+                new QueryRequest.ApiKeysQuery(tenantId, page, size),
+                QueryResponse.ApiKeysPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeysPage queryApiKeysFallback(UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryApiKeys circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.ApiKeysPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "getApiKeyFallback")
+    public QueryResponse.ApiKeyDetail getApiKey(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_APIKEYS_GET,
+                new QueryRequest.ApiKeyGet(id, tenantId),
+                QueryResponse.ApiKeyDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeyDetail getApiKeyFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("getApiKey circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    // ─── API Key Commands (RabbitMQ sync — raw key must be returned) ──────────
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "createApiKeyFallback")
+    public QueryResponse.ApiKeyCreated createApiKey(UUID tenantId, UUID userId, String name,
+                                                     String role, String email, String expiresAt, String actor) {
+        return rpc(RabbitTopology.RK_APIKEYS_CREATE,
+                new QueryRequest.ApiKeyCreate(tenantId, userId, name, role, email, expiresAt, actor),
+                QueryResponse.ApiKeyCreated.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeyCreated createApiKeyFallback(UUID tenantId, UUID userId, String name,
+                                                              String role, String email, String expiresAt,
+                                                              String actor, Throwable t) {
+        log.warn("createApiKey circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "revokeApiKeyFallback")
+    public QueryResponse.ApiKeyDetail revokeApiKey(UUID id, UUID tenantId, String actor) {
+        return rpc(RabbitTopology.RK_APIKEYS_REVOKE,
+                new QueryRequest.ApiKeyRevoke(id, tenantId, actor),
+                QueryResponse.ApiKeyDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeyDetail revokeApiKeyFallback(UUID id, UUID tenantId, String actor, Throwable t) {
+        log.warn("revokeApiKey circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "rotateApiKeyFallback")
+    public QueryResponse.ApiKeyCreated rotateApiKey(UUID id, UUID tenantId, String actor) {
+        return rpc(RabbitTopology.RK_APIKEYS_ROTATE,
+                new QueryRequest.ApiKeyRotate(id, tenantId, actor),
+                QueryResponse.ApiKeyCreated.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.ApiKeyCreated rotateApiKeyFallback(UUID id, UUID tenantId, String actor, Throwable t) {
+        log.warn("rotateApiKey circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    // ─── Webhook Queries (RabbitMQ sync) ───────────────────────────────────────
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "queryWebhooksFallback")
+    public QueryResponse.WebhooksPage queryWebhooks(UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_WEBHOOKS_QUERY,
+                new QueryRequest.WebhooksQuery(tenantId, page, size),
+                QueryResponse.WebhooksPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.WebhooksPage queryWebhooksFallback(UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryWebhooks circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.WebhooksPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "getWebhookFallback")
+    public QueryResponse.WebhookDetail getWebhook(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_WEBHOOKS_GET,
+                new QueryRequest.WebhookGet(id, tenantId),
+                QueryResponse.WebhookDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.WebhookDetail getWebhookFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("getWebhook circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "queryWebhookDeliveriesFallback")
+    public QueryResponse.WebhookDeliveriesPage queryWebhookDeliveries(UUID subscriptionId, UUID tenantId,
+                                                                       int page, int size) {
+        return rpc(RabbitTopology.RK_WEBHOOKS_DELIVERIES,
+                new QueryRequest.WebhookDeliveries(subscriptionId, tenantId, page, size),
+                QueryResponse.WebhookDeliveriesPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.WebhookDeliveriesPage queryWebhookDeliveriesFallback(UUID subscriptionId, UUID tenantId,
+                                                                                int page, int size, Throwable t) {
+        log.warn("queryWebhookDeliveries circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.WebhookDeliveriesPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "testWebhookFallback")
+    public QueryResponse.WebhookTestResult testWebhook(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_WEBHOOKS_TEST,
+                new QueryRequest.WebhookTest(id, tenantId),
+                QueryResponse.WebhookTestResult.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.WebhookTestResult testWebhookFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("testWebhook circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.WebhookTestResult(false, null, "Service unavailable");
+    }
+
+    // ─── Webhook Commands (Kafka) ──────────────────────────────────────────────
+
+    public void sendCreateWebhook(UUID tenantId, String actor, String name, String url,
+                                   java.util.List<String> eventTypes) {
+        kafka.publishCommand(KafkaTopics.WEBHOOK_COMMANDS, new CommandEvent.CreateWebhook(
+                UUID.randomUUID(), tenantId, actor, Instant.now(), name, url, eventTypes, actor));
+    }
+
+    public void sendUpdateWebhook(UUID webhookId, UUID tenantId, String actor, String name,
+                                   String url, java.util.List<String> eventTypes) {
+        kafka.publishCommand(KafkaTopics.WEBHOOK_COMMANDS, new CommandEvent.UpdateWebhook(
+                UUID.randomUUID(), tenantId, actor, Instant.now(), webhookId, name, url, eventTypes, actor));
+    }
+
+    public void sendDeleteWebhook(UUID webhookId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.WEBHOOK_COMMANDS, new CommandEvent.DeleteWebhook(
+                UUID.randomUUID(), tenantId, actor, Instant.now(), webhookId, actor));
+    }
+
+    // ─── Role Queries (RabbitMQ sync) ───────────────────────────────────────────
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "queryRolesFallback")
+    public QueryResponse.RolesPage queryRoles(UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_ROLES_QUERY,
+                new QueryRequest.RolesQuery(tenantId, page, size),
+                QueryResponse.RolesPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.RolesPage queryRolesFallback(UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryRoles circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.RolesPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "getRoleFallback")
+    public QueryResponse.RoleDetail getRole(UUID id) {
+        return rpc(RabbitTopology.RK_ROLES_GET,
+                new QueryRequest.RoleGet(id),
+                QueryResponse.RoleDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.RoleDetail getRoleFallback(UUID id, Throwable t) {
+        log.warn("getRole circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    // ─── Role Commands (RabbitMQ sync) ──────────────────────────────────────────
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "createRoleFallback")
+    public QueryResponse.RoleDetail createRole(UUID tenantId, String name, String description,
+                                                java.util.List<String> permissions) {
+        CommandEvent cmd = new CommandEvent.CreateRole(
+                UUID.randomUUID(), tenantId, "admin-api", Instant.now(), name, description, permissions);
+        return rpc(RabbitTopology.RK_ROLES_COMMAND, cmd, QueryResponse.RoleDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.RoleDetail createRoleFallback(UUID tenantId, String name, String description,
+                                                         java.util.List<String> permissions, Throwable t) {
+        log.warn("createRole circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "updateRoleFallback")
+    public QueryResponse.RoleDetail updateRole(UUID id, UUID tenantId, String name, String description,
+                                                java.util.List<String> permissions) {
+        CommandEvent cmd = new CommandEvent.UpdateRole(
+                UUID.randomUUID(), tenantId, "admin-api", Instant.now(), id, name, description, permissions);
+        return rpc(RabbitTopology.RK_ROLES_COMMAND, cmd, QueryResponse.RoleDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.RoleDetail updateRoleFallback(UUID id, UUID tenantId, String name, String description,
+                                                         java.util.List<String> permissions, Throwable t) {
+        log.warn("updateRole circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "identity-service", fallbackMethod = "deleteRoleFallback")
+    public void deleteRole(UUID id, UUID tenantId) {
+        CommandEvent cmd = new CommandEvent.DeleteRole(
+                UUID.randomUUID(), tenantId, "admin-api", Instant.now(), id);
+        rpc(RabbitTopology.RK_ROLES_COMMAND, cmd, QueryResponse.RoleDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private void deleteRoleFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("deleteRole circuit open or timed out: {}", t.getMessage());
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private TenantPlan parsePlan(String planStr, TenantPlan defaultPlan) {

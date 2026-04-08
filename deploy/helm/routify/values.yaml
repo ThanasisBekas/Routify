@@ -1,0 +1,316 @@
+# ─── Routify Helm Chart — Default Values ─────────────────────────────────────
+# Override per-environment with values-production.yaml or --set flags.
+# See deploy/helm/routify/README.md for full documentation.
+
+# ─── Global Settings ─────────────────────────────────────────────────────────
+
+global:
+  imageRegistry: ""                     # e.g. ghcr.io/routify
+  imagePullSecrets: []
+  storageClass: ""
+  domain: routify.local
+  tlsEnabled: false
+  dbUser: routify
+  otelEndpoint: ""                      # e.g. http://tempo:4318/v1/traces
+
+nameOverride: ""
+fullnameOverride: ""
+
+# ─── Secrets ─────────────────────────────────────────────────────────────────
+# Provide values directly OR reference an existing Kubernetes Secret.
+# If existingSecret is set, all other secret fields are ignored.
+
+secrets:
+  existingSecret: ""                    # Name of existing K8s Secret with all keys
+  dbPassword: ""
+  rabbitmqPassword: ""
+  redisPassword: ""
+  jwtPrivateKey: ""                     # Base64-encoded RSA private key (PEM)
+  jwtPublicKey: ""                      # Base64-encoded RSA public key (PEM)
+  certVaultEncryptionKey: ""
+  openaiApiKey: ""
+
+# ─── API Gateway ─────────────────────────────────────────────────────────────
+
+gateway:
+  enabled: true
+  image:
+    repository: routify-api-gateway
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  pdb:
+    enabled: true
+    minAvailable: 2
+  service:
+    type: LoadBalancer
+    port: 8080
+  env: {}
+
+# ─── Admin API (BFF) ────────────────────────────────────────────────────────
+
+adminApi:
+  enabled: true
+  image:
+    repository: routify-admin-api
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  pdb:
+    enabled: true
+    minAvailable: 1
+  service:
+    type: ClusterIP
+    port: 8082
+  env: {}
+
+# ─── Identity Service ───────────────────────────────────────────────────────
+
+identityService:
+  enabled: true
+  image:
+    repository: routify-identity-service
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  pdb:
+    enabled: true
+    minAvailable: 1
+  service:
+    type: ClusterIP
+    port: 8083
+  env: {}
+
+# ─── Route Service ──────────────────────────────────────────────────────────
+
+routeService:
+  enabled: true
+  image:
+    repository: routify-route-service
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  pdb:
+    enabled: true
+    minAvailable: 1
+  service:
+    type: ClusterIP
+    port: 8081
+  env: {}
+
+# ─── Audit Service ──────────────────────────────────────────────────────────
+
+auditService:
+  enabled: true
+  image:
+    repository: routify-audit-service
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  pdb:
+    enabled: true
+    minAvailable: 1
+  service:
+    type: ClusterIP
+    port: 8084
+  env: {}
+
+# ─── Cert Vault ─────────────────────────────────────────────────────────────
+
+certVault:
+  enabled: true
+  image:
+    repository: routify-cert-vault
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  pdb:
+    enabled: true
+    minAvailable: 1
+  service:
+    type: ClusterIP
+    port: 8085
+  env: {}
+
+# ─── AI Service ─────────────────────────────────────────────────────────────
+
+aiService:
+  enabled: true
+  image:
+    repository: routify-ai-service
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  pdb:
+    enabled: true
+    minAvailable: 1
+  service:
+    type: ClusterIP
+    port: 8086
+  env: {}
+
+# ─── Dashboard (React/Vite + Nginx) ─────────────────────────────────────────
+
+dashboard:
+  enabled: true
+  image:
+    repository: routify-dashboard
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  pdb:
+    enabled: true
+    minAvailable: 1
+  service:
+    type: ClusterIP
+    port: 80
+  env: {}
+
+# ─── GitOps Agent (optional) ────────────────────────────────────────────────
+
+gitopsAgent:
+  enabled: false
+  image:
+    repository: routify-gitops-agent
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  pdb:
+    enabled: false
+    minAvailable: 1
+  service:
+    type: ClusterIP
+    port: 8087
+  env: {}
+
+# ─── Ingress ────────────────────────────────────────────────────────────────
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  tls: []
+    # - secretName: routify-tls
+    #   hosts:
+    #     - routify.local
+
+# ─── Monitoring ──────────────────────────────────────────────────────────────
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 15s
+    namespace: ""                       # Override namespace for ServiceMonitor
+
+# ─── Infrastructure Dependencies (Bitnami sub-charts) ───────────────────────
+# Set enabled: false and configure external* blocks for managed services.
+
+postgresql:
+  enabled: true
+  auth:
+    existingSecret: ""                  # If set, use this K8s Secret for DB password
+    secretKeys:
+      adminPasswordKey: password
+    username: routify
+    database: routify
+
+redis:
+  enabled: true
+  auth:
+    existingSecret: ""
+
+kafka:
+  enabled: true
+
+rabbitmq:
+  enabled: true
+  auth:
+    existingSecret: ""
+
+# ─── External Services (used when built-in infra is disabled) ────────────────
+
+externalPostgresql:
+  host: ""
+  port: 5432
+
+externalRedis:
+  host: ""
+  port: 6379
+
+externalKafka:
+  bootstrapServers: ""
+
+externalRabbitmq:
+  host: ""
+  port: 5672
+

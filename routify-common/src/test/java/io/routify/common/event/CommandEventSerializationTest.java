@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.routify.common.domain.FilterType;
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.TenantPlan;
 import io.routify.common.domain.UserRole;
 import org.junit.jupiter.api.BeforeAll;
@@ -93,7 +94,7 @@ class CommandEventSerializationTest {
             Arguments.of(
                 new CommandEvent.CreateRoute(CMD_ID, TENANT_ID, ACTOR, NOW,
                     "users-api", "User service routes", "/api/users/**", "GET,POST",
-                    "http://user-service:8080", "1", Map.of("timeout", 5000)),
+                    "http://user-service:8080", "1", Map.of("timeout", 5000), RouteEnvironment.PRODUCTION),
                 "CREATE_ROUTE"
             ),
             Arguments.of(
@@ -296,7 +297,7 @@ class CommandEventSerializationTest {
         @DisplayName("Empty Map fields round-trip correctly")
         void emptyMapRoundTrips() throws Exception {
             var cmd = new CommandEvent.CreateRoute(CMD_ID, TENANT_ID, ACTOR, NOW,
-                    "name", "desc", "/path", "GET", "http://up", "0", Map.of());
+                    "name", "desc", "/path", "GET", "http://up", "0", Map.of(), RouteEnvironment.PRODUCTION);
             String json = mapper.writeValueAsString(cmd);
             CommandEvent result = mapper.readValue(json, CommandEvent.class);
             assertThat(result).isEqualTo(cmd);

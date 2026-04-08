@@ -1,0 +1,7 @@
+apiVersion: v2
+name: gateway
+description: Routify API Gateway sub-chart
+type: application
+version: 1.0.0
+appVersion: "2.1.0"
+

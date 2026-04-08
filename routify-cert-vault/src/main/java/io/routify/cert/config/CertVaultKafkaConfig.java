@@ -17,8 +17,8 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.support.converter.StringJsonMessageConverter;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.converter.StringJacksonJsonMessageConverter;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.Map;
@@ -63,7 +63,7 @@ public class CertVaultKafkaConfig {
         var factory = new DefaultKafkaProducerFactory<String, Object>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,          bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,       StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,     JsonSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,     JacksonJsonSerializer.class,
                 ProducerConfig.ACKS_CONFIG,                       "all",
                 ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,         "true",
                 ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5",
@@ -73,7 +73,7 @@ public class CertVaultKafkaConfig {
                 // The __TypeId__ header causes StringJsonMessageConverter to attempt direct class
                 // loading of the inner record type (e.g. DomainEvent$CertificateUploaded), which
                 // bypasses @JsonSubTypes and fails with a ListenerExecutionFailedException.
-                JsonSerializer.ADD_TYPE_INFO_HEADERS,             false
+                JacksonJsonSerializer.ADD_TYPE_INFO_HEADERS,             false
         ));
         return factory;
     }
@@ -106,7 +106,7 @@ public class CertVaultKafkaConfig {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(certCommandConsumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setRecordMessageConverter(new StringJsonMessageConverter(objectMapper()));
+        factory.setRecordMessageConverter(new StringJacksonJsonMessageConverter());
         factory.setConcurrency(2);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));

@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Play, Pause, Trash2, Edit, RefreshCw, Filter, ChevronRight, Terminal } from 'lucide-react'
+import { Play, Pause, Trash2, Edit, RefreshCw, Filter, ChevronRight, Terminal, ArrowUpRight } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary } from '../../../types'
 import { STATUS_CONFIG } from '../constants/routeStatusConfig'
 import { METHOD_COLORS } from '../routeConstants'
 import ConfirmDeletePopover from './ConfirmDeletePopover'
+import EnvironmentBadge from './EnvironmentBadge'
 
 interface Props {
   route: RouteSummary
@@ -15,6 +16,7 @@ interface Props {
   onActivate: () => void
   onDeactivate: () => void
   onDelete: () => void
+  onPromote?: () => void
   isActivating: boolean
 }
 
@@ -27,6 +29,7 @@ export default function RouteTableRow({
   onActivate,
   onDeactivate,
   onDelete,
+  onPromote,
   isActivating,
 }: Props) {
   const sc = STATUS_CONFIG[route.status]
@@ -48,7 +51,10 @@ export default function RouteTableRow({
             )}
           </div>
           <div>
-            <div className="font-semibold text-white text-sm">{route.name}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-white text-sm">{route.name}</span>
+              {route.environment === 'STAGING' && <EnvironmentBadge environment="STAGING" />}
+            </div>
             {route.description && (
               <div className="text-xs text-gray-600 mt-0.5 truncate max-w-[180px]">{route.description}</div>
             )}
@@ -138,6 +144,16 @@ export default function RouteTableRow({
               className="p-1.5 rounded-md text-amber-400 hover:bg-amber-400/10 transition-colors"
             >
               <Pause className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {route.environment === 'STAGING' && route.status === 'ACTIVE' && onPromote && (
+            <button
+              onClick={onPromote}
+              title="Promote to Production"
+              className="p-1.5 rounded-md text-amber-400 hover:bg-amber-400/10 transition-colors"
+            >
+              <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           )}
 

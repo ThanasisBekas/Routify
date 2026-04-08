@@ -1,6 +1,7 @@
 package io.routify.admin.dto;
 
 import io.routify.admin.controller.AdminRoutesController;
+import io.routify.common.domain.RouteEnvironment;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.Map;
@@ -16,6 +17,7 @@ public record CreateRouteRequest(
         String methods,
         @NotBlank String upstreamUri,
         String stripPrefix,
-        Map<String, Object> extraConfig
+        Map<String, Object> extraConfig,
+        RouteEnvironment environment
 ) {}
 

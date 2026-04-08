@@ -16,7 +16,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  * Gateway application configuration.
  */
 @Configuration
-@EnableConfigurationProperties({ClientProperties.class})
+@EnableConfigurationProperties({ClientProperties.class, GatewayClusterConfig.class})
 public class GatewayConfig {
 
     @Bean

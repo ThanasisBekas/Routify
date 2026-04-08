@@ -2,6 +2,7 @@ package io.routify.admin;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.routify.common.domain.FilterType;
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.common.event.KafkaTopics;
 import io.routify.common.event.QueryResponse;
@@ -81,8 +82,8 @@ class AdminRoutesEndpointIT extends AdminApiIntegrationBase {
         var mockPage = new QueryResponse.RoutesPage(
                 List.of(new QueryResponse.RoutesPage.RouteSummary(
                         routeId, "mock-route", "desc", "/api/mock/**", "GET",
-                        "http://mock:8080", RouteStatus.ACTIVE, 1, 0,
-                        Instant.now(), Instant.now())),
+                        "http://mock:8080", RouteStatus.ACTIVE, RouteEnvironment.PRODUCTION, 1, 0,
+                        Instant.now(), Instant.now(), 100, null)),
                 1L, 1, 0, 20);
 
         mockRabbitReply(RabbitTopology.EXCHANGE_ROUTE_SERVICE, RabbitTopology.RK_ROUTES_QUERY,
@@ -105,8 +106,9 @@ class AdminRoutesEndpointIT extends AdminApiIntegrationBase {
         UUID routeId = UUID.randomUUID();
         var mockDetail = new QueryResponse.RouteDetail(
                 routeId, TENANT_ID, "detail-route", "desc", "/api/detail/**",
-                "POST", "http://upstream:8080", null, RouteStatus.DRAFT,
-                1, List.of(), Map.of(), ACTOR, Instant.now(), null, null);
+                "POST", "http://upstream:8080", null, RouteStatus.DRAFT, RouteEnvironment.PRODUCTION,
+                1, List.of(), Map.of(), ACTOR, Instant.now(), null, null,
+                100, null, null);
 
         mockRabbitReply(RabbitTopology.EXCHANGE_ROUTE_SERVICE, RabbitTopology.RK_ROUTES_GET,
                 request -> mockDetail);
@@ -255,8 +257,9 @@ class AdminRoutesEndpointIT extends AdminApiIntegrationBase {
         UUID cloneId  = UUID.randomUUID();
         var mockClone = new QueryResponse.RouteDetail(
                 cloneId, TENANT_ID, "cloned-route (copy)", "cloned desc", "/api/clone/**",
-                "GET", "http://upstream:8080", null, RouteStatus.DRAFT,
-                1, List.of(), Map.of(), ACTOR, Instant.now(), null, null);
+                "GET", "http://upstream:8080", null, RouteStatus.DRAFT, RouteEnvironment.PRODUCTION,
+                1, List.of(), Map.of(), ACTOR, Instant.now(), null, null,
+                100, null, null);
 
         mockRabbitReply(RabbitTopology.EXCHANGE_ROUTE_SERVICE, RabbitTopology.RK_ROUTES_CLONE,
                 request -> mockClone);

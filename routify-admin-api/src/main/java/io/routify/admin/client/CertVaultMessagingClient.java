@@ -254,4 +254,100 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.RemoveCertFromGroup(UUID.randomUUID(), tenantId, actor, Instant.now(),
                         groupId, certId));
     }
+
+    // ─── ACME Operations (RabbitMQ sync RPC) ──────────────────────────────────
+
+    @CircuitBreaker(name = "cert-vault", fallbackMethod = "registerAcmeAccountFallback")
+    public QueryResponse.AcmeAccountResult registerAcmeAccount(UUID tenantId, String email, String provider) {
+        try {
+            return rpc(RabbitTopology.RK_ACME_REGISTER,
+                    new QueryRequest.AcmeRegister(tenantId, email, provider),
+                    QueryResponse.AcmeAccountResult.class);
+        } catch (Exception e) {
+            log.error("registerAcmeAccount failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AcmeAccountResult registerAcmeAccountFallback(UUID tenantId, String email,
+                                                                         String provider, Throwable t) {
+        log.warn("registerAcmeAccount circuit open or timed out: {}", t.getMessage());
+        throw new RuntimeException("ACME account registration unavailable", t);
+    }
+
+    @CircuitBreaker(name = "cert-vault", fallbackMethod = "issueAcmeCertificateFallback")
+    public QueryResponse.AcmeOrderDetail issueAcmeCertificate(UUID tenantId, UUID accountId,
+                                                               String domain, UUID certGroupId) {
+        try {
+            return rpc(RabbitTopology.RK_ACME_ISSUE,
+                    new QueryRequest.AcmeIssue(tenantId, accountId, domain, certGroupId),
+                    QueryResponse.AcmeOrderDetail.class);
+        } catch (Exception e) {
+            log.error("issueAcmeCertificate failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AcmeOrderDetail issueAcmeCertificateFallback(UUID tenantId, UUID accountId,
+                                                                        String domain, UUID certGroupId,
+                                                                        Throwable t) {
+        log.warn("issueAcmeCertificate circuit open or timed out: {}", t.getMessage());
+        throw new RuntimeException("ACME certificate issuance unavailable", t);
+    }
+
+    @CircuitBreaker(name = "cert-vault", fallbackMethod = "queryAcmeOrdersFallback")
+    public QueryResponse.AcmeOrdersPage queryAcmeOrders(UUID tenantId, int page, int size) {
+        try {
+            return rpc(RabbitTopology.RK_ACME_ORDERS_QUERY,
+                    new QueryRequest.AcmeOrdersQuery(tenantId, page, size),
+                    QueryResponse.AcmeOrdersPage.class);
+        } catch (Exception e) {
+            log.error("queryAcmeOrders failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AcmeOrdersPage queryAcmeOrdersFallback(UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryAcmeOrders circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.AcmeOrdersPage(List.of(), 0L, 0, page, size, true, true);
+    }
+
+    @CircuitBreaker(name = "cert-vault", fallbackMethod = "getAcmeOrderFallback")
+    public QueryResponse.AcmeOrderDetail getAcmeOrder(UUID id, UUID tenantId) {
+        try {
+            return rpc(RabbitTopology.RK_ACME_ORDER_GET,
+                    new QueryRequest.AcmeOrderGet(id, tenantId),
+                    QueryResponse.AcmeOrderDetail.class);
+        } catch (Exception e) {
+            log.error("getAcmeOrder failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AcmeOrderDetail getAcmeOrderFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("getAcmeOrder circuit open or timed out: {}", t.getMessage());
+        return null;
+    }
+
+    @CircuitBreaker(name = "cert-vault", fallbackMethod = "renewAcmeCertificateFallback")
+    public QueryResponse.AcmeOrderDetail renewAcmeCertificate(UUID orderId, UUID tenantId) {
+        try {
+            return rpc(RabbitTopology.RK_ACME_RENEW,
+                    new QueryRequest.AcmeRenew(orderId, tenantId),
+                    QueryResponse.AcmeOrderDetail.class);
+        } catch (Exception e) {
+            log.error("renewAcmeCertificate failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AcmeOrderDetail renewAcmeCertificateFallback(UUID orderId, UUID tenantId, Throwable t) {
+        log.warn("renewAcmeCertificate circuit open or timed out: {}", t.getMessage());
+        throw new RuntimeException("ACME certificate renewal unavailable", t);
+    }
 }

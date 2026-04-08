@@ -30,6 +30,9 @@ environments/.env.*
 hs_err_pid*
 replay_pid*
 
+# MaxMind GeoLite2 database (binary, requires MaxMind account to download)
+*.mmdb
+
 # Maven build output
 target/
 !.mvn/wrapper/maven-wrapper.jar

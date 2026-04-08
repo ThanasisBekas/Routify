@@ -2,12 +2,12 @@ package io.routify.admin.gateway.controller;
 
 import io.routify.admin.gateway.dto.GatewayConfigDto;
 import io.routify.admin.gateway.dto.GatewayConfigDto.*;
+
 import io.routify.admin.gateway.service.GatewayActuatorClient;
 import io.routify.admin.gateway.service.GatewayConfigService;
 import io.routify.admin.client.CertVaultMessagingClient;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.web.RoutifyHeaders;
-import io.routify.common.web.Sensitive;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -48,13 +48,13 @@ public class GatewayConfigController {
     // ─── Full config ─────────────────────────────────────────────────────────
 
     @GetMapping("/config")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<GatewayConfigDto> getConfig() {
         return ResponseEntity.ok(configService.getConfig());
     }
 
     @PutMapping("/config")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> saveConfig(
             @RequestBody GatewayConfigDto dto,
             Authentication auth) {
@@ -64,7 +64,7 @@ public class GatewayConfigController {
     // ─── Live status ─────────────────────────────────────────────────────────
 
     @GetMapping("/status")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<Map<String, Object>> getStatus() {
         Map<String, Object> health      = actuatorClient.getHealth();
         Map<String, Object> routes      = actuatorClient.getLiveRoutes();
@@ -79,13 +79,13 @@ public class GatewayConfigController {
     }
 
     @PostMapping("/reload")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<Map<String, Object>> triggerReload(Authentication auth) {
         return ResponseEntity.ok(actuatorClient.triggerConfigReload());
     }
 
     @GetMapping("/metrics")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<Map<String, Object>> getMetrics() {
         return ResponseEntity.ok(actuatorClient.getGatewayMetrics());
     }
@@ -93,13 +93,13 @@ public class GatewayConfigController {
     // ─── CORS ────────────────────────────────────────────────────────────────
 
     @GetMapping("/cors")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<CorsConfig> getCors() {
         return ResponseEntity.ok(configService.getCors());
     }
 
     @PutMapping("/cors")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateCors(
             @RequestBody @Valid CorsConfig cors,
             Authentication auth) {
@@ -109,13 +109,13 @@ public class GatewayConfigController {
     // ─── Security Headers ────────────────────────────────────────────────────
 
     @GetMapping("/security-headers")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<SecurityHeadersConfig> getSecurityHeaders() {
         return ResponseEntity.ok(configService.getSecurityHeaders());
     }
 
     @PutMapping("/security-headers")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateSecurityHeaders(
             @RequestBody SecurityHeadersConfig sh,
             Authentication auth) {
@@ -125,13 +125,13 @@ public class GatewayConfigController {
     // ─── Rate Limit Policies ─────────────────────────────────────────────────
 
     @GetMapping("/rate-limit-policies")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<List<RateLimitPolicyDto>> getRateLimitPolicies() {
         return ResponseEntity.ok(configService.getRateLimitPolicies());
     }
 
     @PutMapping("/rate-limit-policies")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> setRateLimitPolicies(
             @RequestBody List<RateLimitPolicyDto> policies,
             Authentication auth) {
@@ -139,7 +139,7 @@ public class GatewayConfigController {
     }
 
     @PutMapping("/rate-limit-policies/{policyId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> upsertRateLimitPolicy(
             @PathVariable String policyId,
             @RequestBody RateLimitPolicyDto policy,
@@ -149,7 +149,7 @@ public class GatewayConfigController {
     }
 
     @DeleteMapping("/rate-limit-policies/{policyId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<Void> deleteRateLimitPolicy(
             @PathVariable String policyId,
             Authentication auth) {
@@ -160,13 +160,13 @@ public class GatewayConfigController {
     // ─── Circuit Breaker Defaults ────────────────────────────────────────────
 
     @GetMapping("/circuit-breaker")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<CircuitBreakerDefaultsDto> getCircuitBreakerDefaults() {
         return ResponseEntity.ok(configService.getCircuitBreakerDefaults());
     }
 
     @PutMapping("/circuit-breaker")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateCircuitBreakerDefaults(
             @RequestBody CircuitBreakerDefaultsDto cb,
             Authentication auth) {
@@ -174,7 +174,7 @@ public class GatewayConfigController {
     }
 
     @GetMapping("/circuit-breaker/states")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<Map<String, Object>> getCircuitBreakerStates() {
         return ResponseEntity.ok(actuatorClient.getCircuitBreakerStates());
     }
@@ -182,13 +182,13 @@ public class GatewayConfigController {
     // ─── Resilience Defaults (Retry / Timeout / Bulkhead) ───────────────────
 
     @GetMapping("/resilience")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<ResilienceDefaultsDto> getResilienceDefaults() {
         return ResponseEntity.ok(configService.getResilienceDefaults());
     }
 
     @PutMapping("/resilience")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateResilienceDefaults(
             @RequestBody ResilienceDefaultsDto rd,
             Authentication auth) {
@@ -198,15 +198,14 @@ public class GatewayConfigController {
     // ─── Auth Providers ──────────────────────────────────────────────────────
 
     @GetMapping("/auth-providers")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<List<AuthProviderDto>> getAuthProviders() {
         List<AuthProviderDto> providers = configService.getAuthProviders();
-        providers.forEach(Sensitive::maskFields);
         return ResponseEntity.ok(providers);
     }
 
     @PutMapping("/auth-providers/{providerId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> upsertAuthProvider(
             @PathVariable String providerId,
             @RequestBody AuthProviderDto provider,
@@ -216,11 +215,39 @@ public class GatewayConfigController {
     }
 
     @DeleteMapping("/auth-providers/{providerId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<Void> deleteAuthProvider(
             @PathVariable String providerId,
             Authentication auth) {
         configService.deleteAuthProvider(providerId, actor(auth));
+        return ResponseEntity.noContent().build();
+    }
+
+    // ─── Downstream Credentials ───────────────────────────────────────────
+
+    @GetMapping("/downstream-credentials")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    public ResponseEntity<List<DownstreamCredentialDto>> getDownstreamCredentials() {
+        List<DownstreamCredentialDto> creds = configService.getDownstreamCredentials();
+        return ResponseEntity.ok(creds);
+    }
+
+    @PutMapping("/downstream-credentials/{credentialId}")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    public ResponseEntity<GatewayConfigDto> upsertDownstreamCredential(
+            @PathVariable String credentialId,
+            @RequestBody DownstreamCredentialDto credential,
+            Authentication auth) {
+        credential.setId(credentialId);
+        return ResponseEntity.ok(configService.upsertDownstreamCredential(credential, actor(auth)));
+    }
+
+    @DeleteMapping("/downstream-credentials/{credentialId}")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    public ResponseEntity<Void> deleteDownstreamCredential(
+            @PathVariable String credentialId,
+            Authentication auth) {
+        configService.deleteDownstreamCredential(credentialId, actor(auth));
         return ResponseEntity.noContent().build();
     }
 
@@ -235,13 +262,13 @@ public class GatewayConfigController {
     // Use the Cert Vault API (/api/v1/admin/cert-groups, /api/v1/admin/certs) instead.
 
     @GetMapping("/tls")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<TlsConfigDto> getTlsConfig() {
         return ResponseEntity.ok(configService.getTlsConfig());
     }
 
     @GetMapping("/tls/certificates")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<Map<String, Object>> getLiveCertificates() {
         return ResponseEntity.ok(actuatorClient.getCertificates());
     }
@@ -252,7 +279,7 @@ public class GatewayConfigController {
      * Routes through cert-vault's {@code certs.gateway.snapshot} RabbitMQ queue.
      */
     @GetMapping("/tls/vault-certs")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<QueryResponse.CertsList> getVaultCertificates(
             @RequestHeader(value = RoutifyHeaders.TENANT_ID, required = false) java.util.UUID tenantId) {
         return ResponseEntity.ok(certVaultClient.listGatewayMappedCertificates(tenantId));
@@ -261,15 +288,14 @@ public class GatewayConfigController {
     // ─── Upstream Proxy ──────────────────────────────────────────────────────
 
     @GetMapping("/proxy")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<ProxyConfigDto> getProxyConfig() {
         ProxyConfigDto proxy = configService.getProxyConfig();
-        Sensitive.maskFields(proxy);
         return ResponseEntity.ok(proxy);
     }
 
     @PutMapping("/proxy")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateProxyConfig(
             @RequestBody ProxyConfigDto proxy,
             Authentication auth) {
@@ -279,13 +305,13 @@ public class GatewayConfigController {
     // ─── HTTP Client ─────────────────────────────────────────────────────────
 
     @GetMapping("/http-client")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<HttpClientConfigDto> getHttpClientConfig() {
         return ResponseEntity.ok(configService.getHttpClientConfig());
     }
 
     @PutMapping("/http-client")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateHttpClientConfig(
             @RequestBody HttpClientConfigDto httpClient,
             Authentication auth) {
@@ -295,13 +321,13 @@ public class GatewayConfigController {
     // ─── Global Filters ──────────────────────────────────────────────────────
 
     @GetMapping("/global-filters")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<GlobalFiltersConfig> getGlobalFilters() {
         return ResponseEntity.ok(configService.getGlobalFilters());
     }
 
     @PutMapping("/global-filters")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateGlobalFilters(
             @RequestBody GlobalFiltersConfig gf,
             Authentication auth) {
@@ -311,13 +337,13 @@ public class GatewayConfigController {
     // ─── Tenant Isolation ────────────────────────────────────────────────────
 
     @GetMapping("/tenant-isolation")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<TenantIsolationConfig> getTenantIsolation() {
         return ResponseEntity.ok(configService.getTenantIsolation());
     }
 
     @PutMapping("/tenant-isolation")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateTenantIsolation(
             @RequestBody TenantIsolationConfig ti,
             Authentication auth) {
@@ -327,13 +353,13 @@ public class GatewayConfigController {
     // ─── Global Filter Entries ────────────────────────────────────────────────
 
     @GetMapping("/global-filter-entries")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<List<GlobalFilterEntryDto>> getGlobalFilterEntries() {
         return ResponseEntity.ok(configService.getGlobalFilterEntries());
     }
 
     @PutMapping("/global-filter-entries")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<GatewayConfigDto> updateGlobalFilterEntries(
             @RequestBody List<GlobalFilterEntryDto> entries,
             Authentication auth) {

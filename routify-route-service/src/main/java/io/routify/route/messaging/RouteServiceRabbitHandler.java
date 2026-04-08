@@ -1,10 +1,12 @@
 package io.routify.route.messaging;
 
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.event.RabbitTopology;
 import io.routify.route.mapper.RouteMapper;
+import io.routify.route.repository.RouteSloRepository;
 import io.routify.route.service.FilterDefinitionService;
 import io.routify.route.service.GatewayConfigService;
 import io.routify.route.service.RouteService;
@@ -34,6 +36,7 @@ public class RouteServiceRabbitHandler {
     private final FilterDefinitionService  filterService;
     private final GatewayConfigService     gatewayConfigService;
     private final RouteMapper              routeMapper;
+    private final RouteSloRepository       routeSloRepository;
 
     @RabbitListener(queues = RabbitTopology.QUEUE_ROUTE_GATEWAY_SNAPSHOT)
     public QueryResponse.GatewaySnapshotList handleGatewaySnapshotRequest(@SuppressWarnings("unused") QueryRequest.GatewaySnapshot request) {
@@ -50,7 +53,8 @@ public class RouteServiceRabbitHandler {
                     return new QueryResponse.GatewaySnapshotList.RouteSnapshot(
                             dto.routeId(), dto.tenantId(), dto.name(), dto.pathPattern(),
                             dto.methods(), dto.upstreamUri(), dto.stripPrefix(), dto.version(),
-                            filters, dto.extraConfig());
+                            dto.environment(), filters, dto.extraConfig(),
+                            dto.trafficWeight(), dto.canaryRouteId());
                 })
                 .toList();
         log.debug("RabbitMQ: returning {} active routes in snapshot", snapshots.size());
@@ -98,18 +102,20 @@ public class RouteServiceRabbitHandler {
         log.debug("RabbitMQ: received routes.query request");
         RouteStatus status = (req.status() != null && !req.status().isBlank())
                 ? RouteStatus.valueOf(req.status().toUpperCase()) : null;
+        RouteEnvironment environment = (req.environment() != null && !req.environment().isBlank())
+                ? RouteEnvironment.valueOf(req.environment().toUpperCase()) : null;
         String sortBy  = req.sortBy()  != null ? req.sortBy()  : "createdAt";
         String sortDir = req.sortDir() != null ? req.sortDir() : "DESC";
 
         var pageable = PageRequest.of(req.page(), req.size(),
                 Sort.by(Sort.Direction.fromString(sortDir), sortBy));
-        var result = routeService.findAllWithFilters(req.tenantId(), status, pageable);
+        var result = routeService.findAllWithFilters(req.tenantId(), status, environment, pageable);
 
         var content = result.getContent().stream().map(routeMapper::toSummary).map(s ->
                 new QueryResponse.RoutesPage.RouteSummary(
                         s.id(), s.name(), s.description(), s.pathPattern(), s.methods(),
-                        s.upstreamUri(), s.status(), s.version(), s.filterCount(),
-                        s.createdAt(), s.activatedAt()))
+                        s.upstreamUri(), s.status(), s.environment(), s.version(), s.filterCount(),
+                        s.createdAt(), s.activatedAt(), s.trafficWeight(), s.canaryRouteId()))
                 .toList();
         return new QueryResponse.RoutesPage(content, result.getTotalElements(),
                 result.getTotalPages(), result.getNumber(), result.getSize());
@@ -126,8 +132,9 @@ public class RouteServiceRabbitHandler {
                 .toList();
         return new QueryResponse.RouteDetail(
                 r.id(), r.tenantId(), r.name(), r.description(), r.pathPattern(),
-                r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.version(),
-                filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt());
+                r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.environment(), r.version(),
+                filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt(),
+                r.trafficWeight(), r.canaryRouteId(), r.canaryAutoRollbackThreshold());
     }
 
     @RabbitListener(queues = RabbitTopology.QUEUE_ROUTES_CLONE)
@@ -142,8 +149,9 @@ public class RouteServiceRabbitHandler {
                 .toList();
         return new QueryResponse.RouteDetail(
                 r.id(), r.tenantId(), r.name(), r.description(), r.pathPattern(),
-                r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.version(),
-                filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt());
+                r.methods(), r.upstreamUri(), r.stripPrefix(), r.status(), r.environment(), r.version(),
+                filters, r.extraConfig(), r.createdBy(), r.createdAt(), r.updatedAt(), r.activatedAt(),
+                r.trafficWeight(), r.canaryRouteId(), r.canaryAutoRollbackThreshold());
     }
 
     // ─── Admin-API: Filter Queries ────────────────────────────────────────────
@@ -187,5 +195,43 @@ public class RouteServiceRabbitHandler {
                 f.id(), f.tenantId(), f.name(), f.description(), f.filterType(),
                 f.config(), f.systemManaged(), f.enabled(), f.usageCount(),
                 gcr, f.createdBy(), f.createdAt(), f.updatedAt());
+    }
+
+    // ─── Admin-API: Route SLO Queries (Gateway Health Dashboard v2) ───────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ROUTE_SLO_GET)
+    public QueryResponse.RouteSloResult handleRouteSloGet(QueryRequest.RouteSloGet req) {
+        log.debug("RabbitMQ: received route-slo.get request: routeId={}", req.routeId());
+        return routeSloRepository.findByRouteId(req.routeId())
+                .map(slo -> new QueryResponse.RouteSloResult(
+                        slo.getRouteId(),
+                        slo.getAvailabilityTarget().doubleValue(),
+                        slo.getLatencyP99TargetMs(),
+                        slo.getEvaluationWindowHours(),
+                        true))
+                .orElse(new QueryResponse.RouteSloResult(
+                        req.routeId(), 99.9, 1000, 168, false));
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ROUTE_SLO_SAVE)
+    public QueryResponse.RouteSloResult handleRouteSloSave(QueryRequest.RouteSloSave req) {
+        log.debug("RabbitMQ: received route-slo.save request: routeId={}", req.routeId());
+        var slo = routeSloRepository.findByRouteId(req.routeId())
+                .orElse(new io.routify.route.domain.RouteSlo(
+                        req.routeId(),
+                        java.math.BigDecimal.valueOf(req.availabilityTarget()),
+                        req.latencyP99TargetMs(),
+                        req.evaluationWindowHours()));
+        slo.setAvailabilityTarget(java.math.BigDecimal.valueOf(req.availabilityTarget()));
+        slo.setLatencyP99TargetMs(req.latencyP99TargetMs());
+        slo.setEvaluationWindowHours(req.evaluationWindowHours());
+        routeSloRepository.save(slo);
+        log.info("RabbitMQ: route SLO saved for routeId={}", req.routeId());
+        return new QueryResponse.RouteSloResult(
+                slo.getRouteId(),
+                slo.getAvailabilityTarget().doubleValue(),
+                slo.getLatencyP99TargetMs(),
+                slo.getEvaluationWindowHours(),
+                true);
     }
 }

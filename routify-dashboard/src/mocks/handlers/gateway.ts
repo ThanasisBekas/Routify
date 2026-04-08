@@ -7,6 +7,7 @@ import type {
   GatewayCircuitBreakerDefaults,
   GatewayResilienceDefaults,
   GatewayAuthProvider,
+  GatewayDownstreamCredential,
   GatewayProxyConfig,
   GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
@@ -167,6 +168,34 @@ export const gatewayHandlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  // ─── Downstream Credentials ────────────────────────────────────────────────
+  http.get(`${BASE}/downstream-credentials`, async () => {
+    await delay(150)
+    return HttpResponse.json(gatewayConfig.downstreamCredentials ?? [])
+  }),
+  http.put(`${BASE}/downstream-credentials/:credentialId`, async ({ params, request }) => {
+    await delay(350)
+    const body = (await request.json()) as GatewayDownstreamCredential
+    const creds = gatewayConfig.downstreamCredentials ?? []
+    const idx = creds.findIndex((c) => c.id === params.credentialId)
+    if (idx >= 0) {
+      creds[idx] = body
+    } else {
+      creds.push(body)
+    }
+    gatewayConfig.downstreamCredentials = creds
+    gatewayConfig.updatedAt = new Date().toISOString()
+    return HttpResponse.json(gatewayConfig)
+  }),
+  http.delete(`${BASE}/downstream-credentials/:credentialId`, async ({ params }) => {
+    await delay(300)
+    gatewayConfig.downstreamCredentials = (gatewayConfig.downstreamCredentials ?? []).filter(
+      (c) => c.id !== params.credentialId,
+    )
+    gatewayConfig.updatedAt = new Date().toISOString()
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   // ─── Proxy ────────────────────────────────────────────────────────────────────
   http.get(`${BASE}/proxy`, async () => {
     await delay(150)
@@ -217,5 +246,59 @@ export const gatewayHandlers = [
     gatewayConfig.globalFilterEntries = body
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
+  }),
+
+  // ─── Fleet Status (Multi-Gateway Cluster Awareness) ─────────────────────────
+  http.get(`${BASE}/fleet`, async () => {
+    await delay(200)
+    const now = new Date()
+    const startedAt1 = new Date(now.getTime() - 3.9 * 60 * 60 * 1000).toISOString()
+    const startedAt2 = new Date(now.getTime() - 12.5 * 60 * 60 * 1000).toISOString()
+    const startedAt3 = new Date(now.getTime() - 1.2 * 60 * 60 * 1000).toISOString()
+
+    return HttpResponse.json({
+      globalConfigVersion: 47,
+      instanceCount: 3,
+      healthyCount: 2,
+      staleCount: 1,
+      instances: [
+        {
+          instanceId: 'gateway-pod-abc123:8080:f7a2',
+          hostname: 'gateway-pod-abc123',
+          configVersion: 47,
+          routeCount: 125,
+          filterCount: 89,
+          status: 'HEALTHY',
+          startedAt: startedAt1,
+          lastReloadAt: new Date(now.getTime() - 5 * 60 * 1000).toISOString(),
+          lastHeartbeatAt: new Date(now.getTime() - 3 * 1000).toISOString(),
+          uptimeHours: 3.9,
+        },
+        {
+          instanceId: 'gateway-pod-def456:8080:b3c1',
+          hostname: 'gateway-pod-def456',
+          configVersion: 45,
+          routeCount: 123,
+          filterCount: 87,
+          status: 'STALE',
+          startedAt: startedAt2,
+          lastReloadAt: new Date(now.getTime() - 25 * 60 * 1000).toISOString(),
+          lastHeartbeatAt: new Date(now.getTime() - 8 * 1000).toISOString(),
+          uptimeHours: 12.5,
+        },
+        {
+          instanceId: 'gateway-pod-ghi789:8080:e9d4',
+          hostname: 'gateway-pod-ghi789',
+          configVersion: 47,
+          routeCount: 125,
+          filterCount: 89,
+          status: 'HEALTHY',
+          startedAt: startedAt3,
+          lastReloadAt: new Date(now.getTime() - 5 * 60 * 1000).toISOString(),
+          lastHeartbeatAt: new Date(now.getTime() - 2 * 1000).toISOString(),
+          uptimeHours: 1.2,
+        },
+      ],
+    })
   }),
 ]

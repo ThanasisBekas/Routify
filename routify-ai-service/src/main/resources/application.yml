@@ -68,7 +68,7 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       acks: all
       retries: 3
       properties:
@@ -124,7 +124,6 @@ management:
     port: 9086
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus,circuitbreakers
   endpoint:

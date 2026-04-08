@@ -3,6 +3,7 @@ package io.routify.common.event;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.routify.common.domain.FilterType;
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.TenantPlan;
 import io.routify.common.domain.UserRole;
 
@@ -19,6 +20,7 @@ import java.util.UUID;
  *   <li>{@link KafkaTopics#FILTER_COMMANDS}  → routify-route-service</li>
  *   <li>{@link KafkaTopics#USER_COMMANDS}    → routify-identity-service</li>
  *   <li>{@link KafkaTopics#AUTH_COMMANDS}    → routify-identity-service</li>
+ *   <li>{@link KafkaTopics#APIKEY_COMMANDS}  → routify-identity-service</li>
  *   <li>{@link KafkaTopics#CERT_COMMANDS}    → routify-cert-vault</li>
  * </ul>
  *
@@ -53,6 +55,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = CommandEvent.ActivateRoute.class,      name = "ACTIVATE_ROUTE"),
     @JsonSubTypes.Type(value = CommandEvent.DeactivateRoute.class,    name = "DEACTIVATE_ROUTE"),
     @JsonSubTypes.Type(value = CommandEvent.DeleteRoute.class,        name = "DELETE_ROUTE"),
+    @JsonSubTypes.Type(value = CommandEvent.PromoteRoute.class,      name = "PROMOTE_ROUTE"),
     // ─── Filter commands ──────────────────────────────────────────────────────
     @JsonSubTypes.Type(value = CommandEvent.AttachFilter.class,       name = "ATTACH_FILTER"),
     @JsonSubTypes.Type(value = CommandEvent.DetachFilter.class,       name = "DETACH_FILTER"),
@@ -87,6 +90,27 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = CommandEvent.ReactivateTenant.class,  name = "REACTIVATE_TENANT"),
     // ─── Gateway config commands (also sync over RabbitMQ) ───────────────────
     @JsonSubTypes.Type(value = CommandEvent.SaveGatewayConfig.class, name = "SAVE_GATEWAY_CONFIG"),
+    // ─── API Key commands ──────────────────────────────────────────────────────
+    @JsonSubTypes.Type(value = CommandEvent.CreateApiKey.class,  name = "CREATE_API_KEY"),
+    @JsonSubTypes.Type(value = CommandEvent.RevokeApiKey.class,  name = "REVOKE_API_KEY"),
+    @JsonSubTypes.Type(value = CommandEvent.RotateApiKey.class,  name = "ROTATE_API_KEY"),
+    // ─── Webhook commands ────────────────────────────────────────────────────
+    @JsonSubTypes.Type(value = CommandEvent.CreateWebhook.class,  name = "CREATE_WEBHOOK"),
+    @JsonSubTypes.Type(value = CommandEvent.UpdateWebhook.class,  name = "UPDATE_WEBHOOK"),
+    @JsonSubTypes.Type(value = CommandEvent.DeleteWebhook.class,  name = "DELETE_WEBHOOK"),
+    // ─── Role commands (RabbitMQ sync) ──────────────────────────────────────
+    @JsonSubTypes.Type(value = CommandEvent.CreateRole.class,     name = "CREATE_ROLE"),
+    @JsonSubTypes.Type(value = CommandEvent.UpdateRole.class,     name = "UPDATE_ROLE"),
+    @JsonSubTypes.Type(value = CommandEvent.DeleteRole.class,     name = "DELETE_ROLE"),
+    // ─── Canary routing commands ──────────────────────────────────────────────
+    @JsonSubTypes.Type(value = CommandEvent.DeployCanary.class,       name = "DEPLOY_CANARY"),
+    @JsonSubTypes.Type(value = CommandEvent.PromoteCanary.class,      name = "PROMOTE_CANARY"),
+    @JsonSubTypes.Type(value = CommandEvent.RollbackCanary.class,     name = "ROLLBACK_CANARY"),
+    @JsonSubTypes.Type(value = CommandEvent.AdjustCanaryWeight.class, name = "ADJUST_CANARY_WEIGHT"),
+    // ─── Cache commands ────────────────────────────────────────────────────────
+    @JsonSubTypes.Type(value = CommandEvent.PurgeCacheRoute.class,    name = "PURGE_CACHE_ROUTE"),
+    // ─── Circuit breaker commands ────────────────────────────────────────────
+    @JsonSubTypes.Type(value = CommandEvent.ForceCircuitBreaker.class, name = "FORCE_CIRCUIT_BREAKER"),
 })
 public sealed interface CommandEvent
         permits
@@ -95,6 +119,7 @@ public sealed interface CommandEvent
             CommandEvent.ActivateRoute,
             CommandEvent.DeactivateRoute,
             CommandEvent.DeleteRoute,
+            CommandEvent.PromoteRoute,
             CommandEvent.AttachFilter,
             CommandEvent.DetachFilter,
             CommandEvent.CreateFilter,
@@ -120,6 +145,21 @@ public sealed interface CommandEvent
             CommandEvent.SuspendTenant,
             CommandEvent.ReactivateTenant,
             CommandEvent.SaveGatewayConfig,
+            CommandEvent.CreateApiKey,
+            CommandEvent.RevokeApiKey,
+            CommandEvent.RotateApiKey,
+            CommandEvent.CreateWebhook,
+            CommandEvent.UpdateWebhook,
+            CommandEvent.DeleteWebhook,
+            CommandEvent.CreateRole,
+            CommandEvent.UpdateRole,
+            CommandEvent.DeleteRole,
+            CommandEvent.DeployCanary,
+            CommandEvent.PromoteCanary,
+            CommandEvent.RollbackCanary,
+            CommandEvent.AdjustCanaryWeight,
+            CommandEvent.PurgeCacheRoute,
+            CommandEvent.ForceCircuitBreaker,
             CommandEvent.Unknown {
 
     /** Idempotency key — generated by the producer, checked by consumers. */
@@ -147,7 +187,8 @@ public sealed interface CommandEvent
             String methods,
             String upstreamUri,
             String stripPrefix,
-            Map<String, Object> extraConfig
+            Map<String, Object> extraConfig,
+            RouteEnvironment environment
     ) implements CommandEvent {}
 
     record UpdateRoute(
@@ -187,6 +228,15 @@ public sealed interface CommandEvent
             String requestedBy,
             Instant issuedAt,
             UUID   id
+    ) implements CommandEvent {}
+
+    /** Promotes a STAGING route to PRODUCTION — copies config atomically and archives staging. */
+    record PromoteRoute(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId
     ) implements CommandEvent {}
 
     // ─── Filter Commands ──────────────────────────────────────────────────────
@@ -438,6 +488,172 @@ public sealed interface CommandEvent
             Instant             issuedAt,
             String              section,
             Map<String, Object> config
+    ) implements CommandEvent {}
+
+    // ─── API Key Commands ─────────────────────────────────────────────────────
+
+    record CreateApiKey(
+            UUID     commandId,
+            UUID     tenantId,
+            String   requestedBy,
+            Instant  issuedAt,
+            UUID     userId,
+            String   name,
+            UserRole role,
+            String   email,
+            Instant  expiresAt
+    ) implements CommandEvent {}
+
+    record RevokeApiKey(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   apiKeyId
+    ) implements CommandEvent {}
+
+    record RotateApiKey(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   apiKeyId
+    ) implements CommandEvent {}
+
+    // ─── Webhook Commands ──────────────────────────────────────────────────────
+
+    record CreateWebhook(
+            UUID               commandId,
+            UUID               tenantId,
+            String             requestedBy,
+            Instant            issuedAt,
+            String             name,
+            String             url,
+            java.util.List<String> eventTypes,
+            String             actor
+    ) implements CommandEvent {}
+
+    record UpdateWebhook(
+            UUID               commandId,
+            UUID               tenantId,
+            String             requestedBy,
+            Instant            issuedAt,
+            UUID               webhookId,
+            String             name,
+            String             url,
+            java.util.List<String> eventTypes,
+            String             actor
+    ) implements CommandEvent {}
+
+    record DeleteWebhook(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   webhookId,
+            String actor
+    ) implements CommandEvent {}
+
+    // ─── Role Commands (RabbitMQ sync — same as tenant commands) ──────────────
+
+    record CreateRole(
+            UUID               commandId,
+            UUID               tenantId,
+            String             requestedBy,
+            Instant            issuedAt,
+            String             name,
+            String             description,
+            java.util.List<String> permissions
+    ) implements CommandEvent {}
+
+    record UpdateRole(
+            UUID               commandId,
+            UUID               tenantId,
+            String             requestedBy,
+            Instant            issuedAt,
+            UUID               roleId,
+            String             name,
+            String             description,
+            java.util.List<String> permissions
+    ) implements CommandEvent {}
+
+    record DeleteRole(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   roleId
+    ) implements CommandEvent {}
+
+    // ─── Canary Routing Commands ──────────────────────────────────────────────
+
+    /** Deploy a canary route that receives a percentage of the primary route's traffic. */
+    record DeployCanary(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId,
+            String canaryUpstreamUri,
+            int    trafficWeight,
+            double autoRollbackThreshold,
+            Map<String, Object> canaryExtraConfig
+    ) implements CommandEvent {}
+
+    /** Promote the canary upstream to be the new primary — removes the canary route. */
+    record PromoteCanary(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId
+    ) implements CommandEvent {}
+
+    /** Roll back the canary — archive canary route, restore primary to 100% traffic. */
+    record RollbackCanary(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId,
+            String reason
+    ) implements CommandEvent {}
+
+    /** Adjust the traffic weight between primary and canary. */
+    record AdjustCanaryWeight(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId,
+            int    newWeight
+    ) implements CommandEvent {}
+
+    // ─── Cache Commands ────────────────────────────────────────────────────────
+
+    /** Purge all cached responses for a specific route. Consumed by all gateway instances. */
+    record PurgeCacheRoute(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId
+    ) implements CommandEvent {}
+
+    // ─── Circuit Breaker Commands ────────────────────────────────────────────
+
+    /**
+     * Force a circuit breaker state transition on the gateway.
+     * {@code action} is one of: {@code "FORCE_OPEN"}, {@code "FORCE_CLOSED"}, {@code "RESET"}.
+     * Consumed by all gateway instances (broadcast consumer group).
+     */
+    record ForceCircuitBreaker(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId,
+            String action   // "FORCE_OPEN" | "FORCE_CLOSED" | "RESET"
     ) implements CommandEvent {}
 
     /**

@@ -4,7 +4,7 @@ import io.routify.common.event.RabbitTopology;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -148,22 +148,47 @@ public class RabbitConfig {
                 .to(routeServiceExchange).with(RabbitTopology.RK_FILTERS_GET);
     }
 
+    // ─── Route SLO queues ──────────────────────────────────────────────────────
+
+    @Bean
+    public Queue routeSloGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROUTE_SLO_GET).build();
+    }
+
+    @Bean
+    public Queue routeSloSaveQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROUTE_SLO_SAVE).build();
+    }
+
+    @Bean
+    public Binding routeSloGetBinding(Queue routeSloGetQueue, DirectExchange routeServiceExchange) {
+        return BindingBuilder.bind(routeSloGetQueue)
+                .to(routeServiceExchange).with(RabbitTopology.RK_ROUTE_SLO_GET);
+    }
+
+    @Bean
+    public Binding routeSloSaveBinding(Queue routeSloSaveQueue, DirectExchange routeServiceExchange) {
+        return BindingBuilder.bind(routeSloSaveQueue)
+                .to(routeServiceExchange).with(RabbitTopology.RK_ROUTE_SLO_SAVE);
+    }
+
     // ─── Message converter & template ─────────────────────────────────────────
 
     /**
-     * Jackson2JsonMessageConverter is used by the auto-configured listener container factory.
-     * This allows @RabbitListener methods to receive and return strongly-typed objects
-     * (QueryRequest subtypes, response POJOs) without manual ObjectMapper calls.
+     * JacksonJsonMessageConverter (Jackson 3) is used by the auto-configured listener
+     * container factory. This allows @RabbitListener methods to receive and return
+     * strongly-typed objects (QueryRequest subtypes, response POJOs) without manual
+     * ObjectMapper calls.
      */
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
-        template.setMessageConverter(new Jackson2JsonMessageConverter());
+        template.setMessageConverter(new JacksonJsonMessageConverter());
         template.setReplyTimeout(RabbitTopology.REPLY_TIMEOUT_MS);
         template.setObservationEnabled(true);
         return template;

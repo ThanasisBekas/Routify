@@ -7,6 +7,7 @@ import io.routify.route.domain.ProcessedCommand;
 import io.routify.route.domain.Route;
 import io.routify.route.repository.ProcessedCommandRepository;
 import io.routify.route.service.FilterDefinitionService;
+import io.routify.route.service.GatewayConfigRefValidator;
 import io.routify.route.service.RouteService;
 import io.routify.route.service.RouteUpdateCommand;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class RouteCommandKafkaConsumer {
     private final RouteService               routeService;
     private final FilterDefinitionService    filterService;
     private final ProcessedCommandRepository processedCommandRepo;
+    private final GatewayConfigRefValidator   configRefValidator;
 
     @KafkaListener(
             topics = KafkaTopics.ROUTE_COMMANDS,
@@ -112,6 +114,7 @@ public class RouteCommandKafkaConsumer {
                         .stripPrefix(c.stripPrefix())
                         .createdBy(c.requestedBy())
                         .extraConfig(c.extraConfig())
+                        .environment(c.environment())
                         .build();
                 routeService.create(route, c.tenantId(), c.requestedBy());
             }
@@ -124,11 +127,22 @@ public class RouteCommandKafkaConsumer {
             case CommandEvent.ActivateRoute   c -> routeService.activate(c.id(), c.tenantId());
             case CommandEvent.DeactivateRoute c -> routeService.deactivate(c.id(), c.tenantId());
             case CommandEvent.DeleteRoute     c -> routeService.delete(c.id(), c.tenantId());
+            case CommandEvent.PromoteRoute    c -> routeService.promoteRoute(c.routeId(), c.tenantId(), c.requestedBy());
             case CommandEvent.AttachFilter    c -> routeService.attachFilter(
                     c.routeId(), c.filterId(), c.order(),
                     c.phase() != null ? c.phase() : "PRE", c.tenantId());
             case CommandEvent.DetachFilter    c -> routeService.detachFilter(
                     c.routeId(), c.filterId(), c.tenantId());
+            case CommandEvent.DeployCanary    c -> routeService.deployCanary(
+                    c.routeId(), c.tenantId(), c.canaryUpstreamUri(),
+                    c.trafficWeight(), c.autoRollbackThreshold(),
+                    c.canaryExtraConfig(), c.requestedBy());
+            case CommandEvent.PromoteCanary   c -> routeService.promoteCanary(
+                    c.routeId(), c.tenantId(), c.requestedBy());
+            case CommandEvent.RollbackCanary  c -> routeService.rollbackCanary(
+                    c.routeId(), c.tenantId(), c.reason(), c.requestedBy());
+            case CommandEvent.AdjustCanaryWeight c -> routeService.adjustCanaryWeight(
+                    c.routeId(), c.tenantId(), c.newWeight(), c.requestedBy());
             default -> log.warn("Unexpected command type on route topic: {}",
                     cmd.getClass().getSimpleName());
         }
@@ -140,6 +154,7 @@ public class RouteCommandKafkaConsumer {
 
         switch (cmd) {
             case CommandEvent.CreateFilter c -> {
+                configRefValidator.validate(c.gatewayConfigRef());
                 FilterDefinition filter = FilterDefinition.builder()
                         .tenantId(c.tenantId())
                         .name(c.name())
@@ -152,6 +167,7 @@ public class RouteCommandKafkaConsumer {
                 filterService.create(filter, c.tenantId());
             }
             case CommandEvent.UpdateFilter c -> {
+                configRefValidator.validate(c.gatewayConfigRef());
                 FilterDefinition existing = filterService.findById(c.id(), c.tenantId());
                 if (c.name()             != null) existing.setName(c.name());
                 if (c.description()      != null) existing.setDescription(c.description());

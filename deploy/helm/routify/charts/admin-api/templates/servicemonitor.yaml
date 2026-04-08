@@ -1,0 +1,20 @@
+{{- if and .Values.adminApi.enabled .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "routify.adminApi.fullname" . }}
+  labels:
+    {{- include "routify.adminApi.labels" . | nindent 4 }}
+  {{- if .Values.monitoring.serviceMonitor.namespace }}
+  namespace: {{ .Values.monitoring.serviceMonitor.namespace }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "routify.adminApi.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+{{- end }}
+

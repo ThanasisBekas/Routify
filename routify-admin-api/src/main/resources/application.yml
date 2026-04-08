@@ -6,6 +6,17 @@ spring:
     virtual:
       enabled: true
 
+  # ─── GraphQL Analytics API (Initiative 13) ─────────────────────────────────
+  graphql:
+    path: /api/v1/admin/graphql
+    graphiql:
+      enabled: false  # Overridden to true in dev profile below
+      path: /api/v1/admin/graphiql
+    schema:
+      locations: classpath:graphql/
+      inspection:
+        enabled: true
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -44,7 +55,6 @@ management:
     port: 9082
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus
   endpoint:
@@ -66,18 +76,6 @@ management:
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 routify:
-  # HTTP URLs below are kept for future reference and external tooling only.
-  # All internal service-to-service communication uses RabbitMQ (sync) and Kafka (async).
-  route-service:
-    url: ${ROUTE_SERVICE_URL:http://localhost:8081}
-  identity-service:
-    url: ${IDENTITY_SERVICE_URL:http://localhost:8083}
-  audit-service:
-    url: ${AUDIT_SERVICE_URL:http://localhost:8084}
-  cert-vault:
-    url: ${CERT_VAULT_URL:http://localhost:8085}
-  gateway:
-    url: ${GATEWAY_URL:http://localhost:8080}
 
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-
@@ -158,3 +156,14 @@ resilience4j:
       # AI service — 10s hard cap matches the ai-service's own OpenAI timeout.
       ai-service:
         timeout-duration: 10s
+
+# ─── Dev profile — GraphiQL playground ────────────────────────────────────
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  graphql:
+    graphiql:
+      enabled: true
+

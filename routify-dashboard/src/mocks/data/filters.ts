@@ -47,7 +47,7 @@ export const seedFilters: FilterDefinitionDto[] = [
     name: 'Rate Limit — 100 req/min',
     description: 'Fixed-window rate limiting at 100 requests per minute per IP.',
     filterType: 'RATE_LIMIT_FIXED_WINDOW',
-    config: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP' },
+    config: { maxRequests: 100, windowMs: 60000, keyResolver: 'IP', includeHeaders: true },
     systemManaged: false,
     enabled: true,
     usageCount: 3,

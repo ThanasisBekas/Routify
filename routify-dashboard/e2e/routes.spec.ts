@@ -147,6 +147,23 @@ test.describe('Route List', () => {
     await expect(routeCards.first()).toBeVisible({ timeout: 5_000 })
   })
 
+  test('environment filter toggles work', async ({ page }) => {
+    await page.goto('/routes')
+    await expect(page.getByRole('heading', { name: 'Routes', level: 1 })).toBeVisible()
+
+    // Wait for routes to load
+    const routeCards = page.locator('[role="button"]').filter({ has: page.locator('h3') })
+    await expect(routeCards.first()).toBeVisible({ timeout: 5_000 })
+
+    // Click "Staging" environment toggle
+    await page.getByRole('button', { name: /Staging/ }).click()
+    await page.waitForTimeout(500)
+
+    // Click "All Envs" to reset
+    await page.getByRole('button', { name: /All Envs/ }).click()
+    await expect(routeCards.first()).toBeVisible({ timeout: 5_000 })
+  })
+
   test('New Route button opens the create modal', async ({ page }) => {
     await page.goto('/routes')
     await expect(page.getByRole('heading', { name: 'Routes', level: 1 })).toBeVisible()

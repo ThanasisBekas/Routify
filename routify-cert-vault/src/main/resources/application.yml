@@ -22,9 +22,7 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: routify_cert
-        format_sql: false
         jdbc:
           batch_size: 20
     show-sql: false
@@ -77,7 +75,6 @@ management:
     port: 9085
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus
   endpoint:
@@ -118,6 +115,13 @@ routify:
     encryption-key: ${CERT_VAULT_ENCRYPTION_KEY:}
     # Maximum certificate file size (bytes) — default 128 KB
     max-cert-size-bytes: 131072
+
+  cert:
+    acme:
+      # Cron expression for the auto-renewal scheduler (default: daily at 03:00 UTC)
+      renewal-cron: "0 0 3 * * *"
+      # Days before certificate expiry to trigger auto-renewal (default: 30)
+      renewal-days-before: 30
 
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-

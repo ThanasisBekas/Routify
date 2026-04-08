@@ -1,6 +1,7 @@
 package io.routify.gateway.ratelimit;
 
-import io.routify.common.web.RoutifyHeaders;
+import io.routify.gateway.filter.ratelimit.RateLimitKeyResolver;
+import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,82 +9,53 @@ import org.springframework.context.annotation.Primary;
 import reactor.core.publisher.Mono;
 
 /**
- * Rate limiter key resolver configurations.
+ * Rate limiter key resolver configurations for the SCG built-in {@code RequestRateLimiter} filter.
  *
- * <p>Spring Cloud Gateway's RequestRateLimiter filter requires a {@link KeyResolver} bean
- * to determine the rate limiting key for each request. We provide multiple implementations
- * to support different rate limiting strategies.
+ * <p>All beans delegate to the shared {@link RateLimitKeyResolver} component so that
+ * key resolution logic is maintained in a single place and shared across all three
+ * rate limiter paths (fixed window, sliding window, and SCG token bucket).
  */
 @Configuration
+@RequiredArgsConstructor
 public class RateLimiterKeyResolverConfig {
 
-    /**
-     * Rate limit by client IP address.
-     * Default resolver for public-facing routes.
-     */
+    private final RateLimitKeyResolver rateLimitKeyResolver;
+
+    /** Rate limit by client IP address — default resolver. */
     @Bean
     @Primary
     public KeyResolver ipKeyResolver() {
-        return exchange -> Mono.just(
-                exchange.getRequest().getRemoteAddress() != null
-                        ? exchange.getRequest().getRemoteAddress().getAddress().getHostAddress()
-                        : "unknown"
-        );
+        return exchange -> Mono.just(rateLimitKeyResolver.resolve(exchange, "IP"));
     }
 
-    /**
-     * Rate limit by authenticated user ID.
-     * Used for routes with JWT auth — provides per-user rate limiting.
-     */
+    /** Rate limit by authenticated user ID. */
     @Bean
     public KeyResolver userKeyResolver() {
-        return exchange -> {
-            String userId = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID);
-            return Mono.just(userId != null ? "user:" + userId : "anonymous");
-        };
+        return exchange -> Mono.just(rateLimitKeyResolver.resolve(exchange, "USER"));
     }
 
-    /**
-     * Rate limit by tenant ID.
-     * Ensures one tenant's traffic doesn't starve others — fair multi-tenancy.
-     */
+    /** Rate limit by tenant ID. */
     @Bean
     public KeyResolver tenantKeyResolver() {
-        return exchange -> {
-            String tenantId = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.TENANT_ID);
-            return Mono.just(tenantId != null ? "tenant:" + tenantId : "unknown-tenant");
-        };
+        return exchange -> Mono.just(rateLimitKeyResolver.resolve(exchange, "TENANT"));
     }
 
-    /**
-     * Rate limit by API Key.
-     * For routes using API key authentication.
-     */
+    /** Rate limit by API key. */
     @Bean
     public KeyResolver apiKeyResolver() {
-        return exchange -> {
-            String apiKey = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.API_KEY);
-            if (apiKey == null) {
-                apiKey = exchange.getRequest().getQueryParams().getFirst("apiKey");
-            }
-            return Mono.just(apiKey != null ? "apikey:" + apiKey.hashCode() : "no-key");
-        };
+        return exchange -> Mono.just(rateLimitKeyResolver.resolve(exchange, "API_KEY"));
     }
 
-    /**
-     * Composite key — tenant + user combination.
-     * Most granular — allows per-user-per-tenant rate limiting.
-     */
+    /** Composite key — tenant + user combination. */
     @Bean
     public KeyResolver tenantUserKeyResolver() {
-        return exchange -> {
-            String tenantId = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.TENANT_ID);
-            String userId   = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID);
-            String key = "%s:%s".formatted(
-                    tenantId != null ? tenantId : "unknown",
-                    userId   != null ? userId   : "anonymous");
-            return Mono.just(key);
-        };
+        return exchange -> Mono.just(rateLimitKeyResolver.resolve(exchange, "TENANT_USER"));
+    }
+
+    /** Rate limit by route ID — new strategy. */
+    @Bean
+    public KeyResolver routeKeyResolver() {
+        return exchange -> Mono.just(rateLimitKeyResolver.resolve(exchange, "ROUTE"));
     }
 }
 

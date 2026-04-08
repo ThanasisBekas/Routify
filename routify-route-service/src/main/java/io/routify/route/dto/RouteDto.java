@@ -1,5 +1,6 @@
 package io.routify.route.dto;
 
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -42,7 +43,9 @@ public final class RouteDto {
             @Size(max = 200)
             String stripPrefix,
 
-            Map<String, Object> extraConfig
+            Map<String, Object> extraConfig,
+
+            RouteEnvironment environment
     ) {}
 
     public record UpdateRequest(
@@ -86,13 +89,17 @@ public final class RouteDto {
             String upstreamUri,
             String stripPrefix,
             RouteStatus status,
+            RouteEnvironment environment,
             Integer version,
             List<FilterRef> filters,
             Map<String, Object> extraConfig,
             String createdBy,
             Instant createdAt,
             Instant updatedAt,
-            Instant activatedAt
+            Instant activatedAt,
+            int trafficWeight,
+            UUID canaryRouteId,
+            java.math.BigDecimal canaryAutoRollbackThreshold
     ) {}
 
     public record FilterRef(
@@ -113,10 +120,13 @@ public final class RouteDto {
             String methods,
             String upstreamUri,
             RouteStatus status,
+            RouteEnvironment environment,
             Integer version,
             int filterCount,
             Instant createdAt,
-            Instant activatedAt
+            Instant activatedAt,
+            int trafficWeight,
+            UUID canaryRouteId
     ) {}
 
     /**
@@ -133,8 +143,11 @@ public final class RouteDto {
             String upstreamUri,
             String stripPrefix,
             Integer version,
+            String environment,
             List<FilterSnapshot> filters,
-            Map<String, Object> extraConfig
+            Map<String, Object> extraConfig,
+            int trafficWeight,
+            UUID canaryRouteId
     ) {
         public record FilterSnapshot(
                 UUID filterId,

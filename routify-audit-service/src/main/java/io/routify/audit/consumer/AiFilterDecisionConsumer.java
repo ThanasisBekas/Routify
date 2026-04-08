@@ -59,6 +59,7 @@ public class AiFilterDecisionConsumer {
                     .path(event.path())
                     .clientIp(event.clientIp())
                     .evaluatedAt(event.evaluatedAt() != null ? event.evaluatedAt() : java.time.Instant.now())
+                    .promptVersionId(parseUuid(event.promptVersionId()))
                     .build();
 
             decisionRepository.save(record);

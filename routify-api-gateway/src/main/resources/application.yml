@@ -10,16 +10,10 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.security.oauth2.resource.reactive.ReactiveOAuth2ResourceServerAutoConfiguration
 
-  # Config Server not yet implemented — re-enable this import when the
-  # routify-config-server module is introduced (see TECHNICAL_ANALYSIS §5.2 / §6.5).
-  config:
-    import: "optional:configserver:"
-  # config:
-  #   import: "optional:configserver:http://${CONFIG_SERVER_USERNAME:configserver}:${CONFIG_SERVER_PASSWORD:configserver_dev_pass}@${CONFIG_SERVER_HOST:localhost}:8888"
 
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      host: ${REDIS_HOST:localhost}
       port: 6379
       timeout: 2000ms
       # No default — must be supplied via REDIS_PASS environment variable.
@@ -85,7 +79,6 @@ management:
     port: 9080
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus
   endpoint:
@@ -109,14 +102,23 @@ management:
 routify:
   jwt:
     public-key: ${JWT_PUBLIC_KEY:}
+    jwks-uri: ${JWT_JWKS_URI:}
+    jwks-cache-minutes: ${JWT_JWKS_CACHE_MINUTES:5}
+    require-jti: ${JWT_REQUIRE_JTI:true}
 
   # ─── Startup secret validation ────────────────────────────────────────────────
-  # NOTE: JWT_PUBLIC_KEY is intentionally NOT in this list — in dev mode the gateway
-  # falls back to ephemeral key validation (acceptable for local development only).
-  # Add it here when deploying to staging/production environments.
+  # NOTE: JWT key source validation is handled by JwtAuthGatewayFilterFactory @PostConstruct.
+  # If neither routify.jwt.public-key nor routify.jwt.jwks-uri is set, all JWT
+  # auth requests will be rejected with SERVER_MISCONFIGURED (fail-closed).
   required-secrets: >-
     spring.rabbitmq.password,
     spring.data.redis.password
+
+  gateway:
+    quota:
+      enabled: true   # Set to false to disable monthly request quota enforcement
+    cluster:
+      heartbeat-interval-ms: ${GATEWAY_CLUSTER_HEARTBEAT_INTERVAL_MS:10000}
 
 resilience4j:
   circuitbreaker:

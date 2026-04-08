@@ -661,7 +661,7 @@ export default function CertGroupsPage() {
       </div>
 
       {/* ── Split panel ── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left: group list */}
         <div className="w-80 shrink-0 border-r border-white/6 overflow-y-auto p-3.5 space-y-2">
           {isLoading ? (

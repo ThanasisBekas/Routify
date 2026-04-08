@@ -1,0 +1,14 @@
+{{- if and .Values.adminApi.enabled (.Values.adminApi.pdb).enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "routify.adminApi.fullname" . }}
+  labels:
+    {{- include "routify.adminApi.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.adminApi.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "routify.adminApi.selectorLabels" . | nindent 6 }}
+{{- end }}
+

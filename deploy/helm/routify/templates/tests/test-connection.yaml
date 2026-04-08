@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "routify.fullname" . }}-test-connection"
+  labels:
+    {{- include "routify.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: wget
+      image: busybox:1.36
+      command: ['wget']
+      args:
+        - '--spider'
+        - '--timeout=5'
+        - 'http://{{ include "routify.adminApi.fullname" . }}:8082/actuator/health'
+

@@ -3,14 +3,13 @@ package io.routify.gateway.filter;
 import io.routify.gateway.certificate.CertificateRegistry;
 import io.routify.gateway.certificate.PemCertificateParser;
 import io.routify.gateway.certificate.VersionedCertificate;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.Ordered;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -223,14 +222,10 @@ public class CertVaultAuthGatewayFilterFactory
 
     private Mono<Void> unauthorized(org.springframework.web.server.ServerWebExchange exchange,
                                     String errorCode, String detail) {
-        ServerHttpResponse resp = exchange.getResponse();
-        resp.setStatusCode(HttpStatus.UNAUTHORIZED);
-        resp.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Unauthorized","status":401,\
-                "errorCode":"%s","detail":"%s"}""".formatted(errorCode,
-                detail.replace("\"", "\\\""));
-        return resp.writeWith(Mono.just(resp.bufferFactory().wrap(body.getBytes())));
+        return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
+                .errorCode(errorCode)
+                .detail(detail)
+                .write(exchange);
     }
 
     @Data

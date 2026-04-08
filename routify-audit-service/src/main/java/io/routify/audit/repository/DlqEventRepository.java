@@ -21,6 +21,9 @@ public interface DlqEventRepository extends JpaRepository<DlqEvent, DlqEventId> 
 
     long countBySourceTopicAndFailedAtAfter(String sourceTopic, Instant since);
 
+    /** Count all DLQ events within a time window (for alerting). */
+    long countByFailedAtAfter(Instant since);
+
     /** Efficient bulk delete for retention — leverages partition pruning on failed_at. */
     @Modifying
     @Query(value = "DELETE FROM routify_audit.dlq_event WHERE failed_at < :cutoff", nativeQuery = true)

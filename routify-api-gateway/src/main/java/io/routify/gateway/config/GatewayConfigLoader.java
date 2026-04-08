@@ -7,6 +7,7 @@ import io.routify.common.event.KafkaTopics;
 import io.routify.common.event.RabbitTopology;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
+import io.routify.gateway.cluster.GatewayInstanceRegistry;
 import io.routify.gateway.routing.DynamicRouteDefinitionLocator;
 import io.routify.gateway.routing.DynamicRouteRefreshListener;
 import io.routify.gateway.routing.RouteDefinitionBuilder;
@@ -75,6 +76,7 @@ public class GatewayConfigLoader {
     private final ObjectMapper                   objectMapper;
     private final GatewayResilienceConfigApplier resilienceConfigApplier;
     private final DynamicRouteDefinitionLocator  routeLocator;
+    private final GatewayInstanceRegistry        instanceRegistry;
 
     /** The currently applied config — atomically updated on every reload */
     private final AtomicReference<Map<String, Object>> currentConfig =
@@ -91,11 +93,13 @@ public class GatewayConfigLoader {
             RabbitTemplate rabbitTemplate,
             ObjectMapper objectMapper,
             GatewayResilienceConfigApplier resilienceConfigApplier,
-            @Lazy DynamicRouteDefinitionLocator routeLocator) {
+            @Lazy DynamicRouteDefinitionLocator routeLocator,
+            GatewayInstanceRegistry instanceRegistry) {
         this.rabbitTemplate         = rabbitTemplate;
         this.objectMapper           = objectMapper;
         this.resilienceConfigApplier = resilienceConfigApplier;
         this.routeLocator           = routeLocator;
+        this.instanceRegistry       = instanceRegistry;
     }
 
     /**
@@ -186,6 +190,8 @@ public class GatewayConfigLoader {
                     log.info("Route-affecting config section changed (trigger={}) — " +
                              "triggering route definition rebuild so predicates reflect new config", trigger);
                     routeLocator.forceRefresh();
+                    // Track config version change after route rebuild
+                    instanceRegistry.incrementConfigVersion(routeLocator.getLoadedRouteCount());
                 }
             } else {
                 log.info("route-service returned empty config (trigger={}) — using defaults", trigger);

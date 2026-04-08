@@ -29,6 +29,7 @@ const schema = z.object({
   methods: z.string().min(1),
   upstreamUri: z.string().regex(/^(https?:\/\/.+|lb:\/\/.+)/, 'Must be http(s):// or lb://'),
   stripPrefix: z.string().optional(),
+  environment: z.enum(['PRODUCTION', 'STAGING']).optional(),
 })
 type FormData = z.infer<typeof schema>
 
@@ -74,7 +75,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { methods: 'GET', pathPattern: '/' },
+    defaultValues: { methods: 'GET', pathPattern: '/', environment: 'PRODUCTION' },
   })
 
   useEffect(() => {
@@ -86,6 +87,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
         methods: existing.methods,
         upstreamUri: existing.upstreamUri,
         stripPrefix: existing.stripPrefix ?? '',
+        environment: existing.environment ?? 'PRODUCTION',
       })
     }
   }, [existing, reset])
@@ -268,6 +270,41 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
                 className={monoInputCls}
               />
             </div>
+
+            {/* Environment */}
+            {!isEdit && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Environment
+                </label>
+                <div className="flex gap-2">
+                  {(['PRODUCTION', 'STAGING'] as const).map((env) => {
+                    const selected = watch('environment') === env
+                    return (
+                      <button
+                        key={env}
+                        type="button"
+                        onClick={() => setValue('environment', env)}
+                        className={cn(
+                          'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all',
+                          selected
+                            ? env === 'PRODUCTION'
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                            : 'bg-white/[0.04] text-gray-500 border-white/[0.08] hover:border-white/20',
+                        )}
+                      >
+                        {env === 'PRODUCTION' ? '🟢' : '🟡'} {env === 'PRODUCTION' ? 'Production' : 'Staging'}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[11px] text-gray-600 pl-0.5">
+                  Staging routes are only visible with the{' '}
+                  <code className="font-mono">X-Route-Environment: STAGING</code> header.
+                </p>
+              </div>
+            )}
 
             {/* Submit error */}
             {submitError && (

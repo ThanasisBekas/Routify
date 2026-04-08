@@ -1,0 +1,53 @@
+# ─── Test profile overrides for routify-cert-vault integration tests ──────────
+# Testcontainers dynamically injects datasource, Kafka, and RabbitMQ properties
+# via @DynamicPropertySource. This file handles everything else.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Flyway runs first — same as production
+
+  flyway:
+    enabled: true
+    clean-disabled: false
+
+# ─── Outbox & cert-vault config for deterministic test control ─────────────────
+routify:
+  outbox:
+    poll-interval-ms: 999999999
+    retry-interval-ms: 999999999
+    batch-size: 50
+    max-retries: 5
+
+  cert-vault:
+    # Test-only AES-256 key (32 bytes base64-encoded). DO NOT use in production.
+    encryption-key: vUHQbY7JezqQf7Uxxvq/F05DmhYByYKB9YoUsD6lwyw=
+
+  # Bypass SecretValidator startup check — no real secrets in test env
+  required-secrets:
+
+  jwt:
+    public-key:
+
+  cert:
+    acme:
+      renewal-cron: "-"   # Disable ACME scheduler in tests
+
+# ─── Actuator ──────────────────────────────────────────────────────────────────
+management:
+  server:
+    port: 0   # Random port
+  tracing:
+    enabled: false
+
+server:
+  port: 0   # Random port
+
+# ─── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  level:
+    io.routify: DEBUG
+    org.testcontainers: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+

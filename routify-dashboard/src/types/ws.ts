@@ -40,6 +40,7 @@ export type WsEventType =
   | 'replay.completed'
   | 'replay.bulk.completed'
   | 'audit.request.logged'
+  | 'CIRCUIT_BREAKER_STATE_CHANGE'
   | 'metrics'
 
 /**
@@ -63,7 +64,7 @@ export interface WsMessage {
 }
 
 export interface CircuitBreakerState {
-  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN'
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' | 'FORCED_OPEN'
   failureRate: number
   slowCallRate: number
   bufferedCalls: number

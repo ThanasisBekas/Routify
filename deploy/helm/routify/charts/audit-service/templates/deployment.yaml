@@ -1,0 +1,81 @@
+{{- if .Values.auditService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "routify.auditService.fullname" . }}
+  labels:
+    {{- include "routify.auditService.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.auditService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "routify.auditService.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "routify.auditService.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: flyway-migrate
+          image: {{ include "routify.image" (dict "global" .Values.global "image" .Values.auditService.image) }}
+          imagePullPolicy: {{ .Values.auditService.image.pullPolicy }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              java $JAVA_OPTS -jar /app/app.jar \
+                --spring.main.web-application-type=none \
+                --spring.flyway.enabled=true \
+                --spring.jpa.hibernate.ddl-auto=validate \
+                --spring.main.banner-mode=off
+          env:
+            {{- include "routify.dbEnv" . | nindent 12 }}
+            {{- include "routify.commonEnv" . | nindent 12 }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      containers:
+        - name: audit-service
+          image: {{ include "routify.image" (dict "global" .Values.global "image" .Values.auditService.image) }}
+          imagePullPolicy: {{ .Values.auditService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8084
+              protocol: TCP
+            - name: management
+              containerPort: 9084
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.auditService.resources | nindent 12 }}
+          env:
+            {{- include "routify.dbEnv" . | nindent 12 }}
+            {{- include "routify.commonEnv" . | nindent 12 }}
+            {{- range $key, $value := .Values.auditService.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+{{- end }}
+

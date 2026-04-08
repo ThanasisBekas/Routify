@@ -51,11 +51,11 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     // ─── Route Queries (RabbitMQ) ─────────────────────────────────────────────
 
     @CircuitBreaker(name = "route-service", fallbackMethod = "queryRoutesFallback")
-    public QueryResponse.RoutesPage queryRoutes(UUID tenantId, String status, int page, int size,
-                                                String sortBy, String sortDir) {
+    public QueryResponse.RoutesPage queryRoutes(UUID tenantId, String status, String environment,
+                                                int page, int size, String sortBy, String sortDir) {
         try {
             return rpc(RabbitTopology.RK_ROUTES_QUERY,
-                    new QueryRequest.RoutesQuery(tenantId, status, page, size, sortBy, sortDir),
+                    new QueryRequest.RoutesQuery(tenantId, status, environment, page, size, sortBy, sortDir),
                     QueryResponse.RoutesPage.class);
         } catch (Exception e) {
             log.error("queryRoutes failed: {}", e.getMessage(), e);
@@ -64,8 +64,9 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     }
 
     @SuppressWarnings("unused")
-    private QueryResponse.RoutesPage queryRoutesFallback(UUID tenantId, String status, int page, int size,
-                                                         String sortBy, String sortDir, Throwable t) {
+    private QueryResponse.RoutesPage queryRoutesFallback(UUID tenantId, String status, String environment,
+                                                         int page, int size, String sortBy, String sortDir,
+                                                         Throwable t) {
         log.warn("queryRoutes circuit open or timed out: {}", t.getMessage());
         return new QueryResponse.RoutesPage(java.util.List.of(), 0L, 0, page, size);
     }
@@ -153,7 +154,7 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
                 req.name(), req.description(), req.pathPattern(),
                 req.methods(), req.upstreamUri(), req.stripPrefix(),
-                req.extraConfig()));
+                req.extraConfig(), req.environment()));
     }
 
     public void sendUpdateRoute(UUID id, UUID tenantId, String actor, UpdateRouteRequest req) {
@@ -180,6 +181,37 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.DeleteRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
     }
 
+    public void sendPromoteRoute(UUID routeId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.PromoteRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
+    }
+
+    // ─── Canary Commands (Kafka) ───────────────────────────────────────────────
+
+    public void sendDeployCanary(UUID routeId, UUID tenantId, String actor,
+                                 String canaryUpstreamUri, int trafficWeight,
+                                 double autoRollbackThreshold,
+                                 java.util.Map<String, Object> canaryExtraConfig) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.DeployCanary(UUID.randomUUID(), tenantId, actor, Instant.now(),
+                        routeId, canaryUpstreamUri, trafficWeight, autoRollbackThreshold, canaryExtraConfig));
+    }
+
+    public void sendPromoteCanary(UUID routeId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.PromoteCanary(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
+    }
+
+    public void sendRollbackCanary(UUID routeId, UUID tenantId, String actor, String reason) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.RollbackCanary(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId, reason));
+    }
+
+    public void sendAdjustCanaryWeight(UUID routeId, UUID tenantId, String actor, int newWeight) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.AdjustCanaryWeight(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId, newWeight));
+    }
+
     public void sendAttachFilter(UUID routeId, UUID filterId, int order, String phase,
                                  UUID tenantId, String actor) {
         kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
@@ -191,6 +223,28 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
         kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
                 new CommandEvent.DetachFilter(UUID.randomUUID(), tenantId, actor, Instant.now(),
                         routeId, filterId));
+    }
+
+    // ─── Cache Commands (Kafka) ────────────────────────────────────────────────
+
+    public void sendPurgeCacheRoute(UUID routeId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.PurgeCacheRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
+    }
+
+    // ─── Circuit Breaker Commands (Kafka) ──────────────────────────────────────
+
+    /**
+     * Force a circuit breaker state transition on all gateway instances.
+     *
+     * @param routeId  the route whose circuit breaker to affect
+     * @param tenantId tenant scope
+     * @param actor    requesting user
+     * @param action   one of "FORCE_OPEN", "FORCE_CLOSED", "RESET"
+     */
+    public void sendForceCircuitBreaker(UUID routeId, UUID tenantId, String actor, String action) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.ForceCircuitBreaker(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId, action));
     }
 
     // ─── Filter Commands (Kafka) ──────────────────────────────────────────────
@@ -216,5 +270,25 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     public void sendDeleteFilter(UUID id, UUID tenantId, String actor) {
         kafka.publishCommand(KafkaTopics.FILTER_COMMANDS,
                 new CommandEvent.DeleteFilter(UUID.randomUUID(), tenantId, actor, Instant.now(), id));
+    }
+
+    // ─── Generic command publishing (used by import/export) ────────────────────
+
+    /**
+     * Publish an arbitrary route command to the route commands topic.
+     * Used by {@link io.routify.admin.service.ImportService} to dispatch
+     * commands with pre-generated idempotent commandIds.
+     */
+    public void publishRouteCommand(CommandEvent command) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS, command);
+    }
+
+    /**
+     * Publish an arbitrary filter command to the filter commands topic.
+     * Used by {@link io.routify.admin.service.ImportService} to dispatch
+     * commands with pre-generated idempotent commandIds.
+     */
+    public void publishFilterCommand(CommandEvent command) {
+        kafka.publishCommand(KafkaTopics.FILTER_COMMANDS, command);
     }
 }

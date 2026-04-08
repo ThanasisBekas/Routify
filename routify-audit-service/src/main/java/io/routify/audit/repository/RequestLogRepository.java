@@ -129,6 +129,162 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, UUID> {
     @Modifying
     @Query(value = "DELETE FROM routify_audit.request_log WHERE requested_at < :cutoff", nativeQuery = true)
     int deleteByRequestedAtBefore(@Param("cutoff") Instant cutoff);
+
+    // ─── Route Health Dashboard v2 ────────────────────────────────────────────
+
+    /**
+     * Per-route aggregated health stats: total, errors, avg/p50/p95/p99 latency.
+     * Uses native SQL for percentile_cont (PostgreSQL).
+     */
+    @Query(value = """
+            SELECT r.route_id,
+                   r.route_name,
+                   COUNT(*)                                                                AS total,
+                   SUM(CASE WHEN r.response_status >= 400 THEN 1 ELSE 0 END)              AS errors,
+                   AVG(r.duration_ms)                                                      AS avg_latency,
+                   percentile_cont(0.50) WITHIN GROUP (ORDER BY r.duration_ms)             AS p50,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY r.duration_ms)             AS p95,
+                   percentile_cont(0.99) WITHIN GROUP (ORDER BY r.duration_ms)             AS p99
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND r.route_id IS NOT NULL
+            GROUP BY r.route_id, r.route_name
+            ORDER BY total DESC
+            """, nativeQuery = true)
+    List<Object[]> getRouteHealthStats(
+            @Param("tenantId") UUID tenantId,
+            @Param("since") Instant since);
+
+    /** Status code distribution for a single route within a time window. */
+    @Query(value = """
+            SELECT r.response_status, COUNT(*)
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.route_id = :routeId
+              AND r.requested_at >= :since
+              AND r.response_status IS NOT NULL
+            GROUP BY r.response_status
+            ORDER BY r.response_status
+            """, nativeQuery = true)
+    List<Object[]> getStatusCodeDistribution(
+            @Param("tenantId") UUID tenantId,
+            @Param("routeId") UUID routeId,
+            @Param("since") Instant since);
+
+    // ─── Tenant Usage Analytics ─────────────────────────────────────────────────
+
+    /**
+     * Aggregates request count and error count per tenant for a time period.
+     * Returns rows of [tenant_id, request_count, error_count].
+     */
+    @Query(value = """
+            SELECT r.tenant_id,
+                   COUNT(*),
+                   SUM(CASE WHEN r.response_status >= 400 THEN 1 ELSE 0 END)
+            FROM routify_audit.request_log r
+            WHERE r.requested_at >= :dayStart
+              AND r.requested_at < :dayEnd
+              AND r.tenant_id IS NOT NULL
+            GROUP BY r.tenant_id
+            """, nativeQuery = true)
+    List<Object[]> countRequestsByTenantForPeriod(
+            @Param("dayStart") Instant dayStart,
+            @Param("dayEnd") Instant dayEnd);
+
+    // ─── Time-Series Analytics (GraphQL Initiative 13) ─────────────────────────
+
+    /**
+     * Time-bucketed request metrics using {@code date_trunc} for configurable granularity.
+     * Returns rows of [bucket, route_id, route_name, total, errors, avg_latency, p50, p95, p99].
+     *
+     * <p>The {@code granularity} parameter must be a valid PostgreSQL date_trunc field
+     * (minute, hour, day, week). Caller validates before invoking.
+     */
+    @Query(value = """
+            SELECT date_trunc(:granularity, r.requested_at)    AS bucket,
+                   r.route_id,
+                   r.route_name,
+                   COUNT(*)                                     AS total,
+                   SUM(CASE WHEN r.response_status >= 400 THEN 1 ELSE 0 END) AS errors,
+                   AVG(r.duration_ms)                           AS avg_latency,
+                   percentile_cont(0.50) WITHIN GROUP (ORDER BY r.duration_ms) AS p50,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY r.duration_ms) AS p95,
+                   percentile_cont(0.99) WITHIN GROUP (ORDER BY r.duration_ms) AS p99
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= CAST(:from AS TIMESTAMP WITH TIME ZONE)
+              AND r.requested_at < CAST(:to AS TIMESTAMP WITH TIME ZONE)
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+              AND r.route_id IS NOT NULL
+            GROUP BY bucket, r.route_id, r.route_name
+            ORDER BY bucket ASC, total DESC
+            """, nativeQuery = true)
+    List<Object[]> getTimeSeriesMetrics(
+            @Param("tenantId") UUID tenantId,
+            @Param("routeId") UUID routeId,
+            @Param("from") String from,
+            @Param("to") String to,
+            @Param("granularity") String granularity);
+
+    // ─── Alert metric queries ──────────────────────────────────────────────────
+
+    /** Error rate (%) for a tenant, optionally scoped to a route. */
+    @Query(value = """
+            SELECT CASE WHEN COUNT(*) = 0 THEN 0
+                        ELSE CAST(SUM(CASE WHEN r.response_status >= 500 THEN 1 ELSE 0 END) AS DOUBLE PRECISION)
+                             / COUNT(*) * 100
+                   END AS error_rate
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            """, nativeQuery = true)
+    double getErrorRate(@Param("tenantId") UUID tenantId,
+                        @Param("routeId") UUID routeId,
+                        @Param("since") Instant since);
+
+    /** P99 latency in ms for a tenant, optionally scoped to a route. */
+    @Query(value = """
+            SELECT COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY r.duration_ms), 0)
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            """, nativeQuery = true)
+    double getP99Latency(@Param("tenantId") UUID tenantId,
+                         @Param("routeId") UUID routeId,
+                         @Param("since") Instant since);
+
+    /** Requests per minute for a tenant, optionally scoped to a route. Window must be &gt; 0 min. */
+    @Query(value = """
+            SELECT CASE WHEN :windowMinutes = 0 THEN 0
+                        ELSE CAST(COUNT(*) AS DOUBLE PRECISION) / :windowMinutes
+                   END
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            """, nativeQuery = true)
+    double getRequestVolume(@Param("tenantId") UUID tenantId,
+                            @Param("routeId") UUID routeId,
+                            @Param("since") Instant since,
+                            @Param("windowMinutes") int windowMinutes);
+
+    /** Auth failure rate (%) — 401/403 responses as a percentage of all requests. */
+    @Query(value = """
+            SELECT CASE WHEN COUNT(*) = 0 THEN 0
+                        ELSE CAST(SUM(CASE WHEN r.response_status IN (401, 403) THEN 1 ELSE 0 END) AS DOUBLE PRECISION)
+                             / COUNT(*) * 100
+                   END
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :since
+              AND (:routeId IS NULL OR r.route_id = :routeId)
+            """, nativeQuery = true)
+    double getAuthFailureRate(@Param("tenantId") UUID tenantId,
+                              @Param("routeId") UUID routeId,
+                              @Param("since") Instant since);
 }
 
 

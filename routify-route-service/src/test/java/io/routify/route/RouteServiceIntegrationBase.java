@@ -172,7 +172,7 @@ abstract class RouteServiceIntegrationBase {
 
     /**
      * Sends a CommandEvent as JSON to a Kafka topic, using the Kafka producer
-     * configured for the route-service (JsonSerializer, no __TypeId__ headers).
+     * configured for the route-service (JacksonJsonSerializer, no __TypeId__ headers).
      */
     protected void sendCommand(String topic, Object command) throws Exception {
         kafkaTemplate.send(topic, TENANT_ID.toString(), command).get();

@@ -65,6 +65,7 @@ const EVENT_LABELS: Record<string, string> = {
   'replay.completed': 'Replay completed',
   'replay.bulk.completed': 'Bulk replay completed',
   'audit.request.logged': 'Request logged',
+  CIRCUIT_BREAKER_STATE_CHANGE: 'Circuit breaker state changed ⚡',
 }
 
 export const useWsStore = create<WsState>((set) => ({

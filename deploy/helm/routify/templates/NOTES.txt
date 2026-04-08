@@ -1,0 +1,78 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                    🚀  Routify Installed  🚀                     ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Routify API Gateway Platform has been deployed to namespace: {{ .Release.Namespace }}
+
+───────────────────────────────────────────────────────────────────
+  Services
+───────────────────────────────────────────────────────────────────
+
+{{- if .Values.gateway.enabled }}
+  ✓ API Gateway            → {{ include "routify.gateway.fullname" . }}:8080
+{{- end }}
+{{- if .Values.adminApi.enabled }}
+  ✓ Admin API (BFF)        → {{ include "routify.adminApi.fullname" . }}:8082
+{{- end }}
+{{- if .Values.identityService.enabled }}
+  ✓ Identity Service       → {{ include "routify.identityService.fullname" . }}:8083
+{{- end }}
+{{- if .Values.routeService.enabled }}
+  ✓ Route Service          → {{ include "routify.routeService.fullname" . }}:8081
+{{- end }}
+{{- if .Values.auditService.enabled }}
+  ✓ Audit Service          → {{ include "routify.auditService.fullname" . }}:8084
+{{- end }}
+{{- if .Values.certVault.enabled }}
+  ✓ Cert Vault             → {{ include "routify.certVault.fullname" . }}:8085
+{{- end }}
+{{- if .Values.aiService.enabled }}
+  ✓ AI Service             → {{ include "routify.aiService.fullname" . }}:8086
+{{- end }}
+{{- if .Values.dashboard.enabled }}
+  ✓ Dashboard              → {{ include "routify.dashboard.fullname" . }}:80
+{{- end }}
+{{- if .Values.gitopsAgent.enabled }}
+  ✓ GitOps Agent           → {{ include "routify.gitopsAgent.fullname" . }}:8087
+{{- end }}
+
+───────────────────────────────────────────────────────────────────
+  Access
+───────────────────────────────────────────────────────────────────
+
+{{- if .Values.ingress.enabled }}
+  Dashboard:  https://{{ .Values.global.domain }}
+  Admin API:  https://{{ .Values.global.domain }}/api
+{{- else }}
+  Port-forward the dashboard:
+    kubectl port-forward svc/{{ include "routify.dashboard.fullname" . }} 3000:80
+
+  Port-forward the admin API:
+    kubectl port-forward svc/{{ include "routify.adminApi.fullname" . }} 8082:8082
+{{- end }}
+
+  Gateway (external traffic):
+    kubectl get svc {{ include "routify.gateway.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+
+───────────────────────────────────────────────────────────────────
+  Health Checks
+───────────────────────────────────────────────────────────────────
+
+  Verify all pods are ready:
+    kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+  Check gateway health:
+    kubectl exec deploy/{{ include "routify.gateway.fullname" . }} -- \
+      wget -qO- http://localhost:9080/actuator/health
+
+───────────────────────────────────────────────────────────────────
+  Quick Reference
+───────────────────────────────────────────────────────────────────
+
+  • Actuator management ports: 9080–9087 (app port + 1000)
+  • Prometheus metrics:        /actuator/prometheus on management ports
+  • Flyway migrations run as init containers on: identity-service,
+    route-service, audit-service, cert-vault
+
+Happy routing! 🎯
+

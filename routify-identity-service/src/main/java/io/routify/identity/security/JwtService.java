@@ -1,6 +1,7 @@
 package io.routify.identity.security;
 
 import io.routify.identity.domain.AppUser;
+import io.routify.identity.service.RoleService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import jakarta.annotation.PostConstruct;
@@ -18,6 +19,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -48,6 +50,12 @@ import java.util.UUID;
 @Component
 public class JwtService {
 
+    private final RoleService roleService;
+
+    public JwtService(RoleService roleService) {
+        this.roleService = roleService;
+    }
+
     @Value("${routify.jwt.private-key:}")
     private String privateKeyBase64;
 
@@ -67,6 +75,14 @@ public class JwtService {
      */
     @Value("${routify.jwt.refresh-cookie-secure:false}")
     private boolean refreshCookieSecure;
+
+    /**
+     * When {@code true}, the JWT {@code permissions} claim is populated with the
+     * resolved permission set for the user's role. When {@code false}, the claim
+     * is omitted and all services fall back to role-based {@code hasRole()} checks.
+     */
+    @Value("${routify.rbac.granular-enabled:false}")
+    private boolean granularRbacEnabled;
 
     /** Cached private key — parsed once at startup. */
     private PrivateKey privateKey;
@@ -119,7 +135,7 @@ public class JwtService {
      */
     public String issueAccessToken(AppUser user) {
         Instant now = Instant.now();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(user.getId().toString())
                 .claim("tenantId",  user.getTenantId() != null ? user.getTenantId().toString() : null)
                 .claim("role",      user.getRole().name())
@@ -128,8 +144,22 @@ public class JwtService {
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(accessTokenTtlSeconds)))
                 .id(UUID.randomUUID().toString())
-                .signWith(privateKey)
-                .compact();
+                .signWith(privateKey);
+
+        // Granular RBAC: embed resolved permissions in JWT when feature flag is enabled
+        if (granularRbacEnabled) {
+            try {
+                List<String> permissions = roleService.getPermissionsForRole(
+                        user.getRole(), user.getTenantId());
+                builder.claim("permissions", permissions);
+            } catch (Exception e) {
+                log.warn("Failed to resolve permissions for user={}, role={}: {}",
+                        user.getId(), user.getRole(), e.getMessage());
+                // Continue without permissions — services will fall back to role-based checks
+            }
+        }
+
+        return builder.compact();
     }
 
     /**

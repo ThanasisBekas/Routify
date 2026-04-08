@@ -22,9 +22,7 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: routify
-        format_sql: false
         jdbc:
           batch_size: 50
     show-sql: false
@@ -85,7 +83,6 @@ management:
     port: 9081
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus
   endpoint:

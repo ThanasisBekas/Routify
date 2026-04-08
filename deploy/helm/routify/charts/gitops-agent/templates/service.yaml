@@ -1,0 +1,22 @@
+{{- if .Values.gitopsAgent.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "routify.gitopsAgent.fullname" . }}
+  labels:
+    {{- include "routify.gitopsAgent.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.gitopsAgent.service.type }}
+  ports:
+    - port: {{ .Values.gitopsAgent.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9087
+      targetPort: management
+      protocol: TCP
+      name: management
+  selector:
+    {{- include "routify.gitopsAgent.selectorLabels" . | nindent 4 }}
+{{- end }}
+

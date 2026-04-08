@@ -1,0 +1,65 @@
+{{- if .Values.aiService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "routify.aiService.fullname" . }}
+  labels:
+    {{- include "routify.aiService.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.aiService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "routify.aiService.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "routify.aiService.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: ai-service
+          image: {{ include "routify.image" (dict "global" .Values.global "image" .Values.aiService.image) }}
+          imagePullPolicy: {{ .Values.aiService.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8086
+              protocol: TCP
+            - name: management
+              containerPort: 9086
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.aiService.resources | nindent 12 }}
+          env:
+            {{- include "routify.commonEnv" . | nindent 12 }}
+            {{- include "routify.redisEnv" . | nindent 12 }}
+            {{- include "routify.jwtPublicKeyEnv" . | nindent 12 }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "routify.secretName" . }}
+                  key: openai-api-key
+            {{- range $key, $value := .Values.aiService.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+{{- end }}
+

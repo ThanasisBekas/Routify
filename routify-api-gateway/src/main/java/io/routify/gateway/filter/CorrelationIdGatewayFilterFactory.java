@@ -35,6 +35,7 @@ public class CorrelationIdGatewayFilterFactory
         extends AbstractGatewayFilterFactory<CorrelationIdGatewayFilterFactory.Config> {
 
     /** @deprecated Use {@link RoutifyHeaders#CORRELATION_ID} directly. */
+    @Deprecated
     public static final String CORRELATION_ID_HEADER = RoutifyHeaders.CORRELATION_ID;
 
     public CorrelationIdGatewayFilterFactory() {

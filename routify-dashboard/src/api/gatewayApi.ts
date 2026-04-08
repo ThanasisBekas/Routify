@@ -7,11 +7,17 @@ import type {
   GatewayCircuitBreakerDefaults,
   GatewayResilienceDefaults,
   GatewayAuthProvider,
+  GatewayDownstreamCredential,
   GatewayProxyConfig,
   GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
   GatewayLiveStatus,
   GlobalFilterEntry,
+  RouteHealthResponse,
+  HealthTimeWindow,
+  SloStatus,
+  RouteSloConfig,
+  FleetStatusResponse,
 } from '../types'
 
 const BASE = '/api/v1/admin/gateway'
@@ -78,6 +84,16 @@ export const gatewayApi = {
   deleteAuthProvider: (providerId: string) =>
     apiClient.delete(`${BASE}/auth-providers/${providerId}`).then((r) => r.data),
 
+  // ─── Downstream Credentials ────────────────────────────────────────────────
+  getDownstreamCredentials: () =>
+    apiClient.get<GatewayDownstreamCredential[]>(`${BASE}/downstream-credentials`).then((r) => r.data),
+
+  upsertDownstreamCredential: (credential: GatewayDownstreamCredential) =>
+    apiClient.put<GatewayConfig>(`${BASE}/downstream-credentials/${credential.id}`, credential).then((r) => r.data),
+
+  deleteDownstreamCredential: (credentialId: string) =>
+    apiClient.delete(`${BASE}/downstream-credentials/${credentialId}`).then((r) => r.data),
+
   // ─── Proxy ────────────────────────────────────────────────────────────────
   getProxyConfig: () => apiClient.get<GatewayProxyConfig>(`${BASE}/proxy`).then((r) => r.data),
 
@@ -101,4 +117,19 @@ export const gatewayApi = {
 
   updateGlobalFilterEntries: (entries: GlobalFilterEntry[]) =>
     apiClient.put<GatewayConfig>(`${BASE}/global-filter-entries`, entries).then((r) => r.data),
+
+  // ─── Gateway Health Dashboard v2 ─────────────────────────────────────────
+  getRouteHealth: (window: HealthTimeWindow = '24h') =>
+    apiClient
+      .get<RouteHealthResponse>(`/api/v1/admin/dashboard/route-health`, { params: { window } })
+      .then((r) => r.data),
+
+  getRouteSloStatus: (routeId: string) =>
+    apiClient.get<SloStatus>(`/api/v1/admin/routes/${routeId}/slo-status`).then((r) => r.data),
+
+  saveRouteSlo: (routeId: string, slo: RouteSloConfig) =>
+    apiClient.put(`/api/v1/admin/routes/${routeId}/slo`, slo).then((r) => r.data),
+
+  // ─── Multi-Gateway Fleet Status ─────────────────────────────────────────
+  getFleetStatus: () => apiClient.get<FleetStatusResponse>('/api/v1/admin/gateway/fleet').then((r) => r.data),
 }

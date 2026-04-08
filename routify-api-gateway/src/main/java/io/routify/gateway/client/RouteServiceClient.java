@@ -68,12 +68,15 @@ public class RouteServiceClient extends AmqpServiceClientSupport {
                     .map(r -> new RouteSnapshotDto(
                             r.routeId(), r.tenantId(), r.name(), r.pathPattern(),
                             r.methods(), r.upstreamUri(), r.stripPrefix(), r.version(),
+                            r.environment(),
                             r.filters() == null ? List.of() : r.filters().stream()
                                     .map(f -> new RouteSnapshotDto.FilterSnapshotDto(
                                             f.filterId(), f.filterType(), f.order(), f.phase(),
                                             f.config(), f.gatewayConfigRef()))
                                     .toList(),
-                            r.extraConfig()))
+                            r.extraConfig(),
+                            r.trafficWeight(),
+                            r.canaryRouteId()))
                     .toList();
 
             log.info("Fetched {} active routes via RabbitMQ", snapshots.size());
