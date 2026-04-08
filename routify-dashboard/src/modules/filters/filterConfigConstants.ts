@@ -186,7 +186,7 @@ export const DEFAULT_CONFIGS: Partial<Record<FilterType, FilterConfig>> = {
     policyDescription: '',
     evaluationMode: 'SYNC',
     includeBody: false,
-    maxBodyBytes: 512,
+    maxBodyBytes: 2048,
     fallbackAction: 'ALLOW',
     confidenceThreshold: 0.85,
     cacheEnabled: true,

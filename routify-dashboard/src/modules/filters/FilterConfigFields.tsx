@@ -3571,12 +3571,12 @@ function AiFilterFields({ config, onChange }: { config: FilterConfig; onChange: 
         />
       </div>
       {bool('includeBody') && (
-        <Field label="Max Body Bytes">
+        <Field label="Max Body Bytes" hint="Body excerpt sent to the LLM (default 2048 bytes)">
           <input
             type="number"
             min={64}
             max={8192}
-            value={num('maxBodyBytes', 512)}
+            value={num('maxBodyBytes', 2048)}
             onChange={(e) => set('maxBodyBytes', parseInt(e.target.value))}
             className={inputCls}
           />
