@@ -28,6 +28,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.HashSet;
 
@@ -240,7 +244,7 @@ public class IdentityRabbitHandler {
         log.debug("RabbitMQ: received apikeys.create request");
         try {
             io.routify.common.domain.UserRole role = io.routify.common.domain.UserRole.valueOf(req.role());
-            java.time.Instant expiresAt = req.expiresAt() != null ? java.time.Instant.parse(req.expiresAt()) : null;
+            java.time.Instant expiresAt = req.expiresAt() != null ? parseFlexibleInstant(req.expiresAt()) : null;
             ApiKeyService.CreateResult result = apiKeyService.create(
                     req.tenantId(), req.userId(), req.name(), role, req.email(), expiresAt, req.actor());
             ApiKey key = result.apiKey();
@@ -496,5 +500,19 @@ public class IdentityRabbitHandler {
         return new QueryResponse.RoleDetail(
                 r.getId(), r.getTenantId(), r.getName(), r.getDescription(),
                 r.isBuiltIn(), List.copyOf(r.getPermissions()), r.getCreatedAt());
+    }
+
+    /**
+     * Parses a datetime string flexibly — accepts full ISO-8601 instants
+     * (e.g. {@code 2026-04-08T18:45:00Z}) as well as local datetime values
+     * produced by HTML {@code <input type="datetime-local">}
+     * (e.g. {@code 2026-04-08T18:45}).  Local datetimes are treated as UTC.
+     */
+    private static Instant parseFlexibleInstant(String text) {
+        try {
+            return Instant.parse(text);
+        } catch (DateTimeParseException _) {
+            return LocalDateTime.parse(text).atOffset(ZoneOffset.UTC).toInstant();
+        }
     }
 }

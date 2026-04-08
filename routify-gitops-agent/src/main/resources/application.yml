@@ -50,7 +50,7 @@ management:
 # ─── Routify GitOps Agent Configuration ──────────────────────────────────────
 routify:
   gitops:
-    enabled: ${GITOPS_ENABLED:true}
+    enabled: ${GITOPS_ENABLED:false}
     repository-url: ${GITOPS_REPOSITORY_URL:}      # REQUIRED: https://github.com/org/routify-config.git
     branch: ${GITOPS_BRANCH:main}
     config-path: ${GITOPS_CONFIG_PATH:routify-export.yaml}
