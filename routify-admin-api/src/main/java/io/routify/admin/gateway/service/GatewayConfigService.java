@@ -119,6 +119,7 @@ public class GatewayConfigService {
     public GlobalFiltersConfig getGlobalFilters()              { return getConfig().getGlobalFilters(); }
     public TenantIsolationConfig getTenantIsolation()          { return getConfig().getTenantIsolation(); }
     public List<GlobalFilterEntryDto> getGlobalFilterEntries() { var l = getConfig().getGlobalFilterEntries(); return l != null ? l : new ArrayList<>(); }
+    public List<DownstreamCredentialDto> getDownstreamCredentials() { var l = getConfig().getDownstreamCredentials(); return l != null ? l : new ArrayList<>(); }
 
     // ─── Write ────────────────────────────────────────────────────────────────
 
@@ -265,6 +266,37 @@ public class GatewayConfigService {
         return persistAndNotify(cfg, updatedBy, "GLOBAL_FILTER_ENTRIES");
     }
 
+    public GatewayConfigDto upsertDownstreamCredential(DownstreamCredentialDto credential, String updatedBy) {
+        GatewayConfigDto cfg = getConfig();
+        List<DownstreamCredentialDto> list = new ArrayList<>(cfg.getDownstreamCredentials() != null ? cfg.getDownstreamCredentials() : List.of());
+
+        // Preserve stored secrets when the mask sentinel is submitted
+        list.stream()
+            .filter(c -> credential.getId() != null && credential.getId().equals(c.getId()))
+            .findFirst()
+            .ifPresent(existing -> {
+                if (Sensitive.isMasked(credential.getPassword())) {
+                    credential.setPassword(existing.getPassword());
+                }
+                if (Sensitive.isMasked(credential.getHeaderValue())) {
+                    credential.setHeaderValue(existing.getHeaderValue());
+                }
+            });
+
+        list.removeIf(c -> c.getId() != null && c.getId().equals(credential.getId()));
+        list.add(credential);
+        cfg.setDownstreamCredentials(list);
+        return persistAndNotify(cfg, updatedBy, "DOWNSTREAM_CREDENTIALS");
+    }
+
+    public GatewayConfigDto deleteDownstreamCredential(String credentialId, String updatedBy) {
+        GatewayConfigDto cfg = getConfig();
+        List<DownstreamCredentialDto> list = new ArrayList<>(cfg.getDownstreamCredentials() != null ? cfg.getDownstreamCredentials() : List.of());
+        list.removeIf(c -> credentialId.equals(c.getId()));
+        cfg.setDownstreamCredentials(list);
+        return persistAndNotify(cfg, updatedBy, "DOWNSTREAM_CREDENTIALS");
+    }
+
     // ─── Private ──────────────────────────────────────────────────────────────
 
     /**
@@ -342,6 +374,7 @@ public class GatewayConfigService {
         if (incoming.getGlobalFilters() != null)       existing.setGlobalFilters(incoming.getGlobalFilters());
         if (incoming.getTenantIsolation() != null)     existing.setTenantIsolation(incoming.getTenantIsolation());
         if (incoming.getGlobalFilterEntries() != null) existing.setGlobalFilterEntries(incoming.getGlobalFilterEntries());
+        if (incoming.getDownstreamCredentials() != null) existing.setDownstreamCredentials(incoming.getDownstreamCredentials());
     }
 
     private GatewayConfigDto buildDefaults() {
@@ -401,6 +434,7 @@ public class GatewayConfigService {
                         .enabled(true)
                         .tenantIdHeader(RoutifyHeaders.TENANT_ID).allowCrossTenantsForSuperAdmin(true).build())
                 .globalFilterEntries(List.of())
+                .downstreamCredentials(List.of())
                 .build();
     }
 }

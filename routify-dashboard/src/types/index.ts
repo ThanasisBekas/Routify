@@ -677,6 +677,24 @@ export interface GlobalFilterEntry {
   enabled: boolean
 }
 
+/**
+ * A reusable downstream credential entry managed in the Gateway Config's
+ * Downstream Credentials section. Filters reference it via `gatewayConfigRef`
+ * with `refType: 'DOWNSTREAM_CREDENTIAL'` and the credential's `id` as `refId`.
+ */
+export interface GatewayDownstreamCredential {
+  id: string
+  name: string
+  description?: string
+  /** `BASIC` (username/password) or `HEADER` (headerName/headerValue) */
+  type: 'BASIC' | 'HEADER'
+  username?: string
+  password?: string
+  headerName?: string
+  headerValue?: string
+  enabled: boolean
+}
+
 export interface GatewayConfig {
   updatedAt?: string
   updatedBy?: string
@@ -690,6 +708,7 @@ export interface GatewayConfig {
   httpClientConfig: GatewayHttpClientConfig
   tenantIsolation: GatewayTenantIsolationConfig
   globalFilterEntries: GlobalFilterEntry[]
+  downstreamCredentials: GatewayDownstreamCredential[]
 }
 
 export interface GatewayLiveStatus {

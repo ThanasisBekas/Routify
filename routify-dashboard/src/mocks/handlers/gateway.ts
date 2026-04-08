@@ -7,6 +7,7 @@ import type {
   GatewayCircuitBreakerDefaults,
   GatewayResilienceDefaults,
   GatewayAuthProvider,
+  GatewayDownstreamCredential,
   GatewayProxyConfig,
   GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
@@ -163,6 +164,34 @@ export const gatewayHandlers = [
   http.delete(`${BASE}/auth-providers/:providerId`, async ({ params }) => {
     await delay(300)
     gatewayConfig.authProviders = gatewayConfig.authProviders.filter((p) => p.id !== params.providerId)
+    gatewayConfig.updatedAt = new Date().toISOString()
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ─── Downstream Credentials ────────────────────────────────────────────────
+  http.get(`${BASE}/downstream-credentials`, async () => {
+    await delay(150)
+    return HttpResponse.json(gatewayConfig.downstreamCredentials ?? [])
+  }),
+  http.put(`${BASE}/downstream-credentials/:credentialId`, async ({ params, request }) => {
+    await delay(350)
+    const body = (await request.json()) as GatewayDownstreamCredential
+    const creds = gatewayConfig.downstreamCredentials ?? []
+    const idx = creds.findIndex((c) => c.id === params.credentialId)
+    if (idx >= 0) {
+      creds[idx] = body
+    } else {
+      creds.push(body)
+    }
+    gatewayConfig.downstreamCredentials = creds
+    gatewayConfig.updatedAt = new Date().toISOString()
+    return HttpResponse.json(gatewayConfig)
+  }),
+  http.delete(`${BASE}/downstream-credentials/:credentialId`, async ({ params }) => {
+    await delay(300)
+    gatewayConfig.downstreamCredentials = (gatewayConfig.downstreamCredentials ?? []).filter(
+      (c) => c.id !== params.credentialId,
+    )
     gatewayConfig.updatedAt = new Date().toISOString()
     return new HttpResponse(null, { status: 204 })
   }),

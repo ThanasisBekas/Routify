@@ -14,6 +14,7 @@ import { aiApi } from '../../api/aiApi'
 import { gatewayApi } from '../../api/gatewayApi'
 import { certVaultApi } from '../../api/certVaultApi'
 import { AuthProviderPicker } from './AuthProviderPicker'
+import { DownstreamCredentialPicker } from './DownstreamCredentialPicker'
 
 function Field({
   label,
@@ -2132,27 +2133,68 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             Injects a <strong className="text-violet-300">Basic Authorization</strong> header into every request
             forwarded to the upstream service.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Username" optional>
-              <input
-                value={str('username')}
-                onChange={(e) => set('username', e.target.value)}
-                className={inputCls}
-                placeholder="service-account"
-                autoComplete="off"
-              />
-            </Field>
-            <Field label="Password" optional>
-              <input
-                type="password"
-                value={str('password')}
-                onChange={(e) => set('password', e.target.value)}
-                className={inputCls}
-                placeholder="••••••••"
-                autoComplete="new-password"
-              />
-            </Field>
-          </div>
+
+          <SectionTitle>Credential Source</SectionTitle>
+
+          <DownstreamCredentialPicker
+            value={(config._selectedCredentialId as string) ?? ''}
+            onChange={(credentialId, credential) => {
+              if (!credentialId || !credential) {
+                onChange({ ...config, _selectedCredentialId: '', username: '', password: '' })
+                return
+              }
+              onChange({
+                ...config,
+                _selectedCredentialId: credentialId,
+                username: credential.username ?? '',
+                password: credential.password ?? '',
+              })
+            }}
+            typeFilter={(t) => t === 'BASIC'}
+            label="Downstream Credential"
+            hint="Select a BASIC credential from Gateway Settings → Downstream Credentials, or enter username/password manually below."
+            optional
+            noneLabel="None — enter credentials manually"
+            noneDescription="Type username and password in the fields below"
+            placeholder="Select a BASIC Credential…"
+          />
+
+          {!!(config._selectedCredentialId as string) && str('username') && (
+            <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+              <span className="mt-0.5 shrink-0">✓</span>
+              <span>
+                Credentials imported from gateway config. Username:{' '}
+                <code className="font-mono text-emerald-300">{str('username')}</code>
+              </span>
+            </div>
+          )}
+
+          {!(config._selectedCredentialId as string) && (
+            <>
+              <SectionTitle>Manual Credentials</SectionTitle>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Username" optional>
+                  <input
+                    value={str('username')}
+                    onChange={(e) => set('username', e.target.value)}
+                    className={inputCls}
+                    placeholder="service-account"
+                    autoComplete="off"
+                  />
+                </Field>
+                <Field label="Password" optional>
+                  <input
+                    type="password"
+                    value={str('password')}
+                    onChange={(e) => set('password', e.target.value)}
+                    className={inputCls}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                  />
+                </Field>
+              </div>
+            </>
+          )}
         </div>
       )
 
@@ -2210,6 +2252,36 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
                 Provider name set to <code className="font-mono text-emerald-300">{str('oauth2ProviderName')}</code> from
                 gateway config.
               </span>
+            </div>
+          )}
+
+          <SectionTitle>Downstream Credential</SectionTitle>
+
+          <DownstreamCredentialPicker
+            value={(config._selectedDownstreamCredId as string) ?? ''}
+            onChange={(credentialId, credential) => {
+              if (!credentialId || !credential) {
+                onChange({ ...config, _selectedDownstreamCredId: '' })
+                return
+              }
+              onChange({
+                ...config,
+                _selectedDownstreamCredId: credentialId,
+              })
+            }}
+            typeFilter={(t) => t === 'HEADER'}
+            label="Downstream Credential (Header)"
+            hint="Optionally select a HEADER credential from Gateway Settings → Downstream Credentials to inject a custom header downstream."
+            optional
+            noneLabel="None — no additional credential header"
+            noneDescription="Only the OAuth2 bearer token will be injected"
+            placeholder="Select a HEADER Credential…"
+          />
+
+          {!!(config._selectedDownstreamCredId as string) && (
+            <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+              <span className="mt-0.5 shrink-0">✓</span>
+              <span>Downstream credential linked from gateway config.</span>
             </div>
           )}
 
