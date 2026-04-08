@@ -11,7 +11,6 @@ import io.routify.common.dto.export.GatewayExportV1.RouteFilterRefExport;
 import io.routify.common.event.CommandEvent;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.exception.RoutifyException;
-import io.routify.common.web.Sensitive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,10 +30,6 @@ import java.util.stream.Collectors;
  *
  * <p><b>Preview</b>: computes what would change (create/update/unchanged) without side effects.
  * <p><b>Apply</b>: runs preview then publishes Kafka commands for each change.
- *
- * <p>Import is additive: resources in the database but not in the import file are NOT deleted.
- * Masked sensitive values ({@link Sensitive#isMasked(String)}) are skipped in comparisons
- * and not overwritten on apply.
  */
 @Slf4j
 @Service
@@ -179,11 +174,6 @@ public class ImportService {
                     } else {
                         filterUpdates.add(new DiffUpdateEntry(importFilter.name(), changes));
                     }
-                    // Warn about masked fields
-                    if (hasMaskedValues(importFilter.config())) {
-                        warnings.add("Filter '%s' has masked config fields that will not be overwritten"
-                                .formatted(importFilter.name()));
-                    }
                 }
             }
         }
@@ -235,7 +225,6 @@ public class ImportService {
 
                 if (existing == null) {
                     // Create filter
-                    Map<String, Object> config = stripMaskedValues(importFilter.config());
                     UUID commandId = generateCommandId(tenantId, importFilter.name(), "create-filter");
                     routeFilterClient.publishFilterCommand(
                             new CommandEvent.CreateFilter(
@@ -243,7 +232,7 @@ public class ImportService {
                                     importFilter.name(),
                                     importFilter.description(),
                                     importFilter.filterType(),
-                                    config, null
+                                    importFilter.config(), null
                             )
                     );
                     filtersCreated++;
@@ -339,9 +328,6 @@ public class ImportService {
         }
         if (importFilter.config() != null && existing.config() != null) {
             for (Map.Entry<String, Object> e : importFilter.config().entrySet()) {
-                if (e.getValue() instanceof String s && Sensitive.isMasked(s)) {
-                    continue; // Skip masked values in comparison
-                }
                 Object currentVal = existing.config().get(e.getKey());
                 if (!Objects.equals(e.getValue(), currentVal)) {
                     changes.add("config." + e.getKey());
@@ -430,42 +416,15 @@ public class ImportService {
 
     // ─── Utility helpers ──────────────────────────────────────────────────────
 
-    private boolean hasMaskedValues(Map<String, Object> config) {
-        if (config == null) return false;
-        return config.values().stream()
-                .anyMatch(v -> v instanceof String s && Sensitive.isMasked(s));
-    }
-
-    /**
-     * Remove masked values from a config map (for create operations).
-     */
-    private Map<String, Object> stripMaskedValues(Map<String, Object> config) {
-        if (config == null) return Map.of();
-        Map<String, Object> stripped = new LinkedHashMap<>();
-        for (Map.Entry<String, Object> e : config.entrySet()) {
-            if (e.getValue() instanceof String s && Sensitive.isMasked(s)) {
-                continue; // skip masked values
-            }
-            stripped.put(e.getKey(), e.getValue());
-        }
-        return stripped;
-    }
-
     /**
      * Merge import config with existing config, skipping masked values.
      */
     private Map<String, Object> mergeFilterConfig(Map<String, Object> existing, Map<String, Object> imported) {
         if (existing == null && imported == null) return Map.of();
         if (imported == null) return existing;
-        if (existing == null) return stripMaskedValues(imported);
 
         Map<String, Object> merged = new LinkedHashMap<>(existing);
-        for (Map.Entry<String, Object> e : imported.entrySet()) {
-            if (e.getValue() instanceof String s && Sensitive.isMasked(s)) {
-                continue; // Keep existing value for masked fields
-            }
-            merged.put(e.getKey(), e.getValue());
-        }
+        merged.putAll(imported);
         return merged;
     }
 

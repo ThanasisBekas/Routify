@@ -8,7 +8,6 @@ import io.routify.admin.gateway.service.GatewayConfigService;
 import io.routify.admin.client.CertVaultMessagingClient;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.web.RoutifyHeaders;
-import io.routify.common.web.Sensitive;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -202,7 +201,6 @@ public class GatewayConfigController {
     @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<List<AuthProviderDto>> getAuthProviders() {
         List<AuthProviderDto> providers = configService.getAuthProviders();
-        providers.forEach(Sensitive::maskFields);
         return ResponseEntity.ok(providers);
     }
 
@@ -231,7 +229,6 @@ public class GatewayConfigController {
     @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<List<DownstreamCredentialDto>> getDownstreamCredentials() {
         List<DownstreamCredentialDto> creds = configService.getDownstreamCredentials();
-        creds.forEach(Sensitive::maskFields);
         return ResponseEntity.ok(creds);
     }
 
@@ -294,7 +291,6 @@ public class GatewayConfigController {
     @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<ProxyConfigDto> getProxyConfig() {
         ProxyConfigDto proxy = configService.getProxyConfig();
-        Sensitive.maskFields(proxy);
         return ResponseEntity.ok(proxy);
     }
 

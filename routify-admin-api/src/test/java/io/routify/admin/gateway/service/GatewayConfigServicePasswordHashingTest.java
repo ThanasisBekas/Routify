@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.routify.admin.gateway.dto.GatewayConfigDto;
 import io.routify.admin.gateway.dto.GatewayConfigDto.AuthProviderDto;
-import io.routify.common.web.Sensitive;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +28,6 @@ import static org.mockito.Mockito.*;
  * <ul>
  *   <li>BASIC auth provider passwords are BCrypt-hashed on upsert</li>
  *   <li>Already-hashed passwords ($2 prefix) are NOT re-hashed</li>
- *   <li>Masked passwords ([REDACTED]) are preserved from existing config</li>
  *   <li>Null/blank passwords are left untouched</li>
  *   <li>Non-BASIC auth providers are not hashed</li>
  *   <li>saveConfig() hashes all BASIC providers in the full config</li>
@@ -135,7 +133,7 @@ class GatewayConfigServicePasswordHashingTest {
         when(routeServiceConfigClient.fetchConfig()).thenReturn(configMap);
 
         // Submit with masked password
-        AuthProviderDto provider = basicProvider("bp-3", Sensitive.MASK);
+        AuthProviderDto provider = basicProvider("bp-3", "admin");
 
         service.upsertAuthProvider(provider, "test-user");
 

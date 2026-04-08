@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.routify.admin.gateway.dto.GatewayConfigDto;
 import io.routify.admin.gateway.dto.GatewayConfigDto.*;
 import io.routify.common.web.RoutifyHeaders;
-import io.routify.common.web.Sensitive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -159,12 +158,12 @@ public class GatewayConfigService {
         return persistAndNotify(cfg, updatedBy, "RATE_LIMIT");
     }
 
-    public GatewayConfigDto deleteRateLimitPolicy(String policyId, String updatedBy) {
+    public void deleteRateLimitPolicy(String policyId, String updatedBy) {
         GatewayConfigDto cfg = getConfig();
         List<RateLimitPolicyDto> list = new ArrayList<>(cfg.getRateLimitPolicies() != null ? cfg.getRateLimitPolicies() : List.of());
         list.removeIf(p -> policyId.equals(p.getId()));
         cfg.setRateLimitPolicies(list);
-        return persistAndNotify(cfg, updatedBy, "RATE_LIMIT");
+        persistAndNotify(cfg, updatedBy, "RATE_LIMIT");
     }
 
     public GatewayConfigDto updateCircuitBreakerDefaults(CircuitBreakerDefaultsDto cb, String updatedBy) {
@@ -182,25 +181,11 @@ public class GatewayConfigService {
         GatewayConfigDto cfg = getConfig();
         List<AuthProviderDto> list = new ArrayList<>(cfg.getAuthProviders() != null ? cfg.getAuthProviders() : List.of());
 
-        // If the incoming secrets are the mask sentinel, preserve the currently stored values.
-        list.stream()
-            .filter(p -> provider.getId() != null && provider.getId().equals(p.getId()))
-            .findFirst()
-            .ifPresent(existing -> {
-                if (Sensitive.isMasked(provider.getClientSecret())) {
-                    provider.setClientSecret(existing.getClientSecret());
-                }
-                if (Sensitive.isMasked(provider.getPassword())) {
-                    provider.setPassword(existing.getPassword());
-                }
-            });
-
         // BCrypt-hash the password for BASIC auth providers before persisting.
         // Skip if the password is null/blank, masked (preserved above), or already hashed.
         if ("BASIC".equalsIgnoreCase(provider.getType())
                 && provider.getPassword() != null
                 && !provider.getPassword().isBlank()
-                && !Sensitive.isMasked(provider.getPassword())
                 && !provider.getPassword().startsWith("$2")) {
             provider.setPassword(BCRYPT.encode(provider.getPassword()));
             log.info("BCrypt-hashed BASIC auth provider password for provider '{}'", provider.getId());
@@ -212,36 +197,16 @@ public class GatewayConfigService {
         return persistAndNotify(cfg, updatedBy, "AUTH_PROVIDERS");
     }
 
-    public GatewayConfigDto deleteAuthProvider(String providerId, String updatedBy) {
+    public void deleteAuthProvider(String providerId, String updatedBy) {
         GatewayConfigDto cfg = getConfig();
         List<AuthProviderDto> list = new ArrayList<>(cfg.getAuthProviders() != null ? cfg.getAuthProviders() : List.of());
         list.removeIf(p -> providerId.equals(p.getId()));
         cfg.setAuthProviders(list);
-        return persistAndNotify(cfg, updatedBy, "AUTH_PROVIDERS");
-    }
-
-
-    /**
-     * Updates the TLS config section.
-     * All certificate lifecycle is now handled by routify-cert-vault — this method
-     * simply propagates any remaining config metadata (currently an empty stub).
-     * The deprecated fileSources / directorySources / expiryWarning / fileWatchInterval
-     * fields have been removed; use the Certificate Vault API instead.
-     */
-    public GatewayConfigDto updateTlsConfig(TlsConfigDto tls, String updatedBy) {
-        GatewayConfigDto cfg = getConfig();
-
-        cfg.setTlsConfig(tls);
-        return persistAndNotify(cfg, updatedBy, "TLS");
+        persistAndNotify(cfg, updatedBy, "AUTH_PROVIDERS");
     }
 
     public GatewayConfigDto updateProxyConfig(ProxyConfigDto proxy, String updatedBy) {
         GatewayConfigDto cfg = getConfig();
-        // Preserve the stored password when the mask sentinel is submitted
-        if (proxy != null && Sensitive.isMasked(proxy.getPassword())
-                && cfg.getProxyConfig() != null) {
-            proxy.setPassword(cfg.getProxyConfig().getPassword());
-        }
         cfg.setProxyConfig(proxy);
         return persistAndNotify(cfg, updatedBy, "PROXY");
     }
@@ -270,31 +235,18 @@ public class GatewayConfigService {
         GatewayConfigDto cfg = getConfig();
         List<DownstreamCredentialDto> list = new ArrayList<>(cfg.getDownstreamCredentials() != null ? cfg.getDownstreamCredentials() : List.of());
 
-        // Preserve stored secrets when the mask sentinel is submitted
-        list.stream()
-            .filter(c -> credential.getId() != null && credential.getId().equals(c.getId()))
-            .findFirst()
-            .ifPresent(existing -> {
-                if (Sensitive.isMasked(credential.getPassword())) {
-                    credential.setPassword(existing.getPassword());
-                }
-                if (Sensitive.isMasked(credential.getHeaderValue())) {
-                    credential.setHeaderValue(existing.getHeaderValue());
-                }
-            });
-
         list.removeIf(c -> c.getId() != null && c.getId().equals(credential.getId()));
         list.add(credential);
         cfg.setDownstreamCredentials(list);
         return persistAndNotify(cfg, updatedBy, "DOWNSTREAM_CREDENTIALS");
     }
 
-    public GatewayConfigDto deleteDownstreamCredential(String credentialId, String updatedBy) {
+    public void deleteDownstreamCredential(String credentialId, String updatedBy) {
         GatewayConfigDto cfg = getConfig();
         List<DownstreamCredentialDto> list = new ArrayList<>(cfg.getDownstreamCredentials() != null ? cfg.getDownstreamCredentials() : List.of());
         list.removeIf(c -> credentialId.equals(c.getId()));
         cfg.setDownstreamCredentials(list);
-        return persistAndNotify(cfg, updatedBy, "DOWNSTREAM_CREDENTIALS");
+        persistAndNotify(cfg, updatedBy, "DOWNSTREAM_CREDENTIALS");
     }
 
     // ─── Private ──────────────────────────────────────────────────────────────
@@ -309,7 +261,6 @@ public class GatewayConfigService {
             if ("BASIC".equalsIgnoreCase(provider.getType())
                     && provider.getPassword() != null
                     && !provider.getPassword().isBlank()
-                    && !Sensitive.isMasked(provider.getPassword())
                     && !provider.getPassword().startsWith("$2")) {
                 provider.setPassword(BCRYPT.encode(provider.getPassword()));
                 log.info("BCrypt-hashed BASIC auth provider password for provider '{}'", provider.getId());

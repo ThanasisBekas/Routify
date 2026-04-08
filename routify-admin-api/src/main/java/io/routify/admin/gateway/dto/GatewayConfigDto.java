@@ -2,7 +2,6 @@ package io.routify.admin.gateway.dto;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.routify.common.web.SensitiveField;
 import lombok.*;
 
 import java.time.Instant;
@@ -172,12 +171,10 @@ public class GatewayConfigDto {
         private String type;           // OAUTH2_CLIENT_CREDENTIALS | OAUTH2_PASSWORD | OAUTH2_INTROSPECT | BASIC | JWT_VERIFY
         private String uri;
         private String clientId;
-        @SensitiveField
-        private String clientSecret;   // masked in GET responses
+        private String clientSecret;
         private String scope;
         private String username;       // for password grant
-        @SensitiveField
-        private String password;       // masked
+        private String password;
         private String parameterStyle; // BODY | HEADER (for introspection)
         private String parameterName;
         private Map<String, String> additionalParameters;
@@ -210,8 +207,7 @@ public class GatewayConfigDto {
         private String  host;
         private int     port;
         private String  username;
-        @SensitiveField
-        private String  password;       // masked
+        private String  password;
         private List<String> nonProxyHosts;
         private String  type;           // HTTP | HTTPS | SOCKS5
     }
@@ -309,10 +305,8 @@ public class GatewayConfigDto {
         /** {@code BASIC} or {@code HEADER} */
         private String type;
         private String username;
-        @SensitiveField
         private String password;
         private String headerName;
-        @SensitiveField
         private String headerValue;
         private boolean enabled;
     }
