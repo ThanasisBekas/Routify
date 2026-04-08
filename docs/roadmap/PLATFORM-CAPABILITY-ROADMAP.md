@@ -86,7 +86,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | Route import/export | ✅ | YAML/JSON with dry-run preview |
 | Canary monitoring | ✅ | `CanaryMonitorService` — 30s polling, auto-rollback on 3 breaches |
 | Fleet health scheduler | ✅ | `FleetHealthScheduler` |
-| `gatewayConfigRef` validation on filter save | ❌ | No validation that `refType`/`refId` references a real gateway config entry — see [P-14](#p-14-filter-config-gatewayconfigref-validation) |
+| `gatewayConfigRef` validation on filter save | ✅ | `GatewayConfigRefValidator` validates refType (reject unknown), refId (reject blank), entry existence (warn only) — [P-14](#p-14-filter-config-gatewayconfigref-validation) ✅ completed |
 
 ### routify-route-service (port 8081)
 
@@ -206,7 +206,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | 1 | ~~**OAuth2 provider config disconnect**~~ | ~~Auth providers defined in gateway config cannot be consumed by `OAuth2TokenIntrospectGatewayFilterFactory`.~~ **Resolved in P-04:** Filter now reads direct config fields (`introspectUri`, `clientId`, `clientSecret`) from `gatewayConfigRef` resolution and calls the introspection endpoint directly. Legacy `providerName` → `AuthProperties` YAML path preserved for backward compatibility. |
 | 2 | ~~**mTLS static config island**~~ | ~~`MtlsAuthGatewayFilterFactory` uses `CertificateValuesConfig` which requires certificate-to-client-ID mappings baked into YAML.~~ **Resolved in P-05:** `MTLS_CLIENT_MAPPING` ref type resolves client mappings from MTLS auth providers in the dynamic gateway config. Legacy YAML path preserved for backward compatibility. |
 | 3 | **Downstream OAuth2 provider disconnect** | `DownstreamOAuth2BearerGatewayFilterFactory.Config.oauth2ProviderName` maps to `Oauth2AccessTokenProvider` YAML config. The `DOWNSTREAM_CREDENTIAL` ref type maps `username`/`password`/`headerName`/`headerValue` but these aren't the fields the downstream OAuth2 filter reads (`oauth2ProviderName`, `forwardCallerAuth`). |
-| 4 | **No `gatewayConfigRef` validation on save** | When creating or updating a filter with a `gatewayConfigRef`, the route-service persists the ref without validating that the referenced gateway config entry (e.g., auth provider with that `refId`) actually exists. The error surfaces only at gateway route-build time. |
+| ~~4~~ | ~~**No `gatewayConfigRef` validation on save**~~ | ~~When creating or updating a filter with a `gatewayConfigRef`, the route-service persists the ref without validating that the referenced gateway config entry (e.g., auth provider with that `refId`) actually exists. The error surfaces only at gateway route-build time.~~ **Resolved in P-14:** `GatewayConfigRefValidator` validates refType (reject unknown), refId format (reject blank on list/cert types), and entry existence (warn-only for eventual consistency). |
 
 ### 3c. Frontend Dashboard Gaps
 
@@ -507,20 +507,22 @@ Missing features and UX improvements that round out the platform.
 
 ---
 
-#### P-14: Filter Config `gatewayConfigRef` Validation
+#### P-14: Filter Config `gatewayConfigRef` Validation ✅ COMPLETED
 
-**Affected services:** `routify-route-service`, `routify-admin-api`  
+**Affected services:** `routify-route-service`  
 **Complexity:** S  
-**Files:** Route-service filter command handler, `RouteFilterMessagingClient.java`
+**Files:** `GatewayConfigRefValidator.java`, `RouteCommandKafkaConsumer.java`, `GatewayConfigRefValidatorTest.java`  
+**Status:** ✅ Completed — structural validation rejects invalid refs eagerly; entry-existence checks are warning-only for eventual consistency. 28 tests passing.
 
 **Problem:** When creating/updating a filter with a `gatewayConfigRef`, the route-service persists the ref without validating that the referenced entry (e.g., auth provider with ID `refId`) actually exists in the gateway config. The error only surfaces at gateway route-build time when `GatewayConfigRefResolver` logs a warning and returns empty.
 
-**Changes:**
-- **Backend (route-service):** On `CreateFilter` / `UpdateFilter` command processing, if `gatewayConfigRef` is present, query the gateway config via `GatewayConfigService` and validate that:
-  1. The `refType` is a known type (`AUTH_PROVIDER`, `RATE_LIMIT_POLICY`, `CIRCUIT_BREAKER_DEFAULTS`, `RESILIENCE_DEFAULTS`, `VAULT_CERT`, `DOWNSTREAM_CREDENTIAL`).
-  2. The `refId` matches an existing entry in the corresponding config section.
-- **Backend:** Throw `RoutifyException.Validation` with a descriptive message on mismatch.
-- **Frontend:** None (error will surface as a 422 validation error in the filter form).
+**Implementation summary:**
+- **`GatewayConfigRefValidator`** (new, `io.routify.route.service`): Spring `@Component` injected into the Kafka command consumer. Validates `gatewayConfigRef` maps with a two-tier strategy per the risk register:
+  1. **Reject eagerly** (throw `RoutifyException.Validation`): unknown/blank `refType`, blank `refId` on list-based types (`AUTH_PROVIDER`, `RATE_LIMIT_POLICY`, `DOWNSTREAM_CREDENTIAL`, `MTLS_CLIENT_MAPPING`, `CLIENT_ID_MAPPING`), and blank `refId` on `VAULT_CERT`. All 8 ref types from `GatewayConfigRefResolver` are accepted: the original 6 plus `MTLS_CLIENT_MAPPING` and `CLIENT_ID_MAPPING`.
+  2. **Warn only** (log but don't block): referenced entry not found in gateway config section, config section missing, or no gateway config saved yet. The entry may be created later (eventual consistency). Warning messages include the refType, refId, and config section for operator diagnosis.
+- **`RouteCommandKafkaConsumer`** (modified): `configRefValidator.validate(c.gatewayConfigRef())` called before entity construction in both `CreateFilter` and `UpdateFilter` branches. Validation failures throw `RoutifyException.Validation` which prevents ack → Kafka retry → DLQ.
+- **Tests:** `GatewayConfigRefValidatorTest.java` (28 tests): null/empty ref passthrough, unknown refType rejected, blank/missing refType rejected, all 7 known refTypes accepted with empty config, VAULT_CERT valid/blank/null refId, list-based blank refId rejected (5 types), AUTH_PROVIDER matching/non-matching refId, RATE_LIMIT_POLICY/DOWNSTREAM_CREDENTIAL matching, singleton section present/missing, edge cases (section not a list, section null).
+- **Frontend:** None (validation errors surface as command failures in DLQ; structural errors like unknown refType are caught client-side by the dashboard's dropdown pickers which only offer valid options).
 
 ---
 
@@ -789,7 +791,7 @@ Phase 3 (P2 — Completeness)
   P-11 Rate Limiter Headers ──────────────────────── ✅ COMPLETED (depends on P-10)
   P-12 Workspace Create & Plan Management ─────────── ✅ COMPLETED
   P-13 Settings Module Completion ─────────────────── ✅ COMPLETED
-  P-14 Filter gatewayConfigRef Validation ─────────── standalone
+  P-14 Filter gatewayConfigRef Validation ─────────── ✅ COMPLETED
   P-15 Jolt Response-Phase ────────────────────────── standalone
   P-16 RequestLogger Improvements ─────────────────── standalone
 
@@ -819,7 +821,7 @@ Phase 4 (P3 — Quality)
 | ~~**P-03 BCrypt hashing breaks existing BasicAuth configs**~~ | ~~Medium~~ | ~~Low~~ | ✅ **Mitigated.** Gateway auto-detects unhashed passwords (no `$2` prefix) and falls back to plain-text `equals()` with a WARN log. Re-saving the auth provider via admin API triggers automatic BCrypt hashing. |
 | ~~**P-04 OAuth2 config migration is a breaking change**~~ | ~~Low~~ | ~~Medium~~ | ✅ **Mitigated.** Purely additive — existing `providerName` → YAML path continues to work unchanged. New direct-config path activates only when `introspectUri`+`clientId`+`clientSecret` are all present (from `gatewayConfigRef` resolution). Partial direct config gracefully falls back to `providerName`. |
 | ~~**P-05 mTLS/ClientID refactoring breaks existing deployments**~~ | ~~Medium~~ | ~~High~~ | ✅ **Mitigated.** Purely additive — existing `CertificateValuesConfig` YAML and `ClientProperties` static config paths continue to work unchanged. New dynamic config paths activate only when a `gatewayConfigRef` with `MTLS_CLIENT_MAPPING` or `CLIENT_ID_MAPPING` ref type is present. `ClientIdAuthGatewayFilterFactory` falls back to injected `ClientProperties` bean when `Config.clientIdMapping` is empty or null. |
-| **P-14 gatewayConfigRef validation blocks valid saves** | Low | Medium | Only validate `refType` is known and `refId` format is valid. Log a warning (don't block) if the referenced entry isn't found — it may be created later. |
+| ~~**P-14 gatewayConfigRef validation blocks valid saves**~~ | ~~Low~~ | ~~Medium~~ | ✅ **Mitigated.** Two-tier validation: structural errors (unknown refType, blank refId) throw `RoutifyException.Validation` immediately. Entry-existence checks (refId not found in config section) only log a warning — the save proceeds, allowing eventual consistency when config entries are created after filters. |
 | **P-19 IT expansion delayed by Docker/TC incompatibility** | Medium | Low | Verify `docker-java` 3.7.1 resolves the issue. If not, target unit tests only. |
 | **Test expansion initiatives (P-18 through P-23) are large** | High | Low | Break each into sub-tasks (one test class per PR). Prioritize security-critical paths first. |
 
