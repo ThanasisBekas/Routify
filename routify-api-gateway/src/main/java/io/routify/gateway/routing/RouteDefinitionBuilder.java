@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.net.URI;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Builds Spring Cloud Gateway {@link RouteDefinition}s from route snapshots.
@@ -463,11 +464,50 @@ public class RouteDefinitionBuilder {
     private static FilterDefinition customFilter(String name, Map<String, Object> config) {
         var f = new FilterDefinition();
         f.setName(name);
-        // Convert all config values to String for SCG compatibility
         var args = new LinkedHashMap<String, String>();
-        config.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
+        config.forEach((k, v) -> flattenConfigValue(k, v, args));
         f.setArgs(args);
         return f;
+    }
+
+    /**
+     * Serialises a single config entry into the SCG args map.
+     *
+     * <p>SCG's property binder ({@code ConfigurationUtils.bind}) uses Spring Boot's
+     * {@code Binder} which expects:
+     * <ul>
+     *   <li><b>Scalars</b> (String, boolean, int, double): simple {@code key=value}</li>
+     *   <li><b>Lists</b>: comma-separated string ({@code key=a,b,c}) — the Binder splits
+     *       on commas and produces a {@code List<String>}</li>
+     *   <li><b>Maps</b>: dotted or indexed keys ({@code key.subKey=value})</li>
+     * </ul>
+     *
+     * <p><b>Bug fixed:</b> the previous implementation used {@code v.toString()} for all
+     * types, which produced bracket notation for lists ({@code [a, b]}) and brace notation
+     * for maps ({@code {k=v}}) — neither of which SCG's Binder can parse. This caused
+     * filter Config objects to fall back to defaults, ignoring user-specified values like
+     * {@code logRequestBody=true} on the REQUEST_LOGGER filter.
+     */
+    private static void flattenConfigValue(String key, Object value, Map<String, String> args) {
+        if (value == null) return;
+
+        if (value instanceof List<?> list) {
+            if (!list.isEmpty()) {
+                // Comma-separated: SCG's Binder splits this into List<String>
+                args.put(key, list.stream()
+                        .map(Object::toString)
+                        .collect(Collectors.joining(",")));
+            }
+            // Empty lists → omit entirely (let Config field default apply)
+        } else if (value instanceof Map<?, ?> map) {
+            if (!map.isEmpty()) {
+                // Expand map entries as dotted keys for nested property binding
+                map.forEach((mk, mv) ->
+                        args.put(key + "." + mk, mv != null ? mv.toString() : ""));
+            }
+        } else {
+            args.put(key, value.toString());
+        }
     }
 
     /**
@@ -698,7 +738,7 @@ public class RouteDefinitionBuilder {
         f.setName("AiFilter");
         var args = new LinkedHashMap<String, String>();
         // Copy all config fields from the JSONB blob
-        cfg.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
+        cfg.forEach((k, v) -> flattenConfigValue(k, v, args));
         // Inject route metadata — these override any stale values that might be in the config
         args.put("routeId",   snapshot.routeId().toString());
         args.put("routeName", snapshot.name() != null ? snapshot.name() : "");
@@ -718,7 +758,7 @@ public class RouteDefinitionBuilder {
         var f = new FilterDefinition();
         f.setName("AiModifier");
         var args = new LinkedHashMap<String, String>();
-        cfg.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
+        cfg.forEach((k, v) -> flattenConfigValue(k, v, args));
         args.put("routeId",   snapshot.routeId().toString());
         args.put("routeName", snapshot.name() != null ? snapshot.name() : "");
         args.put("tenantId",  snapshot.tenantId().toString());
