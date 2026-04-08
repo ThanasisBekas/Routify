@@ -683,22 +683,24 @@ Testing, cleanup, and operational improvements.
 
 ---
 
-#### P-22: `routify-common` Shared Utilities Test Expansion
+#### P-22: `routify-common` Shared Utilities Test Expansion ✅ COMPLETED
 
 **Affected services:** `routify-common`  
 **Complexity:** M  
-**Files:** `src/test/java/io/routify/common/`
+**Files:** `src/test/java/io/routify/common/` — 7 new test classes  
+**Status:** ✅ Completed — 7 new test classes covering all specified utilities. Total routify-common test count: 546 (up from 368).
 
 **Problem:** 5 tests exist (CommandEvent serialization, QueryMessage serialization, GlobalExceptionHandler, KafkaDlqErrorHandler, SecurityContext). Missing tests for `PageResponse`, `Sensitive`/`SensitiveField`, `RoutifyHeaders.resolveActor()`, `RedisKeys` constants, domain enum validation.
 
-**Changes:**
-- **Backend:** Add unit tests for:
-  - `PageResponse.of()` / `PageResponse.from()` factory methods
-  - `Sensitive.maskFields()` with nested objects and collections
-  - `Sensitive.isMasked()` edge cases
-  - `RoutifyHeaders.resolveActor()` resolution order
-  - `TenantPlan` quota values
-  - `FilterType` ↔ `RouteDefinitionBuilder` switch exhaustiveness
+**Implementation summary:**
+- **`PageResponseTest.java`** (14 tests): `of()` factory — first/middle/last page, single page, empty result, exact boundary, size-zero guard, large dataset, generic type preservation. `from()` factory — Spring Data Page conversion, empty page, last page detection. Record equality/inequality.
+- **`SensitiveTest.java`** (21 tests): `mask()` — non-blank masked, null→null, blank→null, empty→null, MASK constant value. `isMasked()` — sentinel match, regular string, null, empty, case-sensitive, partial match. `maskFields()` — annotated fields masked, null/blank annotated stay null, null object no-op, nested object recursion, null nested skipped, collection elements masked, null/empty collection skipped, superclass field inheritance.
+- **`RoutifyHeadersTest.java`** (16 tests): `resolveActor()` — userId precedence, null userId→principal, blank/empty userId→principal, both null→system, blank userId + null principal→system, whitespace userId preserved, blank principal returned as-is. Header constant values (5 assertions). All X-* convention check. Utility class constraints (private constructor, final class).
+- **`TenantPlanTest.java`** (22 tests): Per-tier quotas — FREE (10/5/1K/5MB), STARTER (50/20/10K/10MB), PRO (200/100/100K/50MB), ENTERPRISE (MAX/MAX/MAX/500MB). Cross-plan invariants — exactly 4 tiers, all positive values, monotonic increase from FREE→ENTERPRISE.
+- **`FilterTypeTest.java`** (178 tests): Exhaustiveness — exactly 12 deprecated, total = active + deprecated, @Deprecated annotation check. Active types — all 29 from AGENTS.md exist, AUTH_* prefix, RATE_LIMIT_* prefix. Naming — UPPER_SNAKE_CASE, no consecutive underscores. valueOf round-trip for all 41 values.
+- **`DomainEnumValidationTest.java`** (90 tests): UserRole (4 roles, documented values, valueOf round-trip), RouteStatus (4 statuses, ordinal lifecycle order), RouteEnvironment (2 values), Permission (27 permissions, code()==name(), per-category existence, naming convention), AlertMetric (8 metrics, documented values, valueOf round-trip), WebhookEventType (28 types, per-category existence, naming convention).
+- **`RedisKeysTest.java`** (17 tests): Key prefix values (7 constants verified). Naming conventions — all start with `routify:`, prefix constants end with `:`, non-prefix keys don't end with `:`, colon separator count. Key construction examples (4 real-world key patterns). Utility class constraints (private constructor, final class).
+- **`AsyncAcknowledgementTest.java`** (4 tests): `of()` factory, direct constructor, record equality, record inequality.
 
 ---
 
@@ -837,7 +839,7 @@ Phase 4 (P3 — Quality)
   P-19 Backend Service IT Expansion ───────────────── standalone
   P-20 Frontend Unit Test Expansion ─────────────── ✅ COMPLETED
   P-21 Frontend E2E Test Expansion ──────────────── depends on P-20 ✅
-  P-22 routify-common Test Expansion ──────────────── standalone
+  P-22 routify-common Test Expansion ────────────── ✅ COMPLETED
   P-23 GitOps Agent Testing ───────────────────────── standalone
   P-24 Audit Retention Policy ─────────────────────── standalone
   P-25 DownstreamOAuth2 Dynamic Provider ──────────── depends on P-04
