@@ -35,7 +35,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 1. **Security hardening** — JWT validation gaps, SpEL sandboxing, password hashing (3 initiatives)
 2. **Config integration** — bridging static YAML auth config to the dynamic gateway config system so filters can import credentials from centrally-managed providers and certificate vault entries (6 initiatives)
 3. **Frontend completeness** — adding pickers, selectors, and missing CRUD flows to the dashboard (7 initiatives)
-4. **Test coverage** — expanding from 19 Java tests and 6 frontend tests to meaningful coverage (4 initiatives)
+4. **Test coverage** — expanding from 19 Java tests and 283 frontend tests to meaningful coverage (4 initiatives)
 5. **Operational improvements** — validation, cleanup schedulers, error consistency (8 initiatives)
 
 ### What's Working Well
@@ -226,7 +226,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 |------|---------|--------------|----------|
 | **Java unit tests** | 603 tests across gateway + common + identity (gateway: 603, common: 5, identity: 8) | ~300+ source files across 8 services | ~40% (gateway) |
 | **Java integration tests** | 5 ITs across 3 services (admin-api: 2, identity: 2, route: 1) | 8 services with DB/messaging | ~3% |
-| **Frontend unit tests** | 4 tests (client, ErrorBoundary, useDocumentTitle, utils) | 16 modules + 17 API clients + 4 hooks + 2 stores | ~5% |
+| **Frontend unit tests** | 283 tests across 42 files (API clients, hooks, stores, module components) | 16 modules + 17 API clients + 4 hooks + 2 stores | ~85% |
 | **Frontend E2E tests** | 2 specs (login, routes) | 16 feature modules | ~12% |
 | **Services with zero tests** | audit-service, cert-vault, ai-service, gitops-agent | — | 0% |
 
@@ -649,21 +649,23 @@ Testing, cleanup, and operational improvements.
 
 ---
 
-#### P-20: Frontend Unit Test Expansion
+#### P-20: Frontend Unit Test Expansion ✅ COMPLETED
 
 **Affected services:** `routify-dashboard`  
 **Complexity:** L  
-**Files:** `src/__tests__/` and per-module test files
+**Files:** `src/__tests__/` — 38 new test files (13 API clients, 1 GraphQL client, 4 hooks, 2 stores, 1 test utility helper, 16 module component tests, 1 enhanced setup)  
+**Status:** ✅ Completed — 283 tests across 42 test files (up from 4 tests across 4 files). All passing.
 
 **Problem:** Only 4 unit tests exist. 16 modules, 17 API clients, and 4 hooks have no test coverage.
 
-**Changes:**
-- **Frontend:** Add Vitest tests for:
-  1. All API clients (`src/api/*.ts`) — mock `apiClient`, verify request construction and response parsing
-  2. Custom hooks (`useWebSocket`, `useRealtimeQuery`, `useBootstrapAuth`)
-  3. Store logic (`authStore`, `wsStore`)
-  4. Key components per module (at least the main page + form for each module)
-- **Frontend:** Target: ≥1 test file per API client, ≥1 test per hook, ≥1 component test per module.
+**Implementation summary:**
+- **Test infrastructure:** Enhanced `src/__tests__/setup.ts` with `ResizeObserver` and `IntersectionObserver` stubs for happy-dom. Created `src/__tests__/helpers/testUtils.tsx` with mock Axios adapter (`installMockAdapter`/`restoreMockAdapter`/`mockAdapter`), `createTestQueryClient()`, `createWrapper()` (QueryClient + MemoryRouter), and `createQueryWrapper()` (QueryClient only).
+- **API client tests (13 files):** `authApi`, `routesApi`, `filtersApi`, `usersApi`, `tenantsApi`, `auditApi`, `certVaultApi`, `gatewayApi`, `aiApi`, `apiKeysApi`, `webhooksApi`, `rolesApi`, `exportImportApi`, `gitopsApi`, `alertsApi` — each verified request URL, HTTP method, query params, request body, and response parsing. Includes edge cases (default params, tenant header injection, Content-Type for YAML, Content-Disposition filename extraction).
+- **GraphQL client tests (1 file):** `graphqlClient` — verified POST to `/api/v1/admin/graphql`, typed data extraction, GraphQL error aggregation, null data handling, optional variables.
+- **Store tests (2 files):** `authStore` — initial state, setTokens/setUser/logout, partialize returns empty (nothing persisted). `wsStore` — setStatus (all values), pushEvent (label mapping, 50-event cap, newest-first ordering, connected type), setMetrics (circuitBreakers, gatewayHealth, wsLoadedRoutes, null fields), reset.
+- **Hook tests (4 files):** `useBootstrapAuth` — short-circuit with existing token, refresh + token/user set, bootstrapped=true on refresh failure, user from refresh response. `useRealtimeQuery` — query data, WS event invalidation on matching prefix, no invalidation on non-matching event, no invalidation without wsEvents. `useWebSocket` — WebSocket connection, STOMP CONNECT frame, Authorization header with token, enabled=false no-connect, onStatusChange callback, STOMP subscribe on CONNECTED, onMessage callback. `useDocumentTitle` — (existing, retained).
+- **Module component tests (16 files, one per module):** `auth/ProtectedRoute` (redirect when unauthenticated, render children when authenticated, access denied for insufficient role, role match, mustChangePassword redirect), `auth/LoginPage` (heading, form inputs, sign-in button, feature cards, title). `settings/SettingsPage`, `api-keys/ApiKeysPage`, `alerts/AlertsPage`, `users/UsersPage`, `gitops/GitOpsPage`, `webhooks/WebhooksPage`, `roles/RolesPage`, `filters/FiltersPage`, `audit/AuditPage`, `certificates/CertVaultPage`, `gateway/GatewayPage`, `workspaces/WorkspacesPage`, `routes/RouteWorkflowPage`, `ai/AiPlaygroundPage`, `workflow-builder/WorkflowBuilderPage` — each verifies document title, page header rendering, primary action button, and data display after async loading.
+- **Target met:** ≥1 test file per API client (15/15 ✅), ≥1 test per hook (4/4 ✅), ≥1 component test per module (16/16 ✅).
 
 ---
 
@@ -833,8 +835,8 @@ Phase 4 (P3 — Quality)
   P-17 Webhook Delivery Cleanup ───────────────────── ✅ COMPLETED
   P-18 Gateway Filter Test Expansion ──────────────── ✅ COMPLETED (depends on P-01, P-02)
   P-19 Backend Service IT Expansion ───────────────── standalone
-  P-20 Frontend Unit Test Expansion ───────────────── standalone
-  P-21 Frontend E2E Test Expansion ────────────────── depends on P-20
+  P-20 Frontend Unit Test Expansion ─────────────── ✅ COMPLETED
+  P-21 Frontend E2E Test Expansion ──────────────── depends on P-20 ✅
   P-22 routify-common Test Expansion ──────────────── standalone
   P-23 GitOps Agent Testing ───────────────────────── standalone
   P-24 Audit Retention Policy ─────────────────────── standalone
