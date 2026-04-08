@@ -41,6 +41,14 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
 
     boolean existsByNameAndTenantIdAndEnvironment(String name, UUID tenantId, RouteEnvironment environment);
 
+    /**
+     * Same as {@link #existsByNameAndTenantIdAndEnvironment} but excludes a given status.
+     * Used during route creation to allow re-creating STAGING routes after promotion
+     * archives the previous one (ARCHIVED routes don't block new creation).
+     */
+    boolean existsByNameAndTenantIdAndEnvironmentAndStatusNot(
+            String name, UUID tenantId, RouteEnvironment environment, RouteStatus status);
+
     Optional<Route> findByNameAndTenantIdAndEnvironment(String name, UUID tenantId, RouteEnvironment environment);
 
     Page<Route> findAllByTenantIdAndEnvironment(UUID tenantId, RouteEnvironment environment, Pageable pageable);

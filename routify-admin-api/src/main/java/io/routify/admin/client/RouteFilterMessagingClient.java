@@ -186,6 +186,11 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
                 new CommandEvent.PromoteRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
     }
 
+    public void sendCreateStagingRevision(UUID routeId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.CreateStagingRevision(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
+    }
+
     // ─── Canary Commands (Kafka) ───────────────────────────────────────────────
 
     public void sendDeployCanary(UUID routeId, UUID tenantId, String actor,

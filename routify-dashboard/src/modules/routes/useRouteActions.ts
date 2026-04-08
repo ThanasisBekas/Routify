@@ -61,5 +61,18 @@ export function useRouteActions(routeId?: string) {
     },
   })
 
-  return { activateMutation, deactivateMutation, deleteMutation, cloneMutation }
+  const createStagingRevisionMutation = useMutation({
+    mutationFn: routesApi.createStagingRevision,
+    onSuccess: () => {
+      invalidate()
+      toast.success('Staging revision created', {
+        description: 'A staging copy has been created. Edit it and promote when ready.',
+      })
+    },
+    onError: (error) => {
+      toast.error('Cannot create staging revision', { description: extractApiError(error) })
+    },
+  })
+
+  return { activateMutation, deactivateMutation, deleteMutation, cloneMutation, createStagingRevisionMutation }
 }
