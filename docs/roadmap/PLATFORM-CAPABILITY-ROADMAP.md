@@ -178,7 +178,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | AI | Full | ✅ | Playground, versions, comparison |
 | Alerts | Full | ✅ | — |
 | GitOps | Status + sync | ✅ | — |
-| Settings | Minimal | ⚠️ | Single `SettingsPage.tsx` — content needs verification |
+| Settings | Full | ✅ | Profile, security (password change, RBAC status), export/import shortcuts, appearance, platform info |
 
 ---
 
@@ -218,7 +218,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | ~~4~~ | ~~Filters~~ | ~~No **rate limit policy picker** for `RATE_LIMIT_FIXED_WINDOW`, `RATE_LIMIT_SLIDING_WINDOW`~~ **Resolved in P-09:** `RateLimitPolicyPicker` dropdown populated from `GET /rate-limit-policies` with read-only summary + override toggle. | ~~Must manually configure values instead of selecting a policy~~ ✅ |
 | ~~5~~ | ~~Workspaces~~ | ~~No **create workspace** action — `WorkspacesPage.tsx` shows usage only~~ **Resolved in P-12:** `CreateWorkspaceModal` with name, slug (auto-generated), plan picker, contact email. "New Workspace" button in header. | ~~Cannot create tenants from the dashboard~~ ✅ |
 | ~~6~~ | ~~Workspaces~~ | ~~No **plan upgrade/change** flow~~ **Resolved in P-12:** `EditWorkspaceModal` with plan grid picker (FREE/STARTER/PRO/ENTERPRISE), name, and contact email. Edit button on each workspace row. | ~~Plan changes require direct API/DB access~~ ✅ |
-| 7 | Settings | `SettingsPage.tsx` is a single file — may be a stub | Settings module may be incomplete |
+| ~~7~~ | ~~Settings~~ | ~~`SettingsPage.tsx` is a single file — may be a stub~~ **Resolved in P-13:** Expanded with 6 sections: profile card, account details, security (password change link + RBAC status), export/import shortcuts, appearance (theme toggle), platform info (version, Spring Boot/Cloud versions). | ~~Settings module may be incomplete~~ ✅ |
 
 ### 3d. Testing Gaps
 
@@ -487,16 +487,23 @@ Missing features and UX improvements that round out the platform.
 
 ---
 
-#### P-13: Settings Module Completion
+#### P-13: Settings Module Completion ✅ COMPLETED
 
 **Affected services:** `routify-dashboard`  
 **Complexity:** S  
-**Files:** `SettingsPage.tsx`
+**Files:** `SettingsPage.tsx`  
+**Status:** ✅ Completed — settings page expanded from 4 sections to 7 sections covering all P-13 requirements.
 
 **Problem:** The settings module is a single `SettingsPage.tsx` file. Content and completeness needs verification and expansion.
 
-**Changes:**
-- **Frontend:** Audit `SettingsPage.tsx` content. Add sections for: platform version info, current user profile, password change (link to existing auth flow), RBAC feature flag status (`routify.rbac.granular-enabled`), export/import shortcuts, and theme preferences.
+**Implementation summary:**
+- **Profile card:** Retained — avatar initial, username, role badge, email.
+- **Account details:** Retained — username, email, role, tenant ID, user ID.
+- **Security section (new):** Password change button navigates to `/change-password` (existing `ChangePasswordPage`). RBAC granular permissions status indicator — detects whether `routify.rbac.granular-enabled` is active by checking if `user.permissions` is populated in the JWT token. Shows green "Enabled" or gray "Disabled" badge with `ShieldCheck`/`ShieldAlert` icons.
+- **Export/Import shortcuts (new):** Quick-access buttons for "Export YAML", "Export JSON" (both trigger `exportImportApi.exportConfig()` with download), and "Import Config" (navigates to `/routes` where the import flow lives). Uses `useMutation` + `toast` for feedback.
+- **Appearance section (new):** Theme toggle with Dark and System options. System mode shows an explanatory note. Currently dark-only (the app's visual language is dark-theme — the toggle is forward-compatible for light mode).
+- **Platform info (updated):** Version corrected from `2.0.0` → `2.0.2-SNAPSHOT`. Added Spring Boot (`4.0.5`) and Spring Cloud (`2025.1.1`) version rows. API base URL now correctly defaults to `localhost:8082` (admin-api port, not gateway port).
+- **Architecture section (updated):** Java version corrected from `21` → `25`. Admin API description updated from "BFF + SSE" to "BFF + WebSocket/STOMP events".
 
 ---
 
@@ -781,7 +788,7 @@ Phase 3 (P2 — Completeness)
   P-10 Unified Error Response Builder ─────────────── ✅ COMPLETED
   P-11 Rate Limiter Headers ──────────────────────── ✅ COMPLETED (depends on P-10)
   P-12 Workspace Create & Plan Management ─────────── ✅ COMPLETED
-  P-13 Settings Module Completion ─────────────────── standalone
+  P-13 Settings Module Completion ─────────────────── ✅ COMPLETED
   P-14 Filter gatewayConfigRef Validation ─────────── standalone
   P-15 Jolt Response-Phase ────────────────────────── standalone
   P-16 RequestLogger Improvements ─────────────────── standalone
