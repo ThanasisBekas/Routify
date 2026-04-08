@@ -131,13 +131,11 @@ const FILTER_REF_MAP: Partial<Record<FilterType, RefTypeSpec>> = {
   },
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 /** Returns whether a filter type supports gateway config refs. */
 export function supportsConfigRef(filterType: FilterType): boolean {
   return filterType in FILTER_REF_MAP
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 /** Returns the ref type spec for a filter type, or undefined if not supported. */
 export function getRefSpec(filterType: FilterType): RefTypeSpec | undefined {
   return FILTER_REF_MAP[filterType]

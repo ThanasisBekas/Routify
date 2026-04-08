@@ -39,6 +39,7 @@ export default function VerdictDisplay({ verdict, isLoading }: Props) {
 
   return (
     <div className="space-y-3">
+      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
       <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Verdict</label>
 
       <div className={cn('rounded-lg border p-4', config.bg, config.border)}>

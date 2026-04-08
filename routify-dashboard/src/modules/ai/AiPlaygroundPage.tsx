@@ -142,8 +142,11 @@ export default function AiPlaygroundPage() {
 
           {/* Description */}
           <div>
-            <label className="text-[11px] text-gray-500">Description (optional)</label>
+            <label className="text-[11px] text-gray-500" htmlFor="field-description-optional-0">
+              Description (optional)
+            </label>
             <input
+              id="field-description-optional-0"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What changed in this version..."

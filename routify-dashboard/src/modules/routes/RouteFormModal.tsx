@@ -8,7 +8,7 @@
  * On edit:   the user stays on this modal; a "Open Builder" link is shown.
  */
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -68,7 +68,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     getValues,
     setValue,
     reset,
@@ -92,7 +92,10 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
     }
   }, [existing, reset])
 
-  const selectedMethods = watch('methods')
+  const watchedMethods = useWatch({ control, name: 'methods' })
+  const watchedEnvironment = useWatch({ control, name: 'environment' })
+
+  const selectedMethods = (watchedMethods ?? 'GET')
     .split(',')
     .map((m) => m.trim())
     .filter(Boolean)
@@ -184,17 +187,31 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
 
             {/* Name */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Route Name *</label>
-              <input {...register('name')} placeholder="e.g. orders-api-v1" className={inputCls} />
+              <label
+                className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+                htmlFor="field-route-name-0"
+              >
+                Route Name *
+              </label>
+              <input
+                id="field-route-name-0"
+                {...register('name')}
+                placeholder="e.g. orders-api-v1"
+                className={inputCls}
+              />
               {errors.name && <p className="text-xs text-red-400">{errors.name.message}</p>}
             </div>
 
             {/* Description */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <label
+                htmlFor="field-description-optional-0"
+                className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+              >
                 Description <span className="normal-case font-normal text-gray-600">optional</span>
               </label>
               <textarea
+                id="field-description-optional-0"
                 {...register('description')}
                 rows={2}
                 placeholder="What does this route handle?"
@@ -204,10 +221,18 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
 
             {/* Path Pattern */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <label
+                htmlFor="field-path-pattern-1"
+                className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+              >
                 Path Pattern *
               </label>
-              <input {...register('pathPattern')} placeholder="/api/v1/orders/**" className={monoInputCls} />
+              <input
+                id="field-path-pattern-1"
+                {...register('pathPattern')}
+                placeholder="/api/v1/orders/**"
+                className={monoInputCls}
+              />
               <p className="text-[11px] text-gray-600 pl-0.5">
                 Wildcards: <code className="font-mono">/api/**</code> · Path vars:{' '}
                 <code className="font-mono">/users/&#123;id&#125;</code>
@@ -217,6 +242,7 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
 
             {/* HTTP Methods */}
             <div className="space-y-2">
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 HTTP Methods *
               </label>
@@ -245,10 +271,14 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
 
             {/* Upstream URI */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <label
+                htmlFor="field-upstream-uri-2"
+                className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+              >
                 Upstream URI *
               </label>
               <input
+                id="field-upstream-uri-2"
                 {...register('upstreamUri')}
                 placeholder="http://orders-service:8080 or lb://orders-service"
                 className={monoInputCls}
@@ -261,10 +291,14 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
 
             {/* Strip Prefix */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <label
+                htmlFor="field-strip-prefix-optional-3"
+                className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+              >
                 Strip Prefix <span className="normal-case font-normal text-gray-600">optional</span>
               </label>
               <input
+                id="field-strip-prefix-optional-3"
                 {...register('stripPrefix')}
                 placeholder="/api/v1 (stripped before forwarding)"
                 className={monoInputCls}
@@ -274,12 +308,13 @@ export default function RouteFormModal({ editingId, onClose, onSaved }: Props) {
             {/* Environment */}
             {!isEdit && (
               <div className="space-y-1.5">
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
                   Environment
                 </label>
                 <div className="flex gap-2">
                   {(['PRODUCTION', 'STAGING'] as const).map((env) => {
-                    const selected = watch('environment') === env
+                    const selected = watchedEnvironment === env
                     return (
                       <button
                         key={env}

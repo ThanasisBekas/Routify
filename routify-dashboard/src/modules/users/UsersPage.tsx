@@ -239,6 +239,7 @@ function ResetPasswordModal({ target, onClose }: { target: UserDto; onClose: () 
                   <input
                     type={showPass ? 'text' : 'password'}
                     required
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -363,6 +364,7 @@ function ChangeOwnPasswordModal({ userId, onClose }: { userId: string; onClose: 
                   <input
                     type={showCurrent ? 'text' : 'password'}
                     required
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}

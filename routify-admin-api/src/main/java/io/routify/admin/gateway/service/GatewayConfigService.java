@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.routify.admin.gateway.dto.GatewayConfigDto;
 import io.routify.admin.gateway.dto.GatewayConfigDto.*;
+import io.routify.common.exception.RoutifyException;
 import io.routify.common.web.RoutifyHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -306,7 +307,7 @@ public class GatewayConfigService {
             log.info("Gateway config persisted to DB via RabbitMQ: section={} by={}", section, updatedBy);
         } catch (Exception e) {
             log.error("CRITICAL: Failed to persist gateway config to DB: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to save gateway configuration to database — changes not applied", e);
+            throw new RoutifyException.GatewayError("Failed to save gateway configuration to database — changes not applied", e);
         }
 
         // Step 2: Write to Redis cache (fast reads, NOT source of truth)

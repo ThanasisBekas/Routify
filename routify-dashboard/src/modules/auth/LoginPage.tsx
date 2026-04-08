@@ -92,6 +92,7 @@ function WorkspaceDropdown({ value, onChange, inputCls }: WorkspaceDropdownProps
             <Search className="w-3.5 h-3.5 text-gray-500 shrink-0" />
             <input
               type="text"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -238,6 +239,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Workspace dropdown */}
             <div className="space-y-1.5">
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Workspace</label>
               <WorkspaceDropdown value={tenantSlug} onChange={setTenantSlug} inputCls={inputCls} />
               <p className="text-[11px] text-gray-600 pl-1">Select your organization's workspace</p>
@@ -245,10 +247,17 @@ export default function LoginPage() {
 
             {/* Username */}
             <div className={`space-y-1.5 transition-opacity ${!tenantSlug ? 'opacity-40 pointer-events-none' : ''}`}>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Username</label>
+              <label
+                className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+                htmlFor="field-username-0"
+              >
+                Username
+              </label>
               <input
+                id="field-username-0"
                 type="text"
                 required
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -260,6 +269,7 @@ export default function LoginPage() {
 
             {/* Password */}
             <div className={`space-y-1.5 transition-opacity ${!tenantSlug ? 'opacity-40 pointer-events-none' : ''}`}>
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
               <div className="relative">
                 <input

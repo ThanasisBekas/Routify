@@ -219,6 +219,7 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search by name or type…"
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   className="w-full bg-white/[0.04] border border-white/10 rounded-lg pl-10 pr-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder-gray-600"
                 />

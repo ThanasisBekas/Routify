@@ -116,8 +116,11 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Name</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-name-0">
+              Name
+            </label>
             <input
+              id="field-name-0"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -128,8 +131,11 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Description</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-description-1">
+              Description
+            </label>
             <input
+              id="field-description-1"
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -141,8 +147,11 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
           {/* Metric + Operator + Threshold row */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">Metric</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-metric-2">
+                Metric
+              </label>
               <select
+                id="field-metric-2"
                 value={metric}
                 onChange={(e) => setMetric(e.target.value as AlertMetric)}
                 className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -155,8 +164,11 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">Operator</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-operator-3">
+                Operator
+              </label>
               <select
+                id="field-operator-3"
                 value={operator}
                 onChange={(e) => setOperator(e.target.value as AlertOperator)}
                 className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -169,10 +181,14 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">
+              <label
+                htmlFor="field-threshold-metrics-find-m-m-val-0"
+                className="block text-xs font-medium text-gray-400 mb-1"
+              >
                 Threshold ({METRICS.find((m) => m.value === metric)?.unit ?? ''})
               </label>
               <input
+                id="field-threshold-metrics-find-m-m-val-0"
                 type="number"
                 step="any"
                 value={threshold}
@@ -186,8 +202,11 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
           {/* Window + Cooldown + Severity */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">Window (min)</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-window-min-4">
+                Window (min)
+              </label>
               <input
+                id="field-window-min-4"
                 type="number"
                 value={windowMinutes}
                 onChange={(e) => setWindowMinutes(e.target.value)}
@@ -195,8 +214,11 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">Cooldown (min)</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-cooldown-min-5">
+                Cooldown (min)
+              </label>
               <input
+                id="field-cooldown-min-5"
                 type="number"
                 value={cooldownMinutes}
                 onChange={(e) => setCooldownMinutes(e.target.value)}
@@ -204,8 +226,11 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">Severity</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-severity-6">
+                Severity
+              </label>
               <select
+                id="field-severity-6"
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value as AlertSeverity)}
                 className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -221,10 +246,14 @@ export default function AlertRuleFormModal({ rule, onClose }: Props) {
 
           {/* Route ID (optional) */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">
+            <label
+              htmlFor="field-route-id-optional-leave-blank--1"
+              className="block text-xs font-medium text-gray-400 mb-1"
+            >
               Route ID <span className="text-gray-600">(optional — leave blank for global)</span>
             </label>
             <input
+              id="field-route-id-optional-leave-blank--1"
               type="text"
               value={routeId}
               onChange={(e) => setRouteId(e.target.value)}

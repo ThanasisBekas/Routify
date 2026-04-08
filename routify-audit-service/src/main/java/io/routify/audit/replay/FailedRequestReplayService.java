@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.routify.audit.domain.RequestLog;
 import io.routify.audit.repository.RequestLogRepository;
+import io.routify.common.exception.RoutifyException;
 import io.routify.common.web.RoutifyHeaders;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -75,10 +76,10 @@ public class FailedRequestReplayService {
     @Transactional
     public ReplayResult replay(UUID id, UUID tenantId) {
         RequestLog entry = requestLogRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Request log not found: " + id));
+                .orElseThrow(() -> new RoutifyException.NotFound("RequestLog", id.toString()));
 
         if (!entry.getTenantId().equals(tenantId)) {
-            throw new SecurityException("Access denied: request log belongs to a different tenant");
+            throw new RoutifyException.Forbidden("Access denied: request log belongs to a different tenant");
         }
 
         if (!entry.isFailed()) {

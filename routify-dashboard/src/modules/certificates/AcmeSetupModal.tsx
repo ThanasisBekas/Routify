@@ -70,8 +70,11 @@ export default function AcmeSetupModal({
 
         <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Contact Email</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5" htmlFor="field-contact-email-0">
+              Contact Email
+            </label>
             <input
+              id="field-contact-email-0"
               {...register('email')}
               type="email"
               placeholder="admin@example.com"
@@ -81,8 +84,11 @@ export default function AcmeSetupModal({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">CA Provider</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5" htmlFor="field-ca-provider-1">
+              CA Provider
+            </label>
             <select
+              id="field-ca-provider-1"
               {...register('provider')}
               className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 outline-none transition-all"
             >

@@ -88,7 +88,6 @@ public class OutboxPoller {
 
     @Scheduled(fixedDelayString = "${routify.outbox.poll-interval-ms:250}")
     @Transactional
-    @CacheEvict(value = CacheConfig.CACHE_GATEWAY_SNAPSHOT, allEntries = true)
     public void pollAndPublish() {
         if (shuttingDown) return;
         pollLock.lock();
@@ -97,6 +96,8 @@ public class OutboxPoller {
             if (pending.isEmpty()) return;
 
             log.debug("OutboxPoller: processing {} pending events", pending.size());
+
+            boolean anyPublished = false;
 
             for (OutboxEvent outboxEvent : pending) {
                 if (shuttingDown) {
@@ -116,6 +117,7 @@ public class OutboxPoller {
                             .get(KAFKA_SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
                     outboxEvent.markPublished();
+                    anyPublished = true;
                     log.debug("Published outbox event {} type={} to topic={}",
                             outboxEvent.getId(), outboxEvent.getEventType(), outboxEvent.getTopic());
 
@@ -132,16 +134,31 @@ public class OutboxPoller {
                     outboxEvent.markFailed(msg);
                 }
             }
+
+            // Only evict the gateway snapshot cache when at least one event was published
+            if (anyPublished) {
+                evictGatewaySnapshotCache();
+            }
         } finally {
             pollLock.unlock();
         }
+    }
+
+    /**
+     * Evicts the gateway snapshot cache. Extracted into a separate method so
+     * that {@code @CacheEvict} only fires when events are actually published,
+     * not on every poll cycle.
+     */
+    @CacheEvict(value = CacheConfig.CACHE_GATEWAY_SNAPSHOT, allEntries = true)
+    public void evictGatewaySnapshotCache() {
+        log.debug("OutboxPoller: evicted gateway snapshot cache after publishing events");
     }
 
     @Scheduled(fixedDelayString = "${routify.outbox.retry-interval-ms:30000}")
     @Transactional
     public void retryFailed() {
         if (shuttingDown) return;
-        List<OutboxEvent> retryable = outboxRepository.findRetryable(maxRetries);
+        List<OutboxEvent> retryable = outboxRepository.findRetryable(maxRetries, retryBatchSize);
         if (!retryable.isEmpty()) {
             log.info("OutboxPoller: resetting {} failed events to PENDING for retry", retryable.size());
             retryable.forEach(OutboxEvent::resetToPending);

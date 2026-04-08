@@ -123,8 +123,14 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
         <div className="p-6 space-y-4">
           {/* Name */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</label>
+            <label
+              className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+              htmlFor="field-name-0"
+            >
+              Name
+            </label>
             <input
+              id="field-name-0"
               className={inputCls}
               placeholder="Acme Corp"
               value={form.name}
@@ -140,8 +146,14 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
 
           {/* Slug */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Slug</label>
+            <label
+              className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+              htmlFor="field-slug-1"
+            >
+              Slug
+            </label>
             <input
+              id="field-slug-1"
               className={inputCls}
               placeholder="acme"
               value={form.slug}
@@ -154,6 +166,7 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
 
           {/* Plan */}
           <div className="space-y-1.5">
+            {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Plan</label>
             <div className="grid grid-cols-2 gap-2">
               {PLAN_OPTIONS.map((plan) => (
@@ -176,10 +189,14 @@ function CreateWorkspaceModal({ onClose }: { onClose: () => void }) {
 
           {/* Contact email */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <label
+              htmlFor="field-contact-email-optional-0"
+              className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+            >
               Contact Email <span className="text-gray-600 normal-case font-normal">(optional)</span>
             </label>
             <input
+              id="field-contact-email-optional-0"
               type="email"
               className={inputCls}
               placeholder="admin@acme.example"
@@ -288,8 +305,14 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
         <div className="p-6 space-y-4">
           {/* Name */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</label>
+            <label
+              className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+              htmlFor="field-name-2"
+            >
+              Name
+            </label>
             <input
+              id="field-name-2"
               className={inputCls}
               placeholder="Acme Corp"
               value={form.name ?? ''}
@@ -299,6 +322,7 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
 
           {/* Slug (read-only) */}
           <div className="space-y-1.5">
+            {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Slug</label>
             <div className={cn(inputCls, 'bg-white/[0.02] text-gray-500 cursor-not-allowed')}>{tenant.slug}</div>
             <p className="text-[11px] text-gray-600 pl-1">Slug cannot be changed after creation</p>
@@ -306,6 +330,7 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
 
           {/* Plan */}
           <div className="space-y-1.5">
+            {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Plan</label>
             <div className="grid grid-cols-2 gap-2">
               {PLAN_OPTIONS.map((plan) => (
@@ -328,10 +353,14 @@ function EditWorkspaceModal({ tenant, onClose }: { tenant: TenantDto; onClose: (
 
           {/* Contact email */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <label
+              htmlFor="field-contact-email-optional-1"
+              className="block text-xs font-semibold text-gray-400 uppercase tracking-wider"
+            >
               Contact Email <span className="text-gray-600 normal-case font-normal">(optional)</span>
             </label>
             <input
+              id="field-contact-email-optional-1"
               type="email"
               className={inputCls}
               placeholder="admin@acme.example"

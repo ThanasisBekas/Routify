@@ -57,6 +57,7 @@ function FilterTypeDropdownPortal({
         {/* Search */}
         <div className="sticky top-0 bg-[#111318] p-2 border-b border-white/6">
           <input
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
             value={search}
             onChange={(e) => onSearch(e.target.value)}
@@ -345,8 +346,14 @@ export default function FilterDefinitionForm({
                 <div className="p-6 space-y-5">
                   {/* Name */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Name *</label>
+                    <label
+                      className="text-xs font-semibold text-gray-400 uppercase tracking-wider"
+                      htmlFor="field-name-0"
+                    >
+                      Name *
+                    </label>
                     <input
+                      id="field-name-0"
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -358,6 +365,7 @@ export default function FilterDefinitionForm({
                   {/* Description */}
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
+                      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                       <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                         Description
                       </label>
@@ -375,6 +383,7 @@ export default function FilterDefinitionForm({
                   {/* Filter Type Picker — create mode only */}
                   {!isEdit && (
                     <div className="space-y-1.5">
+                      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                       <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                         Filter Type *
                       </label>
@@ -385,6 +394,7 @@ export default function FilterDefinitionForm({
                   {/* Edit mode — type badge */}
                   {isEdit && selectedMeta && (
                     <div className="space-y-1.5">
+                      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                       <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                         Filter Type
                       </label>

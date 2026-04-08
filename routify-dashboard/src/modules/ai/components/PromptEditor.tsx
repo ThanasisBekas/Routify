@@ -9,8 +9,11 @@ interface Props {
 export default function PromptEditor({ value, onChange, disabled }: Props) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Prompt Text</label>
+      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider" htmlFor="field-prompt-text-0">
+        Prompt Text
+      </label>
       <textarea
+        id="field-prompt-text-0"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
