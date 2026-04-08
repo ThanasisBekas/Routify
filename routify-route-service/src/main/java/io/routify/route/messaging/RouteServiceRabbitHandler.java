@@ -234,4 +234,10 @@ public class RouteServiceRabbitHandler {
                 slo.getEvaluationWindowHours(),
                 true);
     }
+
+    /** Stateful predicate that filters duplicate route summaries by ID. */
+    private static java.util.function.Predicate<io.routify.route.dto.RouteDto.Summary> distinctById() {
+        java.util.Set<java.util.UUID> seen = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        return s -> seen.add(s.id());
+    }
 }

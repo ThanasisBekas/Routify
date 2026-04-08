@@ -121,6 +121,8 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.AlertRuleGet.class,         name = "ALERT_RULE_GET"),
     @JsonSubTypes.Type(value = QueryRequest.AlertEventsQuery.class,     name = "ALERT_EVENTS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AlertRuleCommand.class,     name = "ALERT_RULE_COMMAND"),
+    // ─── routify-identity-service internal (cache warmup) ──────────────────
+    @JsonSubTypes.Type(value = QueryRequest.TenantPlansQuery.class,     name = "TENANT_PLANS_QUERY"),
 })
 public sealed interface QueryRequest
         permits
@@ -193,6 +195,7 @@ public sealed interface QueryRequest
             QueryRequest.AlertRuleGet,
             QueryRequest.AlertEventsQuery,
             QueryRequest.AlertRuleCommand,
+            QueryRequest.TenantPlansQuery,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -766,5 +769,14 @@ public sealed interface QueryRequest
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.
      */
     record Unknown() implements QueryRequest {}
+
+    // ─── routify-identity-service internal (cache warmup) ──────────────────
+
+    /**
+     * Requests the full list of active tenant → plan mappings.
+     * Used by route-service and api-gateway to warm the {@code TenantPlanCache}
+     * on startup, avoiding a cold-cache default to {@code FREE}.
+     */
+    record TenantPlansQuery() implements QueryRequest {}
 }
 

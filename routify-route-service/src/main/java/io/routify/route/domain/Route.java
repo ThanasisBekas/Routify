@@ -136,6 +136,10 @@ public class Route {
     @Column(name = "canary_auto_rollback_threshold")
     private java.math.BigDecimal canaryAutoRollbackThreshold;
 
+    /** True if this route is a canary sibling (not the primary). Excluded from path uniqueness constraint. */
+    @Column(name = "is_canary", nullable = false)
+    private boolean canary;
+
     // ─── Metadata ─────────────────────────────────────────────────────────────
 
     /** User who created this route */
@@ -264,6 +268,7 @@ public class Route {
     public int getTrafficWeight()  { return trafficWeight; }
     public UUID getCanaryRouteId() { return canaryRouteId; }
     public java.math.BigDecimal getCanaryAutoRollbackThreshold() { return canaryAutoRollbackThreshold; }
+    public boolean isCanary()     { return canary; }
 
     // ─── Setters (package-private for service layer) ──────────────────────────
 
@@ -278,6 +283,7 @@ public class Route {
     public void setTrafficWeight(int trafficWeight)       { this.trafficWeight = trafficWeight; }
     public void setCanaryRouteId(UUID canaryRouteId)      { this.canaryRouteId = canaryRouteId; }
     public void setCanaryAutoRollbackThreshold(java.math.BigDecimal threshold) { this.canaryAutoRollbackThreshold = threshold; }
+    public void setCanary(boolean canary)                { this.canary = canary; }
 
     // ─── Builder ──────────────────────────────────────────────────────────────
 

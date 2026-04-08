@@ -181,6 +181,14 @@ public final class RabbitTopology {
     public static final String QUEUE_TENANTS_LIST_ACTIVE        = "routify.identity-service.tenants.list-active";
     public static final String RK_TENANTS_LIST_ACTIVE           = "tenants.list-active";
 
+    /**
+     * Queue: identity-service serves full active tenant→plan mappings for cache warmup.
+     * Used by route-service and api-gateway at startup to pre-populate
+     * the in-memory TenantPlanCache (avoids cold-cache defaulting to FREE).
+     */
+    public static final String QUEUE_TENANT_PLANS               = "routify.identity-service.tenants.plans";
+    public static final String RK_TENANT_PLANS                  = "tenants.plans";
+
     /** Queue: identity-service handles auth login requests from admin-api */
     public static final String QUEUE_AUTH_LOGIN                 = "routify.identity-service.auth.login";
     public static final String RK_AUTH_LOGIN                    = "auth.login";

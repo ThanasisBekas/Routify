@@ -126,13 +126,14 @@ function buildCurl(opts: {
   method: string
   path: string
   tenantId: string
+  environment: string
   extraHeaders: KV[]
   queryParams: KV[]
   body: string
   authHint: AuthHint
   verbose: boolean
 }): string {
-  const { gatewayUrl, method, path, tenantId, extraHeaders, queryParams, body, authHint, verbose } = opts
+  const { gatewayUrl, method, path, tenantId, environment, extraHeaders, queryParams, body, authHint, verbose } = opts
 
   const base = gatewayUrl.replace(/\/$/, '')
 
@@ -152,6 +153,14 @@ function buildCurl(opts: {
 
   // Tenant header (always required)
   lines.push(`  -H 'X-Tenant-Id: ${tenantId}'`)
+
+  // Staging environment header — required for routes with environment=STAGING.
+  // The gateway adds a Header predicate that only matches requests carrying
+  // X-Route-Environment: STAGING, so the curl must include it or the route
+  // won't match. Production routes need no extra header.
+  if (environment === 'STAGING') {
+    lines.push(`  -H 'X-Route-Environment: STAGING'`)
+  }
 
   // Auth headers
   for (const h of authHint.headers) {
@@ -240,13 +249,14 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
         method,
         path,
         tenantId,
+        environment: route.environment,
         extraHeaders,
         queryParams,
         body,
         authHint,
         verbose,
       }),
-    [gatewayUrl, method, path, tenantId, extraHeaders, queryParams, body, authHint, verbose],
+    [gatewayUrl, method, path, tenantId, route.environment, extraHeaders, queryParams, body, authHint, verbose],
   )
 
   const handleCopy = async () => {
@@ -367,6 +377,17 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
               <code className="text-xs text-indigo-300 font-mono truncate">{tenantId}</code>
               <span className="text-[10px] text-gray-600 ml-auto shrink-0">always injected</span>
             </div>
+
+            {/* Staging environment header (read-only info) */}
+            {route.environment === 'STAGING' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/[0.05] border border-amber-500/20 rounded-lg">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider shrink-0">
+                  X-Route-Environment
+                </span>
+                <code className="text-xs text-amber-300 font-mono truncate">STAGING</code>
+                <span className="text-[10px] text-gray-600 ml-auto shrink-0">required for staging routes</span>
+              </div>
+            )}
 
             {/* ── Auth Section ──────────────────────────────────────────────── */}
             <Accordion

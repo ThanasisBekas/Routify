@@ -59,6 +59,12 @@ public class IdentityRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_TENANTS_LIST_ACTIVE).build();
     }
 
+    /** Queue for internal tenant-plan cache warmup (route-service, api-gateway). */
+    @Bean
+    public Queue tenantPlansQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_TENANT_PLANS).build();
+    }
+
     @Bean
     public Queue authLoginQueue() {
         return QueueBuilder.durable(RabbitTopology.QUEUE_AUTH_LOGIN).build();
@@ -164,6 +170,12 @@ public class IdentityRabbitConfig {
     public Binding tenantsListActiveBinding(Queue tenantsListActiveQueue, DirectExchange identityServiceExchange) {
         return BindingBuilder.bind(tenantsListActiveQueue)
                 .to(identityServiceExchange).with(RabbitTopology.RK_TENANTS_LIST_ACTIVE);
+    }
+
+    @Bean
+    public Binding tenantPlansBinding(Queue tenantPlansQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(tenantPlansQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_TENANT_PLANS);
     }
 
     @Bean

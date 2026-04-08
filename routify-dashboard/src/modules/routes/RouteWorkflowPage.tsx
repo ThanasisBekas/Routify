@@ -85,7 +85,15 @@ export default function RouteWorkflowPage() {
     setImportModalOpen(true)
   }
 
-  const routes = data?.content ?? []
+  const routes = (() => {
+    const raw = data?.content ?? []
+    const seen = new Set<string>()
+    return raw.filter((r) => {
+      if (seen.has(r.id)) return false
+      seen.add(r.id)
+      return true
+    })
+  })()
   const total = data?.totalElements ?? 0
   const totalPages = data?.totalPages ?? 0
 

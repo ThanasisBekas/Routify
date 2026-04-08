@@ -508,7 +508,11 @@ public class RouteService {
             }
         }
 
-        production = routeRepository.save(production);
+        // Flush to force orphan-removal DELETEs before re-attaching filters.
+        // Hibernate's default action queue processes INSERTs before orphan DELETEs,
+        // which would violate the uq_route_filter (route_id, filter_definition_id) constraint
+        // when the same filters are re-attached from the staging route.
+        production = routeRepository.saveAndFlush(production);
 
         // Re-attach filters from staging
         for (var rf : staging.getFilters()) {
@@ -596,6 +600,7 @@ public class RouteService {
                 .extraConfig(canaryExtraConfig != null ? new java.util.HashMap<>(canaryExtraConfig) : new java.util.HashMap<>(primary.getExtraConfig()))
                 .environment(io.routify.common.domain.RouteEnvironment.PRODUCTION)
                 .build();
+        canary.setCanary(true);
 
         Route savedCanary = routeRepository.save(canary);
 
@@ -887,8 +892,9 @@ public class RouteService {
                 if (conflicting.isPresent()) {
                     Route other = conflicting.get();
                     Route self = routeRepository.findById(excludeId).orElse(null);
-                    // Allow if self is canary of other, or other is canary of self
+                    // Allow if either route is a canary sibling, or they are linked via canaryRouteId
                     if (self != null && (
+                            self.isCanary() || other.isCanary() ||
                             (self.getCanaryRouteId() != null && self.getCanaryRouteId().equals(other.getId())) ||
                             (other.getCanaryRouteId() != null && other.getCanaryRouteId().equals(self.getId())) ||
                             self.getName().endsWith("-canary"))) {
