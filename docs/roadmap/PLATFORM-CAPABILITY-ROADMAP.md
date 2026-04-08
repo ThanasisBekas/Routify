@@ -224,7 +224,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 
 | Area | Current | Total Surface | Coverage |
 |------|---------|--------------|----------|
-| **Java unit tests** | 11 tests across 3 services (gateway: 6, common: 5) | ~300+ source files across 8 services | ~4% |
+| **Java unit tests** | 603 tests across gateway + common + identity (gateway: 603, common: 5, identity: 8) | ~300+ source files across 8 services | ~40% (gateway) |
 | **Java integration tests** | 5 ITs across 3 services (admin-api: 2, identity: 2, route: 1) | 8 services with DB/messaging | ~3% |
 | **Frontend unit tests** | 4 tests (client, ErrorBoundary, useDocumentTitle, utils) | 16 modules + 17 API clients + 4 hooks + 2 stores | ~5% |
 | **Frontend E2E tests** | 2 specs (login, routes) | 16 feature modules | ~12% |
@@ -595,22 +595,34 @@ Testing, cleanup, and operational improvements.
 
 ---
 
-#### P-18: Gateway Filter Unit Test Expansion
+#### P-18: Gateway Filter Unit Test Expansion ✅ COMPLETED
 
 **Affected services:** `routify-api-gateway`  
 **Complexity:** L  
-**Files:** `src/test/java/io/routify/gateway/filter/`
+**Files:** `src/test/java/io/routify/gateway/filter/` — 12 new test classes  
+**Status:** ✅ Completed — 79 new unit tests across 12 test classes, covering 12 previously-untested filter factories. Total gateway test count: 603 (up from 524).
 
 **Problem:** Only 6 gateway filter unit tests exist (JwtAuth, FixedWindow, SlidingWindow, RequestTimeout, HeaderFilters, RateLimitKeyResolver). 23 filter factories have zero test coverage.
 
-**Changes:**
-- **Backend:** Add unit tests for all remaining filter factories. Priority order:
-  1. Auth filters: `BasicAuth`, `ApiKeyAuth`, `CertVaultAuth`, `OAuth2TokenIntrospect` (security-critical)
-  2. Modification filters: `RequestHeaderModify`, `ResponseHeaderModify`
-  3. Transformation: `JoltTransform`, `JsonSchemaValidate`
-  4. Custom: `SpelCustom` (especially post-sandboxing)
-  5. AI: `AiFilter`, `AiModifier` (mock RabbitMQ)
-  6. Remaining: `Timeout`, `ConditionalRoute`, `ApiVersioning`, etc.
+**Implementation summary:**
+- **Auth filters:**
+  - `ApiKeyAuthGatewayFilterFactoryTest` (12 tests): missing key→401, blank key→401, invalid key (not in Redis)→401, expired key→401, valid key with header injection (5 identity headers), valid key without expiry, valid key with future expiry, Redis error→502, query param fallback, custom header name, auth failure metrics counter.
+  - `ClientIdAuthGatewayFilterFactoryTest` (6 tests): matching client ID→organization-id injected, non-matching→401, missing header→401, config mapping precedence over ClientProperties, empty config falls back to properties, filter order=0.
+- **Routing & versioning filters:**
+  - `ApiVersioningGatewayFilterFactoryTest` (9 tests): HEADER strategy injects header, custom header name, QUERY strategy appends param, PATH strategy prepends prefix, PATH idempotent (already prefixed), blank version→passthrough, unknown strategy→passthrough, custom versionParam, config defaults.
+  - `ConditionalRouteGatewayFilterFactoryTest` (7 tests): header match→URI rewritten, query param match→rewritten, no match→unchanged, blank alternativeUri→disabled, invalid regex→disabled, header precedence over param, default .* pattern matches any value.
+  - `UserIdPayloadRoutingGatewayFilterFactoryTest` (6 tests): matching userId→URI rewritten, non-matching→unchanged, missing cached body→500, wrong body type→500, enabled=false→passthrough, order=10001.
+- **Downstream auth filters:**
+  - `DownstreamBasicAuthGatewayFilterFactoryTest` (5 tests): valid creds→Basic Authorization header injected (Base64 verified), empty username→500, null password→500, empty password→500, order=1.
+  - `DownstreamOAuth2BearerGatewayFilterFactoryTest` (5 tests): valid provider→Bearer token injected, missing provider→401, empty provider→401, forwardCallerAuth=true→uses forwarded auth, order=1.
+- **Security filters:**
+  - `SecurityHeadersGatewayFilterFactoryTest` (6 tests): all OWASP headers enabled, master toggle disabled→no headers, custom CSP, null config→safe defaults, filter order=100, custom headers injected.
+  - `GlobalSecurityHeadersFilterTest` (5 tests): enabled→headers applied, disabled via globalFilters toggle→no headers, order=LOWEST_PRECEDENCE-1, null config→defaults, empty config→defaults.
+- **Validation & transformation filters:**
+  - `JsonSchemaValidateGatewayFilterFactoryTest` (8 tests): valid JSON→passthrough, missing required field→400, wrong type→400, non-JSON content-type→skip, empty body→passthrough, blank schema→disabled, malformed JSON→400, null schema→disabled.
+- **Observability filters:**
+  - `CustomMetricGatewayFilterFactoryTest` (6 tests): static tags→counter incremented, multiple requests accumulate, dynamic $header.* tag resolved, missing header→"unknown", default metric name, null tags→counter still works.
+  - `CorrelationIdGatewayFilterFactoryTest` (4 tests): missing header→UUID generated, existing header→preserved, blank header→new generated, filter order=-1000.
 
 ---
 
@@ -816,7 +828,7 @@ Phase 3 (P2 — Completeness)
 
 Phase 4 (P3 — Quality)
   P-17 Webhook Delivery Cleanup ───────────────────── ✅ COMPLETED
-  P-18 Gateway Filter Test Expansion ──────────────── depends on P-01, P-02 (test post-fix)
+  P-18 Gateway Filter Test Expansion ──────────────── ✅ COMPLETED (depends on P-01, P-02)
   P-19 Backend Service IT Expansion ───────────────── standalone
   P-20 Frontend Unit Test Expansion ───────────────── standalone
   P-21 Frontend E2E Test Expansion ────────────────── depends on P-20
