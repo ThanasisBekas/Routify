@@ -19,7 +19,7 @@ Routify is a zero-downtime API Gateway platform. Maven multi-module monorepo (Ja
 | `routify-gitops-agent` | GitOps sync agent | 8087 | Web (Virtual Threads) |
 | `routify-dashboard` | React 19 + Vite + TailwindCSS 4 | 5173 | — |
 
-**Database:** Single PostgreSQL 17 instance, separate schemas per service (`routify`, `routify_identity`, `routify_audit`, `routify_cert`). Flyway migrations in each service at `classpath:db/migration`; `ddl-auto: validate`.
+**Database:** Single PostgreSQL 17 instance, separate schemas per service (`routify`, `routify_identity`, `routify_audit`, `routify_cert`). A fifth read-only schema `routify_ops` provides cross-schema monitoring views (see `docker/postgres/ops_monitoring.sql` — applied manually after Flyway migrations, not via Flyway). Flyway migrations in each service at `classpath:db/migration`; `ddl-auto: validate`.
 
 ## Messaging Topology
 
@@ -40,6 +40,15 @@ Routify is a zero-downtime API Gateway platform. Maven multi-module monorepo (Ja
 3. Add a corresponding `record` to the `QueryResponse` sealed interface.
 4. In the responding service, add a `@RabbitListener` on the queue.
 5. In the calling service, extend `AmqpServiceClientSupport` and call `rpc(routingKey, request, TypeReference)` or `rpc(routingKey, request, ResponseClass.class)`.
+
+### Sync RPC vs async Kafka
+Some write operations use **synchronous RabbitMQ RPC** instead of Kafka commands because they need immediate confirmation:
+- **Tenant commands** (`CreateTenant`, `UpdateTenant`, `SuspendTenant`, `ReactivateTenant`) — rare admin actions
+- **API key operations** (`CreateApiKey`, `RevokeApiKey`, `RotateApiKey`) — raw key must be returned once
+- **Role commands** (`CreateRole`, `UpdateRole`, `DeleteRole`) — immediate UI feedback
+- **Gateway config save** (`SaveGatewayConfig`) — needs synchronous confirmation
+
+All other writes use the standard Kafka command flow.
 
 ## Build & Run
 
@@ -84,6 +93,20 @@ Always use `RoutifyException` subtypes (`NotFound`, `Conflict`, `Validation`, `B
 ### Entity ↔ DTO mappings
 Use MapStruct (`@Mapper(componentModel = "spring")`). See `routify-route-service/.../mapper/RouteMapper.java` for the pattern. Annotation processors: Lombok → MapStruct → lombok-mapstruct-binding (order matters in `pom.xml`).
 
+### Sealed interface pattern
+All messaging contracts (`CommandEvent`, `DomainEvent`, `QueryRequest`, `QueryResponse`) are Java sealed interfaces with `@JsonTypeInfo(property = "type")` discriminators. Every sealed interface includes an `Unknown` fallback record with `defaultImpl` — prevents `InvalidTypeIdException` when a service hasn't been rebuilt with the latest `routify-common`.
+
+When adding new records: update the `@JsonSubTypes` annotation, the `permits` clause, **and** the `Unknown` fallback default in the sealed interface.
+
+### Domain enums
+`routify-common/.../domain/` holds shared enums referenced across services:
+- `FilterType` — one value per gateway filter factory (28+ types)
+- `RouteStatus`, `RouteEnvironment` — route lifecycle states
+- `TenantPlan`, `UserRole` — tenant/user classification
+- `Permission` — granular RBAC permissions
+- `AlertMetric` — metrics available for alert rules
+- `WebhookEventType` — domain events that trigger webhook delivery
+
 ### Messaging clients
 - **Kafka producers**: extend `KafkaServiceClientSupport` — provides `publishCommand()`, `publishEvent()`, `publish()`, `publishSync()`.
 - **RabbitMQ RPC clients**: extend `AmqpServiceClientSupport` — provides `rpc()`, `send()`. Each client in `admin-api` is wrapped with Resilience4j circuit breaker + 5s time limiter.
@@ -93,13 +116,15 @@ Use MapStruct (`@Mapper(componentModel = "spring")`). See `routify-route-service
 
 ### Frontend (routify-dashboard)
 - **API calls**: always use `apiClient` from `src/api/client.ts` — handles JWT injection, `X-Tenant-Id` header, and 401→refresh. Never create new Axios instances.
+- **GraphQL**: use `graphqlQuery()` from `src/api/graphqlClient.ts` for analytics queries — it wraps `apiClient` and handles GraphQL error extraction. Pre-built queries exported as constants (e.g. `ROUTE_ANALYTICS_QUERY`).
 - **Server state**: TanStack Query. **Client state**: Zustand (`authStore`, `wsStore`).
 - **Forms**: React Hook Form + Zod for validation.
 - **Error handling**: `extractApiError()` from `src/lib/utils.ts` — never create separate error utils.
 - **Auth**: access token in Zustand memory only (never localStorage); refresh token is HttpOnly cookie.
 - **Real-time**: WebSocket/STOMP via `WebSocketProvider` → subscribes to `/topic/events`, `/topic/metrics`, `/topic/audit`.
 - **Mock mode**: MSW handlers in `src/mocks/handlers/` — `npm run dev:mock`.
-- **Styling**: TailwindCSS 4 utilities + `cn()` helper from `src/lib/utils.ts`.
+- **Styling**: TailwindCSS 4 utilities + `cn()` helper from `src/lib/utils.ts`. Charts: `recharts`.
+- **Routing**: `react-router-dom` v7.
 - **Feature modules**: each feature lives in `src/modules/<feature>/` (routes, filters, audit, certificates, ai, gateway, users, workspaces, settings, workflow-builder, api-keys, auth, alerts, roles, webhooks, gitops).
 
 ## Module-Level Agent Guides
@@ -135,8 +160,11 @@ Each module has its own `AGENTS.md` with detailed package layout, patterns, and 
 | Kafka client base class | `routify-common/.../client/KafkaServiceClientSupport.java` |
 | RabbitMQ client base class | `routify-common/.../client/AmqpServiceClientSupport.java` |
 | @Sensitive field encryption | `routify-common/.../crypto/Sensitive.java`, `FieldEncryptionService.java`, `SensitiveStringConverter.java` |
+| Domain enums (FilterType, Permission, etc.) | `routify-common/.../domain/*.java` |
 | MapStruct mapper example | `routify-route-service/.../mapper/RouteMapper.java` |
 | Frontend API client | `routify-dashboard/src/api/client.ts` |
+| Frontend GraphQL client | `routify-dashboard/src/api/graphqlClient.ts` |
 | Auth store | `routify-dashboard/src/store/authStore.ts` |
 | DB schema init | `docker/postgres/init.sql` |
+| Ops monitoring views | `docker/postgres/ops_monitoring.sql` |
 
