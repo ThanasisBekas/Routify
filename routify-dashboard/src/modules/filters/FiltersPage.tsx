@@ -180,7 +180,7 @@ function FilterCard({
           <button
             onClick={onEdit}
             className="p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-white/[0.06] transition-colors"
-            title="Edit filter"
+            title={filter.usageCount > 0 ? 'View filter (read-only — in use)' : 'Edit filter'}
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>

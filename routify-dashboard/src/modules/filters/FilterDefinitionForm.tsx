@@ -8,8 +8,9 @@
 import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { X, AlertCircle, Filter, ChevronDown } from 'lucide-react'
+import { X, AlertCircle, Filter, ChevronDown, Lock } from 'lucide-react'
 import { filtersApi } from '../../api/filtersApi'
+import { gatewayApi } from '../../api/gatewayApi'
 import type { FilterType, CreateFilterRequest, UpdateFilterRequest, GatewayConfigRefDto } from '../../types'
 import FilterConfigFields from './FilterConfigFields'
 import { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './filterConfigConstants'
@@ -237,6 +238,19 @@ export default function FilterDefinitionForm({
     enabled: isEdit,
   })
 
+  // Fetch global filter entries to detect if this filter is used globally
+  const { data: globalFilterEntries = [] } = useQuery({
+    queryKey: ['gateway', 'global-filter-entries'],
+    queryFn: () => gatewayApi.getGlobalFilterEntries(),
+    enabled: isEdit,
+    staleTime: 30_000,
+  })
+
+  // A filter is "in use" if it's attached to at least one route OR marked as a global filter
+  const isUsedByRoutes = (existing?.usageCount ?? 0) > 0
+  const isUsedAsGlobal = isEdit && globalFilterEntries.some((e) => e.filterId === editingId)
+  const isInUse = isUsedByRoutes || isUsedAsGlobal
+
   // ── Form state ──
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -311,13 +325,25 @@ export default function FilterDefinitionForm({
         {/* ── Header ───────────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/6 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-              <Filter className="w-4 h-4 text-indigo-400" />
+            <div className={cn(
+              'w-8 h-8 rounded-xl border flex items-center justify-center shrink-0',
+              isInUse
+                ? 'bg-amber-500/20 border-amber-500/30'
+                : 'bg-indigo-500/20 border-indigo-500/30',
+            )}>
+              {isInUse ? <Lock className="w-4 h-4 text-amber-400" /> : <Filter className="w-4 h-4 text-indigo-400" />}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white leading-tight">
-                {isEdit ? 'Edit Filter' : 'Create Filter Definition'}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white leading-tight">
+                  {isEdit ? 'Edit Filter' : 'Create Filter Definition'}
+                </h2>
+                {isInUse && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                    READ-ONLY
+                  </span>
+                )}
+              </div>
               {selectedMeta && (
                 <p className="text-[11px] text-gray-500 leading-tight mt-0.5">{selectedMeta.description}</p>
               )}
@@ -331,6 +357,32 @@ export default function FilterDefinitionForm({
           </button>
         </div>
 
+        {/* ── In-use warning banner ────────────────────────────────────────────── */}
+        {isEdit && isInUse && !loadingExisting && (
+          <div className="px-6 py-3 bg-amber-500/8 border-b border-amber-500/20 shrink-0">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+              <div className="text-sm text-amber-300 leading-relaxed">
+                <p className="font-semibold">This filter cannot be edited because it is currently in use.</p>
+                <ul className="mt-1 text-xs text-amber-400/70 space-y-0.5 list-disc list-inside">
+                  {isUsedByRoutes && (
+                    <li>
+                      Attached to {existing!.usageCount} route{existing!.usageCount !== 1 ? 's' : ''}
+                    </li>
+                  )}
+                  {isUsedAsGlobal && <li>Applied as a global filter in the gateway configuration</li>}
+                </ul>
+                <p className="mt-1.5 text-xs text-amber-400/60">
+                  {isUsedByRoutes && 'Detach this filter from all routes'}
+                  {isUsedByRoutes && isUsedAsGlobal && ' and '}
+                  {isUsedAsGlobal && 'remove it from the global filters (Gateway → Global Filters)'}
+                  {' '}before editing.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Body ─────────────────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {isEdit && loadingExisting ? (
@@ -340,6 +392,7 @@ export default function FilterDefinitionForm({
             </div>
           ) : (
             <form id="filter-form" onSubmit={handleSubmit}>
+              <fieldset disabled={isInUse} className={cn(isInUse && 'opacity-60 pointer-events-none')}>
               {/* Two-column layout on md+ screens */}
               <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] divide-y md:divide-y-0 md:divide-x divide-white/6">
                 {/* ── Left panel — identity & type ─────────────────────────── */}
@@ -453,27 +506,36 @@ export default function FilterDefinitionForm({
                   )}
                 </div>
               </div>
+              </fieldset>
             </form>
           )}
         </div>
 
         {/* ── Footer actions ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-white/6 shrink-0 bg-white/1">
+          {isInUse && (
+            <span className="text-xs text-amber-400/70 mr-auto flex items-center gap-1.5">
+              <Lock className="w-3 h-3" />
+              Editing disabled — filter is in use
+            </span>
+          )}
           <button
             type="button"
             onClick={onClose}
             className="px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
           >
-            Cancel
+            {isInUse ? 'Close' : 'Cancel'}
           </button>
-          <button
-            type="submit"
-            form="filter-form"
-            disabled={isPending || (isEdit && loadingExisting)}
-            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20"
-          >
-            {isPending ? 'Saving…' : isEdit ? 'Update Filter' : 'Create Filter'}
-          </button>
+          {!isInUse && (
+            <button
+              type="submit"
+              form="filter-form"
+              disabled={isPending || (isEdit && loadingExisting)}
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20"
+            >
+              {isPending ? 'Saving…' : isEdit ? 'Update Filter' : 'Create Filter'}
+            </button>
+          )}
         </div>
       </div>
     </div>

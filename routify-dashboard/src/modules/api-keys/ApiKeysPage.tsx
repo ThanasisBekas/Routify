@@ -84,7 +84,7 @@ export default function ApiKeysPage() {
             <Key className="w-5 h-5 text-indigo-400" />
             API Keys
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Manage API keys for machine-to-machine authentication</p>
+          <p className="text-sm text-gray-500 mt-1">Manage API keys for machine-to-machine authentication. Keys created here are automatically available to routes using the <span className="text-indigo-400 font-medium">API Key Auth</span> filter.</p>
         </div>
         {isAdmin && (
           <button
