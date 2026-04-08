@@ -70,7 +70,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | Cluster heartbeat | ✅ | `GatewayInstanceRegistry` → Redis |
 | Telemetry publishing | ✅ | `RequestLoggerGatewayFilterFactory` → Kafka `REQUEST_TELEMETRY` |
 | JWT issuer/audience validation | ✅ | Issuer + audience claim validation, fail-closed misconfiguration, require-jti enforcement, JWKS URI support — [P-01](#p-01-jwt-auth-filter-hardening) ✅ completed |
-| OAuth2 dynamic config bridge | ❌ | `OAuth2TokenIntrospectGatewayFilterFactory` reads `AuthProperties` YAML, ignores resolved `gatewayConfigRef` values — see [P-04](#p-04-oauth2-auth-provider-dynamic-config-bridge) |
+| OAuth2 dynamic config bridge | ✅ | Dual-path introspection: direct config from `gatewayConfigRef` + legacy `providerName` → `AuthProperties` fallback. Dashboard Auth Provider picker auto-populates config. — [P-04](#p-04-oauth2-auth-provider-dynamic-config-bridge) ✅ completed |
 | mTLS/ClientID dynamic config | ❌ | Use legacy static `CertificateValuesConfig`/`ClientProperties` — see [P-05](#p-05-mtlsclientid-migration-to-dynamic-gateway-config) |
 | SpEL sandboxing | ✅ | `SimpleEvaluationContext` with read-only data binding, `#request` removed, expression length + depth limits — [P-02](#p-02-spel-filter-sandboxing) ✅ completed |
 
@@ -192,7 +192,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | ~~2~~ | ~~`JwtAuthGatewayFilterFactory`~~ | ~~Dev-mode unsigned JWT fallback.~~ **Resolved in P-01:** fail-closed — rejects all requests with `SERVER_MISCONFIGURED` when neither public key nor JWKS URI is configured. JWKS URI support added. | ~~**High**~~ ✅ |
 | ~~3~~ | ~~`JwtAuthGatewayFilterFactory`~~ | ~~`Config.algorithm` supports `HS256` but only RS256 is implemented.~~ **Resolved in P-01:** HS256 config is logged as warning and ignored (RS256 only). | ~~**Low**~~ ✅ |
 | ~~4~~ | ~~`SpelCustomGatewayFilterFactory`~~ | ~~Uses `StandardEvaluationContext` which exposes `#request`.~~ **Resolved in P-02:** replaced with `SimpleEvaluationContext.forReadOnlyDataBinding()`, `#request` removed, expression length + depth limits enforced. | ~~**High**~~ ✅ |
-| 5 | `OAuth2TokenIntrospectGatewayFilterFactory` | Reads `providerName` from `Config`, then looks it up in `AuthProperties.oauth2Verification` (static YAML map). The `GatewayConfigRefResolver.resolveAuthProvider()` correctly resolves `introspectUri`/`clientId`/`clientSecret` from gateway config, but these land as config keys the filter **ignores** — it only reads `providerName` and delegates to `AuthProperties`. The bridge is broken. | **Medium** |
+| 5 | `OAuth2TokenIntrospectGatewayFilterFactory` | ~~Reads `providerName` from `Config`, then looks it up in `AuthProperties.oauth2Verification` (static YAML map). The bridge is broken.~~ Dual-path: direct config from `gatewayConfigRef` (introspectUri/clientId/clientSecret) + legacy `providerName` → `AuthProperties` fallback. — [P-04](#p-04-oauth2-auth-provider-dynamic-config-bridge) ✅ completed | **Resolved** |
 | 6 | `MtlsAuthGatewayFilterFactory` | Config class is `CertificateValuesConfig` (from `auth.properties` YAML). No `GatewayConfigRefResolver` mapping exists for `AUTH_MTLS`. Filter cannot import cert mappings from dynamic gateway config. | **Medium** |
 | 7 | `ClientIdAuthGatewayFilterFactory` | Config class is `NameValuesConfig` backed by `ClientProperties` YAML. No `GatewayConfigRefResolver` mapping for `AUTH_CLIENT_ID`. Same static-config limitation as mTLS. | **Medium** |
 | 8 | `DownstreamOAuth2BearerGatewayFilterFactory` | `Config.oauth2ProviderName` maps to `Oauth2AccessTokenProvider` static config. Not integrated with the `DOWNSTREAM_CREDENTIAL` ref type or dynamic auth provider config. | **Medium** |
@@ -203,7 +203,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 
 | # | Gap | Details |
 |---|-----|---------|
-| 1 | **OAuth2 provider config disconnect** | Auth providers defined in gateway config (`authProviders` section, type `OAUTH2_*`) cannot be consumed by `OAuth2TokenIntrospectGatewayFilterFactory` because the filter reads from `AuthProperties` YAML, not from the resolved `gatewayConfigRef` values. An operator who configures an OAuth2 provider in the gateway config UI and links it to an `AUTH_OAUTH2` filter will get a `"Missing Oauth2 verification configuration"` error at runtime. |
+| 1 | ~~**OAuth2 provider config disconnect**~~ | ~~Auth providers defined in gateway config cannot be consumed by `OAuth2TokenIntrospectGatewayFilterFactory`.~~ **Resolved in P-04:** Filter now reads direct config fields (`introspectUri`, `clientId`, `clientSecret`) from `gatewayConfigRef` resolution and calls the introspection endpoint directly. Legacy `providerName` → `AuthProperties` YAML path preserved for backward compatibility. |
 | 2 | **mTLS static config island** | `MtlsAuthGatewayFilterFactory` uses `CertificateValuesConfig` which requires certificate-to-client-ID mappings baked into YAML. These cannot be managed through the dashboard. The `VAULT_CERT` ref type exists but doesn't map to mTLS's `values[].clientCertificateValue` / `values[].clientIdValue` structure. |
 | 3 | **Downstream OAuth2 provider disconnect** | `DownstreamOAuth2BearerGatewayFilterFactory.Config.oauth2ProviderName` maps to `Oauth2AccessTokenProvider` YAML config. The `DOWNSTREAM_CREDENTIAL` ref type maps `username`/`password`/`headerName`/`headerValue` but these aren't the fields the downstream OAuth2 filter reads (`oauth2ProviderName`, `forwardCallerAuth`). |
 | 4 | **No `gatewayConfigRef` validation on save** | When creating or updating a filter with a `gatewayConfigRef`, the route-service persists the ref without validating that the referenced gateway config entry (e.g., auth provider with that `refId`) actually exists. The error surfaces only at gateway route-build time. |
@@ -283,11 +283,12 @@ Critical issues that could lead to security vulnerabilities or incorrect behavio
 
 ---
 
-#### P-03: BasicAuth Password Hashing in Gateway Config ✅ completed
+#### P-03: BasicAuth Password Hashing in Gateway Config ✅ COMPLETED
 
 **Affected services:** `routify-api-gateway`, `routify-admin-api`  
 **Complexity:** S  
-**Files:** `BasicAuthGatewayFilterFactory.java`, `GatewayConfigService.java`
+**Files:** `BasicAuthGatewayFilterFactory.java`, `GatewayConfigService.java`  
+**Status:** ✅ Completed — BCrypt hashing + backward-compatible legacy fallback, 19 dedicated tests passing (12 gateway + 7 admin-api).
 
 **Problem:** `BasicAuthGatewayFilterFactory` compares passwords using plain-text `equals()`. The password stored in gateway config (via the Auth Providers section) is stored unencrypted. `@SensitiveField` masks it in API responses but not at rest.
 
@@ -295,6 +296,7 @@ Critical issues that could lead to security vulnerabilities or incorrect behavio
 - **Backend (admin-api):** `GatewayConfigService.upsertAuthProvider()` and `saveConfig()` BCrypt-hash (strength 12) the password of BASIC auth providers before persisting. Skips re-hashing when the password is masked (`Sensitive.isMasked()`), already a BCrypt hash (`$2` prefix), or null/blank.
 - **Backend (gateway):** `BasicAuthGatewayFilterFactory` uses `BCryptPasswordEncoder.matches()` for password comparison when the stored value is a BCrypt hash. Falls back to plain-text `equals()` for legacy configs that have not yet been re-saved, with a `WARN` log urging re-save.
 - **Frontend:** None (password field already masked by `@SensitiveField`).
+- **Tests:** `BasicAuthPasswordHashingTest.java` (12 tests): BCrypt match, BCrypt reject wrong password/username, plain-text legacy fallback, header injection on success, missing auth header, non-Basic scheme, malformed Base64, misconfigured blank/null credentials, password with colon chars. `GatewayConfigServicePasswordHashingTest.java` (7 tests): plain-text → BCrypt on upsert, skip already-hashed, preserve masked from existing, null/blank left untouched, non-BASIC not hashed, saveConfig hashes all BASIC providers.
 
 ---
 
@@ -304,19 +306,22 @@ Bridge the gap between statically-configured auth providers and the dynamic gate
 
 ---
 
-#### P-04: OAuth2 Auth Provider Dynamic Config Bridge
+#### P-04: OAuth2 Auth Provider Dynamic Config Bridge ✅ COMPLETED
 
-**Affected services:** `routify-api-gateway`  
+**Affected services:** `routify-api-gateway`, `routify-dashboard`  
 **Complexity:** M  
-**Files:** `OAuth2TokenIntrospectGatewayFilterFactory.java`, `GatewayConfigRefResolver.java`, `Oauth2BearerTokenVerifier.java`
+**Files:** `OAuth2TokenIntrospectGatewayFilterFactory.java`, `GatewayConfigRefResolver.java`, `Oauth2BearerTokenVerifier.java`, `FilterConfigFields.tsx`  
+**Status:** ✅ Completed — dual-path introspection (direct config + legacy provider name), 10 dedicated tests passing.
 
 **Problem:** The `AUTH_OAUTH2` filter reads `Config.providerName` and looks it up in static `AuthProperties.oauth2Verification` YAML. The `GatewayConfigRefResolver.resolveAuthProvider()` correctly resolves `introspectUri`, `clientId`, `clientSecret` from the gateway config's auth providers section, but the filter doesn't read these fields — it only uses `providerName`.
 
-**Changes:**
-- **Backend:** Modify `OAuth2TokenIntrospectGatewayFilterFactory.Config` to accept `introspectUri`, `clientId`, `clientSecret` directly (in addition to `providerName`).
-- **Backend:** In `apply()`, check if direct config fields are present (from `gatewayConfigRef` resolution). If so, use them directly for token introspection without going through `AuthProperties`. Fall back to `providerName` → `AuthProperties` lookup for backward compatibility.
-- **Backend:** Update `GatewayConfigRefResolver.resolveAuthProvider()` to also map the provider `name` to `providerName` (not just `_providerName`) so existing filters using `providerName` config work.
-- **Frontend:** Update `AUTH_OAUTH2` filter form to show a gateway config ref picker (Auth Provider dropdown) alongside the existing `providerName` text field.
+**Changes (implemented):**
+- **Backend (gateway):** `OAuth2TokenIntrospectGatewayFilterFactory.Config` now accepts `introspectUri`, `clientId`, `clientSecret`, `parameterStyle`, `parameterName`, `contentType`, and `includeBasicClientAuthorization` directly alongside the existing `providerName`.
+- **Backend (gateway):** `apply()` checks if direct config fields are present (from `gatewayConfigRef` resolution). If so, uses them directly for token introspection via the new `Oauth2BearerTokenVerifier.verifyToken(...)` overload. Falls back to `providerName` → `AuthProperties` lookup for backward compatibility.
+- **Backend (gateway):** `GatewayConfigRefResolver.resolveAuthProvider()` now maps the provider `name` to `providerName` (in addition to `_providerName`) and passes through introspection-specific fields (`parameterStyle`, `parameterName`, `contentType`, `includeBasicClientAuthorization`) for OAUTH2 types.
+- **Backend (gateway):** `Oauth2BearerTokenVerifier` has a new overloaded `verifyToken()` method accepting direct config values, building an ad-hoc `Oauth2VerificationConfig` internally to reuse existing request-building infrastructure. WebClients are pooled via `WebClientRegistry` with a cache key based on the introspection URI host.
+- **Frontend:** `AUTH_OAUTH2` filter form in `FilterConfigFields.tsx` now includes an **Auth Provider** dropdown (populated from `gatewayApi.getAuthProviders()`, filtered to `OAUTH2_*` types). Selecting a provider auto-populates `introspectUri`, `clientId`, `clientSecret`, and `parameterStyle` into the filter config. When direct config fields are present, the form shows the introspection config fields for review/override and a status indicator. When empty, the legacy `providerName` text input is shown.
+- **Tests:** `OAuth2DynamicConfigBridgeTest.java` (10 tests): direct config success + failure + precedence over providerName, legacy providerName success + missing config, neither configured error, missing bearer token, partial direct config fallback, GatewayConfigRefResolver providerName mapping for OAUTH2 and BASIC types.
 
 ---
 
@@ -731,10 +736,10 @@ Testing, cleanup, and operational improvements.
 Phase 1 (P0 — Security)
   P-01 JWT Hardening ─────────────────────────────── ✅ COMPLETED
   P-02 SpEL Sandboxing ──────────────────────────── ✅ COMPLETED
-  P-03 BasicAuth Password Hashing ────────────────── standalone
+  P-03 BasicAuth Password Hashing ────────────────── ✅ COMPLETED
 
 Phase 2 (P1 — Config Integration)
-  P-04 OAuth2 Dynamic Config Bridge ───────────────── requires P-07 (Auth Provider Picker)
+  P-04 OAuth2 Dynamic Config Bridge ───────────────── ✅ COMPLETED
   P-05 mTLS/ClientID Dynamic Config ──────────────── standalone
   P-06 Cert Vault Picker ─────────────────────────── standalone
   P-07 Auth Provider Picker ──────────────────────── standalone (enables P-04)
@@ -773,8 +778,8 @@ Phase 4 (P3 — Quality)
 |------|-----------|--------|------------|
 | ~~**P-01 JWT hardening breaks dev workflows**~~ | ~~Medium~~ | ~~Medium~~ | ✅ **Mitigated.** Fail-closed by default. JWKS URI provides key rotation without restart. `routify.jwt.require-jti` can be set to `false` per environment. |
 | ~~**P-02 SpEL sandboxing breaks existing expressions**~~ | ~~Medium~~ | ~~Medium~~ | ✅ **Mitigated.** `#request` removed; `#clientIp` and `#contentType` provided as replacements. Expressions referencing `#request` fail open (pass through with warning). `SimpleEvaluationContext` blocks type references and constructors. |
-| **P-03 BCrypt hashing breaks existing BasicAuth configs** | Medium | Low | ✅ Mitigated: gateway auto-detects unhashed passwords (no `$2` prefix) and falls back to plain-text `equals()` with a WARN log. Re-saving the auth provider via admin API triggers automatic BCrypt hashing. |
-| **P-04 OAuth2 config migration is a breaking change** | Low | Medium | Purely additive — existing `providerName` → YAML path continues to work. New direct-config path is opt-in via `gatewayConfigRef`. |
+| ~~**P-03 BCrypt hashing breaks existing BasicAuth configs**~~ | ~~Medium~~ | ~~Low~~ | ✅ **Mitigated.** Gateway auto-detects unhashed passwords (no `$2` prefix) and falls back to plain-text `equals()` with a WARN log. Re-saving the auth provider via admin API triggers automatic BCrypt hashing. |
+| ~~**P-04 OAuth2 config migration is a breaking change**~~ | ~~Low~~ | ~~Medium~~ | ✅ **Mitigated.** Purely additive — existing `providerName` → YAML path continues to work unchanged. New direct-config path activates only when `introspectUri`+`clientId`+`clientSecret` are all present (from `gatewayConfigRef` resolution). Partial direct config gracefully falls back to `providerName`. |
 | **P-05 mTLS/ClientID refactoring breaks existing deployments** | Medium | High | Keep backward compatibility with `CertificateValuesConfig` YAML. New dynamic config is an additional path, not a replacement. |
 | **P-14 gatewayConfigRef validation blocks valid saves** | Low | Medium | Only validate `refType` is known and `refId` format is valid. Log a warning (don't block) if the referenced entry isn't found — it may be created later. |
 | **P-19 IT expansion delayed by Docker/TC incompatibility** | Medium | Low | Verify `docker-java` 3.7.1 resolves the issue. If not, target unit tests only. |

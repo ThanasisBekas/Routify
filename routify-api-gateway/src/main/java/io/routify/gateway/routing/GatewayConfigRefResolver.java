@@ -155,9 +155,19 @@ public class GatewayConfigRefResolver {
                     // password grant
                     putIfPresent(result, "username",     p.get("username"));
                     putIfPresent(result, "password",     p.get("password"));
+                    // introspection-specific fields (used by direct-config path)
+                    putIfPresent(result, "parameterStyle", p.get("parameterStyle"));
+                    putIfPresent(result, "parameterName",  p.get("parameterName"));
+                    putIfPresent(result, "contentType",    p.get("contentType"));
+                    if (p.containsKey("includeBasicClientAuthorization")) {
+                        result.put("includeBasicClientAuthorization", p.get("includeBasicClientAuthorization"));
+                    }
                 }
 
-                // Always pass through enabled and name for diagnostics
+                // Pass through provider name both as a diagnostics field and as the
+                // config key that OAuth2TokenIntrospectGatewayFilterFactory reads,
+                // so the filter can use the resolved name for logging/fallback.
+                putIfPresent(result, "providerName", p.get("name"));
                 putIfPresent(result, "_providerName", p.get("name"));
                 putIfPresent(result, "_providerType", type);
                 return result;

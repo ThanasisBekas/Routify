@@ -73,6 +73,58 @@ public class Oauth2BearerTokenVerifier {
                                         .formatted(oauth2ProviderName), e));
     }
 
+    /**
+     * Verifies the provided Bearer token against a dynamically-configured introspection
+     * endpoint — bypassing the static {@link AuthProperties} YAML configuration.
+     *
+     * <p>This overload is used when the {@code AUTH_OAUTH2} filter has direct config fields
+     * populated from a {@code gatewayConfigRef} resolution (P-04 initiative).
+     *
+     * @param introspectUri                URI of the introspection endpoint
+     * @param clientId                     client ID for Basic auth on the introspection call
+     * @param clientSecret                 client secret for Basic auth on the introspection call
+     * @param parameterStyle               how to pass the token (BODY, QUERY, or HEADER)
+     * @param parameterName                form field / query param / header name for the token
+     * @param contentType                  optional Content-Type (defaults to form-urlencoded)
+     * @param includeBasicClientAuthorization whether to include Basic auth header
+     * @param token                        the bearer token to verify
+     * @return a {@link Mono} emitting the {@link TokenVerificationResponse}
+     */
+    public Mono<TokenVerificationResponse> verifyToken(String introspectUri,
+                                                        String clientId,
+                                                        String clientSecret,
+                                                        ParameterStyle parameterStyle,
+                                                        String parameterName,
+                                                        String contentType,
+                                                        boolean includeBasicClientAuthorization,
+                                                        String token) {
+        // Build an ad-hoc Oauth2VerificationConfig so we can reuse the existing
+        // buildVerificationRequest / resolveWebClient infrastructure.
+        AuthProperties.Oauth2VerificationConfig config = new AuthProperties.Oauth2VerificationConfig();
+        config.setUri(introspectUri);
+        config.setClientId(clientId);
+        config.setClientSecret(clientSecret);
+        config.setParameterStyle(parameterStyle != null ? parameterStyle : ParameterStyle.BODY);
+        config.setParameterName(parameterName != null && !parameterName.isBlank() ? parameterName : "token");
+        config.setContentType(contentType);
+        config.setIncludeBasicClientAuthorization(includeBasicClientAuthorization);
+        config.setConnectionConfig(new HttpClientProperties());
+
+        // Use a cache key based on the introspection URI host to pool WebClients
+        String cacheKey = "verify:dynamic:" + URI.create(introspectUri).getHost();
+        WebClient client = webClientRegistry.get(cacheKey, config, config.getProxyConfig(),
+                config.getConnectionConfig());
+
+        return buildVerificationRequest(client, config, token)
+                .exchangeToMono(this::toVerificationResponse)
+                .doOnNext(resp -> log.debug("Token verification via dynamic config ({}): status={}",
+                        introspectUri, resp.statusCode()))
+                .onErrorMap(e -> !(e instanceof IllegalStateException),
+                        e -> new IllegalStateException(
+                                "Unable to verify Bearer token against dynamic provider at '%s'"
+                                        .formatted(introspectUri), e));
+    }
+
     private WebClient.RequestHeadersSpec<?> buildVerificationRequest(
             WebClient client, AuthProperties.Oauth2VerificationConfig config, String token) {
 
