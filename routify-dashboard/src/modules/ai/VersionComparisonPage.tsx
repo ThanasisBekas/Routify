@@ -79,8 +79,11 @@ export default function VersionComparisonPage() {
       {/* Version selectors */}
       <div className="flex gap-4">
         <div className="flex-1">
-          <label className="text-[11px] text-gray-500 block mb-1">Version A</label>
+          <label className="text-[11px] text-gray-500 block mb-1" htmlFor="field-version-a-0">
+            Version A
+          </label>
           <select
+            id="field-version-a-0"
             value={versionA}
             onChange={(e) => setVersionA(e.target.value)}
             className="w-full rounded-lg border border-white/[0.08] bg-[#0d0f14] px-3 py-2 text-sm text-gray-200"
@@ -94,8 +97,11 @@ export default function VersionComparisonPage() {
           </select>
         </div>
         <div className="flex-1">
-          <label className="text-[11px] text-gray-500 block mb-1">Version B</label>
+          <label className="text-[11px] text-gray-500 block mb-1" htmlFor="field-version-b-1">
+            Version B
+          </label>
           <select
+            id="field-version-b-1"
             value={versionB}
             onChange={(e) => setVersionB(e.target.value)}
             className="w-full rounded-lg border border-white/[0.08] bg-[#0d0f14] px-3 py-2 text-sm text-gray-200"

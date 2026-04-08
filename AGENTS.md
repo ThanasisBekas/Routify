@@ -36,8 +36,10 @@ Routify is a zero-downtime API Gateway platform. Maven multi-module monorepo (Ja
 
 ### Adding a new RabbitMQ query
 1. Add exchange/queue/routing-key constants to `RabbitTopology`.
-2. In the responding service, add a `@RabbitListener` on the queue.
-3. In the calling service, extend `AmqpServiceClientSupport` and call `rpc(routingKey, request, TypeReference)`.
+2. Add a `record` to the `QueryRequest` sealed interface in `routify-common` with `@JsonSubTypes.Type` annotation.
+3. Add a corresponding `record` to the `QueryResponse` sealed interface.
+4. In the responding service, add a `@RabbitListener` on the queue.
+5. In the calling service, extend `AmqpServiceClientSupport` and call `rpc(routingKey, request, TypeReference)` or `rpc(routingKey, request, ResponseClass.class)`.
 
 ## Build & Run
 
@@ -55,8 +57,19 @@ mvn clean package -pl routify-route-service -am -DskipTests
 cd routify-dashboard && npm install && npm run dev       # with backend
 cd routify-dashboard && npm run dev:mock                 # mock mode (no backend)
 
+# Frontend checks
+cd routify-dashboard && npm run typecheck                # TypeScript type checking
+cd routify-dashboard && npm run lint                     # ESLint + Prettier
+cd routify-dashboard && npm test                         # Vitest unit tests (watch)
+cd routify-dashboard && npm run test:ci                  # Vitest CI mode (single run)
+cd routify-dashboard && npm run test:e2e                 # Playwright E2E tests
+
 # Full containerised stack
 docker compose -f docker-compose.yml -f docker-compose.app.yml --env-file .env up -d
+
+# CI containerised build (pre-built JARs, faster — uses Dockerfile.ci per service)
+mvn clean package -DskipTests
+docker compose -f docker-compose.yml -f docker-compose.app.yml -f docker-compose.ci.yml --env-file .env up -d --build
 ```
 
 **Integration tests** (`*IT.java`) are disabled globally (`<skipITs>true</skipITs>`) due to Testcontainers + Docker Engine 29.x incompatibility. Re-enable: `mvn verify -DskipITs=false`.
@@ -66,7 +79,7 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml --env-file .env u
 ## Code Conventions
 
 ### Exceptions
-Always use `RoutifyException` subtypes (`NotFound`, `Conflict`, `Validation`, `BadRequest`, `Unauthorized`, `Forbidden`, `RateLimitExceeded`, `QuotaExceeded`, `GatewayError`). Never throw raw `RuntimeException`. Error responses use RFC 9457 ProblemDetail via `GlobalExceptionHandler`.
+Always use `RoutifyException` subtypes (`NotFound`, `Conflict`, `Validation`, `BadRequest`, `Unauthorized`, `Forbidden`, `RateLimitExceeded`, `QuotaExceeded`, `GatewayError`, `HeuristicError`). Never throw raw `RuntimeException`. Error responses use RFC 9457 ProblemDetail via `GlobalExceptionHandler`.
 
 ### Entity ↔ DTO mappings
 Use MapStruct (`@Mapper(componentModel = "spring")`). See `routify-route-service/.../mapper/RouteMapper.java` for the pattern. Annotation processors: Lombok → MapStruct → lombok-mapstruct-binding (order matters in `pom.xml`).
@@ -87,7 +100,7 @@ Use MapStruct (`@Mapper(componentModel = "spring")`). See `routify-route-service
 - **Real-time**: WebSocket/STOMP via `WebSocketProvider` → subscribes to `/topic/events`, `/topic/metrics`, `/topic/audit`.
 - **Mock mode**: MSW handlers in `src/mocks/handlers/` — `npm run dev:mock`.
 - **Styling**: TailwindCSS 4 utilities + `cn()` helper from `src/lib/utils.ts`.
-- **Feature modules**: each feature lives in `src/modules/<feature>/` (routes, filters, audit, certificates, ai, gateway, users, workspaces, settings, workflow-builder).
+- **Feature modules**: each feature lives in `src/modules/<feature>/` (routes, filters, audit, certificates, ai, gateway, users, workspaces, settings, workflow-builder, api-keys, auth, alerts, roles, webhooks, gitops).
 
 ## Module-Level Agent Guides
 
@@ -114,6 +127,9 @@ Each module has its own `AGENTS.md` with detailed package layout, patterns, and 
 | RabbitMQ topology constants | `routify-common/.../event/RabbitTopology.java` |
 | Command event definitions | `routify-common/.../event/CommandEvent.java` |
 | Domain event definitions | `routify-common/.../event/DomainEvent.java` |
+| Query request definitions | `routify-common/.../event/QueryRequest.java` |
+| Query response definitions | `routify-common/.../event/QueryResponse.java` |
+| Async command acknowledgement | `routify-common/.../web/AsyncAcknowledgement.java` |
 | Exception hierarchy | `routify-common/.../exception/RoutifyException.java` |
 | Global error handler | `routify-common/.../exception/GlobalExceptionHandler.java` |
 | Kafka client base class | `routify-common/.../client/KafkaServiceClientSupport.java` |

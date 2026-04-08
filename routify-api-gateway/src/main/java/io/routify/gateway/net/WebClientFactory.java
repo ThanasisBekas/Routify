@@ -1,5 +1,6 @@
 package io.routify.gateway.net;
 
+import io.routify.common.exception.RoutifyException;
 import io.routify.gateway.ssl.SSLContextProperties;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -98,7 +99,7 @@ public class WebClientFactory {
                     }
                 } catch (Exception e) {
                     log.error("Failed to configure SSL for WebClient", e);
-                    throw new RuntimeException("Failed to configure SSL for WebClient", e);
+                    throw new RoutifyException.GatewayError("Failed to configure SSL for WebClient", e);
                 }
             });
         } else if (sslContextProperties != null && sslContextProperties.isSkipHostnameVerification()) {
@@ -115,7 +116,7 @@ public class WebClientFactory {
                             });
                 } catch (Exception e) {
                     log.error("Failed to configure insecure SSL for WebClient", e);
-                    throw new RuntimeException("Failed to configure insecure SSL for WebClient", e);
+                    throw new RoutifyException.GatewayError("Failed to configure insecure SSL for WebClient", e);
                 }
             });
         }

@@ -106,7 +106,7 @@ public sealed class RoutifyException extends RuntimeException
 
     public static final class HeuristicError extends RoutifyException {
         public HeuristicError(String message) {
-            super(message, HttpStatus.NOT_FOUND, "HEURISTIC_ERROR");
+            super(message, HttpStatus.INTERNAL_SERVER_ERROR, "HEURISTIC_ERROR");
         }
     }
 }

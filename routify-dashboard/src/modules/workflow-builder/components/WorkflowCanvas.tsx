@@ -180,6 +180,7 @@ function FilterPickerModal({
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
               <input
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -237,6 +238,7 @@ function FilterPickerModal({
             <div className="px-4 pb-4 space-y-3 border-t border-white/[0.06] pt-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest block">
                     Phase
                   </label>
@@ -253,6 +255,7 @@ function FilterPickerModal({
                   <p className="text-[9px] text-gray-600">Auto-inferred from drop position</p>
                 </div>
                 <div className="space-y-1.5">
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest block">
                     Order
                   </label>

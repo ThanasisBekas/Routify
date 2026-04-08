@@ -25,14 +25,15 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
             """, nativeQuery = true)
     List<OutboxEvent> findPendingForPublishing(@Param("limit") int limit);
 
-    /** Fetch FAILED events that should be retried (retry_count < maxRetries) */
-    @Query("""
-            SELECT o FROM OutboxEvent o
-            WHERE o.status = 'FAILED'
-            AND o.retryCount < :maxRetries
-            ORDER BY o.createdAt ASC
-            """)
-    List<OutboxEvent> findRetryable(@Param("maxRetries") int maxRetries);
+    /** Fetch FAILED events that should be retried (retry_count < maxRetries), limited to batchSize */
+    @Query(value = """
+            SELECT * FROM routify.outbox_event
+            WHERE status = 'FAILED'
+            AND retry_count < :maxRetries
+            ORDER BY created_at ASC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<OutboxEvent> findRetryable(@Param("maxRetries") int maxRetries, @Param("limit") int limit);
 
     long countByStatus(OutboxEvent.Status status);
 }

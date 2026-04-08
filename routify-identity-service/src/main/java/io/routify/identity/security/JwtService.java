@@ -1,5 +1,6 @@
 package io.routify.identity.security;
 
+import io.routify.common.exception.RoutifyException;
 import io.routify.identity.domain.AppUser;
 import io.routify.identity.service.RoleService;
 import io.jsonwebtoken.Claims;
@@ -202,7 +203,7 @@ public class JwtService {
             gen.initialize(2048);
             return gen.generateKeyPair();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate dev key pair", e);
+            throw new RoutifyException.GatewayError("Failed to generate dev key pair", e);
         }
     }
 }

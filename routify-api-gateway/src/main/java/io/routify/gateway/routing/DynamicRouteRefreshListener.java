@@ -44,11 +44,15 @@ public class DynamicRouteRefreshListener {
      * Pre-warm route table on application startup.
      * Ensures the gateway can serve traffic immediately without waiting for
      * the first Kafka event.
+     *
+     * <p>Uses {@code .block()} to wait for the initial refresh to complete before
+     * reading the route count — acceptable during startup since the Netty event
+     * loop is not yet serving traffic.
      */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         log.info("Application ready — loading initial route definitions");
-        routeLocator.refresh();
+        routeLocator.refresh().block();
         int routeCount = routeLocator.getLoadedRouteCount();
         log.info("Initial route load complete: {} routes active", routeCount);
         instanceRegistry.incrementConfigVersion(routeCount);
@@ -111,7 +115,7 @@ public class DynamicRouteRefreshListener {
             if (requiresReload) {
                 log.debug("Route lifecycle event — triggering gateway reload: {}",
                         event.getClass().getSimpleName());
-                routeLocator.refresh();
+                routeLocator.refreshAsync();
                 updateRegistryAfterReload();
             }
         } catch (Exception e) {

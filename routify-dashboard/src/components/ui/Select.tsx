@@ -131,6 +131,7 @@ export function Select({
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
                 <input
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}

@@ -300,10 +300,14 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
           <div className="px-6 py-5 space-y-5">
             {/* Gateway URL */}
             <div>
-              <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+              <label
+                htmlFor="field-gateway-url-0"
+                className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5"
+              >
                 Gateway URL
               </label>
               <input
+                id="field-gateway-url-0"
                 value={gatewayUrl}
                 onChange={(e) => setGatewayUrl(e.target.value)}
                 onBlur={handleGatewayUrlBlur}
@@ -316,6 +320,7 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
             <div className="flex gap-3">
               {/* Method selector */}
               <div className="shrink-0">
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
                   Method
                 </label>
@@ -338,10 +343,14 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
               </div>
               {/* Path */}
               <div className="flex-1 min-w-0">
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                <label
+                  htmlFor="field-path-1"
+                  className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5"
+                >
                   Path
                 </label>
                 <input
+                  id="field-path-1"
                   value={path}
                   onChange={(e) => setPath(e.target.value)}
                   placeholder="/api/v1/..."
@@ -374,6 +383,7 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
                   {/* Filter picker if multiple auth filters */}
                   {authFilters.length > 1 && (
                     <div>
+                      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                       <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
                         Auth filter
                       </label>
@@ -404,10 +414,14 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
                     <div className="space-y-3">
                       {authHint.fields.map((field) => (
                         <div key={field.key}>
-                          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                          <label
+                            htmlFor="field-field-label-2"
+                            className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5"
+                          >
                             {field.label}
                           </label>
                           <input
+                            id="field-field-label-2"
                             type={field.secret ? 'password' : 'text'}
                             value={authValues[field.key] ?? ''}
                             onChange={(e) => updateAuth(field.key, e.target.value)}
@@ -481,6 +495,7 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
 
             {/* ── Options ──────────────────────────────────────────────────── */}
             <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <button
                   type="button"
