@@ -781,21 +781,23 @@ Testing, cleanup, and operational improvements.
 
 ---
 
-#### P-26: AI Filter Streaming Body Support
+#### P-26: AI Filter Streaming Body Support ✅ COMPLETED
 
 **Overlaps with:** [gf-08 (Gateway Filters Roadmap)](./GATEWAY-FILTERS-ROADMAP.md#8-ai-filter-streaming-body-support)  
-**Affected services:** `routify-api-gateway`, `routify-ai-service`  
+**Affected services:** `routify-api-gateway`, `routify-ai-service`, `routify-dashboard`  
 **Complexity:** L  
-**Files:** `AiGatewayFilterFactory.java`, `AiModifierGatewayFilterFactory.java`
+**Files:** `AiGatewayFilterFactory.java`, `AiModifierGatewayFilterFactory.java`, `filterConfigConstants.ts`, `FilterConfigFields.tsx`, `AiFilterBodyStreamingTest.java`, `AiModifierBodyStreamingTest.java`  
+**Status:** ✅ Completed — inline body reading via `DataBufferUtils.join()`, `maxBodyBytes` default increased to 2048, binary content-type skip, SHA-256 body hash for cache keying, `ServerHttpRequestDecorator` body re-wrap, 30 dedicated tests passing (13 AI filter + 17 AI modifier).
 
 **Problem:** When `includeBody=true`, the AI filter reads the body excerpt from an exchange attribute that must be pre-cached by an earlier filter. Default `maxBodyBytes=512` is too small for useful context.
 
-**Changes:**
-- **Backend:** AI filter reads body inline using `DataBufferUtils.join()` + `limitRate()`.
-- **Backend:** Increase default `maxBodyBytes` to 2048.
-- **Backend:** Skip binary content types. Add body SHA-256 hash for cache keying.
-- **Backend:** Re-wrap body for downstream via `ServerHttpRequestDecorator`.
-- **Frontend:** Update `AI_FILTER` config form default for `maxBodyBytes` from 512 to 2048.
+**Implementation summary:**
+- **Backend (gateway — `AiGatewayFilterFactory`):** Body is read inline using `DataBufferUtils.join()` directly in `readBodyIfNeeded()` — no pre-caching filter dependency. Binary content types (`image/*`, `multipart/*`, `application/octet-stream`) are automatically skipped via `isReadableContentType()` — only `application/json`, `text/plain`, `application/xml`, and `text/xml` are read. Body excerpt is truncated at `maxBodyBytes` (default 2048, up from 512). SHA-256 hex hash is computed on the excerpt for cache keying. The full body is re-wrapped via `ServerHttpRequestDecorator` so upstream services receive the complete payload unchanged. Body excerpt is cached as exchange attribute (`AI_FILTER_BODY_EXCERPT`) for potential reuse by the AI modifier filter.
+- **Backend (gateway — `AiModifierGatewayFilterFactory`):** Same inline body reading pattern. Buffers the full body, truncates the excerpt for the RPC request, and either re-emits the original bytes (passthrough) or the mutated bytes from the AI service verdict. `Content-Length` header is updated when mutation is applied.
+- **Backend (gateway — Config defaults):** `AiGatewayFilterFactory.Config.maxBodyBytes` default is 2048. `AiModifierGatewayFilterFactory.Config.maxBodyBytes` default is 2048.
+- **Frontend (`filterConfigConstants.ts`):** `AI_FILTER.maxBodyBytes` default updated from 512 to 2048.
+- **Frontend (`FilterConfigFields.tsx`):** `AiFilterFields` maxBodyBytes input default updated from 512 to 2048 with descriptive hint.
+- **Tests:** `AiFilterBodyStreamingTest.java` (13 tests): inline JSON body reading, body truncation, binary skip (image/png, multipart, octet-stream), text/plain + XML reading, SHA-256 consistency + known-value, downstream full body re-emission, empty body, includeBody=false, default maxBodyBytes=2048, no content-type skip. `AiModifierBodyStreamingTest.java` (17 tests): inline JSON body reading, text/plain + XML reading, body truncation, binary skip (image/png, multipart, octet-stream), no content-type skip, SHA-256 consistency + known-value, passthrough body preservation, mutation body replacement + header injection + Content-Length update, empty body, includeBody=false, default maxBodyBytes=2048.
 
 ---
 
@@ -872,7 +874,7 @@ Phase 4 (P3 — Quality)
   P-23 GitOps Agent Testing ───────────────────────── ✅ COMPLETED
   P-24 Audit Retention Policy ─────────────────────── ✅ COMPLETED
   P-25 DownstreamOAuth2 Dynamic Provider ──────────── depends on P-04
-  P-26 AI Filter Streaming Body ───────────────────── standalone
+  P-26 AI Filter Streaming Body ───────────────────── ✅ COMPLETED
   P-27 Filter Config Ref UX ──────────────────────── depends on P-06, P-07, P-08, P-09
   P-28 Flyway Migration Verification ──────────────── standalone
 ```
