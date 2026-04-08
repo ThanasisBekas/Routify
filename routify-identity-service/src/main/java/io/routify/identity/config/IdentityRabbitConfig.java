@@ -4,7 +4,7 @@ import io.routify.common.event.RabbitTopology;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -79,6 +79,55 @@ public class IdentityRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_USERS_CHANGE_PASSWORD).build();
     }
 
+    // ─── API Key Queues ───────────────────────────────────────────────────────
+
+    @Bean
+    public Queue apiKeysQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_QUERY).build();
+    }
+
+    @Bean
+    public Queue apiKeysGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_GET).build();
+    }
+
+    @Bean
+    public Queue apiKeysCreateQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_CREATE).build();
+    }
+
+    @Bean
+    public Queue apiKeysRevokeQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_REVOKE).build();
+    }
+
+    @Bean
+    public Queue apiKeysRotateQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_APIKEYS_ROTATE).build();
+    }
+
+    // ─── Webhook Queues ────────────────────────────────────────────────────────
+
+    @Bean
+    public Queue webhooksQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_WEBHOOKS_QUERY).build();
+    }
+
+    @Bean
+    public Queue webhooksGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_WEBHOOKS_GET).build();
+    }
+
+    @Bean
+    public Queue webhooksDeliveriesQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_WEBHOOKS_DELIVERIES).build();
+    }
+
+    @Bean
+    public Queue webhooksTestQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_WEBHOOKS_TEST).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -141,22 +190,118 @@ public class IdentityRabbitConfig {
                 .to(identityServiceExchange).with(RabbitTopology.RK_USERS_CHANGE_PASSWORD);
     }
 
+    // ─── API Key Bindings ─────────────────────────────────────────────────────
+
+    @Bean
+    public Binding apiKeysQueryBinding(Queue apiKeysQueryQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysQueryQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_QUERY);
+    }
+
+    @Bean
+    public Binding apiKeysGetBinding(Queue apiKeysGetQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysGetQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_GET);
+    }
+
+    @Bean
+    public Binding apiKeysCreateBinding(Queue apiKeysCreateQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysCreateQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_CREATE);
+    }
+
+    @Bean
+    public Binding apiKeysRevokeBinding(Queue apiKeysRevokeQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysRevokeQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_REVOKE);
+    }
+
+    @Bean
+    public Binding apiKeysRotateBinding(Queue apiKeysRotateQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(apiKeysRotateQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_APIKEYS_ROTATE);
+    }
+
+    // ─── Webhook Bindings ─────────────────────────────────────────────────────
+
+    @Bean
+    public Binding webhooksQueryBinding(Queue webhooksQueryQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(webhooksQueryQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_QUERY);
+    }
+
+    @Bean
+    public Binding webhooksGetBinding(Queue webhooksGetQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(webhooksGetQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_GET);
+    }
+
+    @Bean
+    public Binding webhooksDeliveriesBinding(Queue webhooksDeliveriesQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(webhooksDeliveriesQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_DELIVERIES);
+    }
+
+    @Bean
+    public Binding webhooksTestBinding(Queue webhooksTestQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(webhooksTestQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_WEBHOOKS_TEST);
+    }
+
+    // ─── Role Queues ─────────────────────────────────────────────────────────
+
+    @Bean
+    public Queue rolesQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROLES_QUERY).build();
+    }
+
+    @Bean
+    public Queue rolesGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROLES_GET).build();
+    }
+
+    @Bean
+    public Queue rolesCommandQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ROLES_COMMAND).build();
+    }
+
+    // ─── Role Bindings ──────────────────────────────────────────────────────
+
+    @Bean
+    public Binding rolesQueryBinding(Queue rolesQueryQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(rolesQueryQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_ROLES_QUERY);
+    }
+
+    @Bean
+    public Binding rolesGetBinding(Queue rolesGetQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(rolesGetQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_ROLES_GET);
+    }
+
+    @Bean
+    public Binding rolesCommandBinding(Queue rolesCommandQueue, DirectExchange identityServiceExchange) {
+        return BindingBuilder.bind(rolesCommandQueue)
+                .to(identityServiceExchange).with(RabbitTopology.RK_ROLES_COMMAND);
+    }
+
     // ─── Message converter & template ─────────────────────────────────────────
 
     /**
-     * Jackson2JsonMessageConverter is used by the auto-configured listener container factory.
-     * This allows @RabbitListener methods to receive and return strongly-typed objects
-     * (QueryRequest subtypes, response POJOs) without manual ObjectMapper calls.
+     * JacksonJsonMessageConverter (Jackson 3) is used by the auto-configured listener
+     * container factory. This allows @RabbitListener methods to receive and return
+     * strongly-typed objects (QueryRequest subtypes, response POJOs) without manual
+     * ObjectMapper calls.
      */
     @Bean
     public MessageConverter identityJsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     @Bean
     public RabbitTemplate identityRabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
-        template.setMessageConverter(new Jackson2JsonMessageConverter());
+        template.setMessageConverter(new JacksonJsonMessageConverter());
         template.setReplyTimeout(RabbitTopology.REPLY_TIMEOUT_MS);
         template.setObservationEnabled(true);
         return template;

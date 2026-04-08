@@ -91,11 +91,6 @@
             <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
         </dependency>
 
-        <!-- Spring Cloud Config Client — for @RefreshScope support -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-config</artifactId>
-        </dependency>
 
         <!-- BouncyCastle — PEM parsing for mTLS certificate authentication -->
         <dependency>
@@ -113,6 +108,13 @@
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
+        </dependency>
+
+        <!-- MaxMind GeoIP2 — geographic IP lookups for GEO_ROUTE filter -->
+        <dependency>
+            <groupId>com.maxmind.geoip2</groupId>
+            <artifactId>geoip2</artifactId>
+            <version>4.2.1</version>
         </dependency>
 
         <!-- WebClient — call routify-route-service for snapshot -->
@@ -157,11 +159,31 @@
             <version>3.0.1</version>
         </dependency>
 
+        <!-- GraphQL parser (AST only) for GRAPHQL_DEPTH_LIMIT filter -->
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+            <version>22.3</version>
+        </dependency>
+
         <!-- JSONata expression engine for BODY_JSONATA_TRANSFORM filter -->
         <dependency>
             <groupId>com.dashjoin</groupId>
             <artifactId>jsonata</artifactId>
             <version>0.9.9</version>
+        </dependency>
+
+        <!-- Brotli decompressor for REQUEST_DECOMPRESS filter -->
+        <dependency>
+            <groupId>org.brotli</groupId>
+            <artifactId>dec</artifactId>
+            <version>0.1.2</version>
+        </dependency>
+        <!-- Zstandard decompressor for REQUEST_DECOMPRESS filter -->
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <version>1.5.6-6</version>
         </dependency>
 
         <!-- Utilities -->
@@ -180,6 +202,13 @@
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- MockWebServer — mock JWKS endpoint in JwtAuth hardening tests -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver3-junit5</artifactId>
+            <version>5.2.1</version>
             <scope>test</scope>
         </dependency>
 

@@ -3,6 +3,7 @@
  * Each filter section produces a strongly-typed config object so no raw JSON is needed.
  */
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '../../lib/utils'
 import type { FilterType } from '../../types'
 import type { AiModificationTestRequest, AiModificationTestResult } from '../../types'
@@ -10,6 +11,11 @@ import { Select } from '../../components/ui/Select'
 import { inputCls, monoInputCls } from './filterConfigConstants'
 import type { FilterConfig } from './filterConfigConstants'
 import { aiApi } from '../../api/aiApi'
+import { gatewayApi } from '../../api/gatewayApi'
+import { certVaultApi } from '../../api/certVaultApi'
+import { AuthProviderPicker } from './AuthProviderPicker'
+import { DownstreamCredentialPicker } from './DownstreamCredentialPicker'
+import { RateLimitPolicyPicker } from './RateLimitPolicyPicker'
 
 function Field({
   label,
@@ -170,10 +176,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <code className="font-mono text-blue-300">X-Auth-User-Id</code>,{' '}
             <code className="font-mono text-blue-300">X-Auth-Tenant-Id</code>,{' '}
             <code className="font-mono text-blue-300">X-Auth-Role</code> and{' '}
-            <code className="font-mono text-blue-300">X-Auth-Email</code> downstream.
+            <code className="font-mono text-blue-300">X-Auth-Email</code> downstream. Supports static RSA public key or{' '}
+            <strong>JWKS URI</strong> for automatic key rotation. RS256 only. Issuer/audience claims are enforced when
+            configured.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Issuer" hint="Expected iss claim value — leave blank to skip" optional>
+            <Field label="Issuer" hint="Expected iss claim value — leave blank to skip validation" optional>
               <input
                 value={str('issuer')}
                 onChange={(e) => set('issuer', e.target.value)}
@@ -181,7 +189,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
                 placeholder="https://auth.example.com"
               />
             </Field>
-            <Field label="Audience" hint="Expected aud claim value — leave blank to skip" optional>
+            <Field label="Audience" hint="Expected aud claim value — leave blank to skip validation" optional>
               <input
                 value={str('audience')}
                 onChange={(e) => set('audience', e.target.value)}
@@ -190,18 +198,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               />
             </Field>
           </div>
-          <Field label="Algorithm" hint="JWT signature algorithm used by the identity provider">
-            <Select
-              value={str('algorithm', 'RS256')}
-              onChange={(v) => set('algorithm', v)}
-              options={[
-                { value: 'RS256', label: 'RS256 — RSA + SHA-256 (recommended)' },
-                { value: 'RS384', label: 'RS384 — RSA + SHA-384' },
-                { value: 'RS512', label: 'RS512 — RSA + SHA-512' },
-                { value: 'HS256', label: 'HS256 — HMAC + SHA-256 (shared secret)' },
-              ]}
-            />
-          </Field>
+          <Toggle
+            label="Require JTI claim"
+            description="When enabled, tokens without a jti claim are rejected (recommended for blocklist enforcement)"
+            checked={bool('requireJti', true)}
+            onChange={(v) => set('requireJti', v)}
+          />
         </div>
       )
 
@@ -277,32 +279,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       )
 
     case 'AUTH_OAUTH2':
-      return (
-        <div className="space-y-4">
-          <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-            Verifies the caller's Bearer token against an OAuth2 introspection endpoint. Claims are mapped to downstream
-            request headers via <strong className="text-blue-300">Claims → Header Mapping</strong>.
-          </p>
-          <Field
-            label="Provider Name"
-            hint="Name of the oauth2Verification config entry in the gateway (auth.oauth2Verification.*)"
-          >
-            <input
-              value={str('providerName')}
-              onChange={(e) => set('providerName', e.target.value)}
-              className={inputCls}
-              placeholder="my-oauth2-provider"
-            />
-          </Field>
-          <KeyValueFields
-            label="Claims → Header Mapping"
-            hint="Map token claim names to downstream request header names (e.g. sub → X-Auth-User-Id)"
-            obj={(config.claimsToHeaderMapping as Record<string, string>) ?? {}}
-            onChange={(v) => set('claimsToHeaderMapping', v)}
-            optional
-          />
-        </div>
-      )
+      return <OAuth2ConfigFields config={config} onChange={onChange} />
 
     case 'AUTH_MTLS':
       return <MtlsMappingFields config={config} onChange={onChange} />
@@ -324,18 +301,13 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             </span>
           </p>
 
-          <Field
+          <CertLogicalIdPicker
+            value={str('logicalId')}
+            onChange={(v) => set('logicalId', v)}
             label="Group Logical ID"
             hint="The logicalId of the Certificate Group to scope the registry lookup to. Leave blank to scan all registered groups by fingerprint (useful for dynamic client registration)."
             optional
-          >
-            <input
-              value={str('logicalId')}
-              onChange={(e) => set('logicalId', e.target.value)}
-              className={monoInputCls}
-              placeholder="my-client-cert-group"
-            />
-          </Field>
+          />
 
           <Field label="Certificate Header" hint="Request header that carries the PEM-encoded client certificate">
             <input
@@ -368,42 +340,140 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
     case 'RATE_LIMIT_FIXED_WINDOW':
     case 'RATE_LIMIT_SLIDING_WINDOW': {
       const algo = filterType === 'RATE_LIMIT_FIXED_WINDOW' ? 'Fixed Window' : 'Sliding Window'
+      const algoKey = filterType === 'RATE_LIMIT_FIXED_WINDOW' ? 'FIXED_WINDOW' : 'SLIDING_WINDOW'
+      const selectedPolicyId = (config._selectedPolicyId as string) ?? ''
+      const overridePolicy = !!(config._overridePolicy as boolean)
+
       return (
         <div className="space-y-4">
-          <SectionTitle>{algo}</SectionTitle>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Max Requests" hint="Per window">
-              <input
-                type="number"
-                min={1}
-                value={num('maxRequests', 100)}
-                onChange={(e) => set('maxRequests', +e.target.value)}
-                className={inputCls}
+          <SectionTitle>Policy Source</SectionTitle>
+
+          <RateLimitPolicyPicker
+            value={selectedPolicyId}
+            onChange={(policyId, policy) => {
+              if (!policyId || !policy) {
+                onChange({
+                  ...config,
+                  _selectedPolicyId: '',
+                  _overridePolicy: false,
+                })
+                return
+              }
+              onChange({
+                ...config,
+                _selectedPolicyId: policyId,
+                _overridePolicy: false,
+                maxRequests: policy.replenishRate,
+                windowMs: policy.windowMs,
+                keyResolver: policy.keyResolver,
+              })
+            }}
+            algorithmFilter={(a) => a === algoKey || a === 'TOKEN_BUCKET'}
+            label="Rate Limit Policy"
+            hint={`Select a reusable policy from Gateway Settings → Rate Limiting, or configure ${algo} values manually below.`}
+            optional
+            noneLabel="None — configure manually"
+            noneDescription="Enter rate limit values in the fields below"
+            placeholder="Select a Rate Limit Policy…"
+          />
+
+          {/* Read-only policy summary when a policy is selected and not overridden */}
+          {selectedPolicyId && !overridePolicy && (
+            <>
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-emerald-400/80 flex items-center gap-1">
+                    <span>✓</span> Values imported from gateway rate-limit policy
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <span className="text-gray-500 block text-[10px] uppercase tracking-wider">Max Requests</span>
+                    <span className="text-white font-mono">{num('maxRequests', 100)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-[10px] uppercase tracking-wider">Window</span>
+                    <span className="text-white font-mono">{num('windowMs', 60000)} ms</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-[10px] uppercase tracking-wider">Key Resolver</span>
+                    <span className="text-white font-mono">{str('keyResolver', 'IP')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <Toggle
+                label="Override Policy Values"
+                description="Enable to customise the rate limit values for this filter instead of using the policy defaults."
+                checked={false}
+                onChange={() => onChange({ ...config, _overridePolicy: true })}
               />
-            </Field>
-            <Field label="Window (ms)" hint="e.g. 60000 = 1 min">
-              <input
-                type="number"
-                min={100}
-                value={num('windowMs', 60000)}
-                onChange={(e) => set('windowMs', +e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-          </div>
-          <Field label="Key Resolver" hint="How to identify the client for rate limiting">
-            <Select
-              value={str('keyResolver', 'IP')}
-              onChange={(v) => set('keyResolver', v)}
-              options={[
-                { value: 'IP', label: 'IP Address' },
-                { value: 'USER', label: 'Authenticated User (X-Auth-User-Id)' },
-                { value: 'TENANT', label: 'Tenant (X-Tenant-Id)' },
-                { value: 'API_KEY', label: 'API Key (X-API-Key)' },
-                { value: 'TENANT_USER', label: 'Tenant + User' },
-              ]}
-            />
-          </Field>
+            </>
+          )}
+
+          {/* Editable fields: shown when no policy selected OR override is on */}
+          {(!selectedPolicyId || overridePolicy) && (
+            <>
+              <SectionTitle>{algo}</SectionTitle>
+
+              {overridePolicy && (
+                <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-amber-500/[0.06] border-amber-500/20 text-amber-400/80">
+                  <span className="mt-0.5 shrink-0">⚠</span>
+                  <span>
+                    Override mode — values below will be used instead of the policy defaults.{' '}
+                    <button
+                      type="button"
+                      className="underline hover:text-amber-300 transition-colors"
+                      onClick={() => onChange({ ...config, _overridePolicy: false })}
+                    >
+                      Revert to policy values
+                    </button>
+                  </span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Max Requests" hint="Per window">
+                  <input
+                    type="number"
+                    min={1}
+                    value={num('maxRequests', 100)}
+                    onChange={(e) => set('maxRequests', +e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Window (ms)" hint="e.g. 60000 = 1 min">
+                  <input
+                    type="number"
+                    min={100}
+                    value={num('windowMs', 60000)}
+                    onChange={(e) => set('windowMs', +e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+              <Field label="Key Resolver" hint="How to identify the client for rate limiting">
+                <Select
+                  value={str('keyResolver', 'IP')}
+                  onChange={(v) => set('keyResolver', v)}
+                  options={[
+                    { value: 'IP', label: 'IP Address' },
+                    { value: 'USER', label: 'Authenticated User (X-Auth-User-Id)' },
+                    { value: 'TENANT', label: 'Tenant (X-Tenant-Id)' },
+                    { value: 'API_KEY', label: 'API Key (X-API-Key)' },
+                    { value: 'TENANT_USER', label: 'Tenant + User' },
+                  ]}
+                />
+              </Field>
+            </>
+          )}
+
+          <Toggle
+            label="Include X-RateLimit-* Headers"
+            description="Inject X-RateLimit-Limit, X-RateLimit-Remaining, and X-RateLimit-Reset headers on every response. Retry-After is always included on 429 regardless."
+            checked={bool('includeHeaders', true)}
+            onChange={(v) => set('includeHeaders', v)}
+          />
         </div>
       )
     }
@@ -419,6 +489,117 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         />
       )
 
+    case 'RESPONSE_HEADER_REWRITE':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Performs <strong className="text-blue-300">regex-based rewriting</strong> of response header values.
+            Supports Java regex patterns with <code className="font-mono text-blue-300">$1</code>,{' '}
+            <code className="font-mono text-blue-300">$2</code> capture group references. Common use cases: rewriting{' '}
+            <code className="font-mono text-blue-300">Location</code> redirect headers from internal to external URLs,
+            rewriting <code className="font-mono text-blue-300">Set-Cookie</code> domain attributes, normalizing CORS
+            origins.
+          </p>
+
+          <Field
+            label="Header Name"
+            hint="Response header to rewrite (e.g. Location, Set-Cookie, Access-Control-Allow-Origin)"
+          >
+            <input
+              value={str('headerName')}
+              onChange={(e) => set('headerName', e.target.value)}
+              className={inputCls}
+              placeholder="Location"
+            />
+          </Field>
+
+          <Field
+            label="Regex Pattern"
+            hint="Java regex pattern to match against the header value. Use capture groups for substitution."
+          >
+            <input
+              value={str('pattern')}
+              onChange={(e) => set('pattern', e.target.value)}
+              className={monoInputCls}
+              placeholder="https://internal\.service\.local:8080(.*)"
+            />
+          </Field>
+
+          <Field label="Replacement" hint="Replacement string — use $1, $2, etc. for capture group references">
+            <input
+              value={str('replacement')}
+              onChange={(e) => set('replacement', e.target.value)}
+              className={monoInputCls}
+              placeholder="https://api.example.com$1"
+            />
+          </Field>
+
+          <Toggle
+            label="Replace All Occurrences"
+            description="When enabled, replaces all matches in the header value. When disabled, only the first match is replaced."
+            checked={bool('replaceAll', false)}
+            onChange={(v) => set('replaceAll', v)}
+          />
+
+          <SectionTitle>Common Presets</SectionTitle>
+          <div className="space-y-2">
+            {[
+              {
+                label: 'Location URL Rewrite',
+                headerName: 'Location',
+                pattern: 'https://internal\\.service\\.local:8080(.*)',
+                replacement: 'https://api.example.com$1',
+                replaceAll: false,
+              },
+              {
+                label: 'Set-Cookie Domain Rewrite',
+                headerName: 'Set-Cookie',
+                pattern: 'domain=\\.internal\\.local',
+                replacement: 'domain=.example.com',
+                replaceAll: true,
+              },
+              {
+                label: 'CORS Origin Normalization',
+                headerName: 'Access-Control-Allow-Origin',
+                pattern: 'https?://localhost:\\d+',
+                replacement: 'https://app.example.com',
+                replaceAll: false,
+              },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    headerName: preset.headerName,
+                    pattern: preset.pattern,
+                    replacement: preset.replacement,
+                    replaceAll: preset.replaceAll,
+                  })
+                }
+                className="w-full text-left px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] transition-all group"
+              >
+                <div className="text-xs font-medium text-gray-300 group-hover:text-white">{preset.label}</div>
+                <div className="text-[10px] text-gray-600 font-mono mt-0.5 truncate">
+                  {preset.headerName}: s/{preset.pattern}/{preset.replacement}/{preset.replaceAll ? 'g' : ''}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-amber-500/[0.06] border-amber-500/20 text-amber-400/80">
+            <span className="mt-0.5 shrink-0">⚠</span>
+            <span>
+              Regex patterns are <strong>pre-compiled</strong> at filter bind time for performance. Pathological
+              patterns with nested quantifiers (e.g. <code className="font-mono text-amber-300">(a+)+</code>) are
+              automatically rejected to prevent catastrophic backtracking. Match operations are bounded by a 100ms
+              timeout.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Body Transformation ───────────────────────────────────────────────────
     case 'BODY_JOLT_TRANSFORM':
       return (
@@ -429,11 +610,19 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               onChange={(v) => set('phase', v)}
               options={[
                 { value: 'REQUEST', label: 'Request body' },
-                { value: 'RESPONSE', label: 'Response body (not yet implemented)', disabled: true },
+                { value: 'RESPONSE', label: 'Response body' },
+                { value: 'BOTH', label: 'Both (request + response)' },
               ]}
             />
           </Field>
-          <Field label="Jolt Spec" hint="Jolt Chainr transform spec (JSON array)">
+          <Field
+            label={str('phase', 'REQUEST') === 'BOTH' ? 'Request Jolt Spec' : 'Jolt Spec'}
+            hint={
+              str('phase', 'REQUEST') === 'RESPONSE'
+                ? 'Jolt Chainr transform spec for the response body (JSON array). If responseSpec is set below, it takes precedence.'
+                : 'Jolt Chainr transform spec (JSON array)'
+            }
+          >
             <textarea
               value={str('spec', '[]')}
               onChange={(e) => set('spec', e.target.value)}
@@ -443,6 +632,40 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               placeholder={'[\n  {\n    "operation": "shift",\n    "spec": { ... }\n  }\n]'}
             />
           </Field>
+          {(str('phase', 'REQUEST') === 'RESPONSE' || str('phase', 'REQUEST') === 'BOTH') && (
+            <Field
+              label="Response Jolt Spec"
+              hint={
+                str('phase', 'REQUEST') === 'BOTH'
+                  ? 'Separate Jolt spec applied to the upstream response body (required for BOTH phase)'
+                  : 'Optional separate Jolt spec for the response body. Falls back to the main spec if empty.'
+              }
+            >
+              <textarea
+                value={str('responseSpec', '[]')}
+                onChange={(e) => set('responseSpec', e.target.value)}
+                rows={8}
+                spellCheck={false}
+                className={`${monoInputCls} resize-y`}
+                placeholder={'[\n  {\n    "operation": "shift",\n    "spec": { "result": "data" }\n  }\n]'}
+              />
+            </Field>
+          )}
+          {(str('phase', 'REQUEST') === 'RESPONSE' || str('phase', 'REQUEST') === 'BOTH') && (
+            <Field
+              label="Max Body Size (bytes)"
+              hint="Maximum response body size to transform. Bodies exceeding this limit pass through unchanged. Default: 1 MB (1048576)."
+            >
+              <input
+                type="number"
+                min={0}
+                value={Number(config.maxBodySize ?? 1048576)}
+                onChange={(e) => set('maxBodySize', Number(e.target.value))}
+                className={inputCls}
+                placeholder="1048576"
+              />
+            </Field>
+          )}
         </div>
       )
 
@@ -478,6 +701,275 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    case 'REQUEST_SIZE_LIMIT':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Enforces a maximum request body size per route. Uses a two-stage approach: fast rejection via{' '}
+            <code className="font-mono text-cyan-300">Content-Length</code> header check, and streaming byte counting
+            for chunked transfers. Oversized requests receive <strong>HTTP 413 Payload Too Large</strong> with an RFC
+            9457 ProblemDetail body.
+          </p>
+          <Field label="Max Size" hint="Maximum allowed request body size (e.g. 5MB, 512KB, 1GB)">
+            <input
+              value={str('maxSize', '5MB')}
+              onChange={(e) => set('maxSize', e.target.value)}
+              className={inputCls}
+              placeholder="5MB"
+            />
+          </Field>
+          <Toggle
+            label="Check Content-Length header"
+            description="Fast-reject requests whose Content-Length header exceeds maxSize before reading the body"
+            checked={bool('checkContentLength', true)}
+            onChange={(v) => set('checkContentLength', v)}
+          />
+          <Toggle
+            label="Check actual body size"
+            description="Count streamed bytes for chunked transfers without Content-Length header"
+            checked={bool('checkActualSize', true)}
+            onChange={(v) => set('checkActualSize', v)}
+          />
+          <Toggle
+            label="Tenant-aware limits"
+            description="Resolve per-tenant size limits from the tenant plan instead of using the static maxSize"
+            checked={bool('tenantAware', false)}
+            onChange={(v) => set('tenantAware', v)}
+          />
+        </div>
+      )
+
+    case 'GRAPHQL_DEPTH_LIMIT':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-cyan-500/10 border border-cyan-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Parses incoming <strong className="text-cyan-300">GraphQL</strong> queries and rejects those exceeding
+            configurable depth, complexity, or alias limits. Optionally blocks introspection queries and batched queries
+            exceeding a maximum batch size. Non-GraphQL requests pass through unchanged.
+          </p>
+          <Field label="Max Depth" hint="Maximum allowed query nesting depth (default: 10)">
+            <input
+              type="number"
+              value={num('maxDepth', 10)}
+              onChange={(e) => set('maxDepth', parseInt(e.target.value) || 10)}
+              className={inputCls}
+              min={1}
+              max={100}
+            />
+          </Field>
+          <Field label="Max Complexity" hint="Maximum total field count / complexity score (default: 100)">
+            <input
+              type="number"
+              value={num('maxComplexity', 100)}
+              onChange={(e) => set('maxComplexity', parseInt(e.target.value) || 100)}
+              className={inputCls}
+              min={1}
+              max={10000}
+            />
+          </Field>
+          <Field label="Max Aliases" hint="Maximum number of aliases per query (default: 5)">
+            <input
+              type="number"
+              value={num('maxAliases', 5)}
+              onChange={(e) => set('maxAliases', parseInt(e.target.value) || 5)}
+              className={inputCls}
+              min={0}
+              max={100}
+            />
+          </Field>
+          <Field label="Max Batch Size" hint="Maximum operations in a batched query (default: 5)">
+            <input
+              type="number"
+              value={num('maxBatchSize', 5)}
+              onChange={(e) => set('maxBatchSize', parseInt(e.target.value) || 5)}
+              className={inputCls}
+              min={1}
+              max={100}
+            />
+          </Field>
+          <Toggle
+            label="Allow introspection"
+            description="Permit __schema and __type introspection queries (default: blocked)"
+            checked={bool('introspectionAllowed', false)}
+            onChange={(v) => set('introspectionAllowed', v)}
+          />
+        </div>
+      )
+
+    // ── Performance ──────────────────────────────────────────────────────────
+    case 'RESPONSE_CACHE':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-lime-500/10 border border-lime-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Caches upstream responses in <strong className="text-lime-300">Redis</strong> per route. On cache{' '}
+            <strong className="text-lime-300">HIT</strong>, returns the stored response directly without forwarding to
+            upstream. Injects <code className="font-mono text-lime-300">X-Cache: HIT</code> or{' '}
+            <code className="font-mono text-lime-300">X-Cache: MISS</code> on every response. Respects upstream{' '}
+            <code className="font-mono text-lime-300">Cache-Control</code> directives when enabled.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="TTL (seconds)" hint="Default cache time-to-live. Overridden by upstream max-age if shorter.">
+              <input
+                type="number"
+                min={1}
+                value={num('ttlSeconds', 60)}
+                onChange={(e) => set('ttlSeconds', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Max Cached Body Size" hint="Max response body bytes to cache. Default: 65536 (64 KB).">
+              <input
+                type="number"
+                min={1024}
+                value={num('maxCachedBodySize', 65536)}
+                onChange={(e) => set('maxCachedBodySize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cacheable Methods" hint="Comma-separated HTTP methods to cache. Default: GET.">
+              <input
+                value={str('methods', 'GET')}
+                onChange={(e) => set('methods', e.target.value)}
+                className={inputCls}
+                placeholder="GET"
+              />
+            </Field>
+            <Field label="Cacheable Status Codes" hint="Comma-separated status codes eligible for caching.">
+              <input
+                value={str('statusCodes', '200,206,301')}
+                onChange={(e) => set('statusCodes', e.target.value)}
+                className={inputCls}
+                placeholder="200,206,301"
+              />
+            </Field>
+          </div>
+
+          <Field label="Cache Key Strategy" hint="How to derive the cache key from the request.">
+            <Select
+              value={str('keyStrategy', 'PATH_QUERY')}
+              onChange={(v) => set('keyStrategy', v)}
+              options={[
+                {
+                  value: 'PATH_QUERY',
+                  label: 'Path + Query Params',
+                  description: 'Cache key from request path and sorted query parameters',
+                },
+                {
+                  value: 'PATH_QUERY_HEADERS',
+                  label: 'Path + Query + Headers',
+                  description: 'Include specified Vary headers in the cache key for content negotiation',
+                },
+              ]}
+            />
+          </Field>
+
+          {str('keyStrategy', 'PATH_QUERY') === 'PATH_QUERY_HEADERS' && (
+            <TagInput
+              label="Vary Headers"
+              hint="Request headers to include in the cache key (e.g. Accept, Accept-Language)"
+              values={arr('varyHeaders')}
+              onChange={(v) => set('varyHeaders', v)}
+              placeholder="Accept"
+            />
+          )}
+
+          <SectionTitle>Behaviour</SectionTitle>
+          <Toggle
+            label="Respect Cache-Control"
+            description="Honour upstream Cache-Control directives (no-store, no-cache, max-age, s-maxage, private). When off, the configured TTL is always used."
+            checked={bool('respectCacheControl', true)}
+            onChange={(v) => set('respectCacheControl', v)}
+          />
+          <Toggle
+            label="Add Cache Headers"
+            description="Inject X-Cache (HIT/MISS), X-Cache-TTL, and Age headers on every response."
+            checked={bool('addCacheHeaders', true)}
+            onChange={(v) => set('addCacheHeaders', v)}
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Cache entries are stored in Redis with the key format{' '}
+              <code className="font-mono text-blue-300">
+                routify:cache:{'{'}&lt;routeId&gt;{'}'}:{'{'}&lt;sha256&gt;{'}'}
+              </code>
+              . Use the <strong>Purge Cache</strong> button on the route detail page to invalidate all cached responses
+              for a route. Metrics: <code className="font-mono text-blue-300">routify.filter.cache.hit</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.cache.miss</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.cache.skip</code>.
+            </span>
+          </div>
+        </div>
+      )
+
+    case 'REQUEST_DECOMPRESS':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Transparently decompresses <strong className="text-green-300">gzip</strong>,{' '}
+            <strong className="text-green-300">Brotli (br)</strong>, and{' '}
+            <strong className="text-green-300">Zstandard (zstd)</strong> encoded request bodies before forwarding to
+            upstream. Useful when mobile/IoT clients compress payloads but backend services expect uncompressed JSON.
+            Includes <strong className="text-green-300">zip bomb protection</strong> via a configurable maximum
+            decompressed size limit.
+          </p>
+
+          <Field
+            label="Supported Encodings"
+            hint="Comma-separated Content-Encoding types to decompress. Default: gzip,br,zstd"
+          >
+            <input
+              value={str('supportedEncodings', 'gzip,br,zstd')}
+              onChange={(e) => set('supportedEncodings', e.target.value)}
+              className={inputCls}
+              placeholder="gzip,br,zstd"
+            />
+          </Field>
+
+          <Field
+            label="Max Decompressed Size"
+            hint="Maximum allowed decompressed body size. Exceeding this limit returns 413 Payload Too Large (zip bomb protection). Supports KB, MB, GB suffixes. Default: 10MB."
+          >
+            <input
+              value={str('maxDecompressedSize', '10MB')}
+              onChange={(e) => set('maxDecompressedSize', e.target.value)}
+              className={inputCls}
+              placeholder="10MB"
+            />
+          </Field>
+
+          <SectionTitle>Header Behaviour</SectionTitle>
+
+          <Toggle
+            label="Remove Content-Encoding header"
+            description="Remove the Content-Encoding header after decompression so upstream sees a plain request"
+            checked={bool('removeEncoding', true)}
+            onChange={(v) => set('removeEncoding', v)}
+          />
+          <Toggle
+            label="Update Content-Length header"
+            description="Update Content-Length to reflect the decompressed body size"
+            checked={bool('updateContentLength', true)}
+            onChange={(v) => set('updateContentLength', v)}
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Injects <code className="font-mono text-blue-300">X-Original-Encoding</code> header with the original
+              encoding type (e.g. <code className="font-mono text-blue-300">gzip</code>) for downstream observability.
+              Unsupported or absent <code className="font-mono text-blue-300">Content-Encoding</code> headers pass
+              through unchanged.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── Resilience ────────────────────────────────────────────────────────────
     case 'TIMEOUT':
       return (
@@ -494,6 +986,367 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               className={inputCls}
             />
           </Field>
+        </div>
+      )
+
+    case 'CIRCUIT_BREAKER_V2':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Per-route Resilience4j circuit breaker. When the failure or slow-call rate exceeds the configured threshold
+            the circuit <strong className="text-orange-300">opens</strong> and all requests receive a fallback response.
+            After a wait period it transitions to <strong className="text-amber-300">half-open</strong> to probe
+            upstream health.
+          </p>
+
+          <SectionTitle>Thresholds</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Failure Rate Threshold (%)"
+              hint="Failure rate percentage to trip the circuit (0–100). Default: 50."
+            >
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={num('failureRateThreshold', 50)}
+                onChange={(e) => set('failureRateThreshold', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field
+              label="Slow Call Rate Threshold (%)"
+              hint="Slow call rate percentage to trip the circuit. Default: 80."
+            >
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={num('slowCallRateThreshold', 80)}
+                onChange={(e) => set('slowCallRateThreshold', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <Field
+            label="Slow Call Duration (ms)"
+            hint="Calls exceeding this duration are considered slow. Default: 3000 ms."
+          >
+            <input
+              type="number"
+              min={100}
+              value={num('slowCallDurationMs', 3000)}
+              onChange={(e) => set('slowCallDurationMs', +e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <SectionTitle>Sliding Window</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Sliding Window Size"
+              hint="Number of calls (or seconds for TIME_BASED) in the window. Default: 10."
+            >
+              <input
+                type="number"
+                min={1}
+                value={num('slidingWindowSize', 10)}
+                onChange={(e) => set('slidingWindowSize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Sliding Window Type" hint="COUNT_BASED or TIME_BASED. Default: COUNT_BASED.">
+              <Select
+                value={str('slidingWindowType', 'COUNT_BASED')}
+                onChange={(v: string) => set('slidingWindowType', v)}
+                options={[
+                  { value: 'COUNT_BASED', label: 'Count-Based' },
+                  { value: 'TIME_BASED', label: 'Time-Based' },
+                ]}
+              />
+            </Field>
+          </div>
+
+          <Field label="Minimum Number of Calls" hint="Minimum calls before evaluating failure rate. Default: 5.">
+            <input
+              type="number"
+              min={1}
+              value={num('minimumNumberOfCalls', 5)}
+              onChange={(e) => set('minimumNumberOfCalls', +e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <SectionTitle>Half-Open &amp; Recovery</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Wait Duration in Open State (ms)"
+              hint="Time to wait before transitioning to half-open. Default: 60000 ms."
+            >
+              <input
+                type="number"
+                min={1000}
+                value={num('waitDurationInOpenStateMs', 60000)}
+                onChange={(e) => set('waitDurationInOpenStateMs', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field
+              label="Permitted Calls in Half-Open"
+              hint="Number of probe calls allowed in half-open state. Default: 3."
+            >
+              <input
+                type="number"
+                min={1}
+                value={num('permittedNumberOfCallsInHalfOpenState', 3)}
+                onChange={(e) => set('permittedNumberOfCallsInHalfOpenState', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Fallback Response</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Fallback Status Code" hint="HTTP status code when circuit is open. Default: 503.">
+              <input
+                type="number"
+                min={400}
+                max={599}
+                value={num('fallbackStatus', 503)}
+                onChange={(e) => set('fallbackStatus', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field
+              label="Fallback Body"
+              hint="Custom response body (JSON). Leave blank for ProblemDetail default."
+              optional
+            >
+              <input
+                type="text"
+                value={str('fallbackBody', '')}
+                onChange={(e) => set('fallbackBody', e.target.value)}
+                placeholder='{"error":"service unavailable"}'
+                className={monoInputCls}
+              />
+            </Field>
+          </div>
+        </div>
+      )
+
+    case 'RETRY_V2':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Custom retry filter with <strong className="text-amber-300">exponential backoff</strong> and{' '}
+            <strong className="text-amber-300">jitter</strong>. Safe methods (
+            {str('retryableMethods', 'GET,HEAD,OPTIONS')}) are always retried. Unsafe methods (POST, PUT, PATCH, DELETE)
+            are only retried when the{' '}
+            <code className="font-mono text-amber-300">{str('idempotencyHeader', 'Idempotency-Key')}</code> header is
+            present — guaranteeing the client asserts idempotency.
+          </p>
+
+          <SectionTitle>Backoff Configuration</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Max Retries" hint="Maximum number of retry attempts before giving up. Default: 3.">
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={num('maxRetries', 3)}
+                onChange={(e) => set('maxRetries', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Initial Backoff (ms)" hint="Delay before the first retry. Default: 500 ms.">
+              <input
+                type="number"
+                min={50}
+                value={num('initialBackoffMs', 500)}
+                onChange={(e) => set('initialBackoffMs', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Field label="Max Backoff (ms)" hint="Upper bound for backoff delay. Default: 5000 ms.">
+              <input
+                type="number"
+                min={100}
+                value={num('maxBackoffMs', 5000)}
+                onChange={(e) => set('maxBackoffMs', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Backoff Multiplier" hint="Exponential growth factor. Default: 2.0.">
+              <input
+                type="number"
+                min={1}
+                step={0.1}
+                value={num('backoffMultiplier', 2.0)}
+                onChange={(e) => set('backoffMultiplier', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Jitter Factor" hint="Random jitter (0.0–1.0) to prevent retry storms. Default: 0.25.">
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step={0.05}
+                value={num('jitterFactor', 0.25)}
+                onChange={(e) => set('jitterFactor', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Retry Conditions</SectionTitle>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Retryable Status Codes"
+              hint="Comma-separated HTTP status codes to retry on. Default: 502,503,504."
+            >
+              <input
+                value={str('retryableStatuses', '502,503,504')}
+                onChange={(e) => set('retryableStatuses', e.target.value)}
+                className={inputCls}
+                placeholder="502,503,504"
+              />
+            </Field>
+            <Field
+              label="Retryable Methods"
+              hint="Comma-separated safe HTTP methods always retried. Default: GET,HEAD,OPTIONS."
+            >
+              <input
+                value={str('retryableMethods', 'GET,HEAD,OPTIONS')}
+                onChange={(e) => set('retryableMethods', e.target.value)}
+                className={inputCls}
+                placeholder="GET,HEAD,OPTIONS"
+              />
+            </Field>
+          </div>
+
+          <Toggle
+            label="Retry on Timeout"
+            description="Retry when upstream connection or read timeouts occur (TimeoutException, ConnectTimeoutException, ReadTimeoutException)"
+            checked={bool('retryOnTimeout', true)}
+            onChange={(v) => set('retryOnTimeout', v)}
+          />
+
+          <SectionTitle>Idempotency</SectionTitle>
+
+          <Field
+            label="Idempotency Header"
+            hint="Header name that signals the request is idempotent. When present, unsafe methods (POST, PUT, PATCH, DELETE) become retryable. Default: Idempotency-Key."
+          >
+            <input
+              value={str('idempotencyHeader', 'Idempotency-Key')}
+              onChange={(e) => set('idempotencyHeader', e.target.value)}
+              className={inputCls}
+              placeholder="Idempotency-Key"
+            />
+          </Field>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Injects <code className="font-mono text-blue-300">X-Retry-Count</code> header on retried requests for
+              upstream observability. Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.retry.attempt</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.retry.exhausted</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.retry.success</code>.
+            </span>
+          </div>
+        </div>
+      )
+
+    // ── Reliability ──────────────────────────────────────────────────────────
+    case 'IDEMPOTENCY_KEY':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Deduplicates write requests using a client-provided{' '}
+            <strong className="text-yellow-300">idempotency key</strong> (per the emerging IETF standard). On first
+            request: execute and cache the response in <strong className="text-yellow-300">Redis</strong>. On replay:
+            return the cached response without forwarding to upstream. Concurrent duplicates are rejected with{' '}
+            <code className="font-mono text-yellow-300">409 Conflict</code>.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Header Name" hint="Request header carrying the idempotency key. Default: Idempotency-Key.">
+              <input
+                value={str('headerName', 'Idempotency-Key')}
+                onChange={(e) => set('headerName', e.target.value)}
+                className={inputCls}
+                placeholder="Idempotency-Key"
+              />
+            </Field>
+            <Field label="TTL (seconds)" hint="How long to remember processed keys. Default: 86400 (24 hours).">
+              <input
+                type="number"
+                min={1}
+                value={num('ttlSeconds', 86400)}
+                onChange={(e) => set('ttlSeconds', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Enforced Methods"
+              hint="Comma-separated HTTP methods to enforce idempotency on. Default: POST,PUT,PATCH."
+            >
+              <input
+                value={str('methods', 'POST,PUT,PATCH')}
+                onChange={(e) => set('methods', e.target.value)}
+                className={inputCls}
+                placeholder="POST,PUT,PATCH"
+              />
+            </Field>
+            <Field label="Max Cached Body Size" hint="Max response body bytes to cache. Default: 65536 (64 KB).">
+              <input
+                type="number"
+                min={1024}
+                value={num('maxCachedBodySize', 65536)}
+                onChange={(e) => set('maxCachedBodySize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <Toggle
+            label="Require Idempotency Header"
+            description="When enabled, requests without the idempotency header are rejected with 400 Bad Request. When disabled, they pass through without idempotency logic."
+            checked={bool('requireHeader', false)}
+            onChange={(v) => set('requireHeader', v)}
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Redis key format:{' '}
+              <code className="font-mono text-blue-300">
+                routify:idempotency:{'{'}&lt;routeId&gt;{'}'}:{'{'}&lt;key&gt;{'}'}
+              </code>
+              . Injects <code className="font-mono text-blue-300">Idempotency-Key-Status: HIT</code> or{' '}
+              <code className="font-mono text-blue-300">MISS</code> on every processed response. Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.idempotency.hit</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.idempotency.miss</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.idempotency.conflict</code>.
+            </span>
+          </div>
         </div>
       )
 
@@ -514,6 +1367,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
 
     case 'REQUEST_LOGGER': {
       const threshold = (config['failedStatusThreshold'] as number) ?? 500
+      const currentSamplingRate = (config['samplingRate'] as number) ?? 1.0
       return (
         <div className="space-y-4">
           <SectionTitle>What to log</SectionTitle>
@@ -547,13 +1401,19 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               />
             </div>
           </div>
+
+          <SectionTitle>Body capture</SectionTitle>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Max Body Log Size (bytes)" hint="Max bytes captured. Default: 4096.">
+            <Field
+              label="Max Body Capture (bytes)"
+              hint="Max bytes captured from request/response body. Hard limit: 65536 (64 KB). Default: 4096."
+            >
               <input
                 type="number"
                 min={0}
-                value={num('maxBodyLogSize', 4096)}
-                onChange={(e) => set('maxBodyLogSize', +e.target.value)}
+                max={65536}
+                value={num('maxBodyCaptureBytes', 4096)}
+                onChange={(e) => set('maxBodyCaptureBytes', Math.min(+e.target.value, 65536))}
                 className={inputCls}
               />
             </Field>
@@ -593,6 +1453,56 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               </div>
             </Field>
           </div>
+
+          <SectionTitle>Sampling</SectionTitle>
+          <Field
+            label={`Sampling Rate: ${(currentSamplingRate * 100).toFixed(0)}%`}
+            hint="Fraction of requests that generate telemetry events. 1.0 = all (default), 0.1 = ~10%, 0.0 = none."
+          >
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={currentSamplingRate}
+              onChange={(e) => set('samplingRate', +e.target.value)}
+              className="w-full accent-indigo-500 h-2 rounded-lg appearance-none cursor-pointer bg-white/10"
+            />
+            <div className="flex justify-between text-[10px] text-gray-600 mt-1">
+              <span>0% (disabled)</span>
+              <span>50%</span>
+              <span>100% (all)</span>
+            </div>
+          </Field>
+
+          <SectionTitle>Header capture</SectionTitle>
+          <TagInput
+            label="Header Allowlist"
+            hint="When non-empty, only these headers are captured. Leave empty to capture all (except denied)."
+            values={arr('headerAllowlist')}
+            onChange={(v) => set('headerAllowlist', v)}
+            placeholder="Content-Type"
+            optional
+          />
+          <TagInput
+            label="Header Denylist"
+            hint="Headers to redact from telemetry. Deny overrides allow. Default: Authorization, Cookie, X-Api-Key."
+            values={arr('headerDenylist')}
+            onChange={(v) => set('headerDenylist', v)}
+            placeholder="Authorization"
+            optional
+          />
+
+          <SectionTitle>Path exclusions</SectionTitle>
+          <TagInput
+            label="Skip Paths"
+            hint="Glob patterns for paths to exclude from logging and telemetry entirely. E.g. /actuator/**, /health"
+            values={arr('skipPaths')}
+            onChange={(v) => set('skipPaths', v)}
+            placeholder="/actuator/**"
+            optional
+          />
+
           <div
             className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed
             bg-amber-500/[0.06] border-amber-500/20 text-amber-400/80"
@@ -606,8 +1516,14 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
           <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2">
             Sensitive headers (<code className="font-mono text-indigo-300">Authorization</code>,{' '}
             <code className="font-mono text-indigo-300">X-Api-Key</code>,{' '}
-            <code className="font-mono text-indigo-300">Cookie</code>) are always redacted from logs. Telemetry is
-            published to the <code className="font-mono text-indigo-300">routify.request.telemetry</code> Kafka topic.
+            <code className="font-mono text-indigo-300">Cookie</code>) are redacted by default. Use{' '}
+            <strong>Header Denylist</strong> to customise which headers are redacted. Structured MDC logging emits{' '}
+            <code className="font-mono text-indigo-300">method</code>,{' '}
+            <code className="font-mono text-indigo-300">path</code>,{' '}
+            <code className="font-mono text-indigo-300">status</code>,{' '}
+            <code className="font-mono text-indigo-300">elapsedMs</code>,{' '}
+            <code className="font-mono text-indigo-300">correlationId</code> as MDC keys. Telemetry is published to the{' '}
+            <code className="font-mono text-indigo-300">routify.request.telemetry</code> Kafka topic.
           </p>
         </div>
       )
@@ -662,6 +1578,50 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             onChange={(v) => set('tags', v)}
             optional
           />
+        </div>
+      )
+
+    case 'BODY_SIZE_METRIC':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Lightweight, <strong className="text-indigo-300">zero-copy</strong> filter that records request and response
+            body sizes as Micrometer distribution summaries. Uses the{' '}
+            <code className="font-mono text-indigo-300">Content-Length</code> header as a fast path. For chunked
+            transfers, counts bytes per chunk without buffering.
+          </p>
+
+          <SectionTitle>What to Record</SectionTitle>
+          <Toggle
+            label="Include Request Body Size"
+            description="Record request body size as routify.request.body.size distribution summary"
+            checked={bool('includeRequest', true)}
+            onChange={(v) => set('includeRequest', v)}
+          />
+          <Toggle
+            label="Include Response Body Size"
+            description="Record response body size as routify.response.body.size distribution summary"
+            checked={bool('includeResponse', true)}
+            onChange={(v) => set('includeResponse', v)}
+          />
+
+          <SectionTitle>Custom Tags</SectionTitle>
+          <KeyValueFields
+            label="Additional Tags"
+            hint="Extra Micrometer tags added to both request and response distribution summaries. Tags routeId, method, and status are always included automatically."
+            obj={(config.tags as Record<string, string>) ?? {}}
+            onChange={(v) => set('tags', v)}
+            optional
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Metrics: <code className="font-mono text-blue-300">routify.request.body.size</code> (tagged: routeId,
+              method) and <code className="font-mono text-blue-300">routify.response.body.size</code> (tagged: routeId,
+              method, status). Body content is <strong>never buffered or read</strong> — only byte counts are recorded.
+            </span>
+          </div>
         </div>
       )
 
@@ -770,17 +1730,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <strong className="text-blue-300">Certificate Group</strong>. Requests with revoked or unknown certificates
             are rejected with 401.
           </p>
-          <Field
+          <CertLogicalIdPicker
+            value={str('logicalId')}
+            onChange={(v) => set('logicalId', v)}
             label="Group Logical ID"
             hint="logicalId of the Certificate Group — must be registered in the gateway's Certificate Registry"
-          >
-            <input
-              value={str('logicalId')}
-              onChange={(e) => set('logicalId', e.target.value)}
-              className={monoInputCls}
-              placeholder="my-client-cert-group"
-            />
-          </Field>
+          />
           <Field
             label="Certificate Header"
             hint="Request header that carries the PEM-encoded client certificate"
@@ -809,17 +1764,12 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <code className="font-mono text-red-300">X-Cert-Days-Remaining</code>, and{' '}
             <code className="font-mono text-red-300">X-Cert-Fingerprint</code> headers downstream on success.
           </p>
-          <Field
+          <CertLogicalIdPicker
+            value={str('logicalId')}
+            onChange={(v) => set('logicalId', v)}
             label="Group Logical ID"
             hint="logicalId of the Certificate Group to check — must be registered in the gateway's Certificate Registry"
-          >
-            <input
-              value={str('logicalId')}
-              onChange={(e) => set('logicalId', e.target.value)}
-              className={monoInputCls}
-              placeholder="my-signing-cert-group"
-            />
-          </Field>
+          />
           <SectionTitle>Expiry Policy</SectionTitle>
           <Field
             label="Warning Window (days)"
@@ -849,17 +1799,317 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── Integration ──────────────────────────────────────────────────────────
+    case 'WEBHOOK_NOTIFY':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Fires a <strong className="text-yellow-300">non-blocking webhook POST</strong> when a request matches
+            configurable conditions (status codes, header values). The webhook is dispatched asynchronously and{' '}
+            <strong className="text-yellow-300">never blocks</strong> the client response. Supports HMAC-SHA256 signing
+            and per-route cooldown to prevent notification storms.
+          </p>
+
+          <Field label="Webhook URL" hint="URL to POST the notification to. Required.">
+            <input
+              value={str('webhookUrl')}
+              onChange={(e) => set('webhookUrl', e.target.value)}
+              className={inputCls}
+              placeholder="https://hooks.example.com/alert"
+            />
+          </Field>
+
+          <Field
+            label="Signing Secret"
+            hint="HMAC-SHA256 key for X-Routify-Signature header. Leave empty to skip signing."
+            optional
+          >
+            <input
+              type="password"
+              value={str('secret')}
+              onChange={(e) => set('secret', e.target.value)}
+              className={inputCls}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+          </Field>
+
+          <SectionTitle>Trigger Conditions</SectionTitle>
+
+          <Field
+            label="Trigger On"
+            hint="When to fire the webhook: 5xx (server errors), 4xx (client errors), ALL (any status), or comma-separated codes (e.g. 503,504)."
+          >
+            <Select
+              value={str('triggerOn', '5xx')}
+              onChange={(v) => set('triggerOn', v)}
+              options={[
+                { value: '5xx', label: '5xx — Server Errors', description: 'Status codes 500–599' },
+                { value: '4xx', label: '4xx — Client Errors', description: 'Status codes 400–499' },
+                { value: 'ALL', label: 'ALL — Any Status', description: 'Fire on every request' },
+                { value: 'custom', label: 'Custom Codes', description: 'Comma-separated specific codes' },
+              ]}
+            />
+          </Field>
+
+          {str('triggerOn', '5xx') === 'custom' && (
+            <Field label="Custom Status Codes" hint="Comma-separated status codes, e.g. 503,504,429">
+              <input
+                value={str('triggerOn', '')}
+                onChange={(e) => set('triggerOn', e.target.value)}
+                className={monoInputCls}
+                placeholder="503,504,429"
+              />
+            </Field>
+          )}
+
+          <Field
+            label="Header Match"
+            hint="Only fire when a specific header matches a value. Format: Header-Name=value (e.g. X-AI-Filter-Flag=true). Leave empty to skip."
+            optional
+          >
+            <input
+              value={str('headerMatch')}
+              onChange={(e) => set('headerMatch', e.target.value)}
+              className={monoInputCls}
+              placeholder="X-AI-Filter-Flag=true"
+            />
+          </Field>
+
+          <SectionTitle>Payload &amp; Rate Limiting</SectionTitle>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Max Payload Size" hint="Maximum webhook payload size in bytes. Default: 4096.">
+              <input
+                type="number"
+                min={256}
+                max={65536}
+                value={num('maxPayloadSize', 4096)}
+                onChange={(e) => set('maxPayloadSize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field
+              label="Cooldown (seconds)"
+              hint="Minimum seconds between consecutive webhooks for the same route. Prevents notification storms. Default: 10."
+            >
+              <input
+                type="number"
+                min={0}
+                max={3600}
+                value={num('cooldownSeconds', 10)}
+                onChange={(e) => set('cooldownSeconds', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <Toggle
+            label="Include Request Headers"
+            description="Include sanitized request headers in the webhook payload. Sensitive headers (Authorization, Cookie, X-Api-Key) are always redacted."
+            checked={bool('includeRequestHeaders', false)}
+            onChange={(v) => set('includeRequestHeaders', v)}
+          />
+          <Toggle
+            label="Include Response Status"
+            description="Include the response status code in the webhook payload."
+            checked={bool('includeResponseStatus', true)}
+            onChange={(v) => set('includeResponseStatus', v)}
+          />
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Payload format:{' '}
+              <code className="font-mono text-blue-300">
+                {'{'}&quot;routeId&quot;, &quot;correlationId&quot;, &quot;method&quot;, &quot;path&quot;,
+                &quot;status&quot;, &quot;timestamp&quot;, &quot;headers&quot;{'}'}
+              </code>
+              . The webhook is signed with{' '}
+              <code className="font-mono text-blue-300">X-Routify-Signature: sha256=&lt;hmac&gt;</code> when a secret is
+              configured. Dispatch timeout: 5 seconds. Failures are logged but never affect the client response.
+            </span>
+          </div>
+        </div>
+      )
+
+    // ── Developer Experience ──────────────────────────────────────────────────
+    case 'MOCK_RESPONSE':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Returns a <strong className="text-emerald-300">static response</strong> without forwarding to any upstream
+            service. Supports <strong className="text-emerald-300">template interpolation</strong> with request
+            attributes, simulated latency for timeout testing, and conditional activation via header. Ideal for API
+            stubbing, contract-first development, and maintenance mode.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Status Code" hint="HTTP status code to return. Default: 200.">
+              <input
+                type="number"
+                min={100}
+                max={599}
+                value={num('status', 200)}
+                onChange={(e) => set('status', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Content-Type" hint="Response Content-Type header. Default: application/json.">
+              <input
+                value={str('contentType', 'application/json')}
+                onChange={(e) => set('contentType', e.target.value)}
+                className={inputCls}
+                placeholder="application/json"
+              />
+            </Field>
+          </div>
+
+          <Field
+            label="Response Body"
+            hint="Supports template placeholders: ${method}, ${path}, ${header:Name}, ${param:name}, ${timestamp}, ${correlationId}"
+          >
+            <textarea
+              value={str('body', '{}')}
+              onChange={(e) => set('body', e.target.value)}
+              rows={6}
+              spellCheck={false}
+              className={`${monoInputCls} resize-y`}
+              placeholder={'{\n  "message": "Mock response for ${method} ${path}",\n  "timestamp": "${timestamp}"\n}'}
+            />
+          </Field>
+
+          <Field
+            label="Extra Headers"
+            hint="Comma-separated key: value pairs to add as response headers. E.g. Retry-After: 3600, X-Mock: true"
+            optional
+          >
+            <input
+              value={str('headers')}
+              onChange={(e) => set('headers', e.target.value)}
+              className={inputCls}
+              placeholder="Retry-After: 3600, X-Custom: value"
+            />
+          </Field>
+
+          <Field
+            label="Simulated Delay (ms)"
+            hint="Artificial latency before writing the response. Useful for testing client timeout handling. 0 = no delay."
+          >
+            <input
+              type="number"
+              min={0}
+              max={60000}
+              value={num('delay', 0)}
+              onChange={(e) => set('delay', +e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <Field
+            label="Condition Header"
+            hint="When set, the mock is only returned if this header is present on the request. If absent, the request passes through to upstream. Leave empty to always mock."
+            optional
+          >
+            <input
+              value={str('conditionHeader')}
+              onChange={(e) => set('conditionHeader', e.target.value)}
+              className={inputCls}
+              placeholder="X-Mock"
+            />
+          </Field>
+
+          <SectionTitle>Common Presets</SectionTitle>
+          <div className="space-y-2">
+            {[
+              {
+                label: 'Maintenance Mode (503)',
+                status: 503,
+                contentType: 'application/json',
+                body: '{"type":"about:blank","title":"Service Unavailable","status":503,"detail":"Service is under scheduled maintenance. Please try again later."}',
+                headers: 'Retry-After: 3600',
+                delay: 0,
+                conditionHeader: '',
+              },
+              {
+                label: 'API Stub (200 JSON)',
+                status: 200,
+                contentType: 'application/json',
+                body: '{"message":"Mock response for ${method} ${path}","timestamp":"${timestamp}"}',
+                headers: '',
+                delay: 0,
+                conditionHeader: '',
+              },
+              {
+                label: 'Conditional Mock (header toggle)',
+                status: 200,
+                contentType: 'application/json',
+                body: '{"mock":true,"method":"${method}","path":"${path}"}',
+                headers: '',
+                delay: 0,
+                conditionHeader: 'X-Mock',
+              },
+              {
+                label: 'Slow Response (timeout test)',
+                status: 200,
+                contentType: 'application/json',
+                body: '{"message":"Delayed response after ${method} ${path}"}',
+                headers: '',
+                delay: 3000,
+                conditionHeader: '',
+              },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    status: preset.status,
+                    contentType: preset.contentType,
+                    body: preset.body,
+                    headers: preset.headers,
+                    delay: preset.delay,
+                    conditionHeader: preset.conditionHeader,
+                  })
+                }
+                className="w-full text-left px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] transition-all group"
+              >
+                <div className="text-xs font-medium text-gray-300 group-hover:text-white">{preset.label}</div>
+                <div className="text-[10px] text-gray-600 font-mono mt-0.5 truncate">
+                  {preset.status} · {preset.contentType}
+                  {preset.delay > 0 ? ` · ${preset.delay}ms delay` : ''}
+                  {preset.conditionHeader ? ` · if ${preset.conditionHeader}` : ''}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              The request is <strong>short-circuited</strong> — no upstream call is made. Apply as a{' '}
+              <strong>global filter entry</strong> to put the entire gateway in maintenance mode. Use{' '}
+              <code className="font-mono text-blue-300">conditionHeader</code> to toggle mock per-request without
+              changing the filter configuration.
+            </span>
+          </div>
+        </div>
+      )
+
     case 'CUSTOM_SPEL':
       return (
         <div className="space-y-4">
-          <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2">
-            Evaluated against a per-request context with variables
-            <code className="font-mono text-indigo-300 mx-1">#request</code>,
+          <p className="text-xs text-gray-500 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Evaluated in a <strong className="text-indigo-300">sandboxed</strong> context with variables{' '}
             <code className="font-mono text-indigo-300 mx-1">#headers</code>,
             <code className="font-mono text-indigo-300 mx-1">#params</code>,
             <code className="font-mono text-indigo-300 mx-1">#method</code>,
-            <code className="font-mono text-indigo-300 mx-1">#path</code>. Returning{' '}
-            <code className="font-mono text-indigo-300">false</code> rejects the request with 403.
+            <code className="font-mono text-indigo-300 mx-1">#path</code>,
+            <code className="font-mono text-indigo-300 mx-1">#contentType</code>,
+            <code className="font-mono text-indigo-300 mx-1">#clientIp</code>. Returning{' '}
+            <code className="font-mono text-indigo-300">false</code> rejects the request with 403. Type references,
+            constructors, and arbitrary method calls are blocked.
           </p>
           <Field label="SpEL Expression" hint="e.g. #headers['X-Feature-Flag'] == 'enabled'">
             <textarea
@@ -879,6 +2129,46 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               placeholder="Block unauthenticated beta users"
             />
           </Field>
+          <SectionTitle>Security limits</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Max Expression Length" hint="Max characters allowed. Default: 500.">
+              <input
+                type="number"
+                min={1}
+                max={2000}
+                value={num('maxExpressionLength', 500)}
+                onChange={(e) => set('maxExpressionLength', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Max Property Depth" hint="Max nested property accessors (dots). Default: 5.">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={num('maxPropertyDepth', 5)}
+                onChange={(e) => set('maxPropertyDepth', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+          <TagInput
+            label="Allowed Functions"
+            hint="When non-empty, only these String methods are allowed. Leave empty for all (default)."
+            values={arr('allowedFunctions')}
+            onChange={(v) => set('allowedFunctions', v)}
+            placeholder="contains"
+            optional
+          />
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+            <span className="mt-0.5 shrink-0">🔒</span>
+            <span>
+              Every evaluation emits a <strong>CUSTOM_SPEL_EVALUATED</strong> audit event. The{' '}
+              <code className="font-mono text-emerald-300">#request</code> variable has been removed for security. Use{' '}
+              <code className="font-mono text-emerald-300">#clientIp</code> and{' '}
+              <code className="font-mono text-emerald-300">#contentType</code> as replacements.
+            </span>
+          </div>
         </div>
       )
 
@@ -936,27 +2226,68 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             Injects a <strong className="text-violet-300">Basic Authorization</strong> header into every request
             forwarded to the upstream service.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Username" optional>
-              <input
-                value={str('username')}
-                onChange={(e) => set('username', e.target.value)}
-                className={inputCls}
-                placeholder="service-account"
-                autoComplete="off"
-              />
-            </Field>
-            <Field label="Password" optional>
-              <input
-                type="password"
-                value={str('password')}
-                onChange={(e) => set('password', e.target.value)}
-                className={inputCls}
-                placeholder="••••••••"
-                autoComplete="new-password"
-              />
-            </Field>
-          </div>
+
+          <SectionTitle>Credential Source</SectionTitle>
+
+          <DownstreamCredentialPicker
+            value={(config._selectedCredentialId as string) ?? ''}
+            onChange={(credentialId, credential) => {
+              if (!credentialId || !credential) {
+                onChange({ ...config, _selectedCredentialId: '', username: '', password: '' })
+                return
+              }
+              onChange({
+                ...config,
+                _selectedCredentialId: credentialId,
+                username: credential.username ?? '',
+                password: credential.password ?? '',
+              })
+            }}
+            typeFilter={(t) => t === 'BASIC'}
+            label="Downstream Credential"
+            hint="Select a BASIC credential from Gateway Settings → Downstream Credentials, or enter username/password manually below."
+            optional
+            noneLabel="None — enter credentials manually"
+            noneDescription="Type username and password in the fields below"
+            placeholder="Select a BASIC Credential…"
+          />
+
+          {!!(config._selectedCredentialId as string) && str('username') && (
+            <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+              <span className="mt-0.5 shrink-0">✓</span>
+              <span>
+                Credentials imported from gateway config. Username:{' '}
+                <code className="font-mono text-emerald-300">{str('username')}</code>
+              </span>
+            </div>
+          )}
+
+          {!(config._selectedCredentialId as string) && (
+            <>
+              <SectionTitle>Manual Credentials</SectionTitle>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Username" optional>
+                  <input
+                    value={str('username')}
+                    onChange={(e) => set('username', e.target.value)}
+                    className={inputCls}
+                    placeholder="service-account"
+                    autoComplete="off"
+                  />
+                </Field>
+                <Field label="Password" optional>
+                  <input
+                    type="password"
+                    value={str('password')}
+                    onChange={(e) => set('password', e.target.value)}
+                    className={inputCls}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                  />
+                </Field>
+              </div>
+            </>
+          )}
         </div>
       )
 
@@ -968,20 +2299,217 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             provider and injects it as <code className="font-mono text-violet-300">Authorization: Bearer …</code>{' '}
             downstream.
           </p>
-          <Field label="OAuth2 Provider Name" hint="Logical name of the OAuth2 client-credentials provider">
-            <input
-              value={str('oauth2ProviderName')}
-              onChange={(e) => set('oauth2ProviderName', e.target.value)}
-              className={inputCls}
-              placeholder="my-cc-provider"
-            />
-          </Field>
+
+          <SectionTitle>Auth Provider</SectionTitle>
+
+          <AuthProviderPicker
+            value={(config._selectedCCProviderId as string) ?? ''}
+            onChange={(providerId, provider) => {
+              if (!providerId || !provider) {
+                onChange({ ...config, _selectedCCProviderId: '', oauth2ProviderName: '' })
+                return
+              }
+              onChange({
+                ...config,
+                _selectedCCProviderId: providerId,
+                oauth2ProviderName: provider.name ?? '',
+              })
+            }}
+            typeFilter={(t) => t === 'OAUTH2_CLIENT_CREDENTIALS'}
+            label="OAuth2 Client-Credentials Provider"
+            hint="Select a client-credentials provider from Gateway Settings → Auth Providers, or enter a name manually below."
+            optional
+            noneLabel="None — enter provider name manually"
+            noneDescription="Type a provider name in the field below"
+            placeholder="Select a CC Provider…"
+          />
+
+          {!(config._selectedCCProviderId as string) && (
+            <Field
+              label="OAuth2 Provider Name"
+              hint="Logical name of the OAuth2 client-credentials provider (from gateway YAML config). Used when no gateway auth provider is selected above."
+            >
+              <input
+                value={str('oauth2ProviderName')}
+                onChange={(e) => set('oauth2ProviderName', e.target.value)}
+                className={inputCls}
+                placeholder="my-cc-provider"
+              />
+            </Field>
+          )}
+
+          {!!(config._selectedCCProviderId as string) && str('oauth2ProviderName') && (
+            <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+              <span className="mt-0.5 shrink-0">✓</span>
+              <span>
+                Provider name set to <code className="font-mono text-emerald-300">{str('oauth2ProviderName')}</code>{' '}
+                from gateway config.
+              </span>
+            </div>
+          )}
+
+          <SectionTitle>Downstream Credential</SectionTitle>
+
+          <DownstreamCredentialPicker
+            value={(config._selectedDownstreamCredId as string) ?? ''}
+            onChange={(credentialId, credential) => {
+              if (!credentialId || !credential) {
+                onChange({ ...config, _selectedDownstreamCredId: '' })
+                return
+              }
+              onChange({
+                ...config,
+                _selectedDownstreamCredId: credentialId,
+              })
+            }}
+            typeFilter={(t) => t === 'HEADER'}
+            label="Downstream Credential (Header)"
+            hint="Optionally select a HEADER credential from Gateway Settings → Downstream Credentials to inject a custom header downstream."
+            optional
+            noneLabel="None — no additional credential header"
+            noneDescription="Only the OAuth2 bearer token will be injected"
+            placeholder="Select a HEADER Credential…"
+          />
+
+          {!!(config._selectedDownstreamCredId as string) && (
+            <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+              <span className="mt-0.5 shrink-0">✓</span>
+              <span>Downstream credential linked from gateway config.</span>
+            </div>
+          )}
+
+          <SectionTitle>Behaviour</SectionTitle>
+
           <Toggle
             label="Forward Caller Auth"
             description="Forward the caller's own Authorization header to the token endpoint (uncached) instead of using stored client credentials"
             checked={bool('forwardCallerAuth')}
             onChange={(v) => set('forwardCallerAuth', v)}
           />
+        </div>
+      )
+
+    case 'OAUTH2_TOKEN_RELAY':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            <strong className="text-amber-300">RFC 8693 Token Exchange</strong> — exchanges the incoming bearer token
+            for a downstream-specific token via the configured OAuth2 token endpoint. The exchanged token is injected as{' '}
+            <code className="font-mono text-amber-300">Authorization: Bearer …</code> for upstream.
+          </p>
+
+          <SectionTitle>Token Endpoint</SectionTitle>
+          <Field label="Token Endpoint URL" hint="OAuth2 token endpoint for the token exchange grant (required)">
+            <input
+              value={str('tokenEndpoint')}
+              onChange={(e) => set('tokenEndpoint', e.target.value)}
+              className={monoInputCls}
+              placeholder="https://auth.example.com/oauth/token"
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Client ID" hint="OAuth2 client ID for the exchange request (required)">
+              <input
+                value={str('clientId')}
+                onChange={(e) => set('clientId', e.target.value)}
+                className={inputCls}
+                placeholder="my-gateway-client"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Client Secret" hint="OAuth2 client secret (sensitive — masked in API responses)">
+              <input
+                type="password"
+                value={str('clientSecret')}
+                onChange={(e) => set('clientSecret', e.target.value)}
+                className={inputCls}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Token Types</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Subject Token Type" hint="Token type of the incoming bearer token">
+              <input
+                value={str('subjectTokenType', 'urn:ietf:params:oauth:token-type:access_token')}
+                onChange={(e) => set('subjectTokenType', e.target.value)}
+                className={monoInputCls}
+                placeholder="urn:ietf:params:oauth:token-type:access_token"
+              />
+            </Field>
+            <Field label="Requested Token Type" hint="Token type to request from the token endpoint">
+              <input
+                value={str('requestedTokenType', 'urn:ietf:params:oauth:token-type:access_token')}
+                onChange={(e) => set('requestedTokenType', e.target.value)}
+                className={monoInputCls}
+                placeholder="urn:ietf:params:oauth:token-type:access_token"
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Scopes &amp; Audience</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Scope" hint="Space-separated scopes to request for the exchanged token" optional>
+              <input
+                value={str('scope')}
+                onChange={(e) => set('scope', e.target.value)}
+                className={inputCls}
+                placeholder="read write"
+              />
+            </Field>
+            <Field label="Audience" hint="Target audience for the exchanged token" optional>
+              <input
+                value={str('audience')}
+                onChange={(e) => set('audience', e.target.value)}
+                className={inputCls}
+                placeholder="https://api.downstream.com"
+              />
+            </Field>
+          </div>
+
+          <SectionTitle>Caching &amp; Fallback</SectionTitle>
+          <Field
+            label="Cache TTL (seconds)"
+            hint="Exchanged tokens are cached in-process. TTL = min(this value, token.expires_in - 30s). Default: 300."
+          >
+            <input
+              type="number"
+              min={0}
+              value={num('cacheTtlSeconds', 300)}
+              onChange={(e) => set('cacheTtlSeconds', +e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+
+          <Field label="Fallback Mode" hint="What to do when the token exchange call fails">
+            <Select
+              value={str('fallbackMode', 'REJECT')}
+              onChange={(v) => set('fallbackMode', v)}
+              options={[
+                { value: 'REJECT', label: 'Reject (401)', description: 'Return 401 Unauthorized to the caller' },
+                {
+                  value: 'PASS_THROUGH',
+                  label: 'Pass Through',
+                  description: 'Forward the original bearer token unchanged',
+                },
+                { value: 'STRIP', label: 'Strip', description: 'Remove the Authorization header entirely' },
+              ]}
+            />
+          </Field>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              Tokens are cached in a Caffeine in-process cache keyed by{' '}
+              <code className="font-mono text-blue-300">SHA-256(incoming_token + audience)</code>. Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.token_relay.exchange_success</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.token_relay.exchange_failure</code>,{' '}
+              <code className="font-mono text-blue-300">routify.filter.token_relay.cache_hit</code>.
+            </span>
+          </div>
         </div>
       )
 
@@ -1029,6 +2557,191 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
         </div>
       )
 
+    // ── IP Access Control ────────────────────────────────────────────────────
+    case 'IP_ACCESS_CONTROL':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Evaluates the client IP address against a configurable allowlist or denylist. Supports individual IPs, CIDR
+            ranges (IPv4 and IPv6), and <code className="font-mono text-red-300">X-Forwarded-For</code> parsing for
+            deployments behind load balancers. Runs at <strong className="text-red-300">order −1500</strong> — before
+            all authentication filters.
+          </p>
+
+          <Field label="Mode" hint="DENYLIST blocks matching IPs. ALLOWLIST only allows matching IPs.">
+            <Select
+              value={str('mode', 'DENYLIST')}
+              onChange={(v) => set('mode', v)}
+              options={[
+                {
+                  value: 'DENYLIST',
+                  label: 'Denylist',
+                  description: 'Block requests from IPs in the list — all other IPs are allowed',
+                },
+                {
+                  value: 'ALLOWLIST',
+                  label: 'Allowlist',
+                  description: 'Only allow requests from IPs in the list — all other IPs are blocked',
+                },
+              ]}
+            />
+          </Field>
+
+          <Field
+            label="Addresses"
+            hint="Comma-separated IP addresses and CIDR ranges (e.g. 10.0.0.0/8, 192.168.1.100, 2001:db8::/32, ::1)"
+          >
+            <textarea
+              value={str('addresses')}
+              onChange={(e) => set('addresses', e.target.value)}
+              rows={4}
+              spellCheck={false}
+              className={`${monoInputCls} resize-y`}
+              placeholder="10.0.0.0/8, 192.168.1.100, 172.16.0.0/12"
+            />
+          </Field>
+
+          <SectionTitle>Proxy Settings</SectionTitle>
+          <Toggle
+            label="Trust Proxy (X-Forwarded-For)"
+            description="Resolve the client IP from the X-Forwarded-For header instead of the TCP connection address. Required when behind a load balancer or reverse proxy."
+            checked={bool('trustProxy', true)}
+            onChange={(v) => set('trustProxy', v)}
+          />
+          {bool('trustProxy', true) && (
+            <Field
+              label="Proxy Depth"
+              hint="Which X-Forwarded-For entry to use: 1 = rightmost (last proxy hop), 2 = second-to-last, etc."
+            >
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={num('proxyDepth', 1)}
+                onChange={(e) => set('proxyDepth', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          )}
+
+          <SectionTitle>Rejection Response</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Reject Status" hint="HTTP status code for rejected requests" optional>
+              <input
+                type="number"
+                min={400}
+                max={599}
+                value={num('rejectStatus', 403)}
+                onChange={(e) => set('rejectStatus', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Reject Message" hint="Detail message in the ProblemDetail response" optional>
+              <input
+                value={str('rejectMessage', 'Access denied')}
+                onChange={(e) => set('rejectMessage', e.target.value)}
+                className={inputCls}
+                placeholder="Access denied"
+              />
+            </Field>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/[0.06] border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              CIDR ranges are compiled once when the filter is applied — there is no per-request overhead. Changes
+              propagate via the standard Kafka hot-reload pipeline without gateway restart. Metrics:{' '}
+              <code className="font-mono text-blue-300">routify.filter.ip_access_control.allowed</code> and{' '}
+              <code className="font-mono text-blue-300">routify.filter.ip_access_control.blocked</code> counters (tagged
+              by routeId).
+            </span>
+          </div>
+        </div>
+      )
+
+    // ── Geographic Routing ────────────────────────────────────────────────────
+    case 'GEO_ROUTE':
+      return (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 bg-sky-500/10 border border-sky-500/20 rounded-lg px-3 py-2 leading-relaxed">
+            Routes requests to <strong className="text-sky-300">geographically closest upstream</strong> endpoints using
+            MaxMind GeoIP2 database lookups. Resolves client IP → country → region → upstream URI. Injects{' '}
+            <code className="font-mono text-sky-300">X-Geo-Region</code> header for downstream observability.
+          </p>
+
+          <Field
+            label="Regions"
+            hint="Comma-separated REGION=URI pairs. Example: US=https://us.api.example.com,EU=https://eu.api.example.com,APAC=https://apac.api.example.com"
+          >
+            <textarea
+              value={str('regions')}
+              onChange={(e) => set('regions', e.target.value)}
+              rows={4}
+              spellCheck={false}
+              className={`${monoInputCls} resize-y`}
+              placeholder="US=https://us.api.example.com,EU=https://eu.api.example.com,APAC=https://apac.api.example.com"
+            />
+          </Field>
+
+          <Field
+            label="Default Region"
+            hint="Fallback region when GeoIP lookup fails or the country is not mapped to any region"
+          >
+            <input
+              value={str('defaultRegion', 'US')}
+              onChange={(e) => set('defaultRegion', e.target.value)}
+              className={inputCls}
+              placeholder="US"
+            />
+          </Field>
+
+          <SectionTitle>Database &amp; Cache</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="GeoIP Database Path"
+              hint="Path to MaxMind GeoLite2-Country.mmdb file. Use classpath: prefix for bundled resources."
+              optional
+            >
+              <input
+                value={str('geoDbPath', 'classpath:GeoLite2-Country.mmdb')}
+                onChange={(e) => set('geoDbPath', e.target.value)}
+                className={monoInputCls}
+                placeholder="classpath:GeoLite2-Country.mmdb"
+              />
+            </Field>
+            <Field label="Cache Size" hint="Max IP → region entries in LRU cache. Default: 10,000.">
+              <input
+                type="number"
+                min={100}
+                max={1000000}
+                value={num('cacheSize', 10000)}
+                onChange={(e) => set('cacheSize', +e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-blue-500/6 border-blue-500/20 text-blue-400/80">
+            <span className="mt-0.5 shrink-0">ℹ</span>
+            <span>
+              The MaxMind database is loaded once when the filter is applied. IP → country lookups are cached in a
+              Caffeine LRU cache to avoid per-request disk I/O. A default country → region mapping covers NA, EU, and
+              APAC countries. Countries not in the mapping fall back to the default region. Requires a{' '}
+              <strong>GeoLite2-Country.mmdb</strong> file — sign up at{' '}
+              <a
+                href="https://www.maxmind.com/en/geolite2/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-300 hover:text-blue-200"
+              >
+                maxmind.com
+              </a>{' '}
+              to download.
+            </span>
+          </div>
+        </div>
+      )
+
     // ── AI Filter ─────────────────────────────────────────────────────────────
     case 'AI_FILTER':
       return <AiFilterFields config={config} onChange={onChange} />
@@ -1049,10 +2762,247 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
   }
 }
 
+// ─── Cert Vault Logical ID Picker (P-06) ───────────────────────────────────────
+
+function CertLogicalIdPicker({
+  value,
+  onChange,
+  label,
+  hint,
+  optional,
+}: {
+  value: string
+  onChange: (v: string) => void
+  label: string
+  hint?: string
+  optional?: boolean
+}) {
+  const { data: logicalIds = [], isLoading } = useQuery({
+    queryKey: ['certs', 'logical-ids'],
+    queryFn: () => certVaultApi.listLogicalIds(),
+    staleTime: 30_000,
+  })
+
+  const activeEntries = logicalIds.filter((e) => e.status === 'ACTIVE')
+
+  const options = [
+    ...(optional
+      ? [{ value: '', label: '— None (scan all groups)', description: 'Leave blank for fingerprint-based lookup' }]
+      : []),
+    ...activeEntries.map((e) => ({
+      value: e.logicalId,
+      label: e.logicalId,
+      description: e.alias,
+    })),
+  ]
+
+  // If the current value isn't in the dropdown options (e.g. typed manually), show it
+  const hasCurrentValue = value && !activeEntries.some((e) => e.logicalId === value)
+
+  return (
+    <Field label={label} hint={hint} optional={optional}>
+      <Select
+        value={value}
+        onChange={onChange}
+        options={
+          hasCurrentValue
+            ? [{ value, label: value, description: '(custom — not found in cert vault)' }, ...options]
+            : options
+        }
+        placeholder={isLoading ? 'Loading cert groups…' : 'Select a Certificate Group…'}
+        disabled={isLoading}
+        searchable
+      />
+      {value && !isLoading && (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          {activeEntries.some((e) => e.logicalId === value) ? (
+            <span className="text-[10px] text-emerald-400/80 flex items-center gap-1">
+              <span>✓</span> Resolved from cert vault
+            </span>
+          ) : (
+            <span className="text-[10px] text-amber-400/80 flex items-center gap-1">
+              <span>⚠</span> Not found in cert vault — may be created later
+            </span>
+          )}
+        </div>
+      )}
+    </Field>
+  )
+}
+
 // ─── mTLS Mapping Fields ──────────────────────────────────────────────────────
 // Matches backend: MtlsAuthGatewayFilterFactory uses CertificateValuesConfig
 // with a `values` list of { clientIdValue, clientIdRequestHeader,
 //   clientCertificateRequestHeader, clientCertificateValue } entries.
+
+// ─── OAuth2 Auth Provider picker + config (P-04 + P-07) ───────────────────────
+
+function OAuth2ConfigFields({ config, onChange }: { config: FilterConfig; onChange: (c: FilterConfig) => void }) {
+  const str = (key: string, fallback = '') => (config[key] as string) ?? fallback
+
+  const set = (key: string, value: unknown) => onChange({ ...config, [key]: value })
+
+  // Track which provider is selected (by id)
+  const selectedProviderId = (config._selectedAuthProviderId as string) ?? ''
+
+  const handleProviderSelect = (
+    providerId: string,
+    provider?: {
+      uri?: string
+      clientId?: string
+      clientSecret?: string
+      parameterStyle?: string
+      parameterName?: string
+      name?: string
+    },
+  ) => {
+    if (!providerId || !provider) {
+      // Clear dynamic config fields when "None" is selected
+      onChange({
+        ...config,
+        _selectedAuthProviderId: '',
+        introspectUri: '',
+        clientId: '',
+        clientSecret: '',
+        parameterStyle: '',
+        parameterName: '',
+        contentType: '',
+      })
+      return
+    }
+
+    // Auto-populate direct config fields from the selected gateway auth provider
+    onChange({
+      ...config,
+      _selectedAuthProviderId: providerId,
+      providerName: provider.name ?? '',
+      introspectUri: provider.uri ?? '',
+      clientId: provider.clientId ?? '',
+      clientSecret: provider.clientSecret ?? '',
+      parameterStyle: provider.parameterStyle ?? 'BODY',
+      parameterName: provider.parameterName ?? 'token',
+      contentType: '',
+    })
+  }
+
+  const hasDirectConfig = !!str('introspectUri') && !!str('clientId') && !!str('clientSecret')
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+        Verifies the caller's Bearer token against an OAuth2 introspection endpoint. Claims are mapped to downstream
+        request headers via <strong className="text-blue-300">Claims → Header Mapping</strong>.
+      </p>
+
+      <SectionTitle>Auth Provider</SectionTitle>
+
+      <AuthProviderPicker
+        value={selectedProviderId}
+        onChange={handleProviderSelect}
+        typeFilter={(t) => t.startsWith('OAUTH2')}
+        label="Gateway Auth Provider"
+        hint="Select a gateway-managed OAuth2 provider to auto-populate introspection config, or use the manual provider name below for static YAML config."
+        optional
+        noneLabel="None — use manual provider name below"
+        noneDescription="Legacy YAML config path"
+      />
+
+      {hasDirectConfig && (
+        <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+          <span className="mt-0.5 shrink-0">✓</span>
+          <span>
+            Direct introspection config is active — the filter will call{' '}
+            <code className="font-mono text-emerald-300">{str('introspectUri')}</code> directly without needing a static
+            YAML provider entry.
+          </span>
+        </div>
+      )}
+
+      {!hasDirectConfig && (
+        <>
+          <Field
+            label="Provider Name"
+            hint="Name of the oauth2Verification config entry in the gateway YAML (auth.oauth2Verification.*). Used when no gateway auth provider is selected above."
+          >
+            <input
+              value={str('providerName')}
+              onChange={(e) => set('providerName', e.target.value)}
+              className={inputCls}
+              placeholder="my-oauth2-provider"
+            />
+          </Field>
+        </>
+      )}
+
+      {hasDirectConfig && (
+        <>
+          <SectionTitle>Introspection Config</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Introspect URI" hint="OAuth2 introspection endpoint URL">
+              <input
+                value={str('introspectUri')}
+                onChange={(e) => set('introspectUri', e.target.value)}
+                className={monoInputCls}
+                placeholder="https://idp.example.com/introspect"
+              />
+            </Field>
+            <Field label="Client ID" hint="Client ID for introspection auth">
+              <input
+                value={str('clientId')}
+                onChange={(e) => set('clientId', e.target.value)}
+                className={inputCls}
+                placeholder="my-client-id"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Client Secret" hint="Client secret for introspection auth">
+              <input
+                type="password"
+                value={str('clientSecret')}
+                onChange={(e) => set('clientSecret', e.target.value)}
+                className={inputCls}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+            <Field label="Parameter Style" hint="How the token is passed to the introspection endpoint">
+              <Select
+                value={str('parameterStyle', 'BODY')}
+                onChange={(v) => set('parameterStyle', v)}
+                options={[
+                  { value: 'BODY', label: 'Body (form-encoded)', description: 'Default — token as form field' },
+                  { value: 'QUERY', label: 'Query parameter', description: 'Token as URL query param' },
+                  { value: 'HEADER', label: 'Custom header', description: 'Token as a custom request header' },
+                ]}
+              />
+            </Field>
+          </div>
+          <Field label="Parameter Name" hint="Form field, query param, or header name for the token" optional>
+            <input
+              value={str('parameterName', 'token')}
+              onChange={(e) => set('parameterName', e.target.value)}
+              className={inputCls}
+              placeholder="token"
+            />
+          </Field>
+        </>
+      )}
+
+      <SectionTitle>Claims Mapping</SectionTitle>
+
+      <KeyValueFields
+        label="Claims → Header Mapping"
+        hint="Map token claim names to downstream request header names (e.g. sub → X-Auth-User-Id)"
+        obj={(config.claimsToHeaderMapping as Record<string, string>) ?? {}}
+        onChange={(v) => set('claimsToHeaderMapping', v)}
+        optional
+      />
+    </div>
+  )
+}
+
+// ─── mTLS mapping fields ──────────────────────────────────────────────────────
 
 interface MtlsMapping {
   clientIdRequestHeader: string
@@ -1063,6 +3013,48 @@ interface MtlsMapping {
 
 function MtlsMappingFields({ config, onChange }: { config: FilterConfig; onChange: (c: FilterConfig) => void }) {
   const values: MtlsMapping[] = (config.values as MtlsMapping[]) ?? []
+
+  // ─── Gateway Auth Provider picker (MTLS type) ──────────────────────────────
+  const { data: authProviders = [], isLoading: isLoadingProviders } = useQuery({
+    queryKey: ['gateway', 'auth-providers'],
+    queryFn: () => gatewayApi.getAuthProviders(),
+    staleTime: 30_000,
+  })
+
+  const mtlsProviders = authProviders.filter((p) => p.type === 'MTLS' && p.enabled)
+
+  const providerOptions = [
+    { value: '', label: 'None — configure mappings manually below', description: 'Direct config' },
+    ...mtlsProviders.map((p) => ({
+      value: p.id,
+      label: p.name,
+      description: `${(p.clientMappings ?? []).length} mapping(s)`,
+    })),
+  ]
+
+  const selectedProviderId = (config._selectedMtlsProviderId as string) ?? ''
+
+  const handleProviderSelect = (providerId: string) => {
+    if (!providerId) {
+      onChange({ ...config, _selectedMtlsProviderId: '' })
+      return
+    }
+
+    const provider = authProviders.find((p) => p.id === providerId)
+    if (!provider || !provider.clientMappings) return
+
+    // Auto-populate values from the selected MTLS auth provider
+    onChange({
+      ...config,
+      _selectedMtlsProviderId: providerId,
+      values: provider.clientMappings.map((m) => ({
+        clientIdRequestHeader: m.clientIdRequestHeader,
+        clientIdValue: m.clientIdValue,
+        clientCertificateRequestHeader: m.clientCertificateRequestHeader,
+        clientCertificateValue: m.clientCertificateValue,
+      })),
+    })
+  }
 
   const add = () =>
     onChange({
@@ -1093,6 +3085,37 @@ function MtlsMappingFields({ config, onChange }: { config: FilterConfig; onChang
         certificate is matched against an active version in the Certificate Registry. On success injects{' '}
         <code className="font-mono text-blue-300 mx-0.5">organization-common-name</code> downstream.
       </p>
+
+      <SectionTitle>Gateway Config Provider</SectionTitle>
+
+      <Field
+        label="MTLS Auth Provider"
+        hint="Select an MTLS provider from Gateway Settings → Auth Providers to auto-populate mappings, or configure them manually below."
+        optional
+      >
+        <Select
+          value={selectedProviderId}
+          onChange={handleProviderSelect}
+          options={providerOptions}
+          placeholder={isLoadingProviders ? 'Loading providers…' : 'Select an MTLS Provider…'}
+          disabled={isLoadingProviders}
+          searchable
+        />
+      </Field>
+
+      {selectedProviderId && (
+        <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+          <span className="mt-0.5 shrink-0">✓</span>
+          <span>
+            Mappings imported from gateway auth provider. You can still edit or add mappings below. At runtime, the
+            gateway resolves the provider's config via{' '}
+            <code className="font-mono text-emerald-300">gatewayConfigRef</code>.
+          </span>
+        </div>
+      )}
+
+      <SectionTitle>Client Mappings</SectionTitle>
+
       {values.length === 0 && (
         <div className="text-xs text-gray-600 py-2 px-3 bg-white/[0.02] rounded-lg border border-dashed border-white/10">
           No mappings yet — click "+ Add Mapping" to start
@@ -1166,6 +3189,44 @@ interface ClientIdEntry {
 function ClientIdMappingFields({ config, onChange }: { config: FilterConfig; onChange: (c: FilterConfig) => void }) {
   const values: ClientIdEntry[] = (config.values as ClientIdEntry[]) ?? []
 
+  // ─── Gateway Auth Provider picker (CLIENT_ID type) ─────────────────────────
+  const { data: authProviders = [], isLoading: isLoadingProviders } = useQuery({
+    queryKey: ['gateway', 'auth-providers'],
+    queryFn: () => gatewayApi.getAuthProviders(),
+    staleTime: 30_000,
+  })
+
+  const clientIdProviders = authProviders.filter((p) => p.type === 'CLIENT_ID' && p.enabled)
+
+  const providerOptions = [
+    { value: '', label: 'None — configure entries manually below', description: 'Direct config' },
+    ...clientIdProviders.map((p) => ({
+      value: p.id,
+      label: p.name,
+      description: `${(p.clientEntries ?? []).length} entry(ies)`,
+    })),
+  ]
+
+  const selectedProviderId = (config._selectedClientIdProviderId as string) ?? ''
+
+  const handleProviderSelect = (providerId: string) => {
+    if (!providerId) {
+      onChange({ ...config, _selectedClientIdProviderId: '' })
+      return
+    }
+
+    const provider = authProviders.find((p) => p.id === providerId)
+    if (!provider || !provider.clientEntries) return
+
+    // Auto-populate values and clientIdMapping from the selected CLIENT_ID auth provider
+    onChange({
+      ...config,
+      _selectedClientIdProviderId: providerId,
+      values: provider.clientEntries.map((e) => ({ name: e.name, value: e.value })),
+      clientIdMapping: provider.clientIdMapping ?? {},
+    })
+  }
+
   const add = () => onChange({ ...config, values: [...values, { name: 'X-Client-Id', value: '' }] })
 
   const update = (i: number, field: keyof ClientIdEntry, val: string) => {
@@ -1183,6 +3244,36 @@ function ClientIdMappingFields({ config, onChange }: { config: FilterConfig; onC
         client is authenticated and <code className="font-mono text-blue-300 mx-0.5">organization-id</code> is resolved
         from the client ID mapping and injected downstream.
       </p>
+
+      <SectionTitle>Gateway Config Provider</SectionTitle>
+
+      <Field
+        label="Client ID Auth Provider"
+        hint="Select a CLIENT_ID provider from Gateway Settings → Auth Providers to auto-populate entries and org-ID mappings, or configure them manually below."
+        optional
+      >
+        <Select
+          value={selectedProviderId}
+          onChange={handleProviderSelect}
+          options={providerOptions}
+          placeholder={isLoadingProviders ? 'Loading providers…' : 'Select a Client ID Provider…'}
+          disabled={isLoadingProviders}
+          searchable
+        />
+      </Field>
+
+      {selectedProviderId && (
+        <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+          <span className="mt-0.5 shrink-0">✓</span>
+          <span>
+            Entries imported from gateway auth provider. You can still edit entries below. At runtime, the gateway
+            resolves the provider's config via <code className="font-mono text-emerald-300">gatewayConfigRef</code>.
+          </span>
+        </div>
+      )}
+
+      <SectionTitle>Client ID Entries</SectionTitle>
+
       {values.length === 0 && (
         <div className="text-xs text-gray-600 py-2 px-3 bg-white/[0.02] rounded-lg border border-dashed border-white/10">
           No entries yet — click "+ Add Entry" to start
@@ -1493,12 +3584,12 @@ function AiFilterFields({ config, onChange }: { config: FilterConfig; onChange: 
         />
       </div>
       {bool('includeBody') && (
-        <Field label="Max Body Bytes">
+        <Field label="Max Body Bytes" hint="Body excerpt sent to the LLM (default 2048 bytes)">
           <input
             type="number"
             min={64}
             max={8192}
-            value={num('maxBodyBytes', 512)}
+            value={num('maxBodyBytes', 2048)}
             onChange={(e) => set('maxBodyBytes', parseInt(e.target.value))}
             className={inputCls}
           />

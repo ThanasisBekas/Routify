@@ -190,4 +190,212 @@ public class AuditMessagingClient extends AmqpServiceClientSupport {
         log.warn("replayBulk circuit open or timed out: {}", t.getMessage());
         return new QueryResponse.ReplayBulkResult(0, 0, 0, 0);
     }
+
+    // ─── Route Health (Gateway Health Dashboard v2) ────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryRouteHealthFallback")
+    public QueryResponse.RouteHealthResponse queryRouteHealth(UUID tenantId, String window) {
+        try {
+            return rpc(RabbitTopology.RK_AUDIT_ROUTE_HEALTH,
+                    new QueryRequest.RouteHealthQuery(tenantId, window),
+                    QueryResponse.RouteHealthResponse.class);
+        } catch (Exception e) {
+            log.error("queryRouteHealth failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.RouteHealthResponse queryRouteHealthFallback(UUID tenantId, String window, Throwable t) {
+        log.warn("queryRouteHealth circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.RouteHealthResponse(List.of());
+    }
+
+    // ─── Tenant Usage Analytics ──────────────────────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryUsageHistoryFallback")
+    public QueryResponse.UsageHistoryResult queryUsageHistory(UUID tenantId, int days) {
+        return rpc(RabbitTopology.RK_AUDIT_USAGE_HISTORY,
+                new QueryRequest.UsageHistory(tenantId, days),
+                QueryResponse.UsageHistoryResult.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.UsageHistoryResult queryUsageHistoryFallback(UUID tenantId, int days, Throwable t) {
+        log.warn("queryUsageHistory circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.UsageHistoryResult(tenantId, List.of());
+    }
+
+    // ─── AI Prompt Version Management ────────────────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryPromptVersionsFallback")
+    public QueryResponse.PromptVersionsPage queryPromptVersions(UUID filterId, UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_AI_PROMPT_VERSIONS_QUERY,
+                new QueryRequest.PromptVersionsQuery(filterId, tenantId, page, size),
+                QueryResponse.PromptVersionsPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.PromptVersionsPage queryPromptVersionsFallback(
+            UUID filterId, UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryPromptVersions circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.PromptVersionsPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "getPromptVersionFallback")
+    public QueryResponse.PromptVersionDetail getPromptVersion(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_AI_PROMPT_VERSIONS_GET,
+                new QueryRequest.PromptVersionGet(id, tenantId),
+                QueryResponse.PromptVersionDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.PromptVersionDetail getPromptVersionFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("getPromptVersion circuit open or timed out: {}", t.getMessage());
+        throw new io.routify.common.exception.RoutifyException.GatewayError(
+                "audit-service temporarily unavailable");
+    }
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "savePromptVersionFallback")
+    public QueryResponse.PromptVersionDetail savePromptVersion(
+            UUID filterId, UUID tenantId, UUID versionId,
+            String promptText, String description, String action, String requestedBy) {
+        return rpc(RabbitTopology.RK_AI_PROMPT_VERSIONS_SAVE,
+                new QueryRequest.PromptVersionSave(filterId, tenantId, versionId,
+                        promptText, description, action, requestedBy),
+                QueryResponse.PromptVersionDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.PromptVersionDetail savePromptVersionFallback(
+            UUID filterId, UUID tenantId, UUID versionId,
+            String promptText, String description, String action, String requestedBy, Throwable t) {
+        log.warn("savePromptVersion circuit open or timed out: {}", t.getMessage());
+        throw new io.routify.common.exception.RoutifyException.GatewayError(
+                "audit-service temporarily unavailable");
+    }
+
+    // ─── AI Decision Labelling ────────────────────────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "labelDecisionFallback")
+    public QueryResponse.AiDecisionLabelResult labelDecision(String evaluationId, UUID tenantId, String label) {
+        return rpc(RabbitTopology.RK_AI_DECISION_LABEL,
+                new QueryRequest.AiDecisionLabel(evaluationId, tenantId, label),
+                QueryResponse.AiDecisionLabelResult.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AiDecisionLabelResult labelDecisionFallback(
+            String evaluationId, UUID tenantId, String label, Throwable t) {
+        log.warn("labelDecision circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.AiDecisionLabelResult(false, null, null);
+    }
+
+    // ─── AI Filter Stats (version-filtered) ──────────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryAiFilterStatsFallback")
+    public QueryResponse.AiFilterStatsResult queryAiFilterStats(
+            UUID tenantId, UUID routeId, String from, String to) {
+        return rpc(RabbitTopology.RK_AUDIT_AI_FILTER_STATS,
+                new QueryRequest.AiFilterStatsQuery(tenantId, routeId, from, to),
+                QueryResponse.AiFilterStatsResult.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AiFilterStatsResult queryAiFilterStatsFallback(
+            UUID tenantId, UUID routeId, String from, String to, Throwable t) {
+        log.warn("queryAiFilterStats circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.AiFilterStatsResult(tenantId, routeId, 0L, 0L, 0L, 0L, 0L, 0L, 0.0, 0L, 0L,
+                from != null ? from : "", to != null ? to : "");
+    }
+
+    // ─── Time-Series Analytics (GraphQL Initiative 13) ────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryTimeSeriesFallback")
+    public QueryResponse.TimeSeriesResult queryTimeSeries(
+            UUID tenantId, UUID routeId, String from, String to,
+            String granularity, java.util.List<String> metrics) {
+        return rpc(RabbitTopology.RK_AUDIT_TIME_SERIES,
+                new QueryRequest.TimeSeriesQuery(tenantId, routeId, from, to, granularity, metrics),
+                QueryResponse.TimeSeriesResult.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.TimeSeriesResult queryTimeSeriesFallback(
+            UUID tenantId, UUID routeId, String from, String to,
+            String granularity, java.util.List<String> metrics, Throwable t) {
+        log.warn("queryTimeSeries circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.TimeSeriesResult(List.of());
+    }
+
+    // ─── Alerting Engine (Initiative 15) ──────────────────────────────────────
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryAlertRulesFallback")
+    public QueryResponse.AlertRulesPage queryAlertRules(UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_ALERT_RULES_QUERY,
+                new QueryRequest.AlertRulesQuery(tenantId, page, size),
+                QueryResponse.AlertRulesPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AlertRulesPage queryAlertRulesFallback(UUID tenantId, int page, int size, Throwable t) {
+        log.warn("queryAlertRules circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.AlertRulesPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "getAlertRuleFallback")
+    public QueryResponse.AlertRuleDetail getAlertRule(UUID id, UUID tenantId) {
+        return rpc(RabbitTopology.RK_ALERT_RULES_GET,
+                new QueryRequest.AlertRuleGet(id, tenantId),
+                QueryResponse.AlertRuleDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AlertRuleDetail getAlertRuleFallback(UUID id, UUID tenantId, Throwable t) {
+        log.warn("getAlertRule circuit open or timed out: {}", t.getMessage());
+        throw new io.routify.common.exception.RoutifyException.GatewayError(
+                "audit-service temporarily unavailable");
+    }
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "queryAlertEventsFallback")
+    public QueryResponse.AlertEventsPage queryAlertEvents(UUID ruleId, UUID tenantId, int page, int size) {
+        return rpc(RabbitTopology.RK_ALERT_EVENTS_QUERY,
+                new QueryRequest.AlertEventsQuery(ruleId, tenantId, page, size),
+                QueryResponse.AlertEventsPage.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AlertEventsPage queryAlertEventsFallback(UUID ruleId, UUID tenantId,
+                                                                     int page, int size, Throwable t) {
+        log.warn("queryAlertEvents circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.AlertEventsPage(List.of(), 0L, 0, page, size);
+    }
+
+    @CircuitBreaker(name = "audit-service", fallbackMethod = "alertRuleCommandFallback")
+    public QueryResponse.AlertRuleDetail alertRuleCommand(
+            String action, UUID tenantId, UUID ruleId,
+            String name, String description, String metric, UUID routeId,
+            String operator, java.math.BigDecimal threshold,
+            Integer windowMinutes, Integer cooldownMinutes, String severity,
+            Boolean enabled, Integer muteDurationMinutes, String requestedBy) {
+        return rpc(RabbitTopology.RK_ALERT_RULES_COMMAND,
+                new QueryRequest.AlertRuleCommand(action, tenantId, ruleId,
+                        name, description, metric, routeId, operator, threshold,
+                        windowMinutes, cooldownMinutes, severity, enabled,
+                        muteDurationMinutes, requestedBy),
+                QueryResponse.AlertRuleDetail.class);
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AlertRuleDetail alertRuleCommandFallback(
+            String action, UUID tenantId, UUID ruleId,
+            String name, String description, String metric, UUID routeId,
+            String operator, java.math.BigDecimal threshold,
+            Integer windowMinutes, Integer cooldownMinutes, String severity,
+            Boolean enabled, Integer muteDurationMinutes, String requestedBy,
+            Throwable t) {
+        log.warn("alertRuleCommand circuit open or timed out: {}", t.getMessage());
+        throw new io.routify.common.exception.RoutifyException.GatewayError(
+                "audit-service temporarily unavailable");
+    }
 }

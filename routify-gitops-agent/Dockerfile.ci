@@ -1,0 +1,15 @@
+# Dockerfile.ci — Lean CI image for routify-gitops-agent
+# Expects the JAR to already be built: mvn package -pl routify-gitops-agent -am -DskipTests
+# Usage: docker build -f routify-gitops-agent/Dockerfile.ci routify-gitops-agent/
+FROM eclipse-temurin:25-jre-alpine
+RUN addgroup -S routify && adduser -S routify -G routify
+RUN apk add --no-cache git openssh-client
+USER routify
+WORKDIR /app
+COPY target/*.jar app.jar
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseZGC -Dspring.threads.virtual.enabled=true"
+EXPOSE 8087 9087
+HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=3 \
+  CMD wget -qO- http://localhost:9087/actuator/health || exit 1
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+

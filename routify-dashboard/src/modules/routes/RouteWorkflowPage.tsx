@@ -1,29 +1,37 @@
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { Plus, TrendingUp } from 'lucide-react'
 import { routesApi } from '../../api/routesApi'
+import { exportImportApi } from '../../api/exportImportApi'
 import { useWsStore } from '../../store/wsStore'
 import type { RouteStatus } from '../../types'
 import RouteFormModal from './RouteFormModal'
 import RouteDetailModal from './RouteDetailModal'
 import RouteCurlModal from './RouteCurlModal'
+import PromoteDiffModal from './components/PromoteDiffModal'
+import ImportPreviewModal from './ImportPreviewModal'
 import { useRouteActions } from './useRouteActions'
 import { STATUS_CONFIG } from './constants/routeStatusConfig'
 import { type StatusFilterTab } from './routeConstants'
-import RouteListHeader from './components/RouteListHeader'
+import RouteListHeader, { type EnvironmentFilterTab } from './components/RouteListHeader'
 import RouteWorkflowCard from './components/RouteWorkflowCard'
 import RoutePagination from './components/RoutePagination'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { toast } from 'sonner'
 
 export default function RouteWorkflowPage() {
   useDocumentTitle('Routes')
   const qc = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<StatusFilterTab>('')
+  const [environmentFilter, setEnvironmentFilter] = useState<EnvironmentFilterTab>('')
   const [page, setPage] = useState(0)
   const [formModal, setFormModal] = useState<{ open: boolean; editingId?: string }>({ open: false })
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [curlRouteId, setCurlRouteId] = useState<string | null>(null)
+  const [promoteRoute, setPromoteRoute] = useState<{ id: string; name: string } | null>(null)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importModalOpen, setImportModalOpen] = useState(false)
 
   const openCreate = () => setFormModal({ open: true, editingId: undefined })
   const openEdit = (id: string) => setFormModal({ open: true, editingId: id })
@@ -32,10 +40,11 @@ export default function RouteWorkflowPage() {
   const wsStatus = useWsStore((s) => s.status)
 
   const { data, isLoading, isFetching, refetch } = useRealtimeQuery({
-    queryKey: ['routes', statusFilter, page],
+    queryKey: ['routes', statusFilter, environmentFilter, page],
     queryFn: () =>
       routesApi.list({
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...(environmentFilter ? { environment: environmentFilter } : {}),
         page,
         size: 20,
         sortBy: 'createdAt',
@@ -52,6 +61,28 @@ export default function RouteWorkflowPage() {
 
   const { activateMutation, deactivateMutation, deleteMutation, cloneMutation } = useRouteActions()
 
+  // ─── Export / Import ─────────────────────────────────────────────────────
+  const exportMutation = useMutation({
+    mutationFn: (format: 'yaml' | 'json') => exportImportApi.exportConfig({ format }),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success('Configuration exported')
+    },
+    onError: () => toast.error('Failed to export configuration'),
+  })
+
+  const handleImportFile = (file: File) => {
+    setImportFile(file)
+    setImportModalOpen(true)
+  }
+
   const routes = data?.content ?? []
   const total = data?.totalElements ?? 0
   const totalPages = data?.totalPages ?? 0
@@ -62,14 +93,22 @@ export default function RouteWorkflowPage() {
         total={total}
         routes={routes}
         statusFilter={statusFilter}
+        environmentFilter={environmentFilter}
         isFetching={isFetching}
         isLive={wsStatus === 'CONNECTED'}
         onStatusFilter={(s) => {
           setStatusFilter(s)
           setPage(0)
         }}
+        onEnvironmentFilter={(e) => {
+          setEnvironmentFilter(e)
+          setPage(0)
+        }}
         onRefresh={() => refetch()}
         onNew={openCreate}
+        onExport={(format) => exportMutation.mutate(format)}
+        onImportFile={handleImportFile}
+        isExporting={exportMutation.isPending}
       />
 
       <div className="flex-1 overflow-auto">
@@ -114,6 +153,11 @@ export default function RouteWorkflowPage() {
                 onActivate={() => activateMutation.mutate(route.id)}
                 onDeactivate={() => deactivateMutation.mutate(route.id)}
                 onDelete={() => deleteMutation.mutate(route.id)}
+                onPromote={
+                  route.environment === 'STAGING' && route.status === 'ACTIVE'
+                    ? () => setPromoteRoute({ id: route.id, name: route.name })
+                    : undefined
+                }
                 isActivating={activateMutation.isPending && activateMutation.variables === route.id}
                 isCloning={cloneMutation.isPending && cloneMutation.variables === route.id}
               />
@@ -136,6 +180,18 @@ export default function RouteWorkflowPage() {
       )}
       {selectedRouteId && <RouteDetailModal routeId={selectedRouteId} onClose={() => setSelectedRouteId(null)} />}
       {curlRouteId && curlRoute && <RouteCurlModal route={curlRoute} onClose={() => setCurlRouteId(null)} />}
+      {promoteRoute && <PromoteDiffModal stagingRoute={promoteRoute} onClose={() => setPromoteRoute(null)} />}
+      <ImportPreviewModal
+        isOpen={importModalOpen}
+        file={importFile}
+        onClose={() => {
+          setImportModalOpen(false)
+          setImportFile(null)
+        }}
+        onApplied={() => {
+          qc.invalidateQueries({ queryKey: ['routes'] })
+        }}
+      />
     </div>
   )
 }

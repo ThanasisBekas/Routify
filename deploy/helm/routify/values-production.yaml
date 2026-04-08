@@ -1,0 +1,173 @@
+# ─── Routify Helm Chart — Production Values Overlay ──────────────────────────
+# Usage: helm install routify deploy/helm/routify/ -f deploy/helm/routify/values-production.yaml
+#
+# This overlay tightens resource limits, enables monitoring, and sets
+# production-appropriate replica counts. Secrets MUST be supplied via
+# --set or existingSecret — never commit real credentials.
+
+global:
+  imageRegistry: "ghcr.io/routify"
+  domain: routify.example.com
+  tlsEnabled: true
+  otelEndpoint: "http://tempo:4318/v1/traces"
+
+# ─── Gateway (production) ───────────────────────────────────────────────────
+
+gateway:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+  pdb:
+    minAvailable: 2
+
+# ─── Admin API (production) ─────────────────────────────────────────────────
+
+adminApi:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+# ─── Identity Service (production) ──────────────────────────────────────────
+
+identityService:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+# ─── Route Service (production) ─────────────────────────────────────────────
+
+routeService:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+# ─── Audit Service (production) ─────────────────────────────────────────────
+
+auditService:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+# ─── Cert Vault (production) ────────────────────────────────────────────────
+
+certVault:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# ─── AI Service (production) ────────────────────────────────────────────────
+
+aiService:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+# ─── Dashboard (production) ─────────────────────────────────────────────────
+
+dashboard:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# ─── Ingress (production) ───────────────────────────────────────────────────
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  tls:
+    - secretName: routify-tls
+      hosts:
+        - routify.example.com
+
+# ─── Monitoring (production) ────────────────────────────────────────────────
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+
+# ─── Infrastructure ─────────────────────────────────────────────────────────
+# In production, disable built-in infra and point to managed services.
+
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+
+kafka:
+  enabled: false
+
+rabbitmq:
+  enabled: false
+
+externalPostgresql:
+  host: "routify-db.example.com"
+  port: 5432
+
+externalRedis:
+  host: "routify-redis.example.com"
+  port: 6379
+
+externalKafka:
+  bootstrapServers: "kafka-1.example.com:9092,kafka-2.example.com:9092"
+
+externalRabbitmq:
+  host: "routify-rabbitmq.example.com"
+  port: 5672
+
+# ─── Secrets ─────────────────────────────────────────────────────────────────
+# In production, reference an existing secret managed by External Secrets Operator.
+
+secrets:
+  existingSecret: "routify-platform-secrets"
+

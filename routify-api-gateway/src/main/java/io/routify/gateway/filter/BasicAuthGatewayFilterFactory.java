@@ -1,6 +1,7 @@
 package io.routify.gateway.filter;
 
 import io.routify.common.web.RoutifyHeaders;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -8,7 +9,7 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -32,6 +33,8 @@ import java.util.Base64;
 @Slf4j
 public class BasicAuthGatewayFilterFactory
         extends AbstractGatewayFilterFactory<BasicAuthGatewayFilterFactory.Config> {
+
+    private static final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder(12);
 
     public BasicAuthGatewayFilterFactory() {
         super(Config.class);
@@ -67,7 +70,7 @@ public class BasicAuthGatewayFilterFactory
             String incomingPass = credentials[1];
 
             if (!config.getUsername().equals(incomingUser)
-                    || !config.getPassword().equals(incomingPass)) {
+                    || !matchesPassword(incomingPass, config.getPassword())) {
                 log.debug("AUTH_BASIC: invalid credentials for user '{}'", incomingUser);
                 return unauthorized(exchange, "INVALID_CREDENTIALS",
                         "Invalid username or password");
@@ -82,6 +85,28 @@ public class BasicAuthGatewayFilterFactory
 
             return chain.filter(exchange.mutate().request(mutated).build());
         };
+    }
+
+    /**
+     * Matches the incoming raw password against the stored credential.
+     *
+     * <p>If the stored value looks like a BCrypt hash ({@code $2a$}, {@code $2b$},
+     * or {@code $2y$} prefix), the incoming password is verified using
+     * {@link BCryptPasswordEncoder#matches}. Otherwise, a plain-text {@code equals}
+     * comparison is used as a fallback for legacy configs that have not yet been
+     * re-saved through the admin API.
+     *
+     * @param rawPassword    the plain-text password sent by the client
+     * @param storedPassword the stored credential (BCrypt hash or legacy plain text)
+     * @return {@code true} if the password matches
+     */
+    private boolean matchesPassword(String rawPassword, String storedPassword) {
+        if (storedPassword != null && storedPassword.startsWith("$2")) {
+            return BCRYPT.matches(rawPassword, storedPassword);
+        }
+        // Fallback: plain-text comparison for legacy configs not yet re-hashed
+        log.warn("AUTH_BASIC: password is stored in plain text — re-save the auth provider to hash it");
+        return storedPassword != null && storedPassword.equals(rawPassword);
     }
 
     /**
@@ -102,15 +127,11 @@ public class BasicAuthGatewayFilterFactory
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String errorCode, String detail) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
-        response.getHeaders().set(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"Routify\"");
-        response.getHeaders().set(HttpHeaders.CONTENT_TYPE, "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Unauthorized","status":401,\
-                "errorCode":"%s","detail":"%s"}""".formatted(errorCode, detail);
-        return response.writeWith(Mono.just(
-                response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))));
+        return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
+                .errorCode(errorCode)
+                .detail(detail)
+                .header("WWW-Authenticate", "Basic realm=\"Routify\"")
+                .write(exchange);
     }
 
     @Data

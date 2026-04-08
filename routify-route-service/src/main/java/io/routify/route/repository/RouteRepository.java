@@ -1,5 +1,6 @@
 package io.routify.route.repository;
 
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.route.domain.Route;
 import io.routify.route.dto.RouteStatusCount;
@@ -38,6 +39,14 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
 
     boolean existsByNameAndTenantId(String name, UUID tenantId);
 
+    boolean existsByNameAndTenantIdAndEnvironment(String name, UUID tenantId, RouteEnvironment environment);
+
+    Optional<Route> findByNameAndTenantIdAndEnvironment(String name, UUID tenantId, RouteEnvironment environment);
+
+    Page<Route> findAllByTenantIdAndEnvironment(UUID tenantId, RouteEnvironment environment, Pageable pageable);
+
+    Page<Route> findAllByTenantIdAndStatusAndEnvironment(UUID tenantId, RouteStatus status, RouteEnvironment environment, Pageable pageable);
+
     /**
      * Returns true if there is already an ACTIVE route under the same tenant
      * with the same path pattern and methods combination.
@@ -68,6 +77,24 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
               AND r.id != :excludeId
             """)
     boolean existsActiveByPathPatternAndMethodsAndTenantIdExcluding(
+            @Param("tenantId") UUID tenantId,
+            @Param("pathPattern") String pathPattern,
+            @Param("methods") String methods,
+            @Param("excludeId") UUID excludeId);
+
+    /**
+     * Find the single active route matching (pathPattern, methods, tenantId) excluding a specific route.
+     * Used by canary validation to check if the conflicting route is part of a canary pair.
+     */
+    @Query("""
+            SELECT r FROM Route r
+            WHERE r.tenantId = :tenantId
+              AND r.pathPattern = :pathPattern
+              AND r.methods = :methods
+              AND r.status = 'ACTIVE'
+              AND r.id != :excludeId
+            """)
+    Optional<Route> findActiveByPathPatternAndMethodsAndTenantIdExcluding(
             @Param("tenantId") UUID tenantId,
             @Param("pathPattern") String pathPattern,
             @Param("methods") String methods,

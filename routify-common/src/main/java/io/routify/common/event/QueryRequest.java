@@ -56,6 +56,20 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.TenantsQuery.class,      name = "TENANTS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.TenantGet.class,         name = "TENANT_GET"),
     @JsonSubTypes.Type(value = QueryRequest.ListActiveWorkspaces.class, name = "LIST_ACTIVE_WORKSPACES"),
+    // ─── routify-identity-service API keys ──────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeysQuery.class,   name = "APIKEYS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeyGet.class,      name = "APIKEY_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeyCreate.class,   name = "APIKEY_CREATE"),
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeyRevoke.class,   name = "APIKEY_REVOKE"),
+    @JsonSubTypes.Type(value = QueryRequest.ApiKeyRotate.class,   name = "APIKEY_ROTATE"),
+    // ─── routify-identity-service webhooks ─────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.WebhooksQuery.class,     name = "WEBHOOKS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.WebhookGet.class,        name = "WEBHOOK_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.WebhookDeliveries.class, name = "WEBHOOK_DELIVERIES"),
+    @JsonSubTypes.Type(value = QueryRequest.WebhookTest.class,       name = "WEBHOOK_TEST"),
+    // ─── routify-identity-service roles ──────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.RolesQuery.class,        name = "ROLES_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.RoleGet.class,           name = "ROLE_GET"),
     // ─── routify-audit-service ────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AuditEventsQuery.class,  name = "AUDIT_EVENTS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AuditRequestsQuery.class,name = "AUDIT_REQUESTS_QUERY"),
@@ -75,12 +89,38 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.CertGroupsQuery.class,   name = "CERT_GROUPS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.CertGroupGet.class,      name = "CERT_GROUP_GET"),
     @JsonSubTypes.Type(value = QueryRequest.CertGroupMembers.class,  name = "CERT_GROUP_MEMBERS"),
+    // ─── routify-cert-vault ACME ───────────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.AcmeRegister.class,       name = "ACME_REGISTER"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeIssue.class,          name = "ACME_ISSUE"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeOrdersQuery.class,    name = "ACME_ORDERS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeOrderGet.class,       name = "ACME_ORDER_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeRenew.class,          name = "ACME_RENEW"),
     // ─── routify-ai-service ───────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AiFilterEvaluate.class,      name = "AI_FILTER_EVALUATE"),
     @JsonSubTypes.Type(value = QueryRequest.AiModifierEvaluate.class,    name = "AI_MODIFIER_EVALUATE"),
     // ─── routify-audit-service AI filter stats ────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AiFilterStatsQuery.class,    name = "AI_FILTER_STATS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AiFilterDecisionsQuery.class,name = "AI_FILTER_DECISIONS_QUERY"),
+    // ─── routify-audit-service route health ─────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.RouteHealthQuery.class,      name = "ROUTE_HEALTH_QUERY"),
+    // ─── routify-route-service SLO ──────────────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.RouteSloGet.class,           name = "ROUTE_SLO_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.RouteSloSave.class,          name = "ROUTE_SLO_SAVE"),
+    // ─── routify-audit-service tenant usage ────────────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.UsageCurrent.class,          name = "USAGE_CURRENT"),
+    @JsonSubTypes.Type(value = QueryRequest.UsageHistory.class,          name = "USAGE_HISTORY"),
+    // ─── routify-audit-service AI prompt versions ────────────────────────
+    @JsonSubTypes.Type(value = QueryRequest.PromptVersionsQuery.class,   name = "PROMPT_VERSIONS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.PromptVersionGet.class,      name = "PROMPT_VERSION_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.PromptVersionSave.class,     name = "PROMPT_VERSION_SAVE"),
+    @JsonSubTypes.Type(value = QueryRequest.AiDecisionLabel.class,       name = "AI_DECISION_LABEL"),
+    // ─── routify-audit-service time-series analytics (GraphQL Initiative 13) ──
+    @JsonSubTypes.Type(value = QueryRequest.TimeSeriesQuery.class,      name = "TIME_SERIES_QUERY"),
+    // ─── routify-audit-service alerting engine (Initiative 15) ──────────────
+    @JsonSubTypes.Type(value = QueryRequest.AlertRulesQuery.class,      name = "ALERT_RULES_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.AlertRuleGet.class,         name = "ALERT_RULE_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.AlertEventsQuery.class,     name = "ALERT_EVENTS_QUERY"),
+    @JsonSubTypes.Type(value = QueryRequest.AlertRuleCommand.class,     name = "ALERT_RULE_COMMAND"),
 })
 public sealed interface QueryRequest
         permits
@@ -102,6 +142,17 @@ public sealed interface QueryRequest
             QueryRequest.TenantsQuery,
             QueryRequest.TenantGet,
             QueryRequest.ListActiveWorkspaces,
+            QueryRequest.ApiKeysQuery,
+            QueryRequest.ApiKeyGet,
+            QueryRequest.ApiKeyCreate,
+            QueryRequest.ApiKeyRevoke,
+            QueryRequest.ApiKeyRotate,
+            QueryRequest.WebhooksQuery,
+            QueryRequest.WebhookGet,
+            QueryRequest.WebhookDeliveries,
+            QueryRequest.WebhookTest,
+            QueryRequest.RolesQuery,
+            QueryRequest.RoleGet,
             QueryRequest.AuditEventsQuery,
             QueryRequest.AuditRequestsQuery,
             QueryRequest.AuditRequestStats,
@@ -119,10 +170,29 @@ public sealed interface QueryRequest
             QueryRequest.CertGroupsQuery,
             QueryRequest.CertGroupGet,
             QueryRequest.CertGroupMembers,
+            QueryRequest.AcmeRegister,
+            QueryRequest.AcmeIssue,
+            QueryRequest.AcmeOrdersQuery,
+            QueryRequest.AcmeOrderGet,
+            QueryRequest.AcmeRenew,
             QueryRequest.AiFilterEvaluate,
             QueryRequest.AiModifierEvaluate,
             QueryRequest.AiFilterStatsQuery,
             QueryRequest.AiFilterDecisionsQuery,
+            QueryRequest.RouteHealthQuery,
+            QueryRequest.RouteSloGet,
+            QueryRequest.RouteSloSave,
+            QueryRequest.UsageCurrent,
+            QueryRequest.UsageHistory,
+            QueryRequest.PromptVersionsQuery,
+            QueryRequest.PromptVersionGet,
+            QueryRequest.PromptVersionSave,
+            QueryRequest.AiDecisionLabel,
+            QueryRequest.TimeSeriesQuery,
+            QueryRequest.AlertRulesQuery,
+            QueryRequest.AlertRuleGet,
+            QueryRequest.AlertEventsQuery,
+            QueryRequest.AlertRuleCommand,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -143,10 +213,11 @@ public sealed interface QueryRequest
     /** Route count statistics, optionally scoped to a tenant. */
     record RouteStats(UUID tenantId) implements QueryRequest {}
 
-    /** Paginated route list with optional status filter. */
+    /** Paginated route list with optional status and environment filters. */
     record RoutesQuery(
             UUID   tenantId,
             String status,
+            String environment,
             int    page,
             int    size,
             String sortBy,
@@ -207,6 +278,53 @@ public sealed interface QueryRequest
 
     /** Returns active workspace names + slugs for the login-page dropdown. */
     record ListActiveWorkspaces() implements QueryRequest {}
+
+    // ─── API Key queries (routify-identity-service) ────────────────────────────
+
+    /** Paginated API key list, scoped to a tenant. */
+    record ApiKeysQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single API key by ID. */
+    record ApiKeyGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Create an API key — sync RPC because raw key must be returned once. */
+    record ApiKeyCreate(
+            UUID     tenantId,
+            UUID     userId,
+            String   name,
+            String   role,
+            String   email,
+            String   expiresAt,
+            String   actor
+    ) implements QueryRequest {}
+
+    /** Revoke an API key — sync RPC for immediate confirmation. */
+    record ApiKeyRevoke(UUID id, UUID tenantId, String actor) implements QueryRequest {}
+
+    /** Rotate an API key — sync RPC because new raw key must be returned. */
+    record ApiKeyRotate(UUID id, UUID tenantId, String actor) implements QueryRequest {}
+
+    // ─── Webhook queries (routify-identity-service) ────────────────────────────
+
+    /** Paginated webhook subscription list, scoped to a tenant. */
+    record WebhooksQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single webhook subscription by ID. */
+    record WebhookGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Paginated delivery log for a webhook subscription. */
+    record WebhookDeliveries(UUID subscriptionId, UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Send a test ping to a webhook subscription — sync RPC. */
+    record WebhookTest(UUID id, UUID tenantId) implements QueryRequest {}
+
+    // ─── Role queries (routify-identity-service) ────────────────────────────────
+
+    /** Paginated role list, scoped to a tenant (includes built-in roles). */
+    record RolesQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single role by ID. */
+    record RoleGet(UUID id) implements QueryRequest {}
 
     // ─── routify-audit-service ────────────────────────────────────────────────
 
@@ -296,6 +414,23 @@ public sealed interface QueryRequest
     /** List all certificate members of a group. */
     record CertGroupMembers(UUID groupId, UUID tenantId) implements QueryRequest {}
 
+    // ─── routify-cert-vault ACME ───────────────────────────────────────────────
+
+    /** Register an ACME account with a CA provider. */
+    record AcmeRegister(UUID tenantId, String email, String provider) implements QueryRequest {}
+
+    /** Request a certificate for a domain via ACME HTTP-01 challenge. */
+    record AcmeIssue(UUID tenantId, UUID accountId, String domain, UUID certGroupId) implements QueryRequest {}
+
+    /** Paginated ACME order list. */
+    record AcmeOrdersQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single ACME order by ID. */
+    record AcmeOrderGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Trigger manual renewal of an ACME certificate order. */
+    record AcmeRenew(UUID orderId, UUID tenantId) implements QueryRequest {}
+
     // ─── routify-ai-service ───────────────────────────────────────────────────
 
     /**
@@ -321,9 +456,11 @@ public sealed interface QueryRequest
      * @param clientIp            Originating client IP.
      * @param headers             Sanitised headers (sensitive values stripped by gateway).
      * @param bodyExcerpt         Base64-encoded request body prefix (null when includeBody=false).
+     * @param bodyHash            SHA-256 hex hash of the body excerpt bytes (null when body not included).
      * @param userId              Authenticated user ID (null for unauthenticated requests).
      * @param userRole            Authenticated user role (null for unauthenticated requests).
      * @param correlationId       X-Correlation-Id propagated from the original request.
+     * @param promptVersionId     UUID of the selected prompt version (null if no A/B split).
      */
     record AiFilterEvaluate(
             String              routeId,
@@ -345,10 +482,40 @@ public sealed interface QueryRequest
             String              clientIp,
             java.util.Map<String, String> headers,
             String              bodyExcerpt,
+            String              bodyHash,
             String              userId,
             String              userRole,
-            String              correlationId
-    ) implements QueryRequest {}
+            String              correlationId,
+            String              promptVersionId
+    ) implements QueryRequest {
+        /** Backward-compatible constructor without bodyHash and promptVersionId. */
+        public AiFilterEvaluate(
+                String routeId, String routeName, String tenantId,
+                String policyDescription, String evaluationMode, boolean includeBody, int maxBodyBytes,
+                String fallbackAction, double confidenceThreshold, boolean cacheEnabled, int cacheTtlSeconds,
+                String method, String path, String queryString, String clientIp,
+                java.util.Map<String, String> headers, String bodyExcerpt,
+                String userId, String userRole, String correlationId) {
+            this(routeId, routeName, tenantId, policyDescription, evaluationMode, includeBody, maxBodyBytes,
+                    fallbackAction, confidenceThreshold, cacheEnabled, cacheTtlSeconds,
+                    method, path, queryString, clientIp, headers, bodyExcerpt, null,
+                    userId, userRole, correlationId, null);
+        }
+
+        /** Backward-compatible constructor without promptVersionId (but with bodyHash). */
+        public AiFilterEvaluate(
+                String routeId, String routeName, String tenantId,
+                String policyDescription, String evaluationMode, boolean includeBody, int maxBodyBytes,
+                String fallbackAction, double confidenceThreshold, boolean cacheEnabled, int cacheTtlSeconds,
+                String method, String path, String queryString, String clientIp,
+                java.util.Map<String, String> headers, String bodyExcerpt, String bodyHash,
+                String userId, String userRole, String correlationId) {
+            this(routeId, routeName, tenantId, policyDescription, evaluationMode, includeBody, maxBodyBytes,
+                    fallbackAction, confidenceThreshold, cacheEnabled, cacheTtlSeconds,
+                    method, path, queryString, clientIp, headers, bodyExcerpt, bodyHash,
+                    userId, userRole, correlationId, null);
+        }
+    }
 
     /**
      * AI modification request — sent by the gateway to routify-ai-service via RabbitMQ RPC.
@@ -379,6 +546,7 @@ public sealed interface QueryRequest
      * @param clientIp            Originating client IP.
      * @param headers             Sanitised request headers.
      * @param bodyBase64          Base64-encoded request body (null when includeBody=false).
+     * @param bodyHash            SHA-256 hex hash of the body excerpt bytes (null when body not included).
      * @param correlationId       X-Correlation-Id propagated from the original request.
      */
     record AiModifierEvaluate(
@@ -404,8 +572,23 @@ public sealed interface QueryRequest
             String              clientIp,
             java.util.Map<String, String> headers,
             String              bodyBase64,
+            String              bodyHash,
             String              correlationId
-    ) implements QueryRequest {}
+    ) implements QueryRequest {
+        /** Backward-compatible constructor without bodyHash. */
+        public AiModifierEvaluate(
+                String routeId, String routeName, String tenantId,
+                String modificationPrompt, String targetFields, String modelId,
+                double temperature, int maxTokens, String fallbackBehavior,
+                boolean includeBody, int maxBodyBytes, boolean cacheEnabled, int cacheTtlSeconds,
+                int timeoutMs, String method, String path, String queryString, String clientIp,
+                java.util.Map<String, String> headers, String bodyBase64, String correlationId) {
+            this(routeId, routeName, tenantId, modificationPrompt, targetFields, modelId,
+                    temperature, maxTokens, fallbackBehavior, includeBody, maxBodyBytes,
+                    cacheEnabled, cacheTtlSeconds, timeoutMs, method, path, queryString,
+                    clientIp, headers, bodyBase64, null, correlationId);
+        }
+    }
 
     // ─── routify-audit-service AI filter stats ────────────────────────────────
 
@@ -416,13 +599,20 @@ public sealed interface QueryRequest
      * @param routeId   Optional — if null returns stats aggregated across all routes for the tenant.
      * @param from      ISO-8601 start timestamp (inclusive). Null = last 24 hours.
      * @param to        ISO-8601 end timestamp (exclusive). Null = now.
+     * @param promptVersionId Optional — if set, scopes stats to a single prompt version (for A/B comparison).
      */
     record AiFilterStatsQuery(
             UUID   tenantId,
             UUID   routeId,
             String from,
-            String to
-    ) implements QueryRequest {}
+            String to,
+            UUID   promptVersionId
+    ) implements QueryRequest {
+        /** Backward-compatible constructor without promptVersionId. */
+        public AiFilterStatsQuery(UUID tenantId, UUID routeId, String from, String to) {
+            this(tenantId, routeId, from, to, null);
+        }
+    }
 
     /**
      * Paginated AI filter decision log with optional filters.
@@ -443,6 +633,133 @@ public sealed interface QueryRequest
             String to,
             int    page,
             int    size
+    ) implements QueryRequest {}
+
+    // ─── routify-audit-service route health ─────────────────────────────────
+
+    /**
+     * Per-route health stats (latency percentiles, error rate, status code distribution)
+     * over a configurable time window. Used by the Gateway Health Dashboard v2.
+     *
+     * @param tenantId Tenant to scope the query (required).
+     * @param window   Time window: "1h", "24h", or "7d".
+     */
+    record RouteHealthQuery(UUID tenantId, String window) implements QueryRequest {}
+
+    // ─── routify-route-service SLO ──────────────────────────────────────────
+
+    /** Fetch the SLO configuration for a route. */
+    record RouteSloGet(UUID routeId, UUID tenantId) implements QueryRequest {}
+
+    /** Upsert SLO configuration for a route. */
+    record RouteSloSave(
+            UUID   routeId,
+            UUID   tenantId,
+            double availabilityTarget,
+            int    latencyP99TargetMs,
+            int    evaluationWindowHours
+    ) implements QueryRequest {}
+
+    // ─── routify-audit-service tenant usage ──────────────────────────────────
+
+    /** Fetch current-period usage vs plan limits for a tenant. */
+    record UsageCurrent(UUID tenantId) implements QueryRequest {}
+
+    /** Fetch daily usage history for a tenant over the last N days. */
+    record UsageHistory(UUID tenantId, int days) implements QueryRequest {}
+
+    // ─── routify-audit-service AI prompt versions ──────────────────────────
+
+    /** Paginated prompt version list for a filter. */
+    record PromptVersionsQuery(UUID filterId, UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Fetch a single prompt version by ID. */
+    record PromptVersionGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /**
+     * Create, activate, or archive a prompt version.
+     *
+     * @param filterId    Filter to version.
+     * @param tenantId    Owning tenant.
+     * @param versionId   Version UUID (null for CREATE_DRAFT, required for ACTIVATE/ARCHIVE).
+     * @param promptText  Prompt text (required for CREATE_DRAFT, ignored otherwise).
+     * @param description Human-readable description (optional).
+     * @param action      CREATE_DRAFT | ACTIVATE | ARCHIVE.
+     * @param requestedBy Actor performing the action.
+     */
+    record PromptVersionSave(
+            UUID   filterId,
+            UUID   tenantId,
+            UUID   versionId,
+            String promptText,
+            String description,
+            String action,
+            String requestedBy
+    ) implements QueryRequest {}
+
+    /**
+     * Label an AI filter decision as correct/incorrect/unclear for ground-truth feedback.
+     *
+     * @param evaluationId Evaluation trace ID.
+     * @param tenantId     Owning tenant.
+     * @param label        CORRECT | INCORRECT | UNCLEAR.
+     */
+    record AiDecisionLabel(String evaluationId, UUID tenantId, String label) implements QueryRequest {}
+
+    // ─── routify-audit-service time-series analytics (GraphQL Initiative 13) ──
+
+    /**
+     * Time-bucketed request metrics for the GraphQL Analytics API.
+     * SQL: {@code date_trunc(granularity, requested_at)} grouping on {@code request_log}.
+     *
+     * @param tenantId     Tenant to scope the query (required).
+     * @param routeId      Optional — if null returns stats aggregated across all routes.
+     * @param from         ISO-8601 start timestamp (inclusive).
+     * @param to           ISO-8601 end timestamp (exclusive).
+     * @param granularity  MINUTE, HOUR, DAY, WEEK.
+     * @param metrics      List of requested metrics: requestCount, errorCount, latencyP50, latencyP95, latencyP99.
+     */
+    record TimeSeriesQuery(
+            UUID tenantId,
+            UUID routeId,
+            String from,
+            String to,
+            String granularity,
+            java.util.List<String> metrics
+    ) implements QueryRequest {}
+
+    // ─── routify-audit-service alerting engine (Initiative 15) ────────────────
+
+    /** Paginated alert rule list for a tenant. */
+    record AlertRulesQuery(UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /** Single alert rule GET by id and tenant. */
+    record AlertRuleGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Paginated alert event history for a specific rule. */
+    record AlertEventsQuery(UUID ruleId, UUID tenantId, int page, int size) implements QueryRequest {}
+
+    /**
+     * Alert rule command — create, update, delete, mute, unmute.
+     *
+     * @param action CREATE | UPDATE | DELETE | MUTE | UNMUTE
+     */
+    record AlertRuleCommand(
+            String action,
+            UUID   tenantId,
+            UUID   ruleId,
+            String name,
+            String description,
+            String metric,
+            UUID   routeId,
+            String operator,
+            java.math.BigDecimal threshold,
+            Integer windowMinutes,
+            Integer cooldownMinutes,
+            String  severity,
+            Boolean enabled,
+            Integer muteDurationMinutes,
+            String  requestedBy
     ) implements QueryRequest {}
 
     /**

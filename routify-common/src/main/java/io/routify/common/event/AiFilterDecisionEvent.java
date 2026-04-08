@@ -23,6 +23,7 @@ import java.time.Instant;
  * @param path           Request path.
  * @param clientIp       Originating client IP.
  * @param evaluatedAt    Timestamp of evaluation.
+ * @param promptVersionId UUID of the prompt version used (null if no A/B split).
  */
 public record AiFilterDecisionEvent(
         String  evaluationId,
@@ -38,6 +39,7 @@ public record AiFilterDecisionEvent(
         String  method,
         String  path,
         String  clientIp,
-        Instant evaluatedAt
+        Instant evaluatedAt,
+        String  promptVersionId
 ) {}
 

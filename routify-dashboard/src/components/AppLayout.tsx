@@ -11,6 +11,12 @@ import {
   Server,
   ShieldCheck,
   Building2,
+  Key,
+  Bell,
+  Shield,
+  GitBranch,
+  Brain,
+  AlertTriangle,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
@@ -27,6 +33,12 @@ const NAV_ITEMS = [
   { to: '/certificates', label: 'Cert Vault', icon: ShieldCheck, desc: 'Inbound TLS certificates' },
   { to: '/audit', label: 'Audit', icon: ClipboardList, desc: 'Audit log & analytics' },
   { to: '/users', label: 'Users', icon: Users, desc: 'User management' },
+  { to: '/api-keys', label: 'API Keys', icon: Key, desc: 'API key management' },
+  { to: '/webhooks', label: 'Webhooks', icon: Bell, desc: 'Webhook notifications' },
+  { to: '/roles', label: 'Roles', icon: Shield, desc: 'Roles & permissions' },
+  { to: '/gitops', label: 'GitOps', icon: GitBranch, desc: 'Git reconciliation agent' },
+  { to: '/ai-playground', label: 'AI Playground', icon: Brain, desc: 'Test & version AI policies' },
+  { to: '/alerts', label: 'Alerts', icon: AlertTriangle, desc: 'Platform alerting rules' },
   { to: '/settings', label: 'Settings', icon: Settings, desc: 'Platform settings' },
 ]
 
@@ -126,7 +138,7 @@ export default function AppLayout() {
         <div className="mx-4 h-px bg-white/[0.06] mb-2" />
 
         {/* Navigation */}
-        <nav className="flex-1 px-2 py-1 space-y-0.5">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5">
           <p className="px-3 pt-1 pb-2 text-[10px] font-semibold text-gray-600 uppercase tracking-widest">Navigation</p>
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
             <NavLink

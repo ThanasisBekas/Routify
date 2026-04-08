@@ -197,6 +197,62 @@ public final class RabbitTopology {
     public static final String QUEUE_USERS_CHANGE_PASSWORD      = "routify.identity-service.users.change-password";
     public static final String RK_USERS_CHANGE_PASSWORD         = "users.change-password";
 
+    // ─── routify-identity-service API key queues & routing keys ────────────────
+
+    /** Queue: identity-service serves paginated API key list queries from admin-api */
+    public static final String QUEUE_APIKEYS_QUERY              = "routify.identity-service.apikeys.query";
+    public static final String RK_APIKEYS_QUERY                 = "apikeys.query";
+
+    /** Queue: identity-service serves single API key GET queries from admin-api */
+    public static final String QUEUE_APIKEYS_GET                = "routify.identity-service.apikeys.get";
+    public static final String RK_APIKEYS_GET                   = "apikeys.get";
+
+    /** Queue: identity-service handles API key create (sync RPC — raw key must be returned) */
+    public static final String QUEUE_APIKEYS_CREATE             = "routify.identity-service.apikeys.create";
+    public static final String RK_APIKEYS_CREATE                = "apikeys.create";
+
+    /** Queue: identity-service handles API key revoke (sync RPC — immediate confirmation) */
+    public static final String QUEUE_APIKEYS_REVOKE             = "routify.identity-service.apikeys.revoke";
+    public static final String RK_APIKEYS_REVOKE                = "apikeys.revoke";
+
+    /** Queue: identity-service handles API key rotate (sync RPC — new raw key must be returned) */
+    public static final String QUEUE_APIKEYS_ROTATE             = "routify.identity-service.apikeys.rotate";
+    public static final String RK_APIKEYS_ROTATE                = "apikeys.rotate";
+
+    // ─── routify-identity-service webhook queues & routing keys ───────────────
+
+    // ─── routify-identity-service role queues & routing keys ────────────────────
+
+    /** Queue: identity-service serves paginated role list queries from admin-api */
+    public static final String QUEUE_ROLES_QUERY              = "routify.identity-service.roles.query";
+    public static final String RK_ROLES_QUERY                 = "roles.query";
+
+    /** Queue: identity-service serves single role GET queries from admin-api */
+    public static final String QUEUE_ROLES_GET                = "routify.identity-service.roles.get";
+    public static final String RK_ROLES_GET                   = "roles.get";
+
+    /** Queue: identity-service handles role commands (create/update/delete) from admin-api (sync RPC) */
+    public static final String QUEUE_ROLES_COMMAND            = "routify.identity-service.roles.command";
+    public static final String RK_ROLES_COMMAND               = "roles.command";
+
+    // ─── routify-identity-service webhook queues & routing keys (continued) ────
+
+    /** Queue: identity-service serves paginated webhook subscription list queries from admin-api */
+    public static final String QUEUE_WEBHOOKS_QUERY              = "routify.identity-service.webhooks.query";
+    public static final String RK_WEBHOOKS_QUERY                 = "webhooks.query";
+
+    /** Queue: identity-service serves single webhook subscription GET queries from admin-api */
+    public static final String QUEUE_WEBHOOKS_GET                = "routify.identity-service.webhooks.get";
+    public static final String RK_WEBHOOKS_GET                   = "webhooks.get";
+
+    /** Queue: identity-service serves paginated webhook delivery log queries from admin-api */
+    public static final String QUEUE_WEBHOOKS_DELIVERIES         = "routify.identity-service.webhooks.deliveries";
+    public static final String RK_WEBHOOKS_DELIVERIES            = "webhooks.deliveries";
+
+    /** Queue: identity-service handles webhook test-ping requests from admin-api (sync RPC) */
+    public static final String QUEUE_WEBHOOKS_TEST               = "routify.identity-service.webhooks.test";
+    public static final String RK_WEBHOOKS_TEST                  = "webhooks.test";
+
     // ─── routify-audit-service queues & routing keys ─────────────────────────
 
     /** Queue: audit-service serves paginated audit event queries from admin-api */
@@ -288,6 +344,28 @@ public final class RabbitTopology {
     public static final String QUEUE_CERT_GROUPS_MEMBERS        = "routify.cert-vault.cert-groups.members";
     public static final String RK_CERT_GROUPS_MEMBERS           = "cert-groups.members";
 
+    // ─── routify-cert-vault ACME queues & routing keys ────────────────────────
+
+    /** Queue: cert-vault handles ACME account registration (sync RPC) */
+    public static final String QUEUE_ACME_REGISTER              = "routify.cert-vault.acme.register";
+    public static final String RK_ACME_REGISTER                 = "acme.register";
+
+    /** Queue: cert-vault handles ACME certificate issuance (sync RPC) */
+    public static final String QUEUE_ACME_ISSUE                 = "routify.cert-vault.acme.issue";
+    public static final String RK_ACME_ISSUE                    = "acme.issue";
+
+    /** Queue: cert-vault serves paginated ACME order list queries from admin-api */
+    public static final String QUEUE_ACME_ORDERS_QUERY          = "routify.cert-vault.acme.orders.query";
+    public static final String RK_ACME_ORDERS_QUERY             = "acme.orders.query";
+
+    /** Queue: cert-vault serves single ACME order GET queries from admin-api */
+    public static final String QUEUE_ACME_ORDER_GET             = "routify.cert-vault.acme.orders.get";
+    public static final String RK_ACME_ORDER_GET                = "acme.orders.get";
+
+    /** Queue: cert-vault handles ACME certificate renewal (sync RPC) */
+    public static final String QUEUE_ACME_RENEW                 = "routify.cert-vault.acme.renew";
+    public static final String RK_ACME_RENEW                    = "acme.renew";
+
     // ─── Message header keys ──────────────────────────────────────────────────
 
     /** Header carrying the requesting service name (for observability) */
@@ -361,5 +439,76 @@ public final class RabbitTopology {
      */
     public static final String QUEUE_AUDIT_AI_FILTER_QUERY  = "routify.audit-service.ai-filter.query";
     public static final String RK_AUDIT_AI_FILTER_QUERY     = "audit.ai-filter.query";
+
+    // ─── routify-audit-service AI prompt versions ─────────────────────────────
+
+    /** Queue: audit-service serves paginated AI prompt version list queries from admin-api */
+    public static final String QUEUE_AI_PROMPT_VERSIONS_QUERY = "routify.audit-service.ai-prompt.versions.query";
+    public static final String RK_AI_PROMPT_VERSIONS_QUERY    = "ai-prompt.versions.query";
+
+    /** Queue: audit-service serves single AI prompt version GET queries from admin-api */
+    public static final String QUEUE_AI_PROMPT_VERSIONS_GET   = "routify.audit-service.ai-prompt.versions.get";
+    public static final String RK_AI_PROMPT_VERSIONS_GET      = "ai-prompt.versions.get";
+
+    /** Queue: audit-service handles AI prompt version save (create draft / activate / archive) from admin-api */
+    public static final String QUEUE_AI_PROMPT_VERSIONS_SAVE  = "routify.audit-service.ai-prompt.versions.save";
+    public static final String RK_AI_PROMPT_VERSIONS_SAVE     = "ai-prompt.versions.save";
+
+    /** Queue: audit-service handles AI decision labelling (ground-truth feedback) from admin-api */
+    public static final String QUEUE_AI_DECISION_LABEL        = "routify.audit-service.ai-decision.label";
+    public static final String RK_AI_DECISION_LABEL           = "ai-decision.label";
+
+    // ─── routify-audit-service route health stats ──────────────────────────────
+
+    /**
+     * Queue: audit-service serves per-route health stats (latency percentiles, error rates,
+     * status code distribution) for the Gateway Health Dashboard v2.
+     */
+    public static final String QUEUE_AUDIT_ROUTE_HEALTH     = "routify.audit-service.route.health";
+    public static final String RK_AUDIT_ROUTE_HEALTH        = "audit.route.health";
+
+    // ─── routify-audit-service tenant usage ──────────────────────────────────
+
+    /** Queue: audit-service serves current-period tenant usage (route/filter/request counts vs plan limits) */
+    public static final String QUEUE_AUDIT_USAGE_CURRENT     = "routify.audit-service.usage.current";
+    public static final String RK_AUDIT_USAGE_CURRENT        = "audit.usage.current";
+
+    /** Queue: audit-service serves daily usage history for a tenant (last N days) */
+    public static final String QUEUE_AUDIT_USAGE_HISTORY     = "routify.audit-service.usage.history";
+    public static final String RK_AUDIT_USAGE_HISTORY        = "audit.usage.history";
+
+    // ─── routify-audit-service time-series analytics (GraphQL Initiative 13) ──
+
+    /** Queue: audit-service serves time-bucketed request metrics for the GraphQL Analytics API */
+    public static final String QUEUE_AUDIT_TIME_SERIES       = "routify.audit-service.time-series";
+    public static final String RK_AUDIT_TIME_SERIES          = "audit.time-series";
+
+    // ─── routify-route-service SLO queues & routing keys ──────────────────────
+
+    /** Queue: route-service serves route SLO config GET queries from admin-api */
+    public static final String QUEUE_ROUTE_SLO_GET           = "routify.route-service.route-slo.get";
+    public static final String RK_ROUTE_SLO_GET              = "route-slo.get";
+
+    /** Queue: route-service serves route SLO config SAVE (upsert) from admin-api */
+    public static final String QUEUE_ROUTE_SLO_SAVE          = "routify.route-service.route-slo.save";
+    public static final String RK_ROUTE_SLO_SAVE             = "route-slo.save";
+
+    // ─── routify-audit-service alert engine (Initiative 15) ─────────────────────
+
+    /** Queue: audit-service serves paginated alert rule list queries from admin-api */
+    public static final String QUEUE_ALERT_RULES_QUERY       = "routify.audit-service.alert-rules.query";
+    public static final String RK_ALERT_RULES_QUERY          = "alert-rules.query";
+
+    /** Queue: audit-service serves single alert rule GET queries from admin-api */
+    public static final String QUEUE_ALERT_RULES_GET         = "routify.audit-service.alert-rules.get";
+    public static final String RK_ALERT_RULES_GET            = "alert-rules.get";
+
+    /** Queue: audit-service serves paginated alert event history from admin-api */
+    public static final String QUEUE_ALERT_EVENTS_QUERY      = "routify.audit-service.alert-events.query";
+    public static final String RK_ALERT_EVENTS_QUERY         = "alert-events.query";
+
+    /** Queue: audit-service handles alert rule create/update/delete/mute/unmute (sync RPC) */
+    public static final String QUEUE_ALERT_RULES_COMMAND     = "routify.audit-service.alert-rules.command";
+    public static final String RK_ALERT_RULES_COMMAND        = "alert-rules.command";
 }
 

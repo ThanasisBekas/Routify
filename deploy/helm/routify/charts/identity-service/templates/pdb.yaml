@@ -1,0 +1,14 @@
+{{- if and .Values.identityService.enabled (.Values.identityService.pdb).enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "routify.identityService.fullname" . }}
+  labels:
+    {{- include "routify.identityService.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.identityService.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "routify.identityService.selectorLabels" . | nindent 6 }}
+{{- end }}
+

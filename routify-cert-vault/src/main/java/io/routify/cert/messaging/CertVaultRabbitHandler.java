@@ -2,14 +2,19 @@ package io.routify.cert.messaging;
 
 import io.routify.cert.dto.CertGroupDto;
 import io.routify.cert.dto.CertificateDto;
+import io.routify.cert.domain.AcmeAccount;
+import io.routify.cert.domain.AcmeOrder;
+import io.routify.cert.service.AcmeService;
 import io.routify.cert.service.CertGroupService;
 import io.routify.cert.service.CertificateVaultService;
+import io.routify.cert.repository.AcmeOrderRepository;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.event.RabbitTopology;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -30,6 +35,8 @@ public class CertVaultRabbitHandler {
 
     private final CertificateVaultService vaultService;
     private final CertGroupService        groupService;
+    private final AcmeService             acmeService;
+    private final AcmeOrderRepository     acmeOrderRepository;
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERTS_QUERY)
     public QueryResponse.CertsPage handleCertificatesQuery(QueryRequest.CertsQuery req) {
@@ -125,6 +132,56 @@ public class CertVaultRabbitHandler {
         return new QueryResponse.CertGroupMembersList(members);
     }
 
+    // ─── ACME Query Handlers ──────────────────────────────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ACME_REGISTER)
+    public QueryResponse.AcmeAccountResult handleAcmeRegister(QueryRequest.AcmeRegister req) {
+        log.debug("RabbitMQ: ACME register request received");
+        AcmeAccount account = acmeService.registerAccount(
+                req.tenantId(), req.email(),
+                AcmeAccount.AcmeProvider.valueOf(req.provider()));
+        return toAcmeAccountResult(account);
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ACME_ISSUE)
+    public QueryResponse.AcmeOrderDetail handleAcmeIssue(QueryRequest.AcmeIssue req) {
+        log.debug("RabbitMQ: ACME issue request received");
+        AcmeOrder order = acmeService.requestCertificate(
+                req.accountId(), req.domain(), req.certGroupId(), req.tenantId());
+        return toAcmeOrderDetail(order);
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ACME_ORDERS_QUERY)
+    public QueryResponse.AcmeOrdersPage handleAcmeOrdersQuery(QueryRequest.AcmeOrdersQuery req) {
+        log.debug("RabbitMQ: ACME orders query received");
+        var pageResult = acmeOrderRepository.findByTenantId(
+                req.tenantId(), PageRequest.of(req.page(), req.size()));
+        var content = pageResult.getContent().stream().map(this::toAcmeOrderDetail).toList();
+        return new QueryResponse.AcmeOrdersPage(content,
+                pageResult.getTotalElements(), pageResult.getTotalPages(),
+                pageResult.getNumber(), pageResult.getSize(),
+                pageResult.isFirst(), pageResult.isLast());
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ACME_ORDER_GET)
+    public QueryResponse.AcmeOrderDetail handleAcmeOrderGet(QueryRequest.AcmeOrderGet req) {
+        log.debug("RabbitMQ: ACME order get received");
+        AcmeOrder order = acmeOrderRepository.findByIdAndTenantId(req.id(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "AcmeOrder", req.id().toString()));
+        return toAcmeOrderDetail(order);
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ACME_RENEW)
+    public QueryResponse.AcmeOrderDetail handleAcmeRenew(QueryRequest.AcmeRenew req) {
+        log.debug("RabbitMQ: ACME renew request received");
+        acmeService.renewCertificate(req.orderId());
+        AcmeOrder order = acmeOrderRepository.findByIdAndTenantId(req.orderId(), req.tenantId())
+                .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
+                        "AcmeOrder", req.orderId().toString()));
+        return toAcmeOrderDetail(order);
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private QueryResponse.CertSummary toCertSummary(CertificateDto c) {
@@ -171,5 +228,20 @@ public class CertVaultRabbitHandler {
                 g.getDescription(), g.getStatus(), g.getMemberCount(),
                 g.getExpiryHealthStatus(), members,
                 g.getCreatedBy(), g.getCreatedAt(), g.getUpdatedAt());
+    }
+
+    private QueryResponse.AcmeAccountResult toAcmeAccountResult(AcmeAccount a) {
+        return new QueryResponse.AcmeAccountResult(
+                a.getId(), a.getTenantId(), a.getEmail(), a.getAccountUrl(),
+                a.getProvider().name(), a.getStatus().name(), a.getCreatedAt());
+    }
+
+    private QueryResponse.AcmeOrderDetail toAcmeOrderDetail(AcmeOrder o) {
+        return new QueryResponse.AcmeOrderDetail(
+                o.getId(), o.getTenantId(), o.getDomain(), o.getCertGroupId(),
+                o.getChallengeType().name(), o.getStatus().name(), o.getOrderUrl(),
+                o.getChallengeToken(), o.getCertId(), o.isAutoRenew(),
+                o.getLastRenewedAt(), o.getNextRenewalAt(), o.getErrorMessage(),
+                o.getCreatedAt(), o.getUpdatedAt());
     }
 }

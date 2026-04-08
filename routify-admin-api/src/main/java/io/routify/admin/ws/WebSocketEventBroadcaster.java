@@ -199,10 +199,11 @@ public class WebSocketEventBroadcaster {
     private String resolveAuditRawType(String rawEventType, String defaultDomain) {
         if (rawEventType == null) return defaultDomain + ".event";
         return switch (rawEventType) {
-            case "REPLAY_COMPLETED"      -> "replay.completed";
-            case "REPLAY_BULK_COMPLETED" -> "replay.bulk.completed";
-            case "REQUEST_LOGGED"        -> "audit.request.logged";
-            default                      -> defaultDomain + ".event";
+            case "REPLAY_COMPLETED"                  -> "replay.completed";
+            case "REPLAY_BULK_COMPLETED"             -> "replay.bulk.completed";
+            case "REQUEST_LOGGED"                    -> "audit.request.logged";
+            case "CIRCUIT_BREAKER_STATE_CHANGE"      -> "CIRCUIT_BREAKER_STATE_CHANGE";
+            default                                  -> defaultDomain + ".event";
         };
     }
 
@@ -214,6 +215,7 @@ public class WebSocketEventBroadcaster {
         return switch (rawEventType) {
             case "REPLAY_COMPLETED", "REPLAY_BULK_COMPLETED" -> "replay";
             case "REQUEST_LOGGED"                            -> "audit";
+            case "CIRCUIT_BREAKER_STATE_CHANGE"              -> "gateway-status";
             default                                          -> defaultDomain;
         };
     }

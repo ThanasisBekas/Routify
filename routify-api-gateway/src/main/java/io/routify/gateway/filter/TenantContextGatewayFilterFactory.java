@@ -1,23 +1,33 @@
 package io.routify.gateway.filter;
 
+import io.routify.common.domain.TenantPlan;
+import io.routify.common.observability.RoutifyMetrics;
+import io.routify.common.security.RedisKeys;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.config.GatewayConfigLoader;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import io.routify.gateway.routing.RouteDefinitionBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Gateway filter factory that propagates and validates tenant context through the request.
@@ -60,15 +70,27 @@ public class TenantContextGatewayFilterFactory
     public static final String ATTR_TENANT_ID = "routify.tenantId";
 
     private final GatewayConfigLoader configLoader;
+    private final ReactiveStringRedisTemplate redisTemplate;
+    private final GatewayTenantPlanCache tenantPlanCache;
+    private final RoutifyMetrics metrics;
+    private final boolean quotaEnabled;
 
-    public TenantContextGatewayFilterFactory(GatewayConfigLoader configLoader) {
+    public TenantContextGatewayFilterFactory(GatewayConfigLoader configLoader,
+                                             ReactiveStringRedisTemplate redisTemplate,
+                                             GatewayTenantPlanCache tenantPlanCache,
+                                             RoutifyMetrics metrics,
+                                             @Value("${routify.gateway.quota.enabled:true}") boolean quotaEnabled) {
         super(Config.class);
         this.configLoader = configLoader;
+        this.redisTemplate = redisTemplate;
+        this.tenantPlanCache = tenantPlanCache;
+        this.metrics = metrics;
+        this.quotaEnabled = quotaEnabled;
     }
 
     @Override
     public GatewayFilter apply(Config config) {
-        return new TenantContextGatewayFilter(configLoader);
+        return new TenantContextGatewayFilter(configLoader, redisTemplate, tenantPlanCache, metrics, quotaEnabled);
     }
 
     /**
@@ -83,9 +105,21 @@ public class TenantContextGatewayFilterFactory
         private static final String DEFAULT_TENANT_HEADER = RoutifyHeaders.TENANT_ID;
 
         private final GatewayConfigLoader configLoader;
+        private final ReactiveStringRedisTemplate redisTemplate;
+        private final GatewayTenantPlanCache tenantPlanCache;
+        private final RoutifyMetrics metrics;
+        private final boolean quotaEnabled;
 
-        public TenantContextGatewayFilter(GatewayConfigLoader configLoader) {
+        public TenantContextGatewayFilter(GatewayConfigLoader configLoader,
+                                          ReactiveStringRedisTemplate redisTemplate,
+                                          GatewayTenantPlanCache tenantPlanCache,
+                                          RoutifyMetrics metrics,
+                                          boolean quotaEnabled) {
             this.configLoader = configLoader;
+            this.redisTemplate = redisTemplate;
+            this.tenantPlanCache = tenantPlanCache;
+            this.metrics = metrics;
+            this.quotaEnabled = quotaEnabled;
         }
 
         @Override
@@ -136,7 +170,63 @@ public class TenantContextGatewayFilterFactory
 
             log.debug("TenantContext: propagating tenant='{}' to chain and upstream via '{}'",
                     canonicalTenantId, tenantHeader);
+
+            // ── Request quota enforcement ──────────────────────────────────
+            if (quotaEnabled) {
+                return enforceRequestQuota(canonicalTenantId, mutatedExchange, chain);
+            }
+
             return chain.filter(mutatedExchange);
+        }
+
+        /**
+         * Atomically increments the monthly request counter in Redis and checks
+         * the tenant's plan quota. Returns HTTP 429 if the quota is exceeded.
+         *
+         * <p>Fully reactive — no blocking. Uses {@code ReactiveStringRedisTemplate}.
+         */
+        private Mono<Void> enforceRequestQuota(String tenantIdStr,
+                                                ServerWebExchange exchange,
+                                                GatewayFilterChain chain) {
+            UUID tenantId;
+            try {
+                tenantId = UUID.fromString(tenantIdStr);
+            } catch (IllegalArgumentException e) {
+                // Non-UUID tenant IDs skip quota enforcement
+                return chain.filter(exchange);
+            }
+
+            TenantPlan plan = tenantPlanCache.getPlan(tenantId);
+            if (plan.monthlyRequestQuota() == Integer.MAX_VALUE) {
+                // ENTERPRISE — unlimited
+                return chain.filter(exchange);
+            }
+
+            YearMonth now = YearMonth.now(ZoneOffset.UTC);
+            String redisKey = RedisKeys.QUOTA_PREFIX + tenantIdStr + ":" + now;
+
+            return redisTemplate.opsForValue().increment(redisKey)
+                    .flatMap(count -> {
+                        if (count != null && count == 1L) {
+                            // First request of the month — set TTL to end of month + 1 day buffer
+                            var endOfMonth = now.atEndOfMonth().atStartOfDay().toInstant(ZoneOffset.UTC);
+                            var ttl = Duration.between(java.time.Instant.now(), endOfMonth).plus(Duration.ofDays(1));
+                            return redisTemplate.expire(redisKey, ttl).thenReturn(count);
+                        }
+                        return Mono.just(count);
+                    })
+                    .flatMap(count -> {
+                        if (count > plan.monthlyRequestQuota()) {
+                            metrics.recordQuotaExceeded();
+                            return tooManyRequests(exchange, now);
+                        }
+                        return chain.filter(exchange);
+                    })
+                    .onErrorResume(e -> {
+                        // Redis failure should not block requests — fail open
+                        log.warn("Quota check Redis error — allowing request: {}", e.getMessage());
+                        return chain.filter(exchange);
+                    });
         }
 
         @Override
@@ -284,14 +374,21 @@ public class TenantContextGatewayFilterFactory
     private static Mono<Void> forbidden(ServerWebExchange exchange,
                                   String errorCode,
                                   String detail) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.FORBIDDEN);
-        response.getHeaders().set("Content-Type", "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Forbidden","status":403,\
-                "errorCode":"%s","detail":"%s"}""".formatted(errorCode, detail);
-        var buffer = response.bufferFactory().wrap(body.getBytes());
-        return response.writeWith(Mono.just(buffer));
+        return GatewayProblemResponse.status(HttpStatus.FORBIDDEN)
+                .errorCode(errorCode)
+                .detail(detail)
+                .write(exchange);
+    }
+
+    private static Mono<Void> tooManyRequests(ServerWebExchange exchange, YearMonth currentMonth) {
+        // Calculate seconds until next month
+        var nextMonth = currentMonth.plusMonths(1).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        long retryAfter = java.time.Instant.now().until(nextMonth, ChronoUnit.SECONDS);
+        return GatewayProblemResponse.status(HttpStatus.TOO_MANY_REQUESTS)
+                .errorCode("QUOTA_EXCEEDED")
+                .detail("Monthly request quota exceeded. Retry after billing period reset.")
+                .header("Retry-After", retryAfter)
+                .write(exchange);
     }
 
     public static class Config {

@@ -25,6 +25,13 @@ const UsersPage = lazy(() => import('./modules/users/UsersPage'))
 const GatewayPage = lazy(() => import('./modules/gateway/GatewayPage'))
 const CertVaultPage = lazy(() => import('./modules/certificates/CertVaultPage'))
 const WorkspacesPage = lazy(() => import('./modules/workspaces/WorkspacesPage'))
+const ApiKeysPage = lazy(() => import('./modules/api-keys/ApiKeysPage'))
+const WebhooksPage = lazy(() => import('./modules/webhooks/WebhooksPage'))
+const RolesPage = lazy(() => import('./modules/roles/RolesPage'))
+const GitOpsPage = lazy(() => import('./modules/gitops/GitOpsPage'))
+const AiPlaygroundPage = lazy(() => import('./modules/ai/AiPlaygroundPage'))
+const VersionComparisonPage = lazy(() => import('./modules/ai/VersionComparisonPage'))
+const AlertsPage = lazy(() => import('./modules/alerts/AlertsPage'))
 
 /** Minimal full-screen spinner shown while a lazy chunk is loading. */
 function PageLoader() {
@@ -166,6 +173,90 @@ function AppRoutes() {
             <ErrorBoundary label="Users">
               <Suspense fallback={<PageLoader />}>
                 <UsersPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* API Keys */}
+        <Route
+          path="api-keys"
+          element={
+            <ErrorBoundary label="API Keys">
+              <Suspense fallback={<PageLoader />}>
+                <ApiKeysPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* Webhooks */}
+        <Route
+          path="webhooks"
+          element={
+            <ErrorBoundary label="Webhooks">
+              <Suspense fallback={<PageLoader />}>
+                <WebhooksPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* Roles & Permissions */}
+        <Route
+          path="roles"
+          element={
+            <ErrorBoundary label="Roles">
+              <Suspense fallback={<PageLoader />}>
+                <RolesPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* GitOps — reconciliation agent dashboard */}
+        <Route
+          path="gitops"
+          element={
+            <ErrorBoundary label="GitOps">
+              <Suspense fallback={<PageLoader />}>
+                <GitOpsPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* AI Playground — prompt versioning & interactive testing */}
+        <Route
+          path="ai-playground"
+          element={
+            <ErrorBoundary label="AI Playground">
+              <Suspense fallback={<PageLoader />}>
+                <AiPlaygroundPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* AI Version Comparison — side-by-side prompt version metrics */}
+        <Route
+          path="ai-playground/compare"
+          element={
+            <ErrorBoundary label="Version Comparison">
+              <Suspense fallback={<PageLoader />}>
+                <VersionComparisonPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+
+        {/* Alerts — platform alerting engine */}
+        <Route
+          path="alerts"
+          element={
+            <ErrorBoundary label="Alerts">
+              <Suspense fallback={<PageLoader />}>
+                <AlertsPage />
               </Suspense>
             </ErrorBoundary>
           }

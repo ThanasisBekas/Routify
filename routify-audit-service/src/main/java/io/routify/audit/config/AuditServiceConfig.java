@@ -24,7 +24,7 @@ import org.springframework.kafka.core.MicrometerConsumerListener;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.kafka.support.converter.StringJsonMessageConverter;
+import org.springframework.kafka.support.converter.StringJacksonJsonMessageConverter;
 import org.springframework.util.backoff.FixedBackOff;
 import org.springframework.web.client.RestClient;
 
@@ -94,7 +94,7 @@ public class AuditServiceConfig {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(consumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setRecordMessageConverter(new StringJsonMessageConverter(objectMapper()));
+        factory.setRecordMessageConverter(new StringJacksonJsonMessageConverter());
         factory.setConcurrency(3);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
@@ -129,7 +129,7 @@ public class AuditServiceConfig {
     /**
      * Consumer factory for DLQ topics — deserializes both key and value as plain Strings.
      * Must NOT reuse the main {@link #consumerFactory()} because that one uses
-     * {@link StringJsonMessageConverter} which would try to parse the raw payload.
+     * {@link StringJacksonJsonMessageConverter} which would try to parse the raw payload.
      */
     @Bean
     public ConsumerFactory<String, String> dlqConsumerFactory() {

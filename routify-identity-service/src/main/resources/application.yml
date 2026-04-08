@@ -21,7 +21,6 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: routify_identity
     show-sql: false
     open-in-view: false
@@ -72,7 +71,6 @@ management:
     port: 9083
   endpoints:
     web:
-      base-path: /actuator
       exposure:
         include: health,info,metrics,prometheus
   endpoint:
@@ -107,6 +105,10 @@ routify:
     # If blank, a random password is generated and printed to stdout ONCE on first boot.
     # The seeded account is always flagged must_change_password=true.
     admin-password: ${ADMIN_INITIAL_PASSWORD:}
+
+  webhooks:
+    delivery-retention-days: ${WEBHOOK_RETENTION_DAYS:7}
+    cleanup-batch-size: ${WEBHOOK_CLEANUP_BATCH_SIZE:1000}
 
   # ─── Startup secret validation ────────────────────────────────────────────────
   # SecretValidator (registered in RoutifyIdentityServiceApplication) checks these

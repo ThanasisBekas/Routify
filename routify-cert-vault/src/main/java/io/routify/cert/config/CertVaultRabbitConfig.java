@@ -4,7 +4,7 @@ import io.routify.common.event.RabbitTopology;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -81,6 +81,33 @@ public class CertVaultRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_CERT_GROUPS_MEMBERS).build();
     }
 
+    // ─── ACME Queues ──────────────────────────────────────────────────────────
+
+    @Bean
+    public Queue acmeRegisterQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ACME_REGISTER).build();
+    }
+
+    @Bean
+    public Queue acmeIssueQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ACME_ISSUE).build();
+    }
+
+    @Bean
+    public Queue acmeOrdersQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ACME_ORDERS_QUERY).build();
+    }
+
+    @Bean
+    public Queue acmeOrderGetQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ACME_ORDER_GET).build();
+    }
+
+    @Bean
+    public Queue acmeRenewQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ACME_RENEW).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -137,16 +164,49 @@ public class CertVaultRabbitConfig {
                 .to(certVaultExchange).with(RabbitTopology.RK_CERT_GROUPS_MEMBERS);
     }
 
+    // ─── ACME Bindings ────────────────────────────────────────────────────────
+
+    @Bean
+    public Binding acmeRegisterBinding(Queue acmeRegisterQueue, DirectExchange certVaultExchange) {
+        return BindingBuilder.bind(acmeRegisterQueue)
+                .to(certVaultExchange).with(RabbitTopology.RK_ACME_REGISTER);
+    }
+
+    @Bean
+    public Binding acmeIssueBinding(Queue acmeIssueQueue, DirectExchange certVaultExchange) {
+        return BindingBuilder.bind(acmeIssueQueue)
+                .to(certVaultExchange).with(RabbitTopology.RK_ACME_ISSUE);
+    }
+
+    @Bean
+    public Binding acmeOrdersQueryBinding(Queue acmeOrdersQueryQueue, DirectExchange certVaultExchange) {
+        return BindingBuilder.bind(acmeOrdersQueryQueue)
+                .to(certVaultExchange).with(RabbitTopology.RK_ACME_ORDERS_QUERY);
+    }
+
+    @Bean
+    public Binding acmeOrderGetBinding(Queue acmeOrderGetQueue, DirectExchange certVaultExchange) {
+        return BindingBuilder.bind(acmeOrderGetQueue)
+                .to(certVaultExchange).with(RabbitTopology.RK_ACME_ORDER_GET);
+    }
+
+    @Bean
+    public Binding acmeRenewBinding(Queue acmeRenewQueue, DirectExchange certVaultExchange) {
+        return BindingBuilder.bind(acmeRenewQueue)
+                .to(certVaultExchange).with(RabbitTopology.RK_ACME_RENEW);
+    }
+
     // ─── Message converter & template ─────────────────────────────────────────
 
     /**
-     * Jackson2JsonMessageConverter is used by the auto-configured listener container factory.
-     * This allows @RabbitListener methods to receive and return strongly-typed objects
-     * (QueryRequest subtypes, response POJOs) without manual ObjectMapper calls.
+     * JacksonJsonMessageConverter (Jackson 3) is used by the auto-configured listener
+     * container factory. This allows @RabbitListener methods to receive and return
+     * strongly-typed objects (QueryRequest subtypes, response POJOs) without manual
+     * ObjectMapper calls.
      */
     @Bean
     public MessageConverter certVaultMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     @Bean

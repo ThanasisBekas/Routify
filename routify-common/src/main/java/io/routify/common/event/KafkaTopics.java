@@ -92,6 +92,21 @@ public final class KafkaTopics {
      */
     public static final String AUTH_COMMANDS = "routify.auth.commands";
 
+    /**
+     * API key command events — published by routify-admin-api when the dashboard
+     * creates, revokes, or rotates an API key.
+     * Consumed by routify-identity-service which executes the mutation and
+     * projects the result to Redis for gateway reads.
+     */
+    public static final String APIKEY_COMMANDS = "routify.apikey.commands";
+
+    /**
+     * Webhook command events — published by routify-admin-api when the dashboard
+     * creates, updates, or deletes a webhook subscription.
+     * Consumed by routify-identity-service which executes the mutation.
+     */
+    public static final String WEBHOOK_COMMANDS = "routify.webhook.commands";
+
     // ─── Certificate Vault Topics ─────────────────────────────────────────────
 
     /**
@@ -135,6 +150,8 @@ public final class KafkaTopics {
     public static final String DLQ_TENANT_COMMANDS    = TENANT_COMMANDS    + ".DLQ";
     public static final String DLQ_AUTH_COMMANDS      = AUTH_COMMANDS      + ".DLQ";
     public static final String DLQ_CERT_COMMANDS      = CERT_COMMANDS      + ".DLQ";
+    public static final String DLQ_APIKEY_COMMANDS    = APIKEY_COMMANDS    + ".DLQ";
+    public static final String DLQ_WEBHOOK_COMMANDS   = WEBHOOK_COMMANDS   + ".DLQ";
 
     /** DLQ for AI filter decision events */
     public static final String DLQ_AI_FILTER_DECISIONS     = AI_FILTER_DECISIONS     + ".DLQ";

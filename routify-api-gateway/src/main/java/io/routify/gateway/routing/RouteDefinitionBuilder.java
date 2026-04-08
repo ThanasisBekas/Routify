@@ -98,6 +98,38 @@ public class RouteDefinitionBuilder {
                     snapshot.routeId(), isolation.enabled());
         }
 
+        // Staging environment predicate — only match staging routes when
+        // the request carries the X-Route-Environment: STAGING header.
+        // Production routes get NO extra predicate (they match by default).
+        StagingSettings staging = resolveStagingSettings();
+        if ("STAGING".equalsIgnoreCase(snapshot.environment()) && staging.enabled()) {
+            predicates.add(new PredicateDefinition(
+                    "Header=%s, STAGING".formatted(staging.headerName())));
+            log.debug("Staging predicate added for route {}: header={}",
+                    snapshot.routeId(), staging.headerName());
+        }
+
+        // ─── Canary / Weighted routing predicate ──────────────────────────────
+        // When a route participates in a canary deployment (trafficWeight < 100),
+        // add a Weight predicate. Both primary (e.g. 90) and canary (e.g. 10)
+        // routes get a Weight predicate in the same group. Spring Cloud Gateway's
+        // WeightRoutePredicateFactory handles probabilistic selection.
+        if (snapshot.trafficWeight() < 100) {
+            // The weight group is derived from the primary route's ID.
+            // For the primary route: canaryRouteId is set, so use own routeId.
+            // For the canary route: canaryRouteId is null, check extraConfig for primaryRouteId.
+            UUID groupRouteId = snapshot.canaryRouteId() != null
+                    ? snapshot.routeId()   // This is the primary — group by own ID
+                    : (snapshot.extraConfig() != null && snapshot.extraConfig().get("canaryPrimaryRouteId") != null
+                        ? UUID.fromString(snapshot.extraConfig().get("canaryPrimaryRouteId").toString())
+                        : snapshot.routeId());
+            String weightGroup = "canary-" + groupRouteId;
+            predicates.add(new PredicateDefinition(
+                    "Weight=%s, %d".formatted(weightGroup, snapshot.trafficWeight())));
+            log.debug("Weight predicate added for route {}: group={} weight={}",
+                    snapshot.routeId(), weightGroup, snapshot.trafficWeight());
+        }
+
         definition.setPredicates(predicates);
 
         // ─── Filters ─────────────────────────────────────────────────────────
@@ -148,6 +180,7 @@ public class RouteDefinitionBuilder {
         metadata.put("tenantId", snapshot.tenantId().toString());
         metadata.put("routeName", snapshot.name());
         metadata.put("routeVersion", snapshot.version());
+        metadata.put("environment", snapshot.environment() != null ? snapshot.environment() : "PRODUCTION");
         if (snapshot.extraConfig() != null) {
             metadata.putAll(snapshot.extraConfig());
         }
@@ -188,6 +221,7 @@ public class RouteDefinitionBuilder {
             // ─── Downstream Auth Injection ────────────────────────────────────
             case "DOWNSTREAM_BASIC_AUTH" -> customFilter("DownstreamBasicAuth", cfg);
             case "DOWNSTREAM_BEARER_CC"  -> customFilter("DownstreamOAuth2Bearer", cfg);
+            case "OAUTH2_TOKEN_RELAY"    -> customFilter("OAuth2TokenRelay", cfg);
 
             // ─── Rate Limiting ────────────────────────────────────────────────
             case "RATE_LIMIT_TOKEN_BUCKET" -> {
@@ -223,6 +257,7 @@ public class RouteDefinitionBuilder {
             // ─── Request/Response Modification ───────────────────────────────
             case "REQUEST_HEADER_MODIFY" -> customFilter("RequestHeaderModify", cfg);
             case "RESPONSE_HEADER_MODIFY" -> customFilter("ResponseHeaderModify", cfg);
+            case "RESPONSE_HEADER_REWRITE" -> customFilter("ResponseHeaderRewrite", cfg);
             case "PATH_REWRITE" -> {
                 var f = new FilterDefinition();
                 f.setName("RewritePath");
@@ -261,7 +296,9 @@ public class RouteDefinitionBuilder {
             }
 
             // ─── Validation ───────────────────────────────────────────────────
-            case "VALIDATE_JSON_SCHEMA" -> customFilter("JsonSchemaValidate", cfg);
+            case "VALIDATE_JSON_SCHEMA"  -> customFilter("JsonSchemaValidate", cfg);
+            case "REQUEST_SIZE_LIMIT"    -> customFilter("RequestSizeLimit", cfg);
+            case "GRAPHQL_DEPTH_LIMIT"   -> customFilter("GraphQLDepthLimit", cfg);
             case "VALIDATE_REGEX" -> {
                 log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation)");
                 yield null;
@@ -302,10 +339,21 @@ public class RouteDefinitionBuilder {
                 yield f;
             }
             case "TIMEOUT" -> customFilter("RequestTimeout", cfg);
+            case "CIRCUIT_BREAKER_V2" -> customFilter("CircuitBreakerV2", cfg);
+            case "RETRY_V2"          -> customFilter("RetryV2", cfg);
+            case "IDEMPOTENCY_KEY"   -> customFilter("IdempotencyKey", cfg);
+
+            // ─── Performance ──────────────────────────────────────────────────
+            case "RESPONSE_CACHE"           -> customFilter("ResponseCache", cfg);
+            case "REQUEST_DECOMPRESS"       -> customFilter("RequestDecompress", cfg);
 
             // ─── Routing ─────────────────────────────────────────────────────────
             case "CONDITIONAL_ROUTE"        -> customFilter("ConditionalRoute", cfg);
             case "USER_ID_PAYLOAD_ROUTING"  -> customFilter("UserIdPayloadRouting", cfg);
+            case "GEO_ROUTE"                -> customFilter("GeoRoute", cfg);
+
+            // ─── Security ──────────────────────────────────────────────────────
+            case "IP_ACCESS_CONTROL"         -> customFilter("IpAccessControl", cfg);
 
             // ─── Certificates / TLS ───────────────────────────────────────────
             case "AUTH_CERT_VAULT"           -> customFilter("CertVaultAuth", cfg);
@@ -321,6 +369,13 @@ public class RouteDefinitionBuilder {
             case "TENANT_CONTEXT"   -> namedFilter("TenantContext");
             case "SECURITY_HEADERS" -> namedFilter("SecurityHeaders");
             case "CUSTOM_METRIC"    -> customFilter("CustomMetric", cfg);
+            case "BODY_SIZE_METRIC" -> customFilter("BodySizeMetric", cfg);
+
+            // ─── Integration ──────────────────────────────────────────────────────
+            case "WEBHOOK_NOTIFY" -> customFilter("WebhookNotify", cfg);
+
+            // ─── Developer Experience ────────────────────────────────────────────
+            case "MOCK_RESPONSE" -> customFilter("MockResponse", cfg);
 
             // ─── Custom ───────────────────────────────────────────────────────────
             case "CUSTOM_SPEL" -> customFilter("SpelCustom", cfg);
@@ -345,6 +400,9 @@ public class RouteDefinitionBuilder {
      * {@code values} entry — which must be a {@link java.util.List} of {@link java.util.Map}s —
      * into indexed args: {@code values[0].name}, {@code values[0].value}, etc.
      *
+     * <p>Similarly, a {@code clientIdMapping} entry (used by {@code AUTH_CLIENT_ID}) is
+     * expanded into indexed args: {@code clientIdMapping[orgId]}.
+     *
      * <p>All other config entries are serialised as flat strings via the usual
      * {@link #customFilter} path.
      *
@@ -358,26 +416,36 @@ public class RouteDefinitionBuilder {
         var args = new LinkedHashMap<String, String>();
 
         cfg.forEach((k, v) -> {
-            if (!"values".equals(k)) {
-                args.put(k, v != null ? v.toString() : "");
-                return;
-            }
-            // Expand values list into indexed args: values[i].fieldName = fieldValue
-            if (v instanceof List<?> list) {
-                for (int i = 0; i < list.size(); i++) {
-                    Object entry = list.get(i);
-                    if (entry instanceof Map<?, ?> entryMap) {
-                        for (Map.Entry<?, ?> e : entryMap.entrySet()) {
-                            args.put("values[" + i + "]." + e.getKey(),
-                                    e.getValue() != null ? e.getValue().toString() : "");
+            if ("values".equals(k)) {
+                // Expand values list into indexed args: values[i].fieldName = fieldValue
+                if (v instanceof List<?> list) {
+                    for (int i = 0; i < list.size(); i++) {
+                        Object entry = list.get(i);
+                        if (entry instanceof Map<?, ?> entryMap) {
+                            for (Map.Entry<?, ?> e : entryMap.entrySet()) {
+                                args.put("values[" + i + "]." + e.getKey(),
+                                        e.getValue() != null ? e.getValue().toString() : "");
+                            }
                         }
                     }
+                } else if (v != null) {
+                    // Fallback: store as-is (should not happen in normal operation)
+                    log.warn("indexedValuesFilter({}): 'values' is not a List — storing as flat string. " +
+                            "This will likely cause a BindException.", name);
+                    args.put(k, v.toString());
                 }
-            } else if (v != null) {
-                // Fallback: store as-is (should not happen in normal operation)
-                log.warn("indexedValuesFilter({}): 'values' is not a List — storing as flat string. " +
-                        "This will likely cause a BindException.", name);
-                args.put(k, v.toString());
+            } else if ("clientIdMapping".equals(k)) {
+                // Expand clientIdMapping into indexed args: clientIdMapping[orgId] = clientId
+                if (v instanceof Map<?, ?> mappingMap) {
+                    for (Map.Entry<?, ?> e : mappingMap.entrySet()) {
+                        args.put("clientIdMapping[" + e.getKey() + "]",
+                                e.getValue() != null ? e.getValue().toString() : "");
+                    }
+                } else if (v != null) {
+                    args.put(k, v.toString());
+                }
+            } else {
+                args.put(k, v != null ? v.toString() : "");
             }
         });
 
@@ -428,11 +496,16 @@ public class RouteDefinitionBuilder {
 
     private static String resolveRateLimitKeyResolver(Map<String, Object> cfg) {
         String keyResolver = String.valueOf(cfg.getOrDefault("keyResolver", "IP"));
+        // For new dynamic strategies (ROUTE, HEADER:<name>, COMPOSITE:<a>:<b>),
+        // delegate to the ipKeyResolver as a fallback since the SCG token bucket
+        // can only reference named beans. The actual key resolution for these strategies
+        // is handled by our custom filter factories via RateLimitKeyResolver.
         return switch (keyResolver) {
             case "USER"        -> "#{@userKeyResolver}";
             case "TENANT"      -> "#{@tenantKeyResolver}";
             case "API_KEY"     -> "#{@apiKeyResolver}";
             case "TENANT_USER" -> "#{@tenantUserKeyResolver}";
+            case "ROUTE"       -> "#{@routeKeyResolver}";
             default            -> "#{@ipKeyResolver}";
         };
     }
@@ -493,6 +566,36 @@ public class RouteDefinitionBuilder {
                                            String tenantIdHeader) {
         static final TenantIsolationSettings DEFAULTS =
                 new TenantIsolationSettings(true, DEFAULT_TENANT_HEADER);
+    }
+
+    // ─── Staging Environment Settings ─────────────────────────────────────────
+
+    /** Immutable snapshot of the staging environment settings for a single route-build call. */
+    private record StagingSettings(boolean enabled, String headerName) {
+        static final StagingSettings DEFAULTS = new StagingSettings(true, "X-Route-Environment");
+    }
+
+    /**
+     * Reads the {@code staging} section from the live gateway config.
+     * Falls back to safe defaults (staging ON, default header) if the section is missing.
+     */
+    @SuppressWarnings("unchecked")
+    private StagingSettings resolveStagingSettings() {
+        Map<String, Object> gwConfig = configLoader.getConfig();
+        if (gwConfig == null || gwConfig.isEmpty()) {
+            return StagingSettings.DEFAULTS;
+        }
+
+        Object raw = gwConfig.get("staging");
+        if (!(raw instanceof Map<?, ?> rawMap)) {
+            return StagingSettings.DEFAULTS;
+        }
+
+        Map<String, Object> s = (Map<String, Object>) rawMap;
+        boolean enabled = toBool(s.get("enabled"), true);
+        String headerName = s.get("headerName") instanceof String h && !h.isBlank()
+                ? h : "X-Route-Environment";
+        return new StagingSettings(enabled, headerName);
     }
 
     // ─── Global Filter Entries ───────────────────────────────────────────────

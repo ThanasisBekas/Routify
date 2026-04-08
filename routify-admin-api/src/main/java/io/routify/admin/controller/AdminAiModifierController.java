@@ -61,7 +61,7 @@ public class AdminAiModifierController {
      * @return the mutation result showing what was changed (or passthrough if no change needed)
      */
     @PostMapping("/test-modification")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('AI_POLICY_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<QueryResponse.AiModifierVerdict> testModification(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody TestModificationRequest request) {

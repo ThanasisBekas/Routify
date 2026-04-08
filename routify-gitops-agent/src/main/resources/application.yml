@@ -1,0 +1,89 @@
+spring:
+  application:
+    name: routify-gitops-agent
+
+  threads:
+    virtual:
+      enabled: true   # Java 25 Virtual Threads
+
+  # ─── Redis — state tracking (last-applied hash, reconciliation history) ─────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      password: ${REDIS_PASS:}
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  port: 8087
+  shutdown: graceful
+
+# ─── Actuator / Management ──────────────────────────────────────────────────
+management:
+  server:
+    port: 9087
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: w3c
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+
+# ─── Routify GitOps Agent Configuration ──────────────────────────────────────
+routify:
+  gitops:
+    enabled: ${GITOPS_ENABLED:false}
+    repository-url: ${GITOPS_REPOSITORY_URL:}      # REQUIRED: https://github.com/org/routify-config.git
+    branch: ${GITOPS_BRANCH:main}
+    config-path: ${GITOPS_CONFIG_PATH:routify-export.yaml}
+    poll-interval-seconds: ${GITOPS_POLL_INTERVAL_SECONDS:60}
+    ssh-key-path: ${GITOPS_SSH_KEY_PATH:}           # optional: /secrets/id_rsa
+    https-username: ${GITOPS_HTTPS_USERNAME:}        # optional: for HTTPS auth
+    https-password: ${GITOPS_HTTPS_PASSWORD:}
+    admin-api-url: ${GITOPS_ADMIN_API_URL:http://localhost:8082}
+    api-key: ${GITOPS_API_KEY:}                      # REQUIRED: API key for admin-api auth
+    tenant-id: ${GITOPS_TENANT_ID:}                  # REQUIRED: tenant scope for import
+    dry-run: ${GITOPS_DRY_RUN:false}                 # true = preview only, no apply
+    webhook-url: ${GITOPS_WEBHOOK_URL:}              # optional: report results
+    webhook-secret: ${GITOPS_WEBHOOK_SECRET:}
+
+# ─── Resilience4j — Retry for admin-api calls ──────────────────────────────
+resilience4j:
+  retry:
+    instances:
+      admin-api:
+        max-attempts: 3
+        wait-duration: 2s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.RestClientException
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException
+
+logging:
+  level:
+    io.routify: DEBUG
+    org.eclipse.jgit: INFO
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n"
+

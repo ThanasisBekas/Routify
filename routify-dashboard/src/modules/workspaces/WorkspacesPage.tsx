@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { tenantsApi } from '../../api/tenantsApi'
 import type { CreateWorkspaceRequest, UpdateWorkspaceRequest } from '../../api/tenantsApi'
@@ -19,8 +19,11 @@ import {
   Edit,
   Save,
   CircleDot,
+  ChevronDown,
 } from 'lucide-react'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import UsageOverview from './UsageOverview'
+import UsageTrendChart from './UsageTrendChart'
 
 // ─── Plan badge ───────────────────────────────────────────────────────────────
 
@@ -379,6 +382,7 @@ export default function WorkspacesPage() {
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [editTenant, setEditTenant] = useState<TenantDto | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data, isLoading } = useRealtimeQuery({
     queryKey: ['tenants'],
@@ -461,70 +465,92 @@ export default function WorkspacesPage() {
                   ))
                 : tenants.map((t) => {
                     const isCurrent = t.id === currentTenantId
+                    const isExpanded = expandedId === t.id
                     return (
-                      <tr
-                        key={t.id}
-                        className={cn(
-                          'transition-colors',
-                          isCurrent ? 'bg-indigo-500/[0.04] hover:bg-indigo-500/[0.07]' : 'hover:bg-white/[0.02]',
+                      <React.Fragment key={t.id}>
+                        <tr
+                          className={cn(
+                            'transition-colors cursor-pointer',
+                            isCurrent ? 'bg-indigo-500/[0.04] hover:bg-indigo-500/[0.07]' : 'hover:bg-white/[0.02]',
+                          )}
+                          onClick={() => setExpandedId(isExpanded ? null : t.id)}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <ChevronDown
+                                className={cn(
+                                  'w-3.5 h-3.5 text-gray-500 transition-transform duration-200',
+                                  isExpanded && 'rotate-180',
+                                )}
+                              />
+                              <span className="text-white font-medium">{t.name}</span>
+                              {isCurrent && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
+                                  <CircleDot className="w-2.5 h-2.5" />
+                                  Current
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <code className="text-indigo-400 text-xs bg-indigo-500/10 px-2 py-0.5 rounded">
+                              {t.slug}
+                            </code>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge label={t.plan} cls={PLAN_COLOR[t.plan]} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge label={t.status} cls={STATUS_COLOR[t.status]} />
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">
+                            {new Date(t.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3">
+                            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                            <div className="flex items-center gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                              {/* Edit button */}
+                              <button
+                                onClick={() => setEditTenant(t)}
+                                title="Edit workspace"
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              {/* Suspend / Reactivate */}
+                              {t.status === 'ACTIVE' ? (
+                                <button
+                                  onClick={() => suspendMut.mutate(t.id)}
+                                  disabled={suspendMut.isPending}
+                                  title="Suspend workspace"
+                                  className="p-1.5 rounded-lg text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 transition-colors"
+                                >
+                                  <ShieldOff className="w-4 h-4" />
+                                </button>
+                              ) : t.status === 'SUSPENDED' ? (
+                                <button
+                                  onClick={() => reactivateMut.mutate(t.id)}
+                                  disabled={reactivateMut.isPending}
+                                  title="Reactivate workspace"
+                                  className="p-1.5 rounded-lg text-gray-500 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+                                >
+                                  <RefreshCcw className="w-4 h-4" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${t.id}-usage`}>
+                            <td colSpan={6} className="px-6 py-5 bg-white/[0.01] border-b border-white/[0.04]">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-3xl">
+                                <UsageOverview tenantId={t.id} />
+                                <UsageTrendChart tenantId={t.id} />
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-medium">{t.name}</span>
-                            {isCurrent && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
-                                <CircleDot className="w-2.5 h-2.5" />
-                                Current
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <code className="text-indigo-400 text-xs bg-indigo-500/10 px-2 py-0.5 rounded">{t.slug}</code>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge label={t.plan} cls={PLAN_COLOR[t.plan]} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge label={t.status} cls={STATUS_COLOR[t.status]} />
-                        </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs">
-                          {new Date(t.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 justify-end">
-                            {/* Edit button */}
-                            <button
-                              onClick={() => setEditTenant(t)}
-                              title="Edit workspace"
-                              className="p-1.5 rounded-lg text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            {/* Suspend / Reactivate */}
-                            {t.status === 'ACTIVE' ? (
-                              <button
-                                onClick={() => suspendMut.mutate(t.id)}
-                                disabled={suspendMut.isPending}
-                                title="Suspend workspace"
-                                className="p-1.5 rounded-lg text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 transition-colors"
-                              >
-                                <ShieldOff className="w-4 h-4" />
-                              </button>
-                            ) : t.status === 'SUSPENDED' ? (
-                              <button
-                                onClick={() => reactivateMut.mutate(t.id)}
-                                disabled={reactivateMut.isPending}
-                                title="Reactivate workspace"
-                                className="p-1.5 rounded-lg text-gray-500 hover:text-green-400 hover:bg-green-500/10 transition-colors"
-                              >
-                                <RefreshCcw className="w-4 h-4" />
-                              </button>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
+                      </React.Fragment>
                     )
                   })}
             </tbody>

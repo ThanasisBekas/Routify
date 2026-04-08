@@ -1,9 +1,5 @@
 package io.routify.gateway.config;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.routify.common.kafka.KafkaDlqErrorHandlerFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -22,8 +18,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.MicrometerConsumerListener;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.support.converter.StringJsonMessageConverter;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.converter.StringJacksonJsonMessageConverter;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 
 import java.util.Map;
 
@@ -66,7 +62,7 @@ public class GatewayKafkaConfig {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
         factory.setConsumerFactory(gatewayConsumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setRecordMessageConverter(new StringJsonMessageConverter(kafkaObjectMapper()));
+        factory.setRecordMessageConverter(new StringJacksonJsonMessageConverter());
         factory.setConcurrency(3);
         // C5: Dead-Letter Queue — failed records go to <topic>.DLQ after 30s back-off
         factory.setCommonErrorHandler(KafkaDlqErrorHandlerFactory.create(kafkaTemplate));
@@ -81,14 +77,14 @@ public class GatewayKafkaConfig {
         var factory = new DefaultKafkaProducerFactory<String, Object>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,   JsonSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,   JacksonJsonSerializer.class,
                 ProducerConfig.ACKS_CONFIG,                     "1",
                 ProducerConfig.RETRIES_CONFIG,                  3,
                 ProducerConfig.LINGER_MS_CONFIG,                5,
                 ProducerConfig.COMPRESSION_TYPE_CONFIG,         "snappy",
                 // Do NOT add __TypeId__ headers — consumers use @JsonTypeInfo / @JsonSubTypes
                 // on DomainEvent to resolve the concrete type from the "type" field in the JSON body.
-                JsonSerializer.ADD_TYPE_INFO_HEADERS,           false
+                JacksonJsonSerializer.ADD_TYPE_INFO_HEADERS,           false
         ));
         return factory;
     }
@@ -98,18 +94,5 @@ public class GatewayKafkaConfig {
         var template = new KafkaTemplate<>(gatewayProducerFactory());
         template.setObservationEnabled(true);
         return template;
-    }
-
-    // ─── Internal helpers ────────────────────────────────────────────────────
-
-    /**
-     * ObjectMapper with {@link JavaTimeModule} for correct {@link java.time.Instant}
-     * deserialization inside {@link StringJsonMessageConverter}.
-     */
-    private ObjectMapper kafkaObjectMapper() {
-        return new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 }

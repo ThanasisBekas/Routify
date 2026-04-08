@@ -36,7 +36,7 @@ import java.util.concurrent.TimeoutException;
  * <h2>What this class handles automatically</h2>
  * <ul>
  *   <li>JSON serialisation delegated to the {@link KafkaTemplate}'s value serializer
- *       (must be {@code JsonSerializer} or equivalent — <em>not</em> {@code StringSerializer})</li>
+ *       (must be {@code JacksonJsonSerializer} or equivalent — <em>not</em> {@code StringSerializer})</li>
  *   <li>Standard command envelope: {@code {commandId, command, tenantId, requestedBy, payload}}</li>
  *   <li>Partition key resolution: {@code tenantId.toString()} or {@code "global"} when null</li>
  *   <li>Structured log on every publish (info on success, error on failure)</li>
@@ -63,7 +63,7 @@ public abstract class KafkaServiceClientSupport {
     /**
      * @param kafkaTemplate Spring Kafka template, shared across the application context.
      *                      Must be backed by a value serializer that handles arbitrary
-     *                      objects (e.g. {@code JsonSerializer}).
+     *                      objects (e.g. {@code JacksonJsonSerializer}).
      * @param serviceName   Logical name of the <em>publishing</em> service (e.g. {@code "admin-api"}).
      */
     protected KafkaServiceClientSupport(KafkaTemplate<String, Object> kafkaTemplate,

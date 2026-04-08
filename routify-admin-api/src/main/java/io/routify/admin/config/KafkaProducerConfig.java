@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 
 import java.util.Map;
 
@@ -31,14 +31,14 @@ public class KafkaProducerConfig {
         var factory = new DefaultKafkaProducerFactory<String, Object>(Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,        bootstrapServers,
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,     StringSerializer.class,
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,   JsonSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,   JacksonJsonSerializer.class,
                 ProducerConfig.ACKS_CONFIG,                     "all",
                 ProducerConfig.RETRIES_CONFIG,                  3,
                 ProducerConfig.LINGER_MS_CONFIG,                5,
                 ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,       true,
                 // Do NOT add __TypeId__ headers — consumers use @JsonTypeInfo / @JsonSubTypes
                 // on DomainEvent to resolve the concrete type from the "type" field in the JSON body.
-                JsonSerializer.ADD_TYPE_INFO_HEADERS,           false
+                JacksonJsonSerializer.ADD_TYPE_INFO_HEADERS,           false
         ));
         return factory;
     }

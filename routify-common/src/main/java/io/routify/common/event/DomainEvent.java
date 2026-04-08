@@ -37,6 +37,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = DomainEvent.RouteActivated.class,    name = "ROUTE_ACTIVATED"),
     @JsonSubTypes.Type(value = DomainEvent.RouteDeactivated.class,  name = "ROUTE_DEACTIVATED"),
     @JsonSubTypes.Type(value = DomainEvent.RouteDeleted.class,      name = "ROUTE_DELETED"),
+    @JsonSubTypes.Type(value = DomainEvent.RoutePromoted.class,    name = "ROUTE_PROMOTED"),
     @JsonSubTypes.Type(value = DomainEvent.FilterCreated.class,     name = "FILTER_CREATED"),
     @JsonSubTypes.Type(value = DomainEvent.FilterUpdated.class,     name = "FILTER_UPDATED"),
     @JsonSubTypes.Type(value = DomainEvent.FilterDeleted.class,     name = "FILTER_DELETED"),
@@ -62,6 +63,13 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = DomainEvent.CertRemovedFromGroup.class,         name = "CERT_REMOVED_FROM_GROUP"),
     @JsonSubTypes.Type(value = DomainEvent.GatewayReloadRequested.class, name = "GATEWAY_RELOAD_REQUESTED"),
     @JsonSubTypes.Type(value = DomainEvent.GatewayConfigChanged.class,   name = "GATEWAY_CONFIG_CHANGED"),
+    // ─── API Key Events ────────────────────────────────────────────────────────
+    @JsonSubTypes.Type(value = DomainEvent.ApiKeyCreated.class,  name = "API_KEY_CREATED"),
+    @JsonSubTypes.Type(value = DomainEvent.ApiKeyRevoked.class,  name = "API_KEY_REVOKED"),
+    // ─── Canary Routing Events (Initiative 14) ────────────────────────────────
+    @JsonSubTypes.Type(value = DomainEvent.CanaryDeployed.class,  name = "CANARY_DEPLOYED"),
+    @JsonSubTypes.Type(value = DomainEvent.CanaryPromoted.class,  name = "CANARY_PROMOTED"),
+    @JsonSubTypes.Type(value = DomainEvent.CanaryRolledBack.class,name = "CANARY_ROLLED_BACK"),
 })
 public sealed interface DomainEvent
         permits
@@ -71,6 +79,7 @@ public sealed interface DomainEvent
             DomainEvent.RouteActivated,
             DomainEvent.RouteDeactivated,
             DomainEvent.RouteDeleted,
+            DomainEvent.RoutePromoted,
             DomainEvent.FilterCreated,
             DomainEvent.FilterUpdated,
             DomainEvent.FilterDeleted,
@@ -96,6 +105,11 @@ public sealed interface DomainEvent
             DomainEvent.CertRemovedFromGroup,
             DomainEvent.GatewayReloadRequested,
             DomainEvent.GatewayConfigChanged,
+            DomainEvent.ApiKeyCreated,
+            DomainEvent.ApiKeyRevoked,
+            DomainEvent.CanaryDeployed,
+            DomainEvent.CanaryPromoted,
+            DomainEvent.CanaryRolledBack,
             DomainEvent.Unknown {
 
     UUID eventId();
@@ -172,6 +186,18 @@ public sealed interface DomainEvent
             String actor
     ) implements DomainEvent {}
 
+    /** Published when a STAGING route is promoted to PRODUCTION. Carries both route IDs for audit diff. */
+    record RoutePromoted(
+            UUID eventId,
+            UUID tenantId,
+            UUID stagingRouteId,
+            UUID productionRouteId,
+            String routeName,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
     // ─── Filter Events ────────────────────────────────────────────────────────
 
     record FilterCreated(
@@ -243,6 +269,7 @@ public sealed interface DomainEvent
             UUID eventId,
             UUID tenantId,
             String tenantName,
+            String plan,
             Instant occurredAt,
             String correlationId,
             String actor
@@ -484,6 +511,74 @@ public sealed interface DomainEvent
             UUID tenantId,
             String section,      // which section changed: CORS, SECURITY_HEADERS, etc.
             String changedBy,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    // ─── API Key Events ───────────────────────────────────────────────────────
+
+    /** Published by routify-identity-service when an API key is created or rotated. */
+    record ApiKeyCreated(
+            UUID eventId,
+            UUID tenantId,
+            UUID apiKeyId,
+            String name,
+            String keyPrefix,
+            String role,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published by routify-identity-service when an API key is revoked. */
+    record ApiKeyRevoked(
+            UUID eventId,
+            UUID tenantId,
+            UUID apiKeyId,
+            String name,
+            String keyPrefix,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    // ─── Canary Routing Events (Initiative 14) ────────────────────────────────
+
+    /** Published when a canary route is deployed for weighted traffic splitting. */
+    record CanaryDeployed(
+            UUID eventId,
+            UUID tenantId,
+            UUID primaryRouteId,
+            UUID canaryRouteId,
+            String routeName,
+            int canaryWeight,
+            String canaryUpstreamUri,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published when a canary route is promoted to become the new primary. */
+    record CanaryPromoted(
+            UUID eventId,
+            UUID tenantId,
+            UUID primaryRouteId,
+            UUID canaryRouteId,
+            String routeName,
+            Instant occurredAt,
+            String correlationId,
+            String actor
+    ) implements DomainEvent {}
+
+    /** Published when a canary route is rolled back (manual or auto). */
+    record CanaryRolledBack(
+            UUID eventId,
+            UUID tenantId,
+            UUID primaryRouteId,
+            UUID canaryRouteId,
+            String routeName,
+            String reason,
             Instant occurredAt,
             String correlationId,
             String actor

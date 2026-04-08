@@ -40,6 +40,13 @@ public enum FilterType {
     DOWNSTREAM_BASIC_AUTH,
     /** Acquire an OAuth2 client-credentials token and inject as Bearer downstream — DownstreamOAuth2BearerGatewayFilterFactory */
     DOWNSTREAM_BEARER_CC,
+    /**
+     * RFC 8693 Token Exchange — exchanges the incoming bearer token for a downstream-specific
+     * token via a configured OAuth2 token endpoint. Supports Caffeine token caching,
+     * configurable fallback (REJECT / PASS_THROUGH / STRIP), and fully non-blocking WebClient calls.
+     * — OAuth2TokenRelayGatewayFilterFactory
+     */
+    OAUTH2_TOKEN_RELAY,
 
     // ─── Rate Limiting ────────────────────────────────────────────────────────
 
@@ -54,6 +61,15 @@ public enum FilterType {
     REQUEST_HEADER_MODIFY,
     /** Add, set or remove response headers — ResponseHeaderModifyGatewayFilterFactory */
     RESPONSE_HEADER_MODIFY,
+    /**
+     * Regex-based response header value rewriting — rewrites header values using
+     * pre-compiled Java regex patterns with capture group references ({@code $1}, {@code $2}).
+     * Primary use cases: rewriting {@code Location} redirect headers from internal to external URLs,
+     * rewriting {@code Set-Cookie} domain attributes.
+     * Includes catastrophic backtracking protection.
+     * — ResponseHeaderRewriteGatewayFilterFactory
+     */
+    RESPONSE_HEADER_REWRITE,
 
     // ─── Body Transformation ─────────────────────────────────────────────────
 
@@ -64,11 +80,58 @@ public enum FilterType {
 
     /** Validate request body against a JSON Schema — JsonSchemaValidateGatewayFilterFactory */
     VALIDATE_JSON_SCHEMA,
+    /** Enforce per-route maximum request body size (413 on exceed) — RequestSizeLimitGatewayFilterFactory */
+    REQUEST_SIZE_LIMIT,
+    /**
+     * Parse incoming GraphQL queries and reject those exceeding configurable depth,
+     * complexity, or alias limits. Optionally blocks introspection queries and batched
+     * queries beyond a maximum batch size. Uses graphql-java AST parser (no execution engine).
+     * — GraphQLDepthLimitGatewayFilterFactory
+     */
+    GRAPHQL_DEPTH_LIMIT,
+
+    // ─── Performance ──────────────────────────────────────────────────────────
+
+    /** Per-route Redis-backed response cache with configurable TTL — ResponseCacheGatewayFilterFactory */
+    RESPONSE_CACHE,
+    /**
+     * Transparently decompresses {@code gzip}, {@code br} (Brotli), and {@code zstd}
+     * encoded request bodies before forwarding to upstream. Includes zip bomb protection
+     * via {@code maxDecompressedSize} limit, header cleanup ({@code Content-Encoding}
+     * removal, {@code Content-Length} update), and {@code X-Original-Encoding} header
+     * injection for downstream observability.
+     * — RequestDecompressGatewayFilterFactory
+     */
+    REQUEST_DECOMPRESS,
+
+    // ─── Reliability ─────────────────────────────────────────────────────────
+
+    /**
+     * Idempotency Key filter — deduplicates write requests using a client-provided
+     * idempotency key (per the emerging IETF standard). First request executes and
+     * caches the response in Redis. Replay returns the cached response without
+     * forwarding to upstream. Concurrent duplicates are rejected with 409 Conflict.
+     * — IdempotencyKeyGatewayFilterFactory
+     */
+    IDEMPOTENCY_KEY,
 
     // ─── Resilience ──────────────────────────────────────────────────────────
 
     /** Per-route request timeout (504 on exceed) — RequestTimeoutGatewayFilterFactory */
     TIMEOUT,
+    /**
+     * Per-route Resilience4j circuit breaker with configurable failure/slow-call thresholds,
+     * half-open probing, state broadcast via WebSocket, and manual override via admin-api.
+     * Replaces the deprecated {@link #CIRCUIT_BREAKER} filter.
+     * — CircuitBreakerV2GatewayFilterFactory
+     */
+    CIRCUIT_BREAKER_V2,
+    /**
+     * Per-route custom retry filter with exponential backoff, jitter, idempotency-aware
+     * retry logic, and configurable retry conditions. Replaces the deprecated {@link #RETRY} filter.
+     * — RetryV2GatewayFilterFactory
+     */
+    RETRY_V2,
 
     // ─── Routing ─────────────────────────────────────────────────────────────
 
@@ -76,6 +139,13 @@ public enum FilterType {
     CONDITIONAL_ROUTE,
     /** Route to an alternative upstream when userId in request body is in an allowlist — UserIdPayloadRoutingGatewayFilterFactory */
     USER_ID_PAYLOAD_ROUTING,
+    /** Route to geographically closest upstream using MaxMind GeoIP2 lookups — GeoRouteGatewayFilterFactory */
+    GEO_ROUTE,
+
+    // ─── Security ──────────────────────────────────────────────────────────────
+
+    /** IP allowlist/denylist — block or allow requests by client IP or CIDR range — IpAccessControlGatewayFilterFactory */
+    IP_ACCESS_CONTROL,
 
     // ─── Certificate / TLS ───────────────────────────────────────────────────
 
@@ -107,6 +177,37 @@ public enum FilterType {
     SECURITY_HEADERS,
     /** Increment a custom Micrometer counter with optional dynamic tags — CustomMetricGatewayFilterFactory */
     CUSTOM_METRIC,
+    /**
+     * Lightweight, zero-copy filter that records request and response body sizes as
+     * Micrometer distribution summaries without reading or buffering body content.
+     * — BodySizeMetricGatewayFilterFactory
+     */
+    BODY_SIZE_METRIC,
+
+    // ─── Integration ──────────────────────────────────────────────────────────
+
+    /**
+     * Webhook Notification filter — fires a non-blocking webhook HTTP POST when a
+     * request matches configurable conditions (status codes, header values). Useful
+     * for real-time alerting on specific traffic patterns (e.g. 5xx errors, AI filter
+     * flags). Features HMAC-SHA256 signing ({@code X-Routify-Signature}), per-route
+     * cooldown to prevent notification storms, and fire-and-forget dispatch that never
+     * blocks the client response.
+     * — WebhookNotifyGatewayFilterFactory
+     */
+    WEBHOOK_NOTIFY,
+
+    // ─── Developer Experience ───────────────────────────────────────────────
+
+    /**
+     * Mock Response filter — returns a configurable static response without forwarding
+     * to any upstream service. Supports template interpolation with request attributes
+     * ({@code ${method}}, {@code ${path}}, {@code ${header:X-Foo}}, {@code ${param:id}},
+     * {@code ${timestamp}}, {@code ${correlationId}}), simulated latency for timeout
+     * testing, and conditional activation via header presence.
+     * — MockResponseGatewayFilterFactory
+     */
+    MOCK_RESPONSE,
 
     // ─── Custom ──────────────────────────────────────────────────────────────
 

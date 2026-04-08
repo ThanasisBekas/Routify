@@ -1,0 +1,14 @@
+{{- if and .Values.gitopsAgent.enabled (.Values.gitopsAgent.pdb).enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "routify.gitopsAgent.fullname" . }}
+  labels:
+    {{- include "routify.gitopsAgent.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.gitopsAgent.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "routify.gitopsAgent.selectorLabels" . | nindent 6 }}
+{{- end }}
+

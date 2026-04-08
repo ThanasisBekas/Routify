@@ -1,5 +1,6 @@
 package io.routify.route.domain;
 
+import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -28,8 +29,8 @@ import java.util.*;
     name = "route",
     schema = "routify",
     uniqueConstraints = @UniqueConstraint(
-        name = "uq_route_name_tenant",
-        columnNames = {"name", "tenant_id"}
+        name = "uq_route_name_tenant_env",
+        columnNames = {"name", "tenant_id", "environment"}
     )
 )
 public class Route {
@@ -87,6 +88,10 @@ public class Route {
     @Column(nullable = false, length = 20)
     private RouteStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private RouteEnvironment environment;
+
     /** Monotonically increasing version — incremented on every activation */
     @Column(nullable = false)
     private Integer version;
@@ -119,6 +124,20 @@ public class Route {
     @Column(name = "extra_config", columnDefinition = "jsonb")
     private Map<String, Object> extraConfig = new HashMap<>();
 
+    // ─── Canary Routing ────────────────────────────────────────────────────────
+
+    /** Traffic weight percentage (0–100). Default 100 means all traffic goes to this route. */
+    @Column(name = "traffic_weight", nullable = false)
+    private int trafficWeight = 100;
+
+    /** FK to the canary sibling route, set on the primary route when a canary is deployed. */
+    @Column(name = "canary_route_id")
+    private UUID canaryRouteId;
+
+    /** Error rate % threshold above which the canary should be auto-rolled back. */
+    @Column(name = "canary_auto_rollback_threshold")
+    private java.math.BigDecimal canaryAutoRollbackThreshold;
+
     // ─── Metadata ─────────────────────────────────────────────────────────────
 
     /** User who created this route */
@@ -146,6 +165,7 @@ public class Route {
         this.upstreamUri = Objects.requireNonNull(builder.upstreamUri, "upstreamUri");
         this.stripPrefix = builder.stripPrefix;
         this.status      = RouteStatus.DRAFT;
+        this.environment = builder.environment != null ? builder.environment : RouteEnvironment.PRODUCTION;
         this.version     = 1;
         this.createdBy   = builder.createdBy;
         this.extraConfig = builder.extraConfig != null ? builder.extraConfig : new HashMap<>();
@@ -226,6 +246,7 @@ public class Route {
     public String getUpstreamUri() { return upstreamUri; }
     public String getStripPrefix() { return stripPrefix; }
     public RouteStatus getStatus() { return status; }
+    public RouteEnvironment getEnvironment() { return environment; }
     public Integer getVersion()    { return version; }
     public Instant getActivatedAt(){ return activatedAt; }
     public List<RouteFilter> getFilters() { return Collections.unmodifiableList(filters); }
@@ -233,6 +254,9 @@ public class Route {
     public String getCreatedBy()   { return createdBy; }
     public Instant getCreatedAt()  { return createdAt; }
     public Instant getUpdatedAt()  { return updatedAt; }
+    public int getTrafficWeight()  { return trafficWeight; }
+    public UUID getCanaryRouteId() { return canaryRouteId; }
+    public java.math.BigDecimal getCanaryAutoRollbackThreshold() { return canaryAutoRollbackThreshold; }
 
     // ─── Setters (package-private for service layer) ──────────────────────────
 
@@ -243,6 +267,10 @@ public class Route {
     public void setUpstreamUri(String upstreamUri) { this.upstreamUri = upstreamUri; }
     public void setStripPrefix(String stripPrefix) { this.stripPrefix = stripPrefix; }
     public void setExtraConfig(Map<String, Object> extraConfig) { this.extraConfig = extraConfig; }
+    public void setEnvironment(RouteEnvironment environment) { this.environment = environment; }
+    public void setTrafficWeight(int trafficWeight)       { this.trafficWeight = trafficWeight; }
+    public void setCanaryRouteId(UUID canaryRouteId)      { this.canaryRouteId = canaryRouteId; }
+    public void setCanaryAutoRollbackThreshold(java.math.BigDecimal threshold) { this.canaryAutoRollbackThreshold = threshold; }
 
     // ─── Builder ──────────────────────────────────────────────────────────────
 
@@ -258,6 +286,7 @@ public class Route {
         private String stripPrefix;
         private String createdBy;
         private Map<String, Object> extraConfig;
+        private RouteEnvironment environment;
 
         public Builder tenantId(UUID tenantId)          { this.tenantId = tenantId; return this; }
         public Builder name(String name)                { this.name = name; return this; }
@@ -268,7 +297,7 @@ public class Route {
         public Builder stripPrefix(String stripPrefix)  { this.stripPrefix = stripPrefix; return this; }
         public Builder createdBy(String createdBy)      { this.createdBy = createdBy; return this; }
         public Builder extraConfig(Map<String, Object> cfg) { this.extraConfig = cfg; return this; }
+        public Builder environment(RouteEnvironment env){ this.environment = env; return this; }
         public Route build()                            { return new Route(this); }
     }
 }
-

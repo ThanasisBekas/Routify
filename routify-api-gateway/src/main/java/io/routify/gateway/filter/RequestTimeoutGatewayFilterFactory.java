@@ -1,11 +1,11 @@
 package io.routify.gateway.filter;
 
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -56,16 +56,13 @@ public class RequestTimeoutGatewayFilterFactory
     }
 
     private Mono<Void> gatewayTimeout(org.springframework.web.server.ServerWebExchange exchange, long timeoutMs) {
-        ServerHttpResponse resp = exchange.getResponse();
-        if (resp.isCommitted()) {
+        if (exchange.getResponse().isCommitted()) {
             return Mono.empty();
         }
-        resp.setStatusCode(HttpStatus.GATEWAY_TIMEOUT);
-        resp.getHeaders().set("Content-Type", "application/problem+json");
-        String body = """
-                {"type":"about:blank","title":"Gateway Timeout","status":504,\
-                "detail":"The upstream service did not respond within %dms."}""".formatted(timeoutMs);
-        return resp.writeWith(Mono.just(resp.bufferFactory().wrap(body.getBytes())));
+        return GatewayProblemResponse.status(HttpStatus.GATEWAY_TIMEOUT)
+                .errorCode("GATEWAY_TIMEOUT")
+                .detail("The upstream service did not respond within %dms.", timeoutMs)
+                .write(exchange);
     }
 
     @Data

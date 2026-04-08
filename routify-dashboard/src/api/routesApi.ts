@@ -7,6 +7,9 @@ import type {
   UpdateRouteRequest,
   AttachFilterRequest,
   AsyncAcknowledgement,
+  DeployCanaryRequest,
+  AdjustCanaryWeightRequest,
+  CanaryStatusResponse,
 } from '../types'
 
 // All dashboard requests go through routify-admin-api (the BFF).
@@ -14,8 +17,14 @@ import type {
 const BASE = '/api/v1/admin/routes'
 
 export const routesApi = {
-  list: (params?: { status?: string; page?: number; size?: number; sortBy?: string; sortDir?: string }) =>
-    apiClient.get<Page<RouteSummary>>(BASE, { params }).then((r) => r.data),
+  list: (params?: {
+    status?: string
+    environment?: string
+    page?: number
+    size?: number
+    sortBy?: string
+    sortDir?: string
+  }) => apiClient.get<Page<RouteSummary>>(BASE, { params }).then((r) => r.data),
 
   get: (id: string) => apiClient.get<RouteDto>(`${BASE}/${id}`).then((r) => r.data),
 
@@ -31,9 +40,44 @@ export const routesApi = {
 
   clone: (id: string) => apiClient.post<RouteDto>(`${BASE}/${id}/clone`).then((r) => r.data),
 
+  promote: (id: string) => apiClient.post<AsyncAcknowledgement>(`${BASE}/${id}/promote`).then((r) => r.data),
+
   attachFilter: (routeId: string, req: AttachFilterRequest) =>
     apiClient.post<RouteDto>(`${BASE}/${routeId}/filters`, req).then((r) => r.data),
 
   detachFilter: (routeId: string, filterId: string) =>
     apiClient.delete<RouteDto>(`${BASE}/${routeId}/filters/${filterId}`).then((r) => r.data),
+
+  // ─── Cache Management ─────────────────────────────────────────────────
+
+  purgeCache: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/cache/purge`).then((r) => r.data),
+
+  // ─── Canary Routing ──────────────────────────────────────────────────────
+
+  deployCanary: (routeId: string, req: DeployCanaryRequest) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/canary`, req).then((r) => r.data),
+
+  getCanaryStatus: (routeId: string) =>
+    apiClient.get<CanaryStatusResponse>(`${BASE}/${routeId}/canary/status`).then((r) => r.data),
+
+  promoteCanary: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/canary/promote`).then((r) => r.data),
+
+  rollbackCanary: (routeId: string, reason?: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/canary/rollback`, { reason }).then((r) => r.data),
+
+  adjustCanaryWeight: (routeId: string, req: AdjustCanaryWeightRequest) =>
+    apiClient.put<AsyncAcknowledgement>(`${BASE}/${routeId}/canary/weight`, req).then((r) => r.data),
+
+  // ─── Circuit Breaker Manual Override ────────────────────────────────────
+
+  forceCircuitBreakerOpen: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/circuit-breaker/force-open`).then((r) => r.data),
+
+  forceCircuitBreakerClosed: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/circuit-breaker/force-closed`).then((r) => r.data),
+
+  resetCircuitBreaker: (routeId: string) =>
+    apiClient.post<AsyncAcknowledgement>(`${BASE}/${routeId}/circuit-breaker/reset`).then((r) => r.data),
 }

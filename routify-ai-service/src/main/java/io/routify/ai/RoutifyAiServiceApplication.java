@@ -3,7 +3,6 @@ package io.routify.ai;
 import io.routify.common.config.SecretValidator;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
@@ -30,7 +29,6 @@ import org.springframework.scheduling.annotation.EnableAsync;
  */
 @SpringBootApplication
 @EnableAsync
-@EnableCaching
 public class RoutifyAiServiceApplication {
 
     public static void main(String[] args) {

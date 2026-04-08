@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: routify-gitops-agent-test
+  main:
+    allow-bean-definition-overriding: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+management:
+  tracing:
+    enabled: false
+
+routify:
+  gitops:
+    enabled: false
+    repository-url: https://github.com/test/test-config.git
+    branch: main
+    config-path: routify-export.yaml
+    poll-interval-seconds: 60
+    admin-api-url: http://localhost:8082
+    api-key: test-api-key
+    tenant-id: test-tenant-id
+    dry-run: false
+
+resilience4j:
+  retry:
+    instances:
+      admin-api:
+        max-attempts: 1
+        wait-duration: 0s
+

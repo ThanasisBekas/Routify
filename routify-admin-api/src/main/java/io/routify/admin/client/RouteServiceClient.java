@@ -71,6 +71,53 @@ public class RouteServiceClient extends AmqpServiceClientSupport {
         return new QueryResponse.GatewayStatus("UNKNOWN", 0, null, null, null);
     }
 
+    // ─── Route SLO (Gateway Health Dashboard v2) ──────────────────────────────
+
+    @CircuitBreaker(name = "route-service", fallbackMethod = "getRouteSloFallback")
+    public QueryResponse.RouteSloResult getRouteSlo(UUID routeId, UUID tenantId) {
+        try {
+            return rpc(RabbitTopology.RK_ROUTE_SLO_GET,
+                    new QueryRequest.RouteSloGet(routeId, tenantId),
+                    QueryResponse.RouteSloResult.class);
+        } catch (Exception e) {
+            log.error("getRouteSlo failed: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.RouteSloResult getRouteSloFallback(UUID routeId, UUID tenantId, Throwable t) {
+        log.warn("getRouteSlo circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.RouteSloResult(routeId, 99.9, 1000, 168, false);
+    }
+
+    @CircuitBreaker(name = "route-service", fallbackMethod = "saveRouteSloFallback")
+    public QueryResponse.RouteSloResult saveRouteSlo(UUID routeId, UUID tenantId,
+                                                      double availabilityTarget,
+                                                      int latencyP99TargetMs,
+                                                      int evaluationWindowHours) {
+        try {
+            return rpc(RabbitTopology.RK_ROUTE_SLO_SAVE,
+                    new QueryRequest.RouteSloSave(routeId, tenantId,
+                            availabilityTarget, latencyP99TargetMs, evaluationWindowHours),
+                    QueryResponse.RouteSloResult.class);
+        } catch (Exception e) {
+            log.error("saveRouteSlo failed: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.RouteSloResult saveRouteSloFallback(UUID routeId, UUID tenantId,
+                                                               double availabilityTarget,
+                                                               int latencyP99TargetMs,
+                                                               int evaluationWindowHours,
+                                                               Throwable t) {
+        log.warn("saveRouteSlo circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.RouteSloResult(routeId, availabilityTarget,
+                latencyP99TargetMs, evaluationWindowHours, false);
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private org.springframework.amqp.core.MessageProperties buildGatewayProps() {

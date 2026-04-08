@@ -5,7 +5,6 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.routify.common.client.AmqpServiceClientSupport;
-import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,8 +23,10 @@ import java.util.concurrent.atomic.AtomicLong;
  *   <li><b>DLQ</b>     — {@code routify.dlq.events} counter per DLQ topic</li>
  *   <li><b>Cert</b>    — {@code routify.cert.expiry.days} gauge per logical cert ID</li>
  * </ul>
+ *
+ * <p>Registered as a bean via {@link RoutifyMetricsAutoConfiguration} — services that
+ * depend on {@code routify-common} get this bean automatically.
  */
-@Component
 public class RoutifyMetrics {
 
     private final MeterRegistry registry;
@@ -41,6 +42,10 @@ public class RoutifyMetrics {
     private final Counter gatewayRequestsBlocked;
     private final Counter gatewayRequestsRateLimited;
     private final Counter authFailures;
+
+    // ─── Quota ────────────────────────────────────────────────────────────────
+
+    private final Counter gatewayRequestsQuotaExceeded;
 
     // ─── Timers ───────────────────────────────────────────────────────────────
 
@@ -68,6 +73,33 @@ public class RoutifyMetrics {
 
     private final Map<String, AtomicLong> certExpiryDays = new ConcurrentHashMap<>();
 
+    // ─── ACME counters (lazy) ────────────────────────────────────────────────
+
+    private final Map<String, Counter> acmeRenewals = new ConcurrentHashMap<>();
+    private final Map<String, Counter> acmeFailures = new ConcurrentHashMap<>();
+
+    // ─── Gateway Cluster ─────────────────────────────────────────────────────
+
+    private final AtomicLong gatewayConfigVersion = new AtomicLong(0);
+
+    // ─── Canary Routing ──────────────────────────────────────────────────────
+
+    private final Counter canaryDeployments;
+    private final Counter canaryRollbacks;
+
+    // ─── Alerting Engine ──────────────────────────────────────────────────────
+
+    private final Timer   alertEvaluationTimer;
+    private final Counter alertsFired;
+
+    // ─── Response Cache ──────────────────────────────────────────────────────
+
+    private final Counter cachePurges;
+
+    // ─── Webhook Delivery Cleanup ─────────────────────────────────────────────
+
+    private final Counter webhookDeliveryCleanup;
+
     public RoutifyMetrics(MeterRegistry registry) {
         this.registry = registry;
 
@@ -80,6 +112,10 @@ public class RoutifyMetrics {
         gatewayRequestsBlocked     = Counter.builder("routify.gateway.requests.blocked").register(registry);
         gatewayRequestsRateLimited = Counter.builder("routify.gateway.requests.rate_limited").register(registry);
         authFailures       = Counter.builder("routify.auth.failures").register(registry);
+
+        gatewayRequestsQuotaExceeded = Counter.builder("routify.gateway.requests.quota_exceeded")
+                .description("Requests rejected due to monthly tenant quota exceeded")
+                .register(registry);
 
         gatewayRequestDuration = Timer.builder("routify.gateway.request.duration")
                 .description("End-to-end gateway request duration")
@@ -98,6 +134,32 @@ public class RoutifyMetrics {
         Gauge.builder("routify.outbox.pending", outboxPending, AtomicLong::get)
                 .description("Number of outbox events awaiting publication")
                 .register(registry);
+
+        Gauge.builder("routify.gateway.cluster.config-version", gatewayConfigVersion, AtomicLong::get)
+                .description("Local config version counter for this gateway instance")
+                .register(registry);
+
+        canaryDeployments = Counter.builder("routify.canary.deployments")
+                .description("Number of canary route deployments")
+                .register(registry);
+        canaryRollbacks = Counter.builder("routify.canary.rollbacks")
+                .description("Number of canary route rollbacks (manual + auto)")
+                .register(registry);
+
+        alertEvaluationTimer = Timer.builder("routify.alerts.evaluation")
+                .description("Time spent evaluating alert rules per cycle")
+                .register(registry);
+        alertsFired = Counter.builder("routify.alerts.fired")
+                .description("Number of alert rules that transitioned to FIRING")
+                .register(registry);
+
+        cachePurges = Counter.builder("routify.filter.response_cache.purges")
+                .description("Number of response cache purge operations")
+                .register(registry);
+
+        webhookDeliveryCleanup = Counter.builder("routify.webhooks.delivery.cleanup")
+                .description("Number of expired webhook delivery records purged")
+                .register(registry);
     }
 
     // ─── Gateway ──────────────────────────────────────────────────────────────
@@ -111,12 +173,21 @@ public class RoutifyMetrics {
     public void recordGatewayRequestBlocked() { gatewayRequestsBlocked.increment(); }
     public void recordRateLimited()           { gatewayRequestsRateLimited.increment(); }
     public void recordAuthFailure()           { authFailures.increment(); }
+    public void recordQuotaExceeded()         { gatewayRequestsQuotaExceeded.increment(); }
 
     public Timer gatewayRequestDuration() { return gatewayRequestDuration; }
     public Timer filterChainDuration()    { return filterChainDuration; }
 
     public void setActiveRoutes(int count)   { activeRoutes.set(count); }
     public void setLoadedFilters(int count)  { loadedFilters.set(count); }
+
+    /**
+     * Updates the local config version gauge.
+     * Called by the gateway's {@code GatewayInstanceRegistry} after each reload.
+     *
+     * @param version the new local config version
+     */
+    public void setGatewayConfigVersion(long version) { gatewayConfigVersion.set(version); }
 
     // ─── Outbox ───────────────────────────────────────────────────────────────
 
@@ -186,6 +257,51 @@ public class RoutifyMetrics {
                     .register(registry);
             return holder;
         }).set(daysLeft);
+    }
+
+    // ─── ACME Certificate Lifecycle ─────────────────────────────────────────────
+
+    /** Increment the ACME renewal success counter. */
+    public void recordAcmeRenewal() {
+        acmeRenewals.computeIfAbsent("renewals", k ->
+                Counter.builder("routify.cert.acme.renewals")
+                        .description("Successful ACME certificate renewals")
+                        .register(registry)
+        ).increment();
+    }
+
+    /** Increment the ACME failure counter. */
+    public void recordAcmeFailure() {
+        acmeFailures.computeIfAbsent("failures", k ->
+                Counter.builder("routify.cert.acme.failures")
+                        .description("Failed ACME certificate operations (issuance or renewal)")
+                        .register(registry)
+        ).increment();
+    }
+
+    // ─── Canary Routing ──────────────────────────────────────────────────────
+
+    public void recordCanaryDeployment() { canaryDeployments.increment(); }
+    public void recordCanaryRollback()   { canaryRollbacks.increment(); }
+
+    // ─── Alerting Engine ──────────────────────────────────────────────────────
+
+    public Timer alertEvaluationTimer()   { return alertEvaluationTimer; }
+    public void  recordAlertFired()       { alertsFired.increment(); }
+
+    // ─── Response Cache ──────────────────────────────────────────────────────
+
+    public void recordCachePurge() { cachePurges.increment(); }
+
+    // ─── Webhook Delivery Cleanup ─────────────────────────────────────────────
+
+    /**
+     * Records the number of expired webhook delivery records purged in a cleanup cycle.
+     *
+     * @param count number of records deleted
+     */
+    public void recordWebhookDeliveryCleanup(int count) {
+        webhookDeliveryCleanup.increment(count);
     }
 }
 

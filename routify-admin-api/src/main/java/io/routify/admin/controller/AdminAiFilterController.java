@@ -1,6 +1,7 @@
 package io.routify.admin.controller;
 
 import io.routify.admin.client.AiMessagingClient;
+import io.routify.admin.client.AuditMessagingClient;
 import io.routify.admin.dto.TestPolicyRequest;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
@@ -42,6 +43,7 @@ import java.util.UUID;
 public class AdminAiFilterController {
 
     private final AiMessagingClient aiMessagingClient;
+    private final AuditMessagingClient auditMessagingClient;
 
     // ─── Policy dry-run (dashboard test) ─────────────────────────────────────
 
@@ -59,7 +61,7 @@ public class AdminAiFilterController {
      * @return the LLM's verdict (action, reason, confidence) for the sample request
      */
     @PostMapping("/test-policy")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    @PreAuthorize("hasAuthority('AI_POLICY_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<QueryResponse.AiFilterVerdict> testPolicy(
             @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
             @Valid @RequestBody TestPolicyRequest request) {
@@ -69,11 +71,16 @@ public class AdminAiFilterController {
 
         TestPolicyRequest.SampleRequest sample = request.sampleRequest();
 
+        // Use promptOverride if provided (playground sends draft prompt text here)
+        String effectivePolicy = (request.promptOverride() != null && !request.promptOverride().isBlank())
+                ? request.promptOverride()
+                : request.policyDescription();
+
         QueryRequest.AiFilterEvaluate rpcRequest = AiMessagingClient.buildFilterEvaluateRequest(
                 "test-" + UUID.randomUUID(),          // synthetic routeId
                 "policy-test",                         // synthetic routeName
                 tenantId.toString(),
-                request.policyDescription(),
+                effectivePolicy,
                 "SYNC",                                // always synchronous for dry-run
                 sample.bodyExcerpt() != null,          // includeBody
                 512,                                   // maxBodyBytes
@@ -96,4 +103,24 @@ public class AdminAiFilterController {
 
         return ResponseEntity.ok(verdict);
     }
+
+    // ─── Decision Labelling ──────────────────────────────────────────────────
+
+    /**
+     * Labels an AI filter decision as correct/incorrect/unclear for ground-truth feedback.
+     * Updates accuracy scoring on the associated prompt version.
+     */
+    @PostMapping("/decisions/{evaluationId}/label")
+    @PreAuthorize("hasAuthority('AI_POLICY_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    public ResponseEntity<QueryResponse.AiDecisionLabelResult> labelDecision(
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @PathVariable String evaluationId,
+            @RequestBody LabelRequest body) {
+        log.debug("Label AI decision: evaluationId={} label={}", evaluationId, body.label());
+        var result = auditMessagingClient.labelDecision(evaluationId, tenantId, body.label());
+        return ResponseEntity.ok(result);
+    }
+
+    /** Request body for decision labelling. */
+    public record LabelRequest(String label) {}
 }

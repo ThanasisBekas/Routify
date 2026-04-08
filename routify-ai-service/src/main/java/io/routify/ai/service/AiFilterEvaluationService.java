@@ -317,7 +317,8 @@ public class AiFilterEvaluationService {
                     request.requestContext().method(),
                     request.requestContext().path(),
                     request.requestContext().clientIp(),
-                    Instant.now()
+                    Instant.now(),
+                    null
             );
             kafkaTemplate.send(KafkaTopics.AI_FILTER_DECISIONS, request.routeId(), event);
         } catch (Exception e) {
