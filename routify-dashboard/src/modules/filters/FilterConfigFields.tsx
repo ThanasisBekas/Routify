@@ -3,6 +3,7 @@
  * Each filter section produces a strongly-typed config object so no raw JSON is needed.
  */
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '../../lib/utils'
 import type { FilterType } from '../../types'
 import type { AiModificationTestRequest, AiModificationTestResult } from '../../types'
@@ -10,6 +11,7 @@ import { Select } from '../../components/ui/Select'
 import { inputCls, monoInputCls } from './filterConfigConstants'
 import type { FilterConfig } from './filterConfigConstants'
 import { aiApi } from '../../api/aiApi'
+import { gatewayApi } from '../../api/gatewayApi'
 
 function Field({
   label,
@@ -273,32 +275,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
       )
 
     case 'AUTH_OAUTH2':
-      return (
-        <div className="space-y-4">
-          <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-            Verifies the caller's Bearer token against an OAuth2 introspection endpoint. Claims are mapped to downstream
-            request headers via <strong className="text-blue-300">Claims → Header Mapping</strong>.
-          </p>
-          <Field
-            label="Provider Name"
-            hint="Name of the oauth2Verification config entry in the gateway (auth.oauth2Verification.*)"
-          >
-            <input
-              value={str('providerName')}
-              onChange={(e) => set('providerName', e.target.value)}
-              className={inputCls}
-              placeholder="my-oauth2-provider"
-            />
-          </Field>
-          <KeyValueFields
-            label="Claims → Header Mapping"
-            hint="Map token claim names to downstream request header names (e.g. sub → X-Auth-User-Id)"
-            obj={(config.claimsToHeaderMapping as Record<string, string>) ?? {}}
-            onChange={(v) => set('claimsToHeaderMapping', v)}
-            optional
-          />
-        </div>
-      )
+      return <OAuth2ConfigFields config={config} onChange={onChange} />
 
     case 'AUTH_MTLS':
       return <MtlsMappingFields config={config} onChange={onChange} />
@@ -2594,6 +2571,190 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
 // Matches backend: MtlsAuthGatewayFilterFactory uses CertificateValuesConfig
 // with a `values` list of { clientIdValue, clientIdRequestHeader,
 //   clientCertificateRequestHeader, clientCertificateValue } entries.
+
+// ─── OAuth2 Auth Provider picker + config (P-04) ──────────────────────────────
+
+function OAuth2ConfigFields({ config, onChange }: { config: FilterConfig; onChange: (c: FilterConfig) => void }) {
+  const str = (key: string, fallback = '') => (config[key] as string) ?? fallback
+
+  const set = (key: string, value: unknown) => onChange({ ...config, [key]: value })
+
+  const { data: authProviders = [], isLoading: isLoadingProviders } = useQuery({
+    queryKey: ['gateway', 'auth-providers'],
+    queryFn: () => gatewayApi.getAuthProviders(),
+    staleTime: 30_000,
+  })
+
+  // Only show OAUTH2_* providers in the picker
+  const oauth2Providers = authProviders.filter((p) => p.type.startsWith('OAUTH2') && p.enabled)
+
+  const providerOptions = [
+    { value: '', label: 'None — use manual provider name below', description: 'Legacy YAML config path' },
+    ...oauth2Providers.map((p) => ({
+      value: p.id,
+      label: p.name,
+      description: `${p.type} · ${p.uri ?? '—'}`,
+    })),
+  ]
+
+  // Track which provider is selected (by id)
+  const selectedProviderId = (config._selectedAuthProviderId as string) ?? ''
+
+  const handleProviderSelect = (providerId: string) => {
+    if (!providerId) {
+      // Clear dynamic config fields when "None" is selected
+      onChange({
+        ...config,
+        _selectedAuthProviderId: '',
+        introspectUri: '',
+        clientId: '',
+        clientSecret: '',
+        parameterStyle: '',
+        parameterName: '',
+        contentType: '',
+      })
+      return
+    }
+
+    const provider = authProviders.find((p) => p.id === providerId)
+    if (!provider) return
+
+    // Auto-populate direct config fields from the selected gateway auth provider
+    onChange({
+      ...config,
+      _selectedAuthProviderId: providerId,
+      providerName: provider.name,
+      introspectUri: provider.uri ?? '',
+      clientId: provider.clientId ?? '',
+      clientSecret: provider.clientSecret ?? '',
+      parameterStyle: provider.parameterStyle ?? 'BODY',
+      parameterName: provider.parameterName ?? 'token',
+      contentType: '',
+    })
+  }
+
+  const hasDirectConfig = !!str('introspectUri') && !!str('clientId') && !!str('clientSecret')
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-gray-500 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+        Verifies the caller's Bearer token against an OAuth2 introspection endpoint. Claims are mapped to downstream
+        request headers via <strong className="text-blue-300">Claims → Header Mapping</strong>.
+      </p>
+
+      <SectionTitle>Auth Provider</SectionTitle>
+
+      <Field
+        label="Gateway Auth Provider"
+        hint="Select a gateway-managed OAuth2 provider to auto-populate introspection config, or use the manual provider name below for static YAML config."
+        optional
+      >
+        <Select
+          value={selectedProviderId}
+          onChange={handleProviderSelect}
+          options={providerOptions}
+          placeholder={isLoadingProviders ? 'Loading providers…' : 'Select an Auth Provider…'}
+          disabled={isLoadingProviders}
+          searchable
+        />
+      </Field>
+
+      {hasDirectConfig && (
+        <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
+          <span className="mt-0.5 shrink-0">✓</span>
+          <span>
+            Direct introspection config is active — the filter will call{' '}
+            <code className="font-mono text-emerald-300">{str('introspectUri')}</code> directly without needing a static
+            YAML provider entry.
+          </span>
+        </div>
+      )}
+
+      {!hasDirectConfig && (
+        <>
+          <Field
+            label="Provider Name"
+            hint="Name of the oauth2Verification config entry in the gateway YAML (auth.oauth2Verification.*). Used when no gateway auth provider is selected above."
+          >
+            <input
+              value={str('providerName')}
+              onChange={(e) => set('providerName', e.target.value)}
+              className={inputCls}
+              placeholder="my-oauth2-provider"
+            />
+          </Field>
+        </>
+      )}
+
+      {hasDirectConfig && (
+        <>
+          <SectionTitle>Introspection Config</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Introspect URI" hint="OAuth2 introspection endpoint URL">
+              <input
+                value={str('introspectUri')}
+                onChange={(e) => set('introspectUri', e.target.value)}
+                className={monoInputCls}
+                placeholder="https://idp.example.com/introspect"
+              />
+            </Field>
+            <Field label="Client ID" hint="Client ID for introspection auth">
+              <input
+                value={str('clientId')}
+                onChange={(e) => set('clientId', e.target.value)}
+                className={inputCls}
+                placeholder="my-client-id"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Client Secret" hint="Client secret for introspection auth">
+              <input
+                type="password"
+                value={str('clientSecret')}
+                onChange={(e) => set('clientSecret', e.target.value)}
+                className={inputCls}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+            <Field label="Parameter Style" hint="How the token is passed to the introspection endpoint">
+              <Select
+                value={str('parameterStyle', 'BODY')}
+                onChange={(v) => set('parameterStyle', v)}
+                options={[
+                  { value: 'BODY', label: 'Body (form-encoded)', description: 'Default — token as form field' },
+                  { value: 'QUERY', label: 'Query parameter', description: 'Token as URL query param' },
+                  { value: 'HEADER', label: 'Custom header', description: 'Token as a custom request header' },
+                ]}
+              />
+            </Field>
+          </div>
+          <Field label="Parameter Name" hint="Form field, query param, or header name for the token" optional>
+            <input
+              value={str('parameterName', 'token')}
+              onChange={(e) => set('parameterName', e.target.value)}
+              className={inputCls}
+              placeholder="token"
+            />
+          </Field>
+        </>
+      )}
+
+      <SectionTitle>Claims Mapping</SectionTitle>
+
+      <KeyValueFields
+        label="Claims → Header Mapping"
+        hint="Map token claim names to downstream request header names (e.g. sub → X-Auth-User-Id)"
+        obj={(config.claimsToHeaderMapping as Record<string, string>) ?? {}}
+        onChange={(v) => set('claimsToHeaderMapping', v)}
+        optional
+      />
+    </div>
+  )
+}
+
+// ─── mTLS mapping fields ──────────────────────────────────────────────────────
 
 interface MtlsMapping {
   clientIdRequestHeader: string
