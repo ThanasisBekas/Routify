@@ -85,6 +85,9 @@ management:
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 routify:
+  # ─── @Sensitive field-level encryption ──────────────────────────────────────
+  field-encryption-key: ${FIELD_ENCRYPTION_KEY:}
+
   audit:
     retention:
       # ─── Retention periods per table (days) ──────────────────────────────────
@@ -114,7 +117,8 @@ routify:
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-
     spring.datasource.password,
-    spring.rabbitmq.password
+    spring.rabbitmq.password,
+    routify.field-encryption-key
 
 
 

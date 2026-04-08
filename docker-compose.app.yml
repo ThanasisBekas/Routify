@@ -38,6 +38,7 @@ services:
       JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
     depends_on:
       postgres:
@@ -74,6 +75,7 @@ services:
       REDIS_HOST: redis
       REDIS_PASS: ${REDIS_PASS}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
     depends_on:
       postgres:
@@ -105,6 +107,7 @@ services:
       KAFKA_BOOTSTRAP: kafka:29092
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PASS: ${RABBITMQ_PASS}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       ROUTIFY_REPLAY_GATEWAY_BASE_URL: http://api-gateway:8080
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
     depends_on:
@@ -139,6 +142,7 @@ services:
       RABBITMQ_PASS: ${RABBITMQ_PASS}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       CERT_VAULT_ENCRYPTION_KEY: ${CERT_VAULT_ENCRYPTION_KEY}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
     depends_on:
       postgres:
