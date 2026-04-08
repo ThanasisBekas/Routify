@@ -1,6 +1,7 @@
 package io.routify.identity.service;
 
 import io.routify.common.exception.RoutifyException;
+import io.routify.common.observability.RoutifyMetrics;
 import io.routify.identity.domain.WebhookDelivery;
 import io.routify.identity.domain.WebhookSubscription;
 import io.routify.identity.repository.WebhookDeliveryRepository;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -35,9 +37,14 @@ public class WebhookService {
 
     private final WebhookSubscriptionRepository subscriptionRepo;
     private final WebhookDeliveryRepository deliveryRepo;
+    private final RoutifyMetrics metrics;
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${routify.webhooks.delivery-retention-days:7}")
     private int retentionDays;
+
+    @Value("${routify.webhooks.cleanup-batch-size:1000}")
+    private int cleanupBatchSize;
 
     // ─── Subscription Queries ──────────────────────────────────────────────────
 
@@ -150,16 +157,50 @@ public class WebhookService {
     /**
      * Purges webhook delivery records older than the configured retention period.
      * Runs nightly at 3:00 AM.
+     *
+     * <p>Deletion is performed in batches of {@code routify.webhooks.cleanup-batch-size}
+     * (default 1000) to prevent long-held table locks on high-volume deployments.
+     * Each batch runs in its own transaction via {@link TransactionTemplate}.
+     * The loop continues until a batch deletes fewer rows than the batch size,
+     * indicating all expired records have been purged.
      */
     @Scheduled(cron = "0 0 3 * * *")
-    @Transactional
     public void cleanupOldDeliveries() {
         Instant cutoff = Instant.now().minus(retentionDays, ChronoUnit.DAYS);
-        int deleted = deliveryRepo.deleteOlderThan(cutoff);
-        if (deleted > 0) {
-            log.info("Webhook delivery cleanup: deleted {} records older than {} days",
-                    deleted, retentionDays);
+        log.info("Webhook delivery cleanup started: retentionDays={} cutoff={} batchSize={}",
+                retentionDays, cutoff, cleanupBatchSize);
+
+        int totalDeleted = 0;
+        int batchDeleted;
+        int iterations = 0;
+
+        do {
+            batchDeleted = deleteOneBatch(cutoff);
+            totalDeleted += batchDeleted;
+            iterations++;
+        } while (batchDeleted >= cleanupBatchSize);
+
+        if (totalDeleted > 0) {
+            log.info("Webhook delivery cleanup completed: deleted {} records in {} batches (retention={} days)",
+                    totalDeleted, iterations, retentionDays);
+        } else {
+            log.debug("Webhook delivery cleanup completed: no expired records found");
         }
+        metrics.recordWebhookDeliveryCleanup(totalDeleted);
+    }
+
+    /**
+     * Deletes a single batch of expired delivery records within its own transaction.
+     * Uses {@link TransactionTemplate} to ensure each batch commits independently,
+     * avoiding the Spring AOP self-invocation pitfall.
+     *
+     * @param cutoff records with {@code created_at} before this instant are eligible
+     * @return the number of deleted rows (≤ {@code cleanupBatchSize})
+     */
+    int deleteOneBatch(Instant cutoff) {
+        Integer deleted = transactionTemplate.execute(_ ->
+                deliveryRepo.deleteOlderThanBatch(cutoff, cleanupBatchSize));
+        return deleted != null ? deleted : 0;
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────────

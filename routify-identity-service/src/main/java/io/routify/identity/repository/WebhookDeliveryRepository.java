@@ -30,5 +30,26 @@ public interface WebhookDeliveryRepository extends JpaRepository<WebhookDelivery
     @Modifying
     @Query("DELETE FROM WebhookDelivery d WHERE d.createdAt < :cutoff")
     int deleteOlderThan(@Param("cutoff") Instant cutoff);
+
+    /**
+     * Purges a batch of delivery records older than the given cutoff.
+     * Uses a native PostgreSQL subquery with LIMIT to bound the number of rows
+     * deleted per transaction, preventing long-held locks on large tables.
+     *
+     * @param cutoff  delete records with created_at before this instant
+     * @param batchSize maximum rows to delete per invocation
+     * @return the number of deleted rows (≤ batchSize)
+     */
+    @Modifying
+    @Query(value = """
+            DELETE FROM routify_identity.webhook_delivery
+            WHERE id IN (
+                SELECT id FROM routify_identity.webhook_delivery
+                WHERE created_at < :cutoff
+                ORDER BY created_at ASC
+                LIMIT :batchSize
+            )
+            """, nativeQuery = true)
+    int deleteOlderThanBatch(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
 }
 
