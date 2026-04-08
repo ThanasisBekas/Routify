@@ -37,6 +37,9 @@ import java.util.*;
  *   <li>{@code VAULT_CERT} — resolves the gateway TLS logicalId for vault-backed cert filters
  *       ({@code AUTH_CERT_VAULT}, {@code CERT_ROTATION}, {@code CERT_VAULT_EXPIRY_CHECK})</li>
  *   <li>{@code DOWNSTREAM_CREDENTIAL} — maps downstream credential fields</li>
+ *   <li>{@code DOWNSTREAM_OAUTH2_PROVIDER} — maps downstream OAuth2 provider fields
+ *       ({@code tokenUri}, {@code clientId}, {@code clientSecret}, {@code scope}) for
+ *       the {@code DOWNSTREAM_BEARER_CC} filter's direct-config path (P-25)</li>
  *   <li>{@code MTLS_CLIENT_MAPPING} — resolves client-ID-to-certificate mappings from an
  *       {@code MTLS} auth provider for {@code AUTH_MTLS} filters</li>
  *   <li>{@code CLIENT_ID_MAPPING} — resolves client-ID header-value entries and org-ID
@@ -86,14 +89,15 @@ public class GatewayConfigRefResolver {
         }
 
         Map<String, Object> refConfig = switch (refType) {
-            case "AUTH_PROVIDER"           -> resolveAuthProvider(refId, gwConfig);
-            case "RATE_LIMIT_POLICY"       -> resolveRateLimitPolicy(refId, gwConfig);
-            case "CIRCUIT_BREAKER_DEFAULTS"-> resolveCircuitBreakerDefaults(gwConfig);
-            case "RESILIENCE_DEFAULTS"     -> resolveResilienceDefaults(gwConfig);
-            case "VAULT_CERT"              -> resolveVaultCert(refId);
-            case "DOWNSTREAM_CREDENTIAL"   -> resolveDownstreamCredential(refId, gwConfig);
-            case "MTLS_CLIENT_MAPPING"     -> resolveMtlsClientMapping(refId, gwConfig);
-            case "CLIENT_ID_MAPPING"       -> resolveClientIdMapping(refId, gwConfig);
+            case "AUTH_PROVIDER"              -> resolveAuthProvider(refId, gwConfig);
+            case "RATE_LIMIT_POLICY"          -> resolveRateLimitPolicy(refId, gwConfig);
+            case "CIRCUIT_BREAKER_DEFAULTS"   -> resolveCircuitBreakerDefaults(gwConfig);
+            case "RESILIENCE_DEFAULTS"        -> resolveResilienceDefaults(gwConfig);
+            case "VAULT_CERT"                 -> resolveVaultCert(refId);
+            case "DOWNSTREAM_CREDENTIAL"      -> resolveDownstreamCredential(refId, gwConfig);
+            case "DOWNSTREAM_OAUTH2_PROVIDER" -> resolveDownstreamOauth2Provider(refId, gwConfig);
+            case "MTLS_CLIENT_MAPPING"        -> resolveMtlsClientMapping(refId, gwConfig);
+            case "CLIENT_ID_MAPPING"          -> resolveClientIdMapping(refId, gwConfig);
             case "TLS_SOURCE" -> {
                 // TLS_SOURCE refs are no longer supported — file-based certificate sources
                 // have been removed. All certificate management is handled by the Vault.
@@ -274,6 +278,54 @@ public class GatewayConfigRefResolver {
                 putIfPresent(result, "password",       c.get("password"));
                 putIfPresent(result, "headerName",     c.get("headerName"));
                 putIfPresent(result, "headerValue",    c.get("headerValue"));
+                return result;
+            }
+        }
+        return Map.of();
+    }
+
+    /**
+     * Resolves a {@code DOWNSTREAM_OAUTH2_PROVIDER} ref for the
+     * {@code DOWNSTREAM_BEARER_CC} filter factory.
+     *
+     * <p>Looks up a downstream OAuth2 provider entry by {@code refId} in the
+     * {@code downstreamOauth2Providers} section of the gateway config and maps
+     * its fields to the config keys expected by
+     * {@link io.routify.gateway.filter.DownstreamOAuth2BearerGatewayFilterFactory.Config}:
+     * <ul>
+     *   <li>{@code tokenUri}  — the token endpoint URI</li>
+     *   <li>{@code clientId}  — the OAuth2 client ID</li>
+     *   <li>{@code clientSecret}  — the OAuth2 client secret</li>
+     *   <li>{@code scope}  — space-separated scopes (optional)</li>
+     *   <li>{@code includeBasicClientAuthorization} — send Basic header (optional)</li>
+     * </ul>
+     *
+     * <p>When these fields are present in the resolved config, the filter factory
+     * uses its direct-config path (P-25), bypassing the {@code oauth2ProviderName}
+     * → YAML lookup.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> resolveDownstreamOauth2Provider(String refId, Map<String, Object> gwConfig) {
+        List<Object> providers = (List<Object>) gwConfig.get("downstreamOauth2Providers");
+        if (providers == null) return Map.of();
+
+        for (Object raw : providers) {
+            Map<String, Object> p = asMap(raw);
+            if (p == null) continue;
+            if (refId.equals(str(p.get("id")))) {
+                Map<String, Object> result = new LinkedHashMap<>();
+                putIfPresent(result, "tokenUri",     p.get("tokenUri"));
+                putIfPresent(result, "clientId",     p.get("clientId"));
+                putIfPresent(result, "clientSecret", p.get("clientSecret"));
+                putIfPresent(result, "scope",        p.get("scope"));
+                if (p.containsKey("includeBasicClientAuthorization")) {
+                    result.put("includeBasicClientAuthorization",
+                            p.get("includeBasicClientAuthorization"));
+                }
+                putIfPresent(result, "_providerName", p.get("name"));
+                putIfPresent(result, "_providerType", "DOWNSTREAM_OAUTH2");
+                log.debug("Resolved DOWNSTREAM_OAUTH2_PROVIDER '{}': tokenUri={}",
+                        p.get("name"), p.get("tokenUri"));
                 return result;
             }
         }
