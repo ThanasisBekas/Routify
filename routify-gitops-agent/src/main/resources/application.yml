@@ -65,6 +65,21 @@ routify:
     webhook-url: ${GITOPS_WEBHOOK_URL:}              # optional: report results
     webhook-secret: ${GITOPS_WEBHOOK_SECRET:}
 
+# ─── Resilience4j — Retry for admin-api calls ──────────────────────────────
+resilience4j:
+  retry:
+    instances:
+      admin-api:
+        max-attempts: 3
+        wait-duration: 2s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.RestClientException
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException
+
 logging:
   level:
     io.routify: DEBUG

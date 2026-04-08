@@ -87,9 +87,16 @@ management:
 routify:
   audit:
     retention:
-      request-log-days: 30
-      audit-log-days: 7
-      dlq-log-days: 7
+      # ─── Retention periods per table (days) ──────────────────────────────────
+      request-log-days: ${AUDIT_RETENTION_REQUEST_LOG_DAYS:30}
+      audit-log-days: ${AUDIT_RETENTION_AUDIT_LOG_DAYS:90}
+      dlq-log-days: ${AUDIT_RETENTION_DLQ_LOG_DAYS:30}
+      ai-filter-decision-days: ${AUDIT_RETENTION_AI_FILTER_DAYS:60}
+      ai-modifier-decision-days: ${AUDIT_RETENTION_AI_MODIFIER_DAYS:60}
+      alert-event-days: ${AUDIT_RETENTION_ALERT_EVENT_DAYS:90}
+      usage-daily-days: ${AUDIT_RETENTION_USAGE_DAILY_DAYS:365}
+      # ─── Batch deletion settings ─────────────────────────────────────────────
+      batch-size: ${AUDIT_RETENTION_BATCH_SIZE:1000}
       cron: "0 0 2 * * *"
   replay:
     # Base URL of the API gateway — replays are sent here so the full filter chain is re-applied.

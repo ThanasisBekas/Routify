@@ -160,6 +160,9 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | Webhook push events | ✅ | GitHub/GitLab webhook receiver |
 | Redis state | ✅ | Last hash + history (50 entries) |
 | Dry-run mode | ✅ | `routify.gitops.dry-run=true` |
+| Admin-api retry resilience | ✅ | Resilience4j `@Retry` with exponential backoff (3 attempts, 2s base) — [P-23](#p-23-gitops-agent-error-handling--test-coverage) ✅ completed |
+| YAML pre-validation | ✅ | `GatewayExportV1` schema + `apiVersion`/`kind` validation before admin-api call — [P-23](#p-23-gitops-agent-error-handling--test-coverage) ✅ completed |
+| Unit test coverage | ✅ | 80 tests across 8 test classes — [P-23](#p-23-gitops-agent-error-handling--test-coverage) ✅ completed |
 
 ### routify-dashboard (port 5173)
 
@@ -228,7 +231,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | **Java integration tests** | 5 ITs across 3 services (admin-api: 2, identity: 2, route: 1) | 8 services with DB/messaging | ~3% |
 | **Frontend unit tests** | 283 tests across 42 files (API clients, hooks, stores, module components) | 16 modules + 17 API clients + 4 hooks + 2 stores | ~85% |
 | **Frontend E2E tests** | 2 specs (login, routes) | 16 feature modules | ~12% |
-| **Services with zero tests** | audit-service, cert-vault, ai-service, gitops-agent | — | 0% |
+| **Services with zero tests** | ai-service | — | 0% |
 
 ---
 
@@ -704,37 +707,55 @@ Testing, cleanup, and operational improvements.
 
 ---
 
-#### P-23: GitOps Agent Error Handling & Test Coverage
+#### P-23: GitOps Agent Error Handling & Test Coverage ✅ COMPLETED
 
 **Affected services:** `routify-gitops-agent`  
 **Complexity:** M  
-**Files:** `routify-gitops-agent/src/`
+**Files:** `AdminApiClient.java`, `ReconciliationService.java`, `WebhookNotifier.java`, `GitOpsConfig.java`, `GitOpsProperties.java`, `application.yml`, `pom.xml`, `src/test/java/io/routify/gitops/` — 8 new test classes  
+**Status:** ✅ Completed — Resilience4j retry for admin-api, YAML pre-validation, RestTemplate testability refactor, 80 unit tests across 8 test classes passing.
 
 **Problem:** The service has only 4 source files with no tests. Error handling for Git fetch failures, admin-api unreachability, and malformed YAML configs needs verification.
 
-**Changes:**
-- **Backend:** Add unit tests for: Git hash comparison logic, YAML parsing edge cases, webhook HMAC signing, Redis state management.
-- **Backend:** Verify graceful degradation when admin-api is unreachable (circuit breaker? retry?). Add if missing.
-- **Backend:** Verify malformed YAML config files produce clear error messages in reconciliation history.
+**Implementation summary:**
+- **Backend (error handling — admin-api resilience):** Added `spring-cloud-starter-circuitbreaker-resilience4j` dependency. `AdminApiClient.previewImport()` and `applyImport()` annotated with `@Retry(name = "admin-api")` — 3 attempts with 2s exponential backoff (multiplier 2.0). Fallback methods return `Optional.empty()` / `false` with structured error logging. Retries on `RestClientException` and `ResourceAccessException`, ignores `HttpClientErrorException` (4xx is not transient). `RestTemplate` refactored from inline `new RestTemplate()` to constructor-injected bean with 5s connect / 10s read timeouts (`GitOpsConfig`).
+- **Backend (error handling — YAML pre-validation):** `ReconciliationService.validateYaml()` parses YAML via `ObjectMapper(YAMLFactory)` into `GatewayExportV1` before sending to admin-api. Validates `apiVersion == "routify/v1"` and `kind == "GatewayConfiguration"`. Parse failures produce clear `"Malformed YAML: <detail>"` error messages (detail truncated at 200 chars). Missing/wrong `apiVersion` and `kind` produce specific error messages (`"Invalid apiVersion: expected 'routify/v1', got 'routify/v999'"`). All validation errors are stored in reconciliation history as `FAILED` results.
+- **Backend (testability refactor):** `WebhookNotifier` refactored to accept `RestTemplate` via constructor injection (shared bean from `GitOpsConfig`). `mapOutcomeToEvent()` visibility changed to package-private for test access. `AdminApiClient.createHeaders()` visibility changed to package-private for test access.
+- **Tests:** 8 test classes, 80 tests total:
+  - `GitRepositoryClientTest` (7 tests): SHA-256 determinism, different content → different hash, 64-char hex format, empty string (known hash), Unicode, whitespace sensitivity, trailing newline.
+  - `GitCredentialsProviderTest` (8 tests): HTTPS credentials (both set, blank username, blank password, both blank), SSH URL detection (git@, ssh://, https://, http://).
+  - `WebhookNotifierTest` (11 tests): HMAC-SHA256 determinism, different data/secrets, notify with/without URL, with/without secret, payload fields, network error graceful handling, null fields, outcome event mapping.
+  - `ReconciliationResultTest` (6 tests): Record construction, null optional fields, enum size, all enum values, equality, inequality.
+  - `AdminApiClientTest` (11 tests): Preview success/URL/null body, apply 202/200/URL, headers (API key, tenant ID, Accept, Content-Type), network error propagation (retry fallback in production).
+  - `ReconciliationServiceTest` (24 tests): Git fetch failure, config missing, malformed YAML, wrong apiVersion/kind, missing apiVersion, hash unchanged, preview empty/invalid, dry-run drift, apply success/failure, concurrent guard, preview no changes, validateYaml valid/invalid/wrong version/kind/truncation, Redis hash read/empty, history empty, failed webhook notification, result stored in history.
+  - `GitWebhookControllerTest` (9 tests): Valid push, missing/invalid/valid signature, non-push GitHub/GitLab events, wrong branch, manual sync, GitLab push.
+  - `GitOpsStatusControllerTest` (4 tests): Status with all fields, status with no history, history list, empty history.
 
 ---
 
-#### P-24: Audit Data Retention Policy Verification
+#### P-24: Audit Data Retention Policy Verification ✅ COMPLETED
 
 **Affected services:** `routify-audit-service`  
 **Complexity:** S  
-**Files:** Audit-service scheduler/config
+**Files:** `AuditRetentionScheduler.java`, `AlertEventRepository.java`, `TenantUsageDailyRepository.java`, `application.yml`, `V12__retention_cleanup_indexes.sql`, `AuditRetentionSchedulerTest.java`  
+**Status:** ✅ Completed — all 7 audit tables covered with configurable retention, batched deletion via TransactionTemplate, Micrometer metrics, dedicated retention indexes, 9 tests passing.
 
 **Problem:** The audit service stores telemetry, events, DLQ records, AI decisions, and alert history. Retention policies for each table type need verification and documentation.
 
-**Changes:**
-- **Backend:** Audit all `@Scheduled` tasks in audit-service. Verify retention periods per table:
-  - `request_log` — configurable (default 30 days suggested)
-  - `audit_event` — configurable (default 90 days suggested)
-  - `dlq_event` — configurable (default 30 days suggested)
-  - `ai_filter_decision` / `ai_modification_decision` — configurable (default 60 days suggested)
-- **Backend:** Add configurable retention properties (`routify.audit.retention.*`) if not present.
-- **Backend:** Add or verify `@Scheduled` cleanup tasks with batch deletion.
+**Implementation summary:**
+- **Backend (scheduler rewrite — `AuditRetentionScheduler`):** Complete rewrite to cover all 7 audit tables (was 4). Removed `@Transactional` annotation that wrapped all deletes in one long transaction — each batch now runs in its own transaction via `TransactionTemplate`. Added `ai_modification_decision`, `alert_event`, and `tenant_usage_daily` cleanup (all three were previously missing). Each table is purged independently — failure in one does not prevent cleanup of others.
+- **Backend (configurable retention — `application.yml`):** All 7 retention periods are configurable via `routify.audit.retention.*` properties with environment variable overrides:
+  - `request_log` — 30 days (default, unchanged) — `AUDIT_RETENTION_REQUEST_LOG_DAYS`
+  - `audit_log` — 90 days (was 7, updated per P-24) — `AUDIT_RETENTION_AUDIT_LOG_DAYS`
+  - `dlq_event` — 30 days (was 7, updated per P-24) — `AUDIT_RETENTION_DLQ_LOG_DAYS`
+  - `ai_filter_decision` — 60 days (was 30, updated per P-24) — `AUDIT_RETENTION_AI_FILTER_DAYS`
+  - `ai_modifier_decision` — 60 days (new, per P-24) — `AUDIT_RETENTION_AI_MODIFIER_DAYS`
+  - `alert_event` — 90 days (new) — `AUDIT_RETENTION_ALERT_EVENT_DAYS`
+  - `tenant_usage_daily` — 365 days (new) — `AUDIT_RETENTION_USAGE_DAILY_DAYS`
+  - `batch-size` — 1000 (default) — `AUDIT_RETENTION_BATCH_SIZE`
+- **Backend (repositories):** Added `deleteByOccurredAtBefore()` to `AlertEventRepository`. Added `deleteByDateBefore()` to `TenantUsageDailyRepository`. Both use native queries for efficient bulk deletion.
+- **Backend (Micrometer metrics):** New counter `routify.audit.retention.purged` tagged by `table` (7 values). Incremented with total rows purged per cycle per table. Enables monitoring retention effectiveness via Prometheus/Grafana.
+- **Backend (Flyway migration — `V12__retention_cleanup_indexes.sql`):** 6 dedicated ASC-ordered indexes for retention DELETE queries on `request_log`, `audit_log`, `ai_filter_decision`, `ai_modifier_decision`, `alert_event`, and `tenant_usage_daily`. The existing composite DESC indexes are optimised for query patterns, not retention deletes.
+- **Tests:** `AuditRetentionSchedulerTest.java` (9 tests): all 7 tables purged, batched deletion loops correctly (2500 rows across 3 batches), failure isolation (DB error in one table doesn't block others), no-records scenario (zero metrics), per-table metric tagging, custom retention periods, ai_modifier_decision cleanup invoked (was missing), alert_event cleanup invoked (was missing), tenant_usage_daily cleanup invoked (was missing).
 
 ---
 
@@ -840,8 +861,8 @@ Phase 4 (P3 — Quality)
   P-20 Frontend Unit Test Expansion ─────────────── ✅ COMPLETED
   P-21 Frontend E2E Test Expansion ──────────────── depends on P-20 ✅
   P-22 routify-common Test Expansion ────────────── ✅ COMPLETED
-  P-23 GitOps Agent Testing ───────────────────────── standalone
-  P-24 Audit Retention Policy ─────────────────────── standalone
+  P-23 GitOps Agent Testing ───────────────────────── ✅ COMPLETED
+  P-24 Audit Retention Policy ─────────────────────── ✅ COMPLETED
   P-25 DownstreamOAuth2 Dynamic Provider ──────────── depends on P-04
   P-26 AI Filter Streaming Body ───────────────────── standalone
   P-27 Filter Config Ref UX ──────────────────────── depends on P-06, P-07, P-08, P-09
