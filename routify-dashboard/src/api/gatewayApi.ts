@@ -7,6 +7,7 @@ import type {
   GatewayCircuitBreakerDefaults,
   GatewayResilienceDefaults,
   GatewayAuthProvider,
+  GatewayDownstreamCredential,
   GatewayProxyConfig,
   GatewayHttpClientConfig,
   GatewayTenantIsolationConfig,
@@ -82,6 +83,16 @@ export const gatewayApi = {
 
   deleteAuthProvider: (providerId: string) =>
     apiClient.delete(`${BASE}/auth-providers/${providerId}`).then((r) => r.data),
+
+  // ─── Downstream Credentials ────────────────────────────────────────────────
+  getDownstreamCredentials: () =>
+    apiClient.get<GatewayDownstreamCredential[]>(`${BASE}/downstream-credentials`).then((r) => r.data),
+
+  upsertDownstreamCredential: (credential: GatewayDownstreamCredential) =>
+    apiClient.put<GatewayConfig>(`${BASE}/downstream-credentials/${credential.id}`, credential).then((r) => r.data),
+
+  deleteDownstreamCredential: (credentialId: string) =>
+    apiClient.delete(`${BASE}/downstream-credentials/${credentialId}`).then((r) => r.data),
 
   // ─── Proxy ────────────────────────────────────────────────────────────────
   getProxyConfig: () => apiClient.get<GatewayProxyConfig>(`${BASE}/proxy`).then((r) => r.data),

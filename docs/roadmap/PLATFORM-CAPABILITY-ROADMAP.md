@@ -166,7 +166,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 | Module | CRUD | Status | Gap |
 |--------|------|--------|-----|
 | Routes | Full | ✅ | — |
-| Filters | Full | ✅ | Missing OAuth2 provider picker |
+| Filters | Full | ✅ | — (pickers: cert vault P-06, auth provider P-07, downstream credential P-08) |
 | Gateway Config | 13 tabs | ✅ | — |
 | Certificates | Full | ✅ | — |
 | API Keys | Full | ✅ | — |
@@ -214,7 +214,7 @@ This assessment identifies **28 improvement initiatives** across four priority p
 |---|--------|-----|--------|
 | ~~1~~ | ~~Filters~~ | ~~No **cert vault picker** for `AUTH_CERT_VAULT`, `CERT_ROTATION`, `CERT_VAULT_EXPIRY_CHECK` — `logicalId` is a free-text input~~ **Resolved in P-06:** `CertLogicalIdPicker` dropdown populated from `GET /certificates/logical-ids`. | ~~Operator must manually type the exact logical ID~~ ✅ |
 | 2 | Filters | No **OAuth2 auth provider picker** for `AUTH_OAUTH2` — `providerName` is free-text | Operators don't know which providers are configured |
-| 3 | Filters | No **downstream credential picker** for `DOWNSTREAM_BASIC_AUTH`, `DOWNSTREAM_BEARER_CC` | Must manually type credential names |
+| ~~3~~ | ~~Filters~~ | ~~No **downstream credential picker** for `DOWNSTREAM_BASIC_AUTH`, `DOWNSTREAM_BEARER_CC`~~ **Resolved in P-08:** `DownstreamCredentialPicker` dropdown populated from `GET /downstream-credentials`. | ~~Must manually type credential names~~ ✅ |
 | 4 | Filters | No **rate limit policy picker** for `RATE_LIMIT_FIXED_WINDOW`, `RATE_LIMIT_SLIDING_WINDOW` | Must manually configure values instead of selecting a policy |
 | 5 | Workspaces | No **create workspace** action — `WorkspacesPage.tsx` shows usage only | Cannot create tenants from the dashboard |
 | 6 | Workspaces | No **plan upgrade/change** flow | Plan changes require direct API/DB access |
@@ -379,17 +379,22 @@ Bridge the gap between statically-configured auth providers and the dynamic gate
 
 ---
 
-#### P-08: Downstream Credential Picker for Filter Forms
+#### P-08: Downstream Credential Picker for Filter Forms ✅ COMPLETED
 
-**Affected services:** `routify-dashboard`  
+**Affected services:** `routify-admin-api`, `routify-dashboard`  
 **Complexity:** S  
-**Files:** `FilterConfigFields.tsx`, `gatewayApi.ts`
+**Files:** `GatewayConfigDto.java`, `GatewayConfigController.java`, `GatewayConfigService.java`, `FilterConfigFields.tsx`, `DownstreamCredentialPicker.tsx`, `gatewayApi.ts`, `src/types/index.ts`, `src/mocks/db.ts`, `src/mocks/handlers/gateway.ts`  
+**Status:** ✅ Completed — downstream credential picker replaces free-text credential inputs on 2 filter types.
 
 **Problem:** `DOWNSTREAM_BASIC_AUTH` filter form has free-text `username`/`password` inputs but could instead reference a downstream credential entry from the gateway config.
 
-**Changes:**
-- **Frontend:** Create a `DownstreamCredentialPicker` that fetches the gateway config's `downstreamCredentials` list and renders a dropdown. When selected, it auto-populates the `gatewayConfigRef` with `refType: 'DOWNSTREAM_CREDENTIAL'` and the credential's `refId`.
-- **Frontend:** Add the picker to `DOWNSTREAM_BASIC_AUTH` and `DOWNSTREAM_BEARER_CC` filter forms as an alternative to manual credential entry.
+**Implementation summary:**
+- **Backend (admin-api):** Added `DownstreamCredentialDto` inner class to `GatewayConfigDto` with fields: `id`, `name`, `description`, `type` (BASIC/HEADER), `username`, `password` (@SensitiveField), `headerName`, `headerValue` (@SensitiveField), `enabled`. Added `downstreamCredentials` list field to `GatewayConfigDto`. Added `GET /api/v1/admin/gateway/downstream-credentials`, `PUT /api/v1/admin/gateway/downstream-credentials/{credentialId}`, and `DELETE /api/v1/admin/gateway/downstream-credentials/{credentialId}` endpoints on `GatewayConfigController`. Added `getDownstreamCredentials()`, `upsertDownstreamCredential()`, and `deleteDownstreamCredential()` service methods. Sensitive field masking preserved for password and headerValue.
+- **Frontend (types):** Added `GatewayDownstreamCredential` interface (`id`, `name`, `description`, `type: 'BASIC' | 'HEADER'`, `username`, `password`, `headerName`, `headerValue`, `enabled`). Added `downstreamCredentials` to `GatewayConfig`.
+- **Frontend (gatewayApi):** Added `getDownstreamCredentials()`, `upsertDownstreamCredential()`, and `deleteDownstreamCredential()` API functions.
+- **Frontend (DownstreamCredentialPicker):** Created `DownstreamCredentialPicker` component — a searchable dropdown that fetches downstream credentials from the new endpoint. Supports type filtering (BASIC vs HEADER), validation indicators, and custom fallback for removed/disabled credentials. Follows the `AuthProviderPicker` pattern (P-07).
+- **Frontend (FilterConfigFields):** `DOWNSTREAM_BASIC_AUTH` form now includes a `DownstreamCredentialPicker` filtered to `BASIC` type. Selecting a credential auto-populates `username`/`password`. Manual entry is shown only when no credential is selected. `DOWNSTREAM_BEARER_CC` form now includes an additional `DownstreamCredentialPicker` filtered to `HEADER` type for injecting custom downstream headers alongside the OAuth2 bearer token.
+- **Frontend (mocks):** Added 4 sample downstream credentials to the mock gateway config: 2 BASIC (Payments Service Account, Internal API Credentials) and 2 HEADER (Partner API Token enabled, Internal X-Service-Key disabled). Added MSW handlers for `GET/PUT/DELETE /downstream-credentials`.
 
 ---
 
@@ -753,7 +758,7 @@ Phase 2 (P1 — Config Integration)
   P-05 mTLS/ClientID Dynamic Config ──────────────── ✅ COMPLETED
   P-06 Cert Vault Picker ─────────────────────────── ✅ COMPLETED
   P-07 Auth Provider Picker ──────────────────────── ✅ COMPLETED
-  P-08 Downstream Credential Picker ──────────────── standalone
+  P-08 Downstream Credential Picker ──────────────── ✅ COMPLETED
   P-09 Rate Limit Policy Picker ──────────────────── standalone
 
 Phase 3 (P2 — Completeness)

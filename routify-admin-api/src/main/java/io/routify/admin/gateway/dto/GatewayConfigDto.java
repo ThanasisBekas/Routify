@@ -57,6 +57,15 @@ public class GatewayConfigDto {
     // ─── Tenant Isolation ──────────────────────────────────────────────────
     private TenantIsolationConfig tenantIsolation;
 
+    // ─── Downstream Credentials ──────────────────────────────────────────────
+    /**
+     * Reusable downstream credential definitions referenced by filters via
+     * {@code gatewayConfigRef} with {@code refType: "DOWNSTREAM_CREDENTIAL"}.
+     * Used by {@code DOWNSTREAM_BASIC_AUTH} and {@code DOWNSTREAM_BEARER_CC}
+     * filter types to inject authentication headers into upstream requests.
+     */
+    private List<DownstreamCredentialDto> downstreamCredentials;
+
     // ─── Global Filter Entries ──────────────────────────────────────────────
     /**
      * Operator-selected filters that are applied globally to every route.
@@ -279,6 +288,32 @@ public class GatewayConfigDto {
         private String  filterName;
         private String  filterType;
         private int     order;
+        private boolean enabled;
+    }
+
+    /**
+     * A reusable downstream credential entry that filters can reference via
+     * {@code gatewayConfigRef} with {@code refType: "DOWNSTREAM_CREDENTIAL"}.
+     *
+     * <p>Supports two credential types:
+     * <ul>
+     *   <li>{@code BASIC} — username/password for downstream Basic Auth injection</li>
+     *   <li>{@code HEADER} — arbitrary header name/value for downstream token injection</li>
+     * </ul>
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class DownstreamCredentialDto {
+        private String id;
+        private String name;
+        private String description;
+        /** {@code BASIC} or {@code HEADER} */
+        private String type;
+        private String username;
+        @SensitiveField
+        private String password;
+        private String headerName;
+        @SensitiveField
+        private String headerValue;
         private boolean enabled;
     }
 }

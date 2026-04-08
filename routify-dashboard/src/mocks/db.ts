@@ -275,6 +275,44 @@ export const gatewayConfig: GatewayConfig = {
       enabled: true,
     },
   ],
+  downstreamCredentials: [
+    {
+      id: 'dc-basic-01',
+      name: 'Payments Service Account',
+      description: 'Service account for payments upstream',
+      type: 'BASIC' as const,
+      username: 'payments-svc',
+      password: '••••••••',
+      enabled: true,
+    },
+    {
+      id: 'dc-basic-02',
+      name: 'Internal API Credentials',
+      description: 'Shared credentials for internal microservices',
+      type: 'BASIC' as const,
+      username: 'internal-api',
+      password: '••••••••',
+      enabled: true,
+    },
+    {
+      id: 'dc-header-01',
+      name: 'Partner API Token',
+      description: 'Static bearer token for partner-api.example.com',
+      type: 'HEADER' as const,
+      headerName: 'Authorization',
+      headerValue: '••••••••',
+      enabled: true,
+    },
+    {
+      id: 'dc-header-02',
+      name: 'Internal X-Service-Key',
+      description: 'Internal service-to-service key header',
+      type: 'HEADER' as const,
+      headerName: 'X-Service-Key',
+      headerValue: '••••••••',
+      enabled: false,
+    },
+  ],
 }
 
 export const gatewayLiveStatus: GatewayLiveStatus = {

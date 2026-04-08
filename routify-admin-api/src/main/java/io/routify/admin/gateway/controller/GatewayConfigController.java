@@ -2,6 +2,7 @@ package io.routify.admin.gateway.controller;
 
 import io.routify.admin.gateway.dto.GatewayConfigDto;
 import io.routify.admin.gateway.dto.GatewayConfigDto.*;
+
 import io.routify.admin.gateway.service.GatewayActuatorClient;
 import io.routify.admin.gateway.service.GatewayConfigService;
 import io.routify.admin.client.CertVaultMessagingClient;
@@ -221,6 +222,35 @@ public class GatewayConfigController {
             @PathVariable String providerId,
             Authentication auth) {
         configService.deleteAuthProvider(providerId, actor(auth));
+        return ResponseEntity.noContent().build();
+    }
+
+    // ─── Downstream Credentials ───────────────────────────────────────────
+
+    @GetMapping("/downstream-credentials")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    public ResponseEntity<List<DownstreamCredentialDto>> getDownstreamCredentials() {
+        List<DownstreamCredentialDto> creds = configService.getDownstreamCredentials();
+        creds.forEach(Sensitive::maskFields);
+        return ResponseEntity.ok(creds);
+    }
+
+    @PutMapping("/downstream-credentials/{credentialId}")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    public ResponseEntity<GatewayConfigDto> upsertDownstreamCredential(
+            @PathVariable String credentialId,
+            @RequestBody DownstreamCredentialDto credential,
+            Authentication auth) {
+        credential.setId(credentialId);
+        return ResponseEntity.ok(configService.upsertDownstreamCredential(credential, actor(auth)));
+    }
+
+    @DeleteMapping("/downstream-credentials/{credentialId}")
+    @PreAuthorize("hasAuthority('GATEWAY_CONFIG_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
+    public ResponseEntity<Void> deleteDownstreamCredential(
+            @PathVariable String credentialId,
+            Authentication auth) {
+        configService.deleteDownstreamCredential(credentialId, actor(auth));
         return ResponseEntity.noContent().build();
     }
 
