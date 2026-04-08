@@ -15,6 +15,7 @@ import { gatewayApi } from '../../api/gatewayApi'
 import { certVaultApi } from '../../api/certVaultApi'
 import { AuthProviderPicker } from './AuthProviderPicker'
 import { DownstreamCredentialPicker } from './DownstreamCredentialPicker'
+import { RateLimitPolicyPicker } from './RateLimitPolicyPicker'
 
 function Field({
   label,
@@ -339,42 +340,134 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
     case 'RATE_LIMIT_FIXED_WINDOW':
     case 'RATE_LIMIT_SLIDING_WINDOW': {
       const algo = filterType === 'RATE_LIMIT_FIXED_WINDOW' ? 'Fixed Window' : 'Sliding Window'
+      const algoKey = filterType === 'RATE_LIMIT_FIXED_WINDOW' ? 'FIXED_WINDOW' : 'SLIDING_WINDOW'
+      const selectedPolicyId = (config._selectedPolicyId as string) ?? ''
+      const overridePolicy = !!(config._overridePolicy as boolean)
+
       return (
         <div className="space-y-4">
-          <SectionTitle>{algo}</SectionTitle>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Max Requests" hint="Per window">
-              <input
-                type="number"
-                min={1}
-                value={num('maxRequests', 100)}
-                onChange={(e) => set('maxRequests', +e.target.value)}
-                className={inputCls}
+          <SectionTitle>Policy Source</SectionTitle>
+
+          <RateLimitPolicyPicker
+            value={selectedPolicyId}
+            onChange={(policyId, policy) => {
+              if (!policyId || !policy) {
+                onChange({
+                  ...config,
+                  _selectedPolicyId: '',
+                  _overridePolicy: false,
+                })
+                return
+              }
+              onChange({
+                ...config,
+                _selectedPolicyId: policyId,
+                _overridePolicy: false,
+                maxRequests: policy.replenishRate,
+                windowMs: policy.windowMs,
+                keyResolver: policy.keyResolver,
+              })
+            }}
+            algorithmFilter={(a) => a === algoKey || a === 'TOKEN_BUCKET'}
+            label="Rate Limit Policy"
+            hint={`Select a reusable policy from Gateway Settings → Rate Limiting, or configure ${algo} values manually below.`}
+            optional
+            noneLabel="None — configure manually"
+            noneDescription="Enter rate limit values in the fields below"
+            placeholder="Select a Rate Limit Policy…"
+          />
+
+          {/* Read-only policy summary when a policy is selected and not overridden */}
+          {selectedPolicyId && !overridePolicy && (
+            <>
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-emerald-400/80 flex items-center gap-1">
+                    <span>✓</span> Values imported from gateway rate-limit policy
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <span className="text-gray-500 block text-[10px] uppercase tracking-wider">Max Requests</span>
+                    <span className="text-white font-mono">{num('maxRequests', 100)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-[10px] uppercase tracking-wider">Window</span>
+                    <span className="text-white font-mono">{num('windowMs', 60000)} ms</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-[10px] uppercase tracking-wider">Key Resolver</span>
+                    <span className="text-white font-mono">{str('keyResolver', 'IP')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <Toggle
+                label="Override Policy Values"
+                description="Enable to customise the rate limit values for this filter instead of using the policy defaults."
+                checked={false}
+                onChange={() => onChange({ ...config, _overridePolicy: true })}
               />
-            </Field>
-            <Field label="Window (ms)" hint="e.g. 60000 = 1 min">
-              <input
-                type="number"
-                min={100}
-                value={num('windowMs', 60000)}
-                onChange={(e) => set('windowMs', +e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-          </div>
-          <Field label="Key Resolver" hint="How to identify the client for rate limiting">
-            <Select
-              value={str('keyResolver', 'IP')}
-              onChange={(v) => set('keyResolver', v)}
-              options={[
-                { value: 'IP', label: 'IP Address' },
-                { value: 'USER', label: 'Authenticated User (X-Auth-User-Id)' },
-                { value: 'TENANT', label: 'Tenant (X-Tenant-Id)' },
-                { value: 'API_KEY', label: 'API Key (X-API-Key)' },
-                { value: 'TENANT_USER', label: 'Tenant + User' },
-              ]}
-            />
-          </Field>
+            </>
+          )}
+
+          {/* Editable fields: shown when no policy selected OR override is on */}
+          {(!selectedPolicyId || overridePolicy) && (
+            <>
+              <SectionTitle>{algo}</SectionTitle>
+
+              {overridePolicy && (
+                <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-amber-500/[0.06] border-amber-500/20 text-amber-400/80">
+                  <span className="mt-0.5 shrink-0">⚠</span>
+                  <span>
+                    Override mode — values below will be used instead of the policy defaults.{' '}
+                    <button
+                      type="button"
+                      className="underline hover:text-amber-300 transition-colors"
+                      onClick={() => onChange({ ...config, _overridePolicy: false })}
+                    >
+                      Revert to policy values
+                    </button>
+                  </span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Max Requests" hint="Per window">
+                  <input
+                    type="number"
+                    min={1}
+                    value={num('maxRequests', 100)}
+                    onChange={(e) => set('maxRequests', +e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Window (ms)" hint="e.g. 60000 = 1 min">
+                  <input
+                    type="number"
+                    min={100}
+                    value={num('windowMs', 60000)}
+                    onChange={(e) => set('windowMs', +e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+              <Field label="Key Resolver" hint="How to identify the client for rate limiting">
+                <Select
+                  value={str('keyResolver', 'IP')}
+                  onChange={(v) => set('keyResolver', v)}
+                  options={[
+                    { value: 'IP', label: 'IP Address' },
+                    { value: 'USER', label: 'Authenticated User (X-Auth-User-Id)' },
+                    { value: 'TENANT', label: 'Tenant (X-Tenant-Id)' },
+                    { value: 'API_KEY', label: 'API Key (X-API-Key)' },
+                    { value: 'TENANT_USER', label: 'Tenant + User' },
+                  ]}
+                />
+              </Field>
+            </>
+          )}
+
           <Toggle
             label="Include X-RateLimit-* Headers"
             description="Inject X-RateLimit-Limit, X-RateLimit-Remaining, and X-RateLimit-Reset headers on every response. Retry-After is always included on 429 regardless."
