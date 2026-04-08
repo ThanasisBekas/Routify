@@ -201,4 +201,3 @@ describe('routesApi', () => {
     expect(capturedUrl).toBe('/api/v1/admin/routes/r1/circuit-breaker/reset')
   })
 })
-

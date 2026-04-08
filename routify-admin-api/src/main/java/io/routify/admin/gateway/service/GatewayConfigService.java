@@ -181,14 +181,34 @@ public class GatewayConfigService {
         GatewayConfigDto cfg = getConfig();
         List<AuthProviderDto> list = new ArrayList<>(cfg.getAuthProviders() != null ? cfg.getAuthProviders() : List.of());
 
-        // BCrypt-hash the password for BASIC auth providers before persisting.
-        // Skip if the password is null/blank, masked (preserved above), or already hashed.
+        // For BASIC auth providers, handle password hashing / preservation:
+        //  1. null/blank  → leave untouched
+        //  2. already a BCrypt hash ($2 prefix) → skip re-hashing
+        //  3. existing provider has a hashed password and incoming is plain text
+        //     → treat incoming as a masked/sentinel value and preserve the stored hash
+        //  4. new provider (no existing) with plain text → BCrypt-hash it
         if ("BASIC".equalsIgnoreCase(provider.getType())
                 && provider.getPassword() != null
                 && !provider.getPassword().isBlank()
                 && !provider.getPassword().startsWith("$2")) {
-            provider.setPassword(BCRYPT.encode(provider.getPassword()));
-            log.info("BCrypt-hashed BASIC auth provider password for provider '{}'", provider.getId());
+
+            // Look up existing provider by ID to detect masked/sentinel passwords
+            String existingHash = list.stream()
+                    .filter(p -> p.getId() != null && p.getId().equals(provider.getId()))
+                    .map(AuthProviderDto::getPassword)
+                    .filter(pw -> pw != null && pw.startsWith("$2"))
+                    .findFirst()
+                    .orElse(null);
+
+            if (existingHash != null) {
+                // Existing provider already has a hashed password — preserve it
+                // (the incoming plain-text value is a masked/sentinel placeholder from the UI)
+                provider.setPassword(existingHash);
+                log.info("Preserved existing BCrypt hash for BASIC auth provider '{}'", provider.getId());
+            } else {
+                provider.setPassword(BCRYPT.encode(provider.getPassword()));
+                log.info("BCrypt-hashed BASIC auth provider password for provider '{}'", provider.getId());
+            }
         }
 
         list.removeIf(p -> p.getId() != null && p.getId().equals(provider.getId()));

@@ -115,4 +115,3 @@ describe('auditApi', () => {
     expect(capturedUrl).toBe('/api/v1/admin/audit/replay/stats')
   })
 })
-

@@ -98,4 +98,3 @@ describe('webhooksApi', () => {
     expect(capturedParams).toEqual({ page: 0, size: 10 })
   })
 })
-

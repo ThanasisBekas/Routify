@@ -34,7 +34,13 @@ describe('FiltersPage', () => {
       data: {
         content: [
           { id: 'f1', name: 'JWT Auth', type: 'AUTH_JWT', routeCount: 3, createdAt: '2025-01-01T00:00:00Z' },
-          { id: 'f2', name: 'Rate Limit', type: 'RATE_LIMIT_FIXED_WINDOW', routeCount: 1, createdAt: '2025-01-01T00:00:00Z' },
+          {
+            id: 'f2',
+            name: 'Rate Limit',
+            type: 'RATE_LIMIT_FIXED_WINDOW',
+            routeCount: 1,
+            createdAt: '2025-01-01T00:00:00Z',
+          },
         ],
         totalElements: 2,
         page: 0,

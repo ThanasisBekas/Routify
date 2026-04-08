@@ -90,4 +90,3 @@ describe('useBootstrapAuth', () => {
     expect(useAuthStore.getState().user?.role).toBe('VIEWER')
   })
 })
-

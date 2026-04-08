@@ -49,4 +49,3 @@ describe('gitopsApi', () => {
     expect(result.outcome).toBe('NO_CHANGES')
   })
 })
-

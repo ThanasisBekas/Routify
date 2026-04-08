@@ -111,4 +111,3 @@ describe('alertsApi', () => {
     expect(capturedParams).toEqual({ page: 0, size: 20 })
   })
 })
-

@@ -2342,8 +2342,8 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] leading-relaxed bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-400/80">
               <span className="mt-0.5 shrink-0">✓</span>
               <span>
-                Provider name set to <code className="font-mono text-emerald-300">{str('oauth2ProviderName')}</code> from
-                gateway config.
+                Provider name set to <code className="font-mono text-emerald-300">{str('oauth2ProviderName')}</code>{' '}
+                from gateway config.
               </span>
             </div>
           )}
@@ -2786,7 +2786,9 @@ function CertLogicalIdPicker({
   const activeEntries = logicalIds.filter((e) => e.status === 'ACTIVE')
 
   const options = [
-    ...(optional ? [{ value: '', label: '— None (scan all groups)', description: 'Leave blank for fingerprint-based lookup' }] : []),
+    ...(optional
+      ? [{ value: '', label: '— None (scan all groups)', description: 'Leave blank for fingerprint-based lookup' }]
+      : []),
     ...activeEntries.map((e) => ({
       value: e.logicalId,
       label: e.logicalId,
@@ -2843,7 +2845,17 @@ function OAuth2ConfigFields({ config, onChange }: { config: FilterConfig; onChan
   // Track which provider is selected (by id)
   const selectedProviderId = (config._selectedAuthProviderId as string) ?? ''
 
-  const handleProviderSelect = (providerId: string, provider?: { uri?: string; clientId?: string; clientSecret?: string; parameterStyle?: string; parameterName?: string; name?: string }) => {
+  const handleProviderSelect = (
+    providerId: string,
+    provider?: {
+      uri?: string
+      clientId?: string
+      clientSecret?: string
+      parameterStyle?: string
+      parameterName?: string
+      name?: string
+    },
+  ) => {
     if (!providerId || !provider) {
       // Clear dynamic config fields when "None" is selected
       onChange({
@@ -3096,7 +3108,8 @@ function MtlsMappingFields({ config, onChange }: { config: FilterConfig; onChang
           <span className="mt-0.5 shrink-0">✓</span>
           <span>
             Mappings imported from gateway auth provider. You can still edit or add mappings below. At runtime, the
-            gateway resolves the provider's config via <code className="font-mono text-emerald-300">gatewayConfigRef</code>.
+            gateway resolves the provider's config via{' '}
+            <code className="font-mono text-emerald-300">gatewayConfigRef</code>.
           </span>
         </div>
       )}

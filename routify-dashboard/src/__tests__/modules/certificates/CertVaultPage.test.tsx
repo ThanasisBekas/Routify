@@ -39,9 +39,7 @@ describe('CertVaultPage', () => {
       return {
         status: 200,
         data: {
-          content: [
-            { id: 'c1', alias: 'Primary TLS', status: 'ACTIVE', notAfter: '2026-01-01T00:00:00Z' },
-          ],
+          content: [{ id: 'c1', alias: 'Primary TLS', status: 'ACTIVE', notAfter: '2026-01-01T00:00:00Z' }],
           totalElements: 1,
           page: 0,
           size: 20,

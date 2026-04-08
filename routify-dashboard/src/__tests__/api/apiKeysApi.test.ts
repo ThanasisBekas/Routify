@@ -77,4 +77,3 @@ describe('apiKeysApi', () => {
     expect(result.rawKey).toBe('rk_new456')
   })
 })
-

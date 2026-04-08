@@ -61,4 +61,3 @@ describe('authApi', () => {
     expect(result.success).toBe(true)
   })
 })
-

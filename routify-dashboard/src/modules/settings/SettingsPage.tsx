@@ -212,8 +212,8 @@ export default function SettingsPage() {
             </div>
             <div className="p-5 space-y-3">
               <p className="text-xs text-gray-500 leading-relaxed">
-                Export the full gateway configuration (routes, filters, and settings) as YAML or JSON.
-                Import a configuration file to apply changes via Kafka commands.
+                Export the full gateway configuration (routes, filters, and settings) as YAML or JSON. Import a
+                configuration file to apply changes via Kafka commands.
               </p>
               <div className="flex flex-wrap gap-2">
                 <button

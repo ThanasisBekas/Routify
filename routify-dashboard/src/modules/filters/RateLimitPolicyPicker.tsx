@@ -87,7 +87,7 @@ export function RateLimitPolicyPicker({
             ? [{ value, label: value, description: '(policy not found — may have been removed)' }, ...options]
             : options
         }
-        placeholder={isLoading ? 'Loading policies…' : placeholder ?? 'Select a Rate Limit Policy…'}
+        placeholder={isLoading ? 'Loading policies…' : (placeholder ?? 'Select a Rate Limit Policy…')}
         disabled={isLoading}
         searchable
       />
@@ -131,4 +131,3 @@ function Field({
     </div>
   )
 }
-

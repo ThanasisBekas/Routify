@@ -176,4 +176,3 @@ describe('useWebSocket', () => {
     expect((messages[0] as Record<string, unknown>).type).toBe('route.created')
   })
 })
-

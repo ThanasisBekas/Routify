@@ -195,4 +195,3 @@ describe('gatewayApi', () => {
     expect(capturedUrl).toBe('/api/v1/admin/gateway/fleet')
   })
 })
-

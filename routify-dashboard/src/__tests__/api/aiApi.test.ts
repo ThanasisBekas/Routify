@@ -136,4 +136,3 @@ describe('aiApi', () => {
     expect(capturedBody).toEqual({ label: 'CORRECT' })
   })
 })
-

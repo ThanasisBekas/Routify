@@ -39,16 +39,11 @@ describe('graphqlClient', () => {
       status: 200,
       data: {
         data: null,
-        errors: [
-          { message: 'Field "x" not found' },
-          { message: 'Unauthorized' },
-        ],
+        errors: [{ message: 'Field "x" not found' }, { message: 'Unauthorized' }],
       },
     }))
 
-    await expect(graphqlQuery('{ x }')).rejects.toThrow(
-      'GraphQL error: Field "x" not found; Unauthorized',
-    )
+    await expect(graphqlQuery('{ x }')).rejects.toThrow('GraphQL error: Field "x" not found; Unauthorized')
   })
 
   it('throws when data is null', async () => {
@@ -57,9 +52,7 @@ describe('graphqlClient', () => {
       data: { data: null },
     }))
 
-    await expect(graphqlQuery('{ routes { id } }')).rejects.toThrow(
-      'GraphQL response contained no data',
-    )
+    await expect(graphqlQuery('{ routes { id } }')).rejects.toThrow('GraphQL response contained no data')
   })
 
   it('sends variables as undefined when not provided', async () => {
@@ -73,4 +66,3 @@ describe('graphqlClient', () => {
     expect(capturedBody).toEqual({ query: '{ result }', variables: undefined })
   })
 })
-

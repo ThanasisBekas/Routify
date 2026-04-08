@@ -80,7 +80,7 @@ export function AuthProviderPicker({
             ? [{ value, label: value, description: '(provider not found — may have been removed)' }, ...options]
             : options
         }
-        placeholder={isLoading ? 'Loading providers…' : placeholder ?? 'Select an Auth Provider…'}
+        placeholder={isLoading ? 'Loading providers…' : (placeholder ?? 'Select an Auth Provider…')}
         disabled={isLoading}
         searchable
       />
@@ -124,4 +124,3 @@ function Field({
     </div>
   )
 }
-
