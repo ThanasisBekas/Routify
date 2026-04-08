@@ -1,9 +1,10 @@
 # Routify CI Pipeline
 # Runs on every push to master/develop and on every PR.
 # Jobs (after change detection):
-#   - backend-build  : compile all Maven modules (no tests — fast gate)
-#   - backend-test   : run unit tests for changed Java modules
-#   - frontend       : npm typecheck + lint + test + build
+#   - backend-build      : compile all Maven modules (no tests — fast gate)
+#   - backend-test       : run unit tests for changed Java modules
+#   - flyway-validate    : verify migration numbering, ddl-auto, schema config (P-28)
+#   - frontend           : npm typecheck + lint + test + build
 
 name: Routify CI
 
@@ -29,6 +30,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      migrations: ${{ steps.filter.outputs.migrations }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -48,6 +50,10 @@ jobs:
               - 'org/**'
             frontend:
               - 'routify-dashboard/**'
+            migrations:
+              - '**/src/main/resources/db/migration/**'
+              - '**/src/main/resources/application.yml'
+              - 'scripts/flyway-validate.sh'
 
   # ── Backend Build (compile only — fast gate) ─────────────────────────────
   backend-build:
@@ -107,6 +113,20 @@ jobs:
           name: test-reports
           path: '**/target/surefire-reports/'
           retention-days: 7
+
+  # ── Flyway Migration Health Check (P-28) ─────────────────────────────────
+  # Validates migration numbering, ddl-auto settings, and schema config
+  # without requiring a running database — pure file-system checks.
+  flyway-validate:
+    name: Flyway Migration Validate
+    needs: changes
+    if: needs.changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate Flyway migrations
+        run: bash scripts/flyway-validate.sh --ci
 
   # ── Frontend Build, Lint & Test ───────────────────────────────────────────
   frontend:

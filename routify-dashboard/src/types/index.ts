@@ -365,6 +365,7 @@ export interface FilterDefinitionDto {
   description?: string
   filterType: FilterType
   config: Record<string, unknown>
+  gatewayConfigRef?: GatewayConfigRefDto | null
   systemManaged: boolean
   enabled: boolean
   usageCount: number
@@ -382,17 +383,25 @@ export interface FilterSummary {
   createdAt: string
 }
 
+export interface GatewayConfigRefDto {
+  refType: string
+  refId: string
+  refName?: string
+}
+
 export interface CreateFilterRequest {
   name: string
   description?: string
   filterType: FilterType
   config: Record<string, unknown>
+  gatewayConfigRef?: GatewayConfigRefDto
 }
 
 export interface UpdateFilterRequest {
   name?: string
   description?: string
   config?: Record<string, unknown>
+  gatewayConfigRef?: GatewayConfigRefDto | null
 }
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
