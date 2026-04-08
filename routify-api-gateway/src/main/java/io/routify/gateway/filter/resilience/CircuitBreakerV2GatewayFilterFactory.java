@@ -9,6 +9,7 @@ import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOper
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.routify.common.event.KafkaTopics;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -220,22 +221,24 @@ public class CircuitBreakerV2GatewayFilterFactory
     }
 
     private Mono<Void> writeFallbackResponse(org.springframework.web.server.ServerWebExchange exchange, Config config) {
-        ServerHttpResponse resp = exchange.getResponse();
-        if (resp.isCommitted()) {
+        if (exchange.getResponse().isCommitted()) {
             return Mono.empty();
         }
-        resp.setStatusCode(HttpStatus.valueOf(config.getFallbackStatus()));
-        resp.getHeaders().set("Content-Type", "application/problem+json");
 
-        String body = config.getFallbackBody();
-        if (body == null || body.isBlank()) {
-            body = """
-                    {"type":"about:blank","title":"Service Unavailable",\
-                    "status":%d,"detail":"Circuit breaker is open — the upstream service is temporarily unavailable.",\
-                    "errorCode":"CIRCUIT_BREAKER_OPEN"}""".formatted(config.getFallbackStatus());
+        // If the operator provided a custom fallback body, write it raw (preserving backward compatibility)
+        String customBody = config.getFallbackBody();
+        if (customBody != null && !customBody.isBlank()) {
+            ServerHttpResponse resp = exchange.getResponse();
+            resp.setStatusCode(HttpStatus.valueOf(config.getFallbackStatus()));
+            resp.getHeaders().set("Content-Type", "application/problem+json");
+            return resp.writeWith(Mono.just(resp.bufferFactory().wrap(customBody.getBytes())));
         }
 
-        return resp.writeWith(Mono.just(resp.bufferFactory().wrap(body.getBytes())));
+        // Default: use the shared builder
+        return GatewayProblemResponse.status(HttpStatus.valueOf(config.getFallbackStatus()))
+                .errorCode("CIRCUIT_BREAKER_OPEN")
+                .detail("Circuit breaker is open — the upstream service is temporarily unavailable.")
+                .write(exchange);
     }
 
     @Data

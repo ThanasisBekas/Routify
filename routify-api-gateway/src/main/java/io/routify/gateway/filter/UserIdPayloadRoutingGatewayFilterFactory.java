@@ -1,5 +1,6 @@
 package io.routify.gateway.filter;
 
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -9,7 +10,6 @@ import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
@@ -48,18 +48,19 @@ public class UserIdPayloadRoutingGatewayFilterFactory
                 log.error("UserIdPayloadRouting misconfiguration: no cached body found on route '{}'. " +
                           "Add 'CacheRequestBody' with args.bodyClass=java.util.Map before this filter.",
                           exchange.getRequest().getPath());
-                return reactor.core.publisher.Mono.error(new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Route misconfiguration: CacheRequestBody filter with bodyClass=java.util.Map " +
-                        "must precede UserIdPayloadRouting"));
+                return GatewayProblemResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .errorCode("ROUTING_MISCONFIGURED")
+                        .detail("Route misconfiguration: CacheRequestBody filter with bodyClass=java.util.Map must precede UserIdPayloadRouting")
+                        .write(exchange);
             }
 
             if (!(rawBody instanceof Map)) {
                 log.error("UserIdPayloadRouting misconfiguration: cached body is '{}' (expected Map).",
                           rawBody.getClass().getSimpleName());
-                return reactor.core.publisher.Mono.error(new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Route misconfiguration: bodyClass must be java.util.Map"));
+                return GatewayProblemResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .errorCode("ROUTING_MISCONFIGURED")
+                        .detail("Route misconfiguration: bodyClass must be java.util.Map")
+                        .write(exchange);
             }
 
             @SuppressWarnings("unchecked")
