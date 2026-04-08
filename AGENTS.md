@@ -134,6 +134,7 @@ Each module has its own `AGENTS.md` with detailed package layout, patterns, and 
 | Global error handler | `routify-common/.../exception/GlobalExceptionHandler.java` |
 | Kafka client base class | `routify-common/.../client/KafkaServiceClientSupport.java` |
 | RabbitMQ client base class | `routify-common/.../client/AmqpServiceClientSupport.java` |
+| @Sensitive field encryption | `routify-common/.../crypto/Sensitive.java`, `FieldEncryptionService.java`, `SensitiveStringConverter.java` |
 | MapStruct mapper example | `routify-route-service/.../mapper/RouteMapper.java` |
 | Frontend API client | `routify-dashboard/src/api/client.ts` |
 | Auth store | `routify-dashboard/src/store/authStore.ts` |

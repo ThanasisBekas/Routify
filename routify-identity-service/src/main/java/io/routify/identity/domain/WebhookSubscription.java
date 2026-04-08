@@ -1,5 +1,6 @@
 package io.routify.identity.domain;
 
+import io.routify.common.crypto.Sensitive;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -42,8 +43,9 @@ public class WebhookSubscription {
     @Column(nullable = false, length = 2048)
     private String url;
 
-    /** HMAC-SHA256 signing key for delivery verification. */
-    @Column(nullable = false)
+    /** HMAC-SHA256 signing key for delivery verification — encrypted at rest. */
+    @Sensitive
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String secret;
 
     /** Platform event types this subscription listens to. */

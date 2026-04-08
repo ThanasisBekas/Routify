@@ -105,6 +105,9 @@ management:
 
 # ─── Routify Configuration ───────────────────────────────────────────────────
 routify:
+  # ─── @Sensitive field-level encryption ──────────────────────────────────────
+  field-encryption-key: ${FIELD_ENCRYPTION_KEY:}
+
   outbox:
     # Primary wake-up is via PostgreSQL LISTEN/NOTIFY (OutboxNotifyListener).
     # This scheduled interval is a safety-net fallback only — catches any
@@ -125,7 +128,8 @@ routify:
   required-secrets: >-
     spring.datasource.password,
     spring.rabbitmq.password,
-    spring.data.redis.password
+    spring.data.redis.password,
+    routify.field-encryption-key
 
 
 

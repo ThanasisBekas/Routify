@@ -12,6 +12,7 @@ Centralises all cross-cutting contracts so services stay in sync: event types, m
 io.routify.common/
 ├── client/         # AmqpServiceClientSupport, KafkaServiceClientSupport
 ├── config/         # SecretValidator (fail-fast on missing env vars)
+├── crypto/         # @Sensitive, FieldEncryptionService, SensitiveStringConverter, FieldEncryptionAutoConfiguration
 ├── domain/         # FilterType, TenantPlan, UserRole, RouteStatus, RouteEnvironment
 ├── dto/            # Shared DTOs (audit sub-packages)
 ├── event/          # KafkaTopics, RabbitTopology, CommandEvent, DomainEvent,
@@ -20,7 +21,7 @@ io.routify.common/
 ├── kafka/          # KafkaDlqErrorHandlerFactory
 ├── observability/  # RoutifyMetrics (all routify.* Micrometer names)
 ├── security/       # SecurityContext (ThreadLocal), RedisKeys
-└── web/            # RoutifyHeaders, AsyncAcknowledgement, PageResponse, Sensitive, @SensitiveField
+└── web/            # RoutifyHeaders, AsyncAcknowledgement, PageResponse
 ```
 
 ## Critical Rules
@@ -43,7 +44,8 @@ io.routify.common/
 | `GlobalExceptionHandler` | `@RestControllerAdvice` — maps `RoutifyException` → RFC 9457 ProblemDetail |
 | `SecurityContext` | ThreadLocal holder — `SecurityContext.current()`, `hasRole()`, `isSuperAdmin()` |
 | `KafkaDlqErrorHandlerFactory` | Creates Kafka error handler with exponential backoff → DLQ forwarding |
-| `Sensitive` / `@SensitiveField` | `Sensitive.maskFields(dto)` before returning sensitive data to clients |
+| `@Sensitive` / `FieldEncryptionService` | `@Sensitive` annotation for transparent AES-256-GCM field-level encryption at the JPA layer |
+| `SensitiveStringConverter` | JPA `AttributeConverter` — encrypts on persist, decrypts on read; wired via `FieldEncryptionAutoConfiguration` |
 
 ## Build
 
