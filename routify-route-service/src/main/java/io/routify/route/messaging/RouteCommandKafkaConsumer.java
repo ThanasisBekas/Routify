@@ -7,6 +7,7 @@ import io.routify.route.domain.ProcessedCommand;
 import io.routify.route.domain.Route;
 import io.routify.route.repository.ProcessedCommandRepository;
 import io.routify.route.service.FilterDefinitionService;
+import io.routify.route.service.GatewayConfigRefValidator;
 import io.routify.route.service.RouteService;
 import io.routify.route.service.RouteUpdateCommand;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class RouteCommandKafkaConsumer {
     private final RouteService               routeService;
     private final FilterDefinitionService    filterService;
     private final ProcessedCommandRepository processedCommandRepo;
+    private final GatewayConfigRefValidator   configRefValidator;
 
     @KafkaListener(
             topics = KafkaTopics.ROUTE_COMMANDS,
@@ -152,6 +154,7 @@ public class RouteCommandKafkaConsumer {
 
         switch (cmd) {
             case CommandEvent.CreateFilter c -> {
+                configRefValidator.validate(c.gatewayConfigRef());
                 FilterDefinition filter = FilterDefinition.builder()
                         .tenantId(c.tenantId())
                         .name(c.name())
@@ -164,6 +167,7 @@ public class RouteCommandKafkaConsumer {
                 filterService.create(filter, c.tenantId());
             }
             case CommandEvent.UpdateFilter c -> {
+                configRefValidator.validate(c.gatewayConfigRef());
                 FilterDefinition existing = filterService.findById(c.id(), c.tenantId());
                 if (c.name()             != null) existing.setName(c.name());
                 if (c.description()      != null) existing.setDescription(c.description());
