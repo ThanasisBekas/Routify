@@ -53,36 +53,43 @@ src/
 ## Critical Rules
 
 ### API calls
+
 - **Always** use `apiClient` from `src/api/client.ts` — it handles JWT injection, `X-Tenant-Id` header, and 401→refresh lock
 - Each domain has its own API module (e.g. `routesApi.ts`) that exports functions using `apiClient`
 - Never create new `axios.create()` instances
 
 ### State management
+
 - **Server state:** TanStack Query (`@tanstack/react-query`) — cache, invalidation, optimistic updates
 - **Client state:** Zustand — `authStore` (auth tokens/user), `wsStore` (WebSocket state)
 - Access token stored in Zustand **memory only** — cleared on page refresh, re-acquired via HttpOnly cookie refresh
 
 ### Forms
+
 - React Hook Form + Zod for validation
 - `@hookform/resolvers` for Zod integration
 
 ### Error handling
+
 - Use `extractApiError(error)` from `src/lib/utils.ts` for all error display
 - It extracts `detail` field from RFC 9457 ProblemDetail responses
 - Never create separate error utility functions
 
 ### Styling
+
 - TailwindCSS 4 utility classes
 - `cn()` helper from `src/lib/utils.ts` (`clsx` + `tailwind-merge`)
 - Icons: `lucide-react`
 - Toasts: `sonner`
 
 ### Real-time
+
 - `WebSocketProvider` connects to `/ws/websocket` via STOMP
 - Subscribes to `/topic/events`, `/topic/metrics`, `/topic/audit`
 - State flows into `wsStore` → components re-render reactively
 
 ### Mock mode
+
 - `npm run dev:mock` sets `VITE_MOCK=true`
 - MSW service worker intercepts all `/api/...` requests
 - Mock handlers in `src/mocks/handlers/` — one file per domain
@@ -112,4 +119,3 @@ npm run typecheck   # TypeScript type checking
 npm install
 npm run build       # tsc + vite build → dist/
 ```
-
