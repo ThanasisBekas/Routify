@@ -2,9 +2,12 @@ package io.routify.gitops.reconcile;
 
 import io.routify.gitops.config.GitOpsProperties;
 import io.routify.gitops.git.GitRepositoryClient;
+import io.routify.common.dto.export.GatewayExportV1;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <ol>
  *   <li>Fetch latest from Git repository</li>
  *   <li>Read config YAML and compute SHA-256 hash</li>
+ *   <li>Pre-validate YAML structure (apiVersion, kind, basic schema)</li>
  *   <li>Compare with last-applied hash (stored in Redis)</li>
  *   <li>If changed: preview → validate → apply (or drift-detect in dry-run mode)</li>
  *   <li>Update last-applied hash in Redis on success</li>
@@ -41,7 +45,8 @@ public class ReconciliationService {
     private final AdminApiClient adminApiClient;
     private final WebhookNotifier webhookNotifier;
     private final StringRedisTemplate redisTemplate;
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final ObjectMapper jsonMapper;
+    private final ObjectMapper yamlMapper;
 
     // Metrics
     private final Counter reconciliationsApplied;
@@ -65,8 +70,10 @@ public class ReconciliationService {
         this.adminApiClient = adminApiClient;
         this.webhookNotifier = webhookNotifier;
         this.redisTemplate = redisTemplate;
-        this.objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        objectMapper.findAndRegisterModules();
+        this.jsonMapper = new ObjectMapper();
+        jsonMapper.findAndRegisterModules();
+        this.yamlMapper = new ObjectMapper(new YAMLFactory());
+        yamlMapper.findAndRegisterModules();
 
         // Register Micrometer metrics under routify.gitops.* namespace
         this.reconciliationsApplied = Counter.builder("routify.gitops.reconciliations")
@@ -147,12 +154,50 @@ public class ReconciliationService {
         List<ReconciliationResult> results = new ArrayList<>();
         for (String json : raw) {
             try {
-                results.add(objectMapper.readValue(json, ReconciliationResult.class));
+                results.add(jsonMapper.readValue(json, ReconciliationResult.class));
             } catch (Exception e) {
                 log.warn("Failed to deserialize history entry: {}", e.getMessage());
             }
         }
         return results;
+    }
+
+    /**
+     * Pre-validates the YAML content before sending to admin-api.
+     * Checks that the YAML is parseable and has the correct {@code apiVersion}
+     * and {@code kind} fields. This catches malformed YAML early and produces
+     * clear error messages in reconciliation history.
+     *
+     * @param yaml the raw YAML content
+     * @return empty if valid, or an error message if invalid
+     */
+    Optional<String> validateYaml(String yaml) {
+        try {
+            GatewayExportV1 export = yamlMapper.readValue(yaml, GatewayExportV1.class);
+
+            if (export.apiVersion() == null || export.apiVersion().isBlank()) {
+                return Optional.of("Invalid config: missing 'apiVersion' field");
+            }
+            if (!GatewayExportV1.CURRENT_API_VERSION.equals(export.apiVersion())) {
+                return Optional.of("Invalid apiVersion: expected '"
+                        + GatewayExportV1.CURRENT_API_VERSION + "', got '" + export.apiVersion() + "'");
+            }
+            if (export.kind() == null || export.kind().isBlank()) {
+                return Optional.of("Invalid config: missing 'kind' field");
+            }
+            if (!GatewayExportV1.KIND.equals(export.kind())) {
+                return Optional.of("Invalid kind: expected '"
+                        + GatewayExportV1.KIND + "', got '" + export.kind() + "'");
+            }
+
+            return Optional.empty();
+        } catch (Exception e) {
+            String detail = e.getMessage();
+            if (detail != null && detail.length() > 200) {
+                detail = detail.substring(0, 200) + "...";
+            }
+            return Optional.of("Malformed YAML: " + detail);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -182,6 +227,15 @@ public class ReconciliationService {
         String yaml = configContent.get();
         String configHash = GitRepositoryClient.computeSha256(yaml);
         String commitHash = gitClient.getHeadCommitHash().orElse("unknown");
+
+        // 2b. Pre-validate YAML structure before sending to admin-api
+        Optional<String> validationError = validateYaml(yaml);
+        if (validationError.isPresent()) {
+            log.error("YAML validation failed: {}", validationError.get());
+            var result = failedResult(commitHash, configHash, validationError.get());
+            recordResult(result);
+            return result;
+        }
 
         // 3. Compare with last-applied hash (SHA-256 short-circuit)
         Optional<String> lastHash = getLastAppliedHash();
@@ -296,7 +350,7 @@ public class ReconciliationService {
     private void recordResult(ReconciliationResult result) {
         try {
             String key = REDIS_HISTORY_KEY_PREFIX + properties.getTenantId();
-            String json = objectMapper.writeValueAsString(result);
+            String json = jsonMapper.writeValueAsString(result);
             redisTemplate.opsForList().leftPush(key, json);
             redisTemplate.opsForList().trim(key, 0, MAX_HISTORY_SIZE - 1);
         } catch (Exception e) {

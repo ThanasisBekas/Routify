@@ -2,6 +2,7 @@ package io.routify.audit.repository;
 
 import io.routify.audit.domain.TenantUsageDaily;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -25,5 +26,10 @@ public interface TenantUsageDailyRepository extends JpaRepository<TenantUsageDai
             WHERE u.date = :date
             """)
     List<UUID> findTenantIdsWithSnapshotForDate(@Param("date") LocalDate date);
+
+    /** Bulk-delete usage snapshots older than the given cutoff date (called by retention scheduler). */
+    @Modifying
+    @Query(value = "DELETE FROM routify_audit.tenant_usage_daily WHERE date < :cutoff", nativeQuery = true)
+    int deleteByDateBefore(@Param("cutoff") LocalDate cutoff);
 }
 

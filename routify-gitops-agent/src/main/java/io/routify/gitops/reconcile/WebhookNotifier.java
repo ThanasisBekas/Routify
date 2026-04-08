@@ -1,7 +1,6 @@
 package io.routify.gitops.reconcile;
 
 import io.routify.gitops.config.GitOpsProperties;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.*;
@@ -21,12 +20,19 @@ import java.util.Map;
  * <p>Signs payloads with HMAC-SHA256 using the configured webhook secret.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class WebhookNotifier {
 
     private final GitOpsProperties properties;
-    private final RestTemplate webhookRestTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    public WebhookNotifier(GitOpsProperties properties, RestTemplate restTemplate) {
+        this.properties = properties;
+        this.restTemplate = restTemplate;
+        this.objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        objectMapper.findAndRegisterModules();
+    }
 
     /**
      * Fires a webhook notification with the given reconciliation result.
@@ -56,8 +62,7 @@ public class WebhookNotifier {
 
             // Sign payload with HMAC-SHA256 if secret is configured
             if (StringUtils.isNotBlank(properties.getWebhookSecret())) {
-                String payloadJson = new com.fasterxml.jackson.databind.ObjectMapper()
-                        .writeValueAsString(payload);
+                String payloadJson = objectMapper.writeValueAsString(payload);
                 String signature = computeHmacSha256(payloadJson, properties.getWebhookSecret());
                 headers.set("X-Hub-Signature-256", "sha256=" + signature);
             }
@@ -67,7 +72,7 @@ public class WebhookNotifier {
             log.debug("Sending webhook notification to {} for outcome {}",
                     properties.getWebhookUrl(), result.outcome());
 
-            ResponseEntity<String> response = webhookRestTemplate.exchange(
+            ResponseEntity<String> response = restTemplate.exchange(
                     properties.getWebhookUrl(), HttpMethod.POST, entity, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
@@ -82,7 +87,7 @@ public class WebhookNotifier {
         }
     }
 
-    private String mapOutcomeToEvent(ReconciliationResult.ReconciliationOutcome outcome) {
+    String mapOutcomeToEvent(ReconciliationResult.ReconciliationOutcome outcome) {
         return switch (outcome) {
             case APPLIED -> "RECONCILIATION_SUCCEEDED";
             case DRIFT_DETECTED -> "DRIFT_DETECTED";
@@ -104,4 +109,3 @@ public class WebhookNotifier {
         }
     }
 }
-
