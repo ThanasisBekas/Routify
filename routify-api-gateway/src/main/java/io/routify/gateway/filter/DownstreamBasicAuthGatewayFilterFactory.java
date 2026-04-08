@@ -1,5 +1,6 @@
 package io.routify.gateway.filter;
 
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -8,8 +9,6 @@ import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
-import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -41,8 +40,10 @@ public class DownstreamBasicAuthGatewayFilterFactory
 
             if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
                 log.error("Missing required credentials in DOWNSTREAM_BASIC_AUTH filter config");
-                return Mono.error(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Gateway misconfiguration: downstream Basic auth credentials are not set"));
+                return GatewayProblemResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .errorCode("DOWNSTREAM_AUTH_MISCONFIGURED")
+                        .detail("Gateway misconfiguration: downstream Basic auth credentials are not set")
+                        .write(exchange);
             }
 
             log.debug("Injecting downstream Basic Authorization header for user '{}'", username);

@@ -1,6 +1,7 @@
 package io.routify.gateway.filter;
 
 import io.routify.gateway.downstream.oauth2.Oauth2AccessTokenProvider;
+import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -9,7 +10,6 @@ import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 /**
@@ -40,8 +40,10 @@ public class DownstreamOAuth2BearerGatewayFilterFactory
 
             if (oauth2ProviderName == null || oauth2ProviderName.isEmpty()) {
                 log.error("Missing required oauth2 provider name {}", oauth2ProviderName);
-                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                        "Missing required oauth2 provider name '%s'".formatted(oauth2ProviderName)));
+                return GatewayProblemResponse.status(HttpStatus.UNAUTHORIZED)
+                        .errorCode("MISSING_OAUTH2_PROVIDER")
+                        .detail("Missing required oauth2 provider name '%s'", oauth2ProviderName)
+                        .write(exchange);
             }
 
             Mono<String> tokenMono = config.isForwardCallerAuth()
