@@ -185,6 +185,29 @@ public class IdentityRabbitHandler {
 
     // ─── Tenant Commands (sync — admin actions need immediate confirmation) ────
 
+    /**
+     * Returns all active tenant → plan mappings for TenantPlanCache warmup.
+     * Called by route-service and api-gateway at startup.
+     */
+    @RabbitListener(queues = RabbitTopology.QUEUE_TENANT_PLANS)
+    public QueryResponse.TenantPlansList handleTenantPlansQuery(
+            @SuppressWarnings("unused") QueryRequest.TenantPlansQuery request) {
+        log.debug("RabbitMQ: received tenants.plans request (cache warmup)");
+        try {
+            List<QueryResponse.TenantPlansList.TenantPlanEntry> entries = tenantService
+                    .findAllActive()
+                    .stream()
+                    .map(t -> new QueryResponse.TenantPlansList.TenantPlanEntry(
+                            t.getId(), t.getPlan().name()))
+                    .toList();
+            log.info("TenantPlansQuery: returning {} active tenant plans", entries.size());
+            return new QueryResponse.TenantPlansList(entries);
+        } catch (Exception e) {
+            log.error("tenants.plans failed: {}", e.getMessage(), e);
+            throw new AmqpRejectAndDontRequeueException(e.getMessage(), e);
+        }
+    }
+
     @RabbitListener(queues = RabbitTopology.QUEUE_TENANTS_COMMAND)
     public QueryResponse.TenantDetail handleTenantCommand(CommandEvent command) {
         log.info("RabbitMQ: received tenants.command request");
@@ -455,7 +478,7 @@ public class IdentityRabbitHandler {
     private QueryResponse.ApiKeysPage.ApiKeySummary toApiKeySummary(ApiKey k) {
         return new QueryResponse.ApiKeysPage.ApiKeySummary(
                 k.getId(), k.getTenantId(), k.getName(), k.getKeyPrefix(),
-                k.getRole().name(), k.getEmail(), k.getStatus().name(),
+                k.getRole().name(), k.getEmail(), k.getEffectiveStatus().name(),
                 k.getExpiresAt(), k.getLastUsedAt(), k.getCreatedAt());
     }
 
@@ -463,7 +486,7 @@ public class IdentityRabbitHandler {
         return new QueryResponse.ApiKeyDetail(
                 k.getId(), k.getTenantId(), k.getUserId(), k.getName(),
                 k.getKeyPrefix(), k.getRole().name(), k.getEmail(),
-                k.getStatus().name(), k.getExpiresAt(), k.getLastUsedAt(),
+                k.getEffectiveStatus().name(), k.getExpiresAt(), k.getLastUsedAt(),
                 k.getCreatedBy(), k.getCreatedAt(), k.getRevokedAt());
     }
 

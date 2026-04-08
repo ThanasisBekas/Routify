@@ -117,6 +117,8 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.AlertRulesPage.class,       name = "ALERT_RULES_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.AlertRuleDetail.class,      name = "ALERT_RULE_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.AlertEventsPage.class,      name = "ALERT_EVENTS_PAGE"),
+    // ─── routify-identity-service internal (cache warmup) ──────────────────
+    @JsonSubTypes.Type(value = QueryResponse.TenantPlansList.class,      name = "TENANT_PLANS_LIST"),
 })
 public sealed interface QueryResponse
         permits
@@ -177,6 +179,7 @@ public sealed interface QueryResponse
             QueryResponse.AlertRulesPage,
             QueryResponse.AlertRuleDetail,
             QueryResponse.AlertEventsPage,
+            QueryResponse.TenantPlansList,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1341,6 +1344,19 @@ public sealed interface QueryResponse
                 String  message,
                 Instant occurredAt
         ) {}
+    }
+
+    // ─── routify-identity-service internal (cache warmup) ────────────────────
+
+    /**
+     * Full list of active tenant → plan mappings.
+     * Returned by identity-service in response to {@link QueryRequest.TenantPlansQuery},
+     * used by route-service and api-gateway to warm the in-memory TenantPlanCache on startup.
+     */
+    record TenantPlansList(List<TenantPlanEntry> entries) implements QueryResponse {
+
+        /** Lightweight mapping of a tenant ID to its subscription plan name. */
+        public record TenantPlanEntry(UUID tenantId, String plan) {}
     }
 
     /**

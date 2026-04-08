@@ -41,7 +41,7 @@ class RequestSizeLimitTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        tenantPlanCache = new GatewayTenantPlanCache();
+        tenantPlanCache = new GatewayTenantPlanCache(null);
         factory = new RequestSizeLimitGatewayFilterFactory(meterRegistry, tenantPlanCache);
     }
 
@@ -266,7 +266,8 @@ class RequestSizeLimitTest {
             GatewayFilter filter = factory.apply(config);
 
             UUID tenantId = UUID.randomUUID();
-            // GatewayTenantPlanCache defaults to FREE for unknown tenants
+            // Explicitly set FREE plan for this tenant (cache miss now defaults to ENTERPRISE)
+            tenantPlanCache.putAll(java.util.Map.of(tenantId, io.routify.common.domain.TenantPlan.FREE));
 
             // Content-Length of 10MB — exceeds FREE plan's 5MB limit
             long tenMB = 10L * 1024 * 1024;

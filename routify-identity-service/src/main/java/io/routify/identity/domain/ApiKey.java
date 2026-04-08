@@ -93,5 +93,26 @@ public class ApiKey {
         this.status    = ApiKeyStatus.REVOKED;
         this.revokedAt = Instant.now();
     }
+
+    /** Marks this key as expired. Called by the expiry scheduler. */
+    public void expire() {
+        this.status = ApiKeyStatus.EXPIRED;
+    }
+
+    /** Returns true if this key has a set expiry date that is in the past. */
+    public boolean isExpired() {
+        return expiresAt != null && expiresAt.isBefore(Instant.now());
+    }
+
+    /**
+     * Returns the effective status — if the key is ACTIVE but past its expiry date,
+     * the effective status is EXPIRED (the scheduler will catch up eventually).
+     */
+    public ApiKeyStatus getEffectiveStatus() {
+        if (status == ApiKeyStatus.ACTIVE && isExpired()) {
+            return ApiKeyStatus.EXPIRED;
+        }
+        return status;
+    }
 }
 
