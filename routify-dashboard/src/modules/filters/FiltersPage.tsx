@@ -17,7 +17,15 @@ import type { FilterSummary } from '../../types'
 import { cn } from '../../lib/utils'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { FILTER_REGISTRY, CATEGORY_ORDER, CATEGORY_COLORS, getFilterEntry, DEPRECATED_FILTER_TYPES, DEPRECATED_REPLACEMENTS, type FilterCategory } from './filterRegistry'
+import {
+  FILTER_REGISTRY,
+  CATEGORY_ORDER,
+  CATEGORY_COLORS,
+  getFilterEntry,
+  DEPRECATED_FILTER_TYPES,
+  DEPRECATED_REPLACEMENTS,
+  type FilterCategory,
+} from './filterRegistry'
 
 // ─── Stats bar ────────────────────────────────────────────────────────────────
 
@@ -517,9 +525,7 @@ export default function FiltersPage() {
       )}
 
       {/* ── Deprecated filters summary ──────────────────────────────────── */}
-      {!isLoading && allFilters.length > 0 && (
-        <DeprecatedFiltersSummary />
-      )}
+      {!isLoading && allFilters.length > 0 && <DeprecatedFiltersSummary />}
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto">

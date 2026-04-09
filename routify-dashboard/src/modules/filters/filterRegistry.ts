@@ -542,7 +542,10 @@ export const DEPRECATED_FILTER_TYPES: Set<string> = new Set([
 /** Maps each deprecated filter type to its human-readable replacement suggestion. */
 export const DEPRECATED_REPLACEMENTS: Record<string, { label: string; type?: string }> = {
   AUTH_NONE: { label: '(remove the filter)' },
-  RATE_LIMIT_TOKEN_BUCKET: { label: 'Fixed Window Rate Limit or Sliding Window Rate Limit', type: 'RATE_LIMIT_FIXED_WINDOW' },
+  RATE_LIMIT_TOKEN_BUCKET: {
+    label: 'Fixed Window Rate Limit or Sliding Window Rate Limit',
+    type: 'RATE_LIMIT_FIXED_WINDOW',
+  },
   PATH_REWRITE: { label: 'route-level stripPrefix or conditional routing' },
   PATH_STRIP_PREFIX: { label: 'route-level stripPrefix field' },
   PATH_ADD_PREFIX: { label: 'route-level config or Request Header Modify', type: 'REQUEST_HEADER_MODIFY' },

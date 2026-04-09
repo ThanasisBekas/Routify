@@ -391,7 +391,8 @@ export default function FilterDefinitionForm({
               <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
               <div className="text-sm text-amber-300 leading-relaxed">
                 <p className="font-semibold">
-                  ⚠️ This filter uses a deprecated type (<code className="font-mono text-xs bg-amber-500/20 px-1 rounded">{existing.filterType}</code>).
+                  ⚠️ This filter uses a deprecated type (
+                  <code className="font-mono text-xs bg-amber-500/20 px-1 rounded">{existing.filterType}</code>).
                 </p>
                 <p className="mt-1 text-xs text-amber-400/70">
                   It will continue to function but should be replaced with{' '}

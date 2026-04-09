@@ -1,5 +1,12 @@
 import apiClient from './client'
-import type { Page, FilterSummary, FilterDefinitionDto, CreateFilterRequest, UpdateFilterRequest, DeprecatedFilterUsageResult } from '../types'
+import type {
+  Page,
+  FilterSummary,
+  FilterDefinitionDto,
+  CreateFilterRequest,
+  UpdateFilterRequest,
+  DeprecatedFilterUsageResult,
+} from '../types'
 
 // All dashboard requests go through routify-admin-api (the BFF).
 const BASE = '/api/v1/admin/filters'
@@ -17,6 +24,5 @@ export const filtersApi = {
 
   delete: (id: string) => apiClient.delete(`${BASE}/${id}`).then((r) => r.data),
 
-  deprecatedUsage: () =>
-    apiClient.get<DeprecatedFilterUsageResult>(`${BASE}/deprecated-usage`).then((r) => r.data),
+  deprecatedUsage: () => apiClient.get<DeprecatedFilterUsageResult>(`${BASE}/deprecated-usage`).then((r) => r.data),
 }
