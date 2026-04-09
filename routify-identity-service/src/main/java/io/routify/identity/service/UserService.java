@@ -5,10 +5,12 @@ import io.routify.common.event.KafkaTopics;
 import io.routify.common.exception.RoutifyException;
 import io.routify.identity.config.CacheConfig;
 import io.routify.identity.domain.AppUser;
+import io.routify.identity.domain.RoleDefinition;
 import io.routify.identity.domain.Tenant;
 import io.routify.identity.dto.AuthDto;
 import io.routify.identity.outbox.IdentityOutboxEventStore;
 import io.routify.identity.outbox.IdentityOutboxPoller;
+import io.routify.identity.repository.RoleDefinitionRepository;
 import io.routify.identity.repository.TenantRepository;
 import io.routify.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
+    private final RoleDefinitionRepository roleDefinitionRepository;
     private final PasswordEncoder passwordEncoder;
     private final IdentityOutboxEventStore outboxStore;
 
@@ -61,6 +64,12 @@ public class UserService {
     @CacheEvict(value = CacheConfig.CACHE_USERS, allEntries = true)
     @Transactional
     public AppUser create(AuthDto.CreateUserRequest request, UUID tenantId) {
+        return create(request, tenantId, null);
+    }
+
+    @CacheEvict(value = CacheConfig.CACHE_USERS, allEntries = true)
+    @Transactional
+    public AppUser create(AuthDto.CreateUserRequest request, UUID tenantId, UUID roleId) {
         // Validate tenant exists
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new RoutifyException.NotFound("Tenant", tenantId.toString()));
@@ -76,12 +85,16 @@ public class UserService {
             throw new RoutifyException.Conflict("Email '%s' already exists".formatted(request.email()));
         }
 
+        // Resolve role definition: explicit roleId → by name for built-in role → fallback
+        RoleDefinition roleDef = resolveRoleDefinition(roleId, request.role(), tenantId);
+
         AppUser user = AppUser.builder()
                 .tenantId(tenantId)
                 .username(request.username())
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .role(request.role())
+                .roleDefinition(roleDef)
                 .build();
 
         AppUser saved = userRepository.save(user);
@@ -94,13 +107,20 @@ public class UserService {
                 KafkaTopics.USER_EVENTS,
                 tenantId);
 
-        log.info("User created: id={} username={} tenant={}", saved.getId(), saved.getUsername(), tenantId);
+        log.info("User created: id={} username={} tenant={} role={}", saved.getId(), saved.getUsername(), tenantId,
+                roleDef != null ? roleDef.getName() : request.role());
         return saved;
     }
 
     @CacheEvict(value = CacheConfig.CACHE_USERS, allEntries = true)
     @Transactional
     public AppUser update(UUID id, UUID tenantId, AuthDto.UpdateUserRequest request) {
+        return update(id, tenantId, request, null);
+    }
+
+    @CacheEvict(value = CacheConfig.CACHE_USERS, allEntries = true)
+    @Transactional
+    public AppUser update(UUID id, UUID tenantId, AuthDto.UpdateUserRequest request, UUID roleId) {
         AppUser user = findById(id, tenantId);
 
         if (request.username() != null && !request.username().equals(user.getUsername())) {
@@ -117,6 +137,14 @@ public class UserService {
         }
         if (request.role() != null) {
             user.setRole(request.role());
+        }
+
+        // Resolve and set role definition if roleId is provided, or if role enum changed
+        if (roleId != null || request.role() != null) {
+            RoleDefinition roleDef = resolveRoleDefinition(roleId, request.role() != null ? request.role() : user.getRole(), tenantId);
+            if (roleDef != null) {
+                user.setRoleDefinition(roleDef);
+            }
         }
 
         AppUser saved = userRepository.save(user);
@@ -145,6 +173,28 @@ public class UserService {
                 tenantId);
 
         log.info("User deleted: id={}", id);
+    }
+
+    // ─── Private helpers ─────────────────────────────────────────────────────
+
+    /**
+     * Resolves a {@link RoleDefinition} for a user:
+     * <ol>
+     *   <li>If an explicit {@code roleId} is given, look it up directly.</li>
+     *   <li>Otherwise fall back to the built-in role matching the {@code UserRole} enum name.</li>
+     * </ol>
+     */
+    private RoleDefinition resolveRoleDefinition(UUID roleId, io.routify.common.domain.UserRole role, UUID tenantId) {
+        if (roleId != null) {
+            return roleDefinitionRepository.findById(roleId)
+                    .orElseThrow(() -> new RoutifyException.NotFound("Role", roleId.toString()));
+        }
+        // Fall back: look up built-in role by the UserRole enum name within the tenant scope
+        if (role != null) {
+            return roleDefinitionRepository.findByNameForTenant(role.name(), tenantId)
+                    .orElse(null);
+        }
+        return null;
     }
 }
 

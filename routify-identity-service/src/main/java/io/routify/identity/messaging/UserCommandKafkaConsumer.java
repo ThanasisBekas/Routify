@@ -52,11 +52,11 @@ public class UserCommandKafkaConsumer {
                             c.username(), c.email(),
                             c.password() != null ? c.password() : UUID.randomUUID().toString(),
                             c.role() != null ? c.role() : UserRole.VIEWER);
-                    userService.create(req, c.tenantId());
+                    userService.create(req, c.tenantId(), c.roleId());
                 }
                 case CommandEvent.UpdateUser c -> {
                     var req = new AuthDto.UpdateUserRequest(c.username(), c.email(), c.role());
-                    userService.update(c.id(), c.tenantId(), req);
+                    userService.update(c.id(), c.tenantId(), req, c.roleId());
                 }
                 case CommandEvent.DeleteUser c -> userService.delete(c.id(), c.tenantId());
                 default -> log.warn("Unexpected command type on user topic: {}",
