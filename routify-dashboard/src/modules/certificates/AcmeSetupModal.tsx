@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 
 const schema = z.object({
   email: z.string().email('Valid email is required'),
-  provider: z.enum(['LETSENCRYPT', 'ZEROSSSL']),
+  provider: z.enum(['LETSENCRYPT', 'LETSENCRYPT_STAGING', 'ZEROSSSL']),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -93,6 +93,7 @@ export default function AcmeSetupModal({
               className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 outline-none transition-all"
             >
               <option value="LETSENCRYPT">Let&apos;s Encrypt</option>
+              <option value="LETSENCRYPT_STAGING">Let&apos;s Encrypt (Staging — test only)</option>
               <option value="ZEROSSSL">ZeroSSL</option>
             </select>
           </div>

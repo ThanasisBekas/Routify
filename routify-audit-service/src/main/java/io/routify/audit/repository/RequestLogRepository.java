@@ -192,6 +192,28 @@ public interface RequestLogRepository extends JpaRepository<RequestLog, UUID> {
             @Param("dayStart") Instant dayStart,
             @Param("dayEnd") Instant dayEnd);
 
+    /**
+     * Aggregates daily request count and error count for a single tenant over a period.
+     * Used as a live fallback when the nightly snapshot scheduler hasn't populated
+     * {@code tenant_usage_daily} yet.
+     * Returns rows of [date (java.sql.Date), request_count, error_count] ordered by date DESC.
+     */
+    @Query(value = """
+            SELECT DATE(r.requested_at AT TIME ZONE 'UTC') AS day,
+                   COUNT(*),
+                   SUM(CASE WHEN r.response_status >= 400 THEN 1 ELSE 0 END)
+            FROM routify_audit.request_log r
+            WHERE r.tenant_id = :tenantId
+              AND r.requested_at >= :dayStart
+              AND r.requested_at < :dayEnd
+            GROUP BY day
+            ORDER BY day DESC
+            """, nativeQuery = true)
+    List<Object[]> countDailyRequestsForTenant(
+            @Param("tenantId") UUID tenantId,
+            @Param("dayStart") Instant dayStart,
+            @Param("dayEnd") Instant dayEnd);
+
     // ─── Time-Series Analytics (GraphQL Initiative 13) ─────────────────────────
 
     /**

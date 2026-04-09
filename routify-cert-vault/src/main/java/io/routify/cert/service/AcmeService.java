@@ -36,8 +36,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AcmeService {
 
-    private static final String LETSENCRYPT_URL = "acme://letsencrypt.org";
-    private static final String ZEROSSSL_URL    = "acme://zerossl.com";
+    private static final String LETSENCRYPT_URL         = "acme://letsencrypt.org";
+    private static final String LETSENCRYPT_STAGING_URL = "acme://letsencrypt.org/staging";
+    private static final String ZEROSSSL_URL            = "acme://zerossl.com";
 
     private final AcmeAccountRepository  accountRepository;
     private final AcmeOrderRepository    orderRepository;
@@ -292,8 +293,9 @@ public class AcmeService {
 
     private static String resolveProviderUrl(AcmeAccount.AcmeProvider provider) {
         return switch (provider) {
-            case LETSENCRYPT -> LETSENCRYPT_URL;
-            case ZEROSSSL    -> ZEROSSSL_URL;
+            case LETSENCRYPT         -> LETSENCRYPT_URL;
+            case LETSENCRYPT_STAGING -> LETSENCRYPT_STAGING_URL;
+            case ZEROSSSL            -> ZEROSSSL_URL;
         };
     }
 
