@@ -43,9 +43,6 @@ import java.util.regex.Pattern;
 public class CorrelationIdGatewayFilterFactory
         extends AbstractGatewayFilterFactory<CorrelationIdGatewayFilterFactory.Config> {
 
-    /** @deprecated Use {@link RoutifyHeaders#CORRELATION_ID} directly. */
-    @Deprecated
-    public static final String CORRELATION_ID_HEADER = RoutifyHeaders.CORRELATION_ID;
 
     /**
      * Maximum accepted length for an incoming correlation ID.
@@ -77,7 +74,7 @@ public class CorrelationIdGatewayFilterFactory
 
         @Override
         public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-            String correlationId = exchange.getRequest().getHeaders().getFirst(CORRELATION_ID_HEADER);
+            String correlationId = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.CORRELATION_ID);
 
             if (correlationId == null || correlationId.isBlank()) {
                 correlationId = UUID.randomUUID().toString();
@@ -92,14 +89,14 @@ public class CorrelationIdGatewayFilterFactory
             final String finalId = correlationId;
 
             ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                    .header(CORRELATION_ID_HEADER, finalId)
+                    .header(RoutifyHeaders.CORRELATION_ID, finalId)
                     .build();
 
             ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
 
             // Set the response header *before* the response is committed.
             mutatedExchange.getResponse().beforeCommit(() -> {
-                mutatedExchange.getResponse().getHeaders().set(CORRELATION_ID_HEADER, finalId);
+                mutatedExchange.getResponse().getHeaders().set(RoutifyHeaders.CORRELATION_ID, finalId);
                 return Mono.empty();
             });
 

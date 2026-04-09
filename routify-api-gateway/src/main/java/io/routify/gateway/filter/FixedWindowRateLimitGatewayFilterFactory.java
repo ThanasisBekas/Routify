@@ -1,6 +1,5 @@
 package io.routify.gateway.filter;
 
-import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.filter.ratelimit.RateLimitKeyResolver;
 import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
@@ -15,10 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.net.InetSocketAddress;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Gateway filter factory implementing a <strong>fixed-window rate limiter</strong>
@@ -145,36 +142,6 @@ public class FixedWindowRateLimitGatewayFilterFactory
         response.getHeaders().set("X-RateLimit-Reset", String.valueOf(resetEpoch));
     }
 
-    /**
-     * @deprecated Use {@link RateLimitKeyResolver#resolve(ServerWebExchange, String)} instead.
-     *             Will be removed in the next minor version.
-     */
-    @Deprecated(forRemoval = true)
-    private String resolveKey(ServerWebExchange exchange, String keyResolver) {
-        return switch (keyResolver != null ? keyResolver.toUpperCase() : "IP") {
-            case "USER"        -> Optional.ofNullable(
-                    exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID))
-                    .map(u -> "user:" + u).orElse("anonymous");
-            case "TENANT"      -> Optional.ofNullable(
-                    exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.TENANT_ID))
-                    .map(t -> "tenant:" + t).orElse("unknown-tenant");
-            case "API_KEY"     -> {
-                String k = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.API_KEY);
-                if (k == null) k = exchange.getRequest().getQueryParams().getFirst("apiKey");
-                yield k != null ? "apikey:" + k.hashCode() : "no-key";
-            }
-            case "TENANT_USER" -> {
-                String t = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.TENANT_ID);
-                String u = exchange.getRequest().getHeaders().getFirst(RoutifyHeaders.AUTH_USER_ID);
-                yield "%s:%s".formatted(
-                        t != null ? t : "unknown",
-                        u != null ? u : "anonymous");
-            }
-            default -> Optional.ofNullable(exchange.getRequest().getRemoteAddress())
-                    .map(InetSocketAddress::getHostString)
-                    .orElse("unknown");
-        };
-    }
 
     private Mono<Void> tooManyRequests(ServerWebExchange exchange,
                                        int maxRequests, long count, long ttlSeconds,
