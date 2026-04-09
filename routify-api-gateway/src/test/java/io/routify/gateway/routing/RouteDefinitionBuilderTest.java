@@ -1,6 +1,7 @@
 package io.routify.gateway.routing;
 
 import io.routify.common.domain.FilterType;
+import io.routify.common.observability.RoutifyMetrics;
 import io.routify.gateway.config.GatewayConfigLoader;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,9 @@ class RouteDefinitionBuilderTest {
 
     @Mock
     private GatewayConfigLoader configLoader;
+
+    @Mock
+    private RoutifyMetrics metrics;
 
     @InjectMocks
     private RouteDefinitionBuilder builder;
