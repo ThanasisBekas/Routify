@@ -276,7 +276,8 @@ public class GatewayConfigDto {
     /**
      * A reference to an existing filter that has been marked as globally applied
      * to every route in the gateway. Carries the filter's identity, type, execution
-     * order, and enabled flag.
+     * order, enabled flag, and — crucially — the filter's persisted config and
+     * gateway config ref so the gateway can build the filter with correct settings.
      */
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class GlobalFilterEntryDto {
@@ -285,6 +286,10 @@ public class GatewayConfigDto {
         private String  filterType;
         private int     order;
         private boolean enabled;
+        /** The filter's JSONB config from the filter_definitions table. */
+        private Map<String, Object> config;
+        /** Optional gateway config ref (e.g. AUTH_PROVIDER, RATE_LIMIT_POLICY). */
+        private Map<String, Object> gatewayConfigRef;
     }
 
     /**

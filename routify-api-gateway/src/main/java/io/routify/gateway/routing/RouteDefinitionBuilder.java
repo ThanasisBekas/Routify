@@ -647,7 +647,9 @@ public class RouteDefinitionBuilder {
                                              String filterName,
                                              String filterType,
                                              int order,
-                                             boolean enabled) {}
+                                             boolean enabled,
+                                             Map<String, Object> config,
+                                             Map<String, Object> gatewayConfigRef) {}
 
     /**
      * Reads the {@code globalFilterEntries} section from the live gateway config.
@@ -683,7 +685,14 @@ public class RouteDefinitionBuilder {
                 continue;
             }
 
-            entries.add(new GlobalFilterEntrySnapshot(filterId, filterName, filterType, order, true));
+            // Extract the enriched config and gatewayConfigRef (added at save time by admin-api)
+            Map<String, Object> config = m.get("config") instanceof Map<?, ?> cm
+                    ? (Map<String, Object>) cm : Map.of();
+            Map<String, Object> gatewayConfigRef = m.get("gatewayConfigRef") instanceof Map<?, ?> rm
+                    ? (Map<String, Object>) rm : null;
+
+            entries.add(new GlobalFilterEntrySnapshot(filterId, filterName, filterType, order, true,
+                    config, gatewayConfigRef));
         }
 
         entries.sort(Comparator.comparingInt(GlobalFilterEntrySnapshot::order));
@@ -694,31 +703,34 @@ public class RouteDefinitionBuilder {
     /**
      * Builds a {@link FilterDefinition} from a global filter entry.
      *
-     * <p>Global filter entries reference existing filter definitions by type. Since they
-     * carry no per-filter config (the config lives on the filter definition in the DB and
-     * is resolved at per-route level), global entries are built as named filters with
-     * empty args. For filter types that require config (e.g. rate limiters, AI filters),
-     * they must be configured on individual routes instead.
+     * <p>Global filter entries now carry the filter's persisted config and gateway
+     * config ref (enriched at save time by admin-api). This allows config-dependent
+     * filters (rate limiters, auth filters, request loggers, etc.) to work correctly
+     * as global entries — not just zero-config filters.
      *
-     * <p>Zero-config filter types (CORRELATION_ID, SECURITY_HEADERS, TENANT_CONTEXT,
-     * REQUEST_LOGGER, etc.) work seamlessly as global entries because they read their
-     * config from the persisted gateway config at runtime.
+     * <p>The entry's {@code config} and {@code gatewayConfigRef} are passed through
+     * to the synthetic {@link RouteSnapshotDto.FilterSnapshotDto} so that the
+     * {@link GatewayConfigRefResolver} can merge gateway config values (e.g. auth
+     * provider credentials) and the filter factory receives its full configuration.
      */
     private FilterDefinition buildFilterDefinitionFromGlobalEntry(
             RouteSnapshotDto snapshot, GlobalFilterEntrySnapshot entry) {
         // Delegate to the same switch expression used for per-route filters.
-        // Create a synthetic FilterSnapshotDto with empty config.
+        // Use the entry's enriched config and gatewayConfigRef instead of empty values.
         var syntheticFilter = new RouteSnapshotDto.FilterSnapshotDto(
                 entry.filterId() != null ? java.util.UUID.fromString(entry.filterId()) : null,
                 entry.filterType(),
                 entry.order(),
                 "PRE",
-                Map.of(),
-                null);
+                entry.config() != null ? entry.config() : Map.of(),
+                entry.gatewayConfigRef());
         FilterDefinition fd = buildFilterDefinition(snapshot, syntheticFilter);
         if (fd != null) {
-            log.debug("Global filter entry applied: type={} name='{}' order={} for route {}",
-                    entry.filterType(), entry.filterName(), entry.order(), snapshot.routeId());
+            log.debug("Global filter entry applied: type={} name='{}' order={} configKeys={} hasRef={} for route {}",
+                    entry.filterType(), entry.filterName(), entry.order(),
+                    entry.config() != null ? entry.config().size() : 0,
+                    entry.gatewayConfigRef() != null,
+                    snapshot.routeId());
         }
         return fd;
     }

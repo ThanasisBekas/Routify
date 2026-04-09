@@ -4,10 +4,13 @@ import io.routify.common.event.DomainEvent;
 import io.routify.common.event.KafkaTopics;
 import io.routify.common.observability.RoutifyMetrics;
 import io.routify.gateway.cluster.GatewayInstanceRegistry;
+import io.routify.gateway.config.GatewayConfigLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -38,6 +41,7 @@ public class DynamicRouteRefreshListener {
 
     private final DynamicRouteDefinitionLocator routeLocator;
     private final GatewayInstanceRegistry instanceRegistry;
+    private final GatewayConfigLoader configLoader;
     private final RoutifyMetrics metrics;
 
     /**
@@ -45,13 +49,21 @@ public class DynamicRouteRefreshListener {
      * Ensures the gateway can serve traffic immediately without waiting for
      * the first Kafka event.
      *
+     * <p>Waits for the gateway config to be loaded first (via
+     * {@link GatewayConfigLoader#awaitInitialConfig()}) so that global filter
+     * entries, tenant isolation settings, and auth provider refs are available
+     * when routes are built.
+     *
      * <p>Uses {@code .block()} to wait for the initial refresh to complete before
      * reading the route count — acceptable during startup since the Netty event
      * loop is not yet serving traffic.
      */
+    @Order(Ordered.HIGHEST_PRECEDENCE + 1)
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        log.info("Application ready — loading initial route definitions");
+        log.info("Application ready — waiting for gateway config to load before building routes...");
+        configLoader.awaitInitialConfig();
+        log.info("Gateway config loaded — loading initial route definitions");
         routeLocator.refresh().block();
         int routeCount = routeLocator.getLoadedRouteCount();
         log.info("Initial route load complete: {} routes active", routeCount);

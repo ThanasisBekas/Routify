@@ -685,6 +685,10 @@ export interface GlobalFilterEntry {
   filterType: FilterType
   order: number
   enabled: boolean
+  /** The filter's persisted config (enriched server-side from the DB). */
+  config?: Record<string, unknown>
+  /** Optional gateway config ref (enriched server-side from the DB). */
+  gatewayConfigRef?: GatewayConfigRefDto
 }
 
 /**
