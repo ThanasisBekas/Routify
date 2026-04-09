@@ -40,6 +40,12 @@ public class FilterDefinitionService {
 
     @Transactional(readOnly = true)
     public FilterDefinition findById(UUID id, UUID tenantId) {
+        // When tenantId is null, find by ID only — needed for global filter entry
+        // enrichment where the admin-api fetches filter details without tenant scope.
+        if (tenantId == null) {
+            return repository.findById(id)
+                    .orElseThrow(() -> new RoutifyException.NotFound("FilterDefinition", id.toString()));
+        }
         return repository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new RoutifyException.NotFound("FilterDefinition", id.toString()));
     }
