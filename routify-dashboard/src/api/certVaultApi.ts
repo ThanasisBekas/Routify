@@ -169,6 +169,14 @@ export const certVaultApi = {
 
   // ─── ACME (Automated Certificate Lifecycle) ──────────────────────────────
 
+  /** List ACME accounts for the tenant */
+  listAcmeAccounts: (tenantId: string) =>
+    apiClient
+      .get<{ accounts: AcmeAccountDto[] }>(`${ACME_BASE}/accounts`, {
+        headers: { 'X-Tenant-Id': tenantId },
+      })
+      .then((r) => r.data.accounts),
+
   /** Register an ACME account with a CA provider */
   registerAcmeAccount: (tenantId: string, request: RegisterAcmeAccountRequest) =>
     apiClient

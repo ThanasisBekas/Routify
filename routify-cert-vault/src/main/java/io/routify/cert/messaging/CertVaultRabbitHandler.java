@@ -7,6 +7,7 @@ import io.routify.cert.domain.AcmeOrder;
 import io.routify.cert.service.AcmeService;
 import io.routify.cert.service.CertGroupService;
 import io.routify.cert.service.CertificateVaultService;
+import io.routify.cert.repository.AcmeAccountRepository;
 import io.routify.cert.repository.AcmeOrderRepository;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
@@ -36,6 +37,7 @@ public class CertVaultRabbitHandler {
     private final CertificateVaultService vaultService;
     private final CertGroupService        groupService;
     private final AcmeService             acmeService;
+    private final AcmeAccountRepository   acmeAccountRepository;
     private final AcmeOrderRepository     acmeOrderRepository;
 
     @RabbitListener(queues = RabbitTopology.QUEUE_CERTS_QUERY)
@@ -180,6 +182,15 @@ public class CertVaultRabbitHandler {
                 .orElseThrow(() -> new io.routify.common.exception.RoutifyException.NotFound(
                         "AcmeOrder", req.orderId().toString()));
         return toAcmeOrderDetail(order);
+    }
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_ACME_ACCOUNTS_QUERY)
+    public QueryResponse.AcmeAccountsList handleAcmeAccountsQuery(QueryRequest.AcmeAccountsQuery req) {
+        log.debug("RabbitMQ: ACME accounts query received for tenantId={}", req.tenantId());
+        var accounts = acmeAccountRepository.findByTenantId(req.tenantId()).stream()
+                .map(this::toAcmeAccountResult)
+                .toList();
+        return new QueryResponse.AcmeAccountsList(accounts);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

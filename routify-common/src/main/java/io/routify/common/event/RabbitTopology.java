@@ -378,6 +378,10 @@ public final class RabbitTopology {
     public static final String QUEUE_ACME_RENEW                 = "routify.cert-vault.acme.renew";
     public static final String RK_ACME_RENEW                    = "acme.renew";
 
+    /** Queue: cert-vault serves ACME account list queries from admin-api */
+    public static final String QUEUE_ACME_ACCOUNTS_QUERY         = "routify.cert-vault.acme.accounts.query";
+    public static final String RK_ACME_ACCOUNTS_QUERY            = "acme.accounts.query";
+
     // ─── Message header keys ──────────────────────────────────────────────────
 
     /** Header carrying the requesting service name (for observability) */

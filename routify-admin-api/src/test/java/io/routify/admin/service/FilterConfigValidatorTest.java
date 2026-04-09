@@ -349,6 +349,24 @@ class FilterConfigValidatorTest {
         }
 
         @Test
+        @DisplayName("BODY_JOLT_TRANSFORM rejects empty array spec '[]'")
+        void joltTransformRejectsEmptyArraySpec() {
+            assertThatThrownBy(() -> validator.validate(FilterType.BODY_JOLT_TRANSFORM, Map.of("spec", "[]")))
+                    .isInstanceOf(RoutifyException.Validation.class)
+                    .hasMessageContaining("spec")
+                    .hasMessageContaining("empty spec array");
+        }
+
+        @Test
+        @DisplayName("BODY_JOLT_TRANSFORM BOTH phase requires responseSpec")
+        void joltTransformBothPhaseRequiresResponseSpec() {
+            assertThatThrownBy(() -> validator.validate(FilterType.BODY_JOLT_TRANSFORM,
+                    Map.of("spec", "[{\"operation\":\"shift\",\"spec\":{\"id\":\"userId\"}}]", "phase", "BOTH")))
+                    .isInstanceOf(RoutifyException.Validation.class)
+                    .hasMessageContaining("responseSpec");
+        }
+
+        @Test
         @DisplayName("VALIDATE_JSON_SCHEMA requires schema")
         void jsonSchemaRequiresSchema() {
             assertThatThrownBy(() -> validator.validate(FilterType.VALIDATE_JSON_SCHEMA, Map.of()))

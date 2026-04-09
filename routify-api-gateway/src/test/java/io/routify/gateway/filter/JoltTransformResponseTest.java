@@ -421,6 +421,36 @@ class JoltTransformResponseTest {
         StepVerifier.create(filter.filter(exchange, chain))
                 .verifyComplete();
     }
+
+    @Test
+    @DisplayName("Empty array spec '[]': passes through unchanged without exception")
+    void emptyArraySpec_passesThrough() {
+        var config = new JoltTransformGatewayFilterFactory.Config();
+        config.setSpec("[]");
+        config.setPhase("REQUEST");
+        GatewayFilter filter = factory.apply(config);
+
+        String requestBody = """
+                {"id":"123","name":"John"}""";
+
+        MockServerHttpRequest request = MockServerHttpRequest
+                .post("/api/test")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestBody);
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        final ServerHttpRequest[] capturedRequest = {null};
+        GatewayFilterChain chain = ex -> {
+            capturedRequest[0] = ex.getRequest();
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain))
+                .verifyComplete();
+
+        // Should pass through unchanged since empty spec is treated as invalid
+        assertThat(capturedRequest[0]).isNotNull();
+    }
 }
 
 

@@ -351,4 +351,24 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
         log.warn("renewAcmeCertificate circuit open or timed out: {}", t.getMessage());
         throw new RoutifyException.GatewayError("ACME certificate renewal unavailable", t);
     }
+
+    // ─── ACME Accounts ─────────────────────────────────────────────────────
+
+    @CircuitBreaker(name = "cert-vault", fallbackMethod = "queryAcmeAccountsFallback")
+    public QueryResponse.AcmeAccountsList queryAcmeAccounts(UUID tenantId) {
+        try {
+            return rpc(RabbitTopology.RK_ACME_ACCOUNTS_QUERY,
+                    new QueryRequest.AcmeAccountsQuery(tenantId),
+                    QueryResponse.AcmeAccountsList.class);
+        } catch (Exception e) {
+            log.error("queryAcmeAccounts failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.AcmeAccountsList queryAcmeAccountsFallback(UUID tenantId, Throwable t) {
+        log.warn("queryAcmeAccounts circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.AcmeAccountsList(List.of());
+    }
 }

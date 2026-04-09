@@ -711,7 +711,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
             }
           >
             <textarea
-              value={str('spec', '[]')}
+              value={str('spec', '')}
               onChange={(e) => set('spec', e.target.value)}
               rows={8}
               spellCheck={false}
@@ -729,7 +729,7 @@ export default function FilterConfigFields({ filterType, config, onChange }: Pro
               }
             >
               <textarea
-                value={str('responseSpec', '[]')}
+                value={str('responseSpec', '')}
                 onChange={(e) => set('responseSpec', e.target.value)}
                 rows={8}
                 spellCheck={false}

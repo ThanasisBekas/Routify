@@ -166,7 +166,7 @@ public class JoltTransformGatewayFilterFactory
 
                     return chain.filter(exchange.mutate().request(mutatedRequest).build());
                 })
-                .switchIfEmpty(chain.filter(exchange));
+                .switchIfEmpty(Mono.defer(() -> chain.filter(exchange)));
     }
 
     // ─── Response-phase transformation ─────────────────────────────────────────
@@ -330,6 +330,10 @@ public class JoltTransformGatewayFilterFactory
     private Chainr buildChainr(String spec, String fieldName) {
         if (spec == null || spec.isBlank()) {
             log.debug("JoltTransform: '{}' config is empty or null", fieldName);
+            return null;
+        }
+        if ("[]".equals(spec.strip())) {
+            log.warn("JoltTransform: '{}' is an empty array — Jolt requires at least one operation", fieldName);
             return null;
         }
         try {
