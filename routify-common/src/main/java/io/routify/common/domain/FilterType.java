@@ -1,5 +1,9 @@
 package io.routify.common.domain;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
+
 /**
  * Filter types available in the Routify filter chain.
  * Each type corresponds to a concrete GatewayFilterFactory implementation in routify-api-gateway.
@@ -268,5 +272,26 @@ public enum FilterType {
     /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
     @Deprecated CIRCUIT_BREAKER,
     /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
-    @Deprecated RETRY
+    @Deprecated RETRY;
+
+    // ─── Deprecated type metadata ──────────────────────────────────────────────
+
+    /**
+     * Immutable set of all deprecated filter types. Use this to reject deprecated types
+     * from new filter creation and to flag them in import/export and the dashboard.
+     */
+    @SuppressWarnings("deprecation")
+    public static final Set<FilterType> DEPRECATED = Collections.unmodifiableSet(EnumSet.of(
+            AUTH_NONE, RATE_LIMIT_TOKEN_BUCKET, PATH_REWRITE, PATH_STRIP_PREFIX,
+            PATH_ADD_PREFIX, QUERY_PARAM_MODIFY, BODY_JSONATA_TRANSFORM,
+            BODY_SPEL_TRANSFORM, VALIDATE_REGEX, VALIDATE_SIZE, CIRCUIT_BREAKER, RETRY
+    ));
+
+    /**
+     * Returns {@code true} if this filter type is deprecated and should not be used
+     * for new filter creation.
+     */
+    public boolean isDeprecated() {
+        return DEPRECATED.contains(this);
+    }
 }

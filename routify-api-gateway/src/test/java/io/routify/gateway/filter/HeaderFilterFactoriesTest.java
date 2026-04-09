@@ -25,8 +25,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class HeaderFilterFactoriesTest {
 
-    private GatewayFilterChain passThroughChain() {
-        return exchange -> Mono.empty();
+    /**
+     * Chain that triggers {@code setComplete()} on the response so that
+     * {@code beforeCommit} callbacks registered by response-header filters are executed.
+     */
+    private GatewayFilterChain commitChain() {
+        return exchange -> exchange.getResponse().setComplete();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -231,8 +235,8 @@ class HeaderFilterFactoriesTest {
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/test").build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        // The chain must complete for the .then() to run
-        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+        // The chain must complete and commit for beforeCommit callbacks to fire
+        StepVerifier.create(filter.filter(exchange, commitChain()))
                 .verifyComplete();
 
         assertThat(exchange.getResponse().getHeaders().getFirst("X-Response-Custom"))
@@ -252,7 +256,7 @@ class HeaderFilterFactoriesTest {
         // Pre-set a response header to be removed
         exchange.getResponse().getHeaders().set("X-Unwanted", "should-be-removed");
 
-        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+        StepVerifier.create(filter.filter(exchange, commitChain()))
                 .verifyComplete();
 
         assertThat(exchange.getResponse().getHeaders().getFirst("X-Unwanted")).isNull();
@@ -269,7 +273,7 @@ class HeaderFilterFactoriesTest {
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/test").build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+        StepVerifier.create(filter.filter(exchange, commitChain()))
                 .verifyComplete();
 
         assertThat(exchange.getResponse().getHeaders().getFirst("X-Added-Resp"))

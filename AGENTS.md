@@ -48,7 +48,10 @@ Some write operations use **synchronous RabbitMQ RPC** instead of Kafka commands
 - **Role commands** (`CreateRole`, `UpdateRole`, `DeleteRole`) — immediate UI feedback
 - **Gateway config save** (`SaveGatewayConfig`) — needs synchronous confirmation
 
-All other writes use the standard Kafka command flow.
+All other writes use the standard Kafka command flow, including:
+- **Webhook commands** (`CreateWebhook`, `UpdateWebhook`, `DeleteWebhook`) → `routify.webhook.commands`
+- **Canary routing** (`DeployCanary`, `PromoteCanary`, `RollbackCanary`, `AdjustCanaryWeight`) → `routify.route.commands`
+- **Operational commands** (`PurgeCacheRoute`, `ForceCircuitBreaker`) → `routify.route.commands`
 
 ## Build & Run
 
@@ -100,7 +103,7 @@ When adding new records: update the `@JsonSubTypes` annotation, the `permits` cl
 
 ### Domain enums
 `routify-common/.../domain/` holds shared enums referenced across services:
-- `FilterType` — one value per gateway filter factory (28+ types)
+- `FilterType` — one value per gateway filter factory (31 active + 12 deprecated legacy types)
 - `RouteStatus`, `RouteEnvironment` — route lifecycle states
 - `TenantPlan`, `UserRole` — tenant/user classification
 - `Permission` — granular RBAC permissions
@@ -118,7 +121,7 @@ When adding new records: update the `@JsonSubTypes` annotation, the `permits` cl
 - **API calls**: always use `apiClient` from `src/api/client.ts` — handles JWT injection, `X-Tenant-Id` header, and 401→refresh. Never create new Axios instances.
 - **GraphQL**: use `graphqlQuery()` from `src/api/graphqlClient.ts` for analytics queries — it wraps `apiClient` and handles GraphQL error extraction. Pre-built queries exported as constants (e.g. `ROUTE_ANALYTICS_QUERY`).
 - **Server state**: TanStack Query. **Client state**: Zustand (`authStore`, `wsStore`).
-- **Forms**: React Hook Form + Zod for validation.
+- **Forms**: React Hook Form + Zod **v4** for validation (Zod v4 API differs from v3 — use `z.string()`, `z.object()`, etc. from `zod` package directly; `z.infer<typeof schema>` for type extraction).
 - **Error handling**: `extractApiError()` from `src/lib/utils.ts` — never create separate error utils.
 - **Auth**: access token in Zustand memory only (never localStorage); refresh token is HttpOnly cookie.
 - **Real-time**: WebSocket/STOMP via `WebSocketProvider` → subscribes to `/topic/events`, `/topic/metrics`, `/topic/audit`.
@@ -155,11 +158,16 @@ Each module has its own `AGENTS.md` with detailed package layout, patterns, and 
 | Query request definitions | `routify-common/.../event/QueryRequest.java` |
 | Query response definitions | `routify-common/.../event/QueryResponse.java` |
 | Async command acknowledgement | `routify-common/.../web/AsyncAcknowledgement.java` |
+| Paginated response wrapper | `routify-common/.../web/PageResponse.java` |
+| Standard HTTP header constants | `routify-common/.../web/RoutifyHeaders.java` |
 | Exception hierarchy | `routify-common/.../exception/RoutifyException.java` |
 | Global error handler | `routify-common/.../exception/GlobalExceptionHandler.java` |
 | Kafka client base class | `routify-common/.../client/KafkaServiceClientSupport.java` |
 | RabbitMQ client base class | `routify-common/.../client/AmqpServiceClientSupport.java` |
 | @Sensitive field encryption | `routify-common/.../crypto/Sensitive.java`, `FieldEncryptionService.java`, `SensitiveStringConverter.java` |
+| Micrometer metric names | `routify-common/.../observability/RoutifyMetrics.java` |
+| Security context (ThreadLocal) | `routify-common/.../security/SecurityContext.java` |
+| Redis key constants | `routify-common/.../security/RedisKeys.java` |
 | Domain enums (FilterType, Permission, etc.) | `routify-common/.../domain/*.java` |
 | MapStruct mapper example | `routify-route-service/.../mapper/RouteMapper.java` |
 | Frontend API client | `routify-dashboard/src/api/client.ts` |
