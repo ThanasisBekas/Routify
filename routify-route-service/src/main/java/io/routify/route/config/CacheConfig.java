@@ -1,6 +1,7 @@
 package io.routify.route.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.routify.route.outbox.GatewaySnapshotCacheEvictor;
 import io.routify.route.outbox.OutboxPoller;
 import io.routify.route.service.RouteService;
 import org.springframework.cache.CacheManager;
@@ -19,8 +20,8 @@ import java.util.concurrent.TimeUnit;
  * This is the hottest query path — called by the gateway on every reload
  * and by the gateway snapshot RabbitMQ handler.
  *
- * <p><b>Invalidation:</b> Evicted on every successful outbox publish cycle
- * ({@link OutboxPoller#pollAndPublish()}) — meaning
+ * <p><b>Invalidation:</b> Evicted via {@link GatewaySnapshotCacheEvictor} on every
+ * successful outbox publish cycle ({@link OutboxPoller#pollAndPublish()}) — meaning
  * any route or filter mutation that reaches the outbox will clear the cache.
  * The 60-second TTL serves as a safety net for edge cases.
  *

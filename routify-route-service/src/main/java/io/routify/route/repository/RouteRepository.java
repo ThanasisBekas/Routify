@@ -108,6 +108,57 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
             @Param("methods") String methods,
             @Param("excludeId") UUID excludeId);
 
+    // ─── Environment-scoped duplicate checks ──────────────────────────────────
+    // STAGING and PRODUCTION routes are matched independently by the gateway
+    // (STAGING requires X-Route-Environment header), so they may share the same
+    // (pathPattern, methods) without ambiguity.
+
+    @Query("""
+            SELECT COUNT(r) > 0 FROM Route r
+            WHERE r.tenantId = :tenantId
+              AND r.pathPattern = :pathPattern
+              AND r.methods = :methods
+              AND r.status = 'ACTIVE'
+              AND r.environment = :environment
+            """)
+    boolean existsActiveByPathPatternAndMethodsAndTenantIdAndEnvironment(
+            @Param("tenantId") UUID tenantId,
+            @Param("pathPattern") String pathPattern,
+            @Param("methods") String methods,
+            @Param("environment") RouteEnvironment environment);
+
+    @Query("""
+            SELECT COUNT(r) > 0 FROM Route r
+            WHERE r.tenantId = :tenantId
+              AND r.pathPattern = :pathPattern
+              AND r.methods = :methods
+              AND r.status = 'ACTIVE'
+              AND r.environment = :environment
+              AND r.id != :excludeId
+            """)
+    boolean existsActiveByPathPatternAndMethodsAndTenantIdAndEnvironmentExcluding(
+            @Param("tenantId") UUID tenantId,
+            @Param("pathPattern") String pathPattern,
+            @Param("methods") String methods,
+            @Param("environment") RouteEnvironment environment,
+            @Param("excludeId") UUID excludeId);
+
+    @Query("""
+            SELECT r FROM Route r
+            WHERE r.tenantId = :tenantId
+              AND r.pathPattern = :pathPattern
+              AND r.methods = :methods
+              AND r.status = 'ACTIVE'
+              AND r.environment = :environment
+              AND r.id != :excludeId
+            """)
+    Optional<Route> findActiveByPathPatternAndMethodsAndTenantIdAndEnvironmentExcluding(
+            @Param("tenantId") UUID tenantId,
+            @Param("pathPattern") String pathPattern,
+            @Param("methods") String methods,
+            @Param("environment") RouteEnvironment environment,
+            @Param("excludeId") UUID excludeId);
+
     List<Route> findAllByStatus(RouteStatus status);
 
     /**
@@ -139,6 +190,9 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
     long countByTenantId(UUID tenantId);
 
     long countByTenantIdAndStatus(UUID tenantId, RouteStatus status);
+
+    /** Find the primary route that references the given route as its canary sibling. */
+    Optional<Route> findByCanaryRouteId(UUID canaryRouteId);
 
     @Query("SELECT COUNT(r) FROM Route r WHERE r.tenantId = :tenantId AND r.status != 'ARCHIVED'")
     long countActiveByTenantId(@Param("tenantId") UUID tenantId);

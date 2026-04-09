@@ -109,6 +109,11 @@ public class DynamicRouteRefreshListener {
      * Also listen to ROUTE_EVENTS for redundancy.
      * If a RouteActivated/Deactivated event arrives and the GATEWAY_RELOAD
      * topic consumer is lagging, we still pick it up here.
+     *
+     * <p>Uses {@code forceRefresh()} (cache-invalidating) rather than {@code refreshAsync()}
+     * because the Redis-cached snapshot is now stale — it still contains the old route state
+     * (e.g. a just-deactivated route). A plain {@code refreshAsync()} would read that stale
+     * cache and keep serving the old route set.
      */
     @KafkaListener(
             topics = KafkaTopics.ROUTE_EVENTS,
@@ -118,16 +123,20 @@ public class DynamicRouteRefreshListener {
     public void onRouteEvent(DomainEvent event) {
         try {
             boolean requiresReload = switch (event) {
-                case DomainEvent.RouteActivated ignored   -> true;
-                case DomainEvent.RouteDeactivated ignored -> true;
-                case DomainEvent.RouteDeleted ignored     -> true;
-                default                                   -> false;
+                case DomainEvent.RouteActivated ignored    -> true;
+                case DomainEvent.RouteDeactivated ignored  -> true;
+                case DomainEvent.RouteUpdated ignored      -> true;
+                case DomainEvent.RouteDeleted ignored      -> true;
+                case DomainEvent.CanaryDeployed ignored    -> true;
+                case DomainEvent.CanaryPromoted ignored    -> true;
+                case DomainEvent.CanaryRolledBack ignored  -> true;
+                default                                    -> false;
             };
 
             if (requiresReload) {
                 log.debug("Route lifecycle event — triggering gateway reload: {}",
                         event.getClass().getSimpleName());
-                routeLocator.refreshAsync();
+                routeLocator.forceRefresh();
                 updateRegistryAfterReload();
             }
         } catch (Exception e) {

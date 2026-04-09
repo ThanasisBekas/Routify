@@ -67,7 +67,13 @@ public class RouteDefinitionBuilder {
         // Route ID — prefix with tenant for namespace isolation
         definition.setId("%s::%s".formatted(snapshot.tenantId(), snapshot.routeId()));
         definition.setUri(URI.create(snapshot.upstreamUri()));
-        definition.setOrder(0);
+
+        // Staging routes get higher priority (lower order) so that when both a STAGING
+        // and PRODUCTION route match the same request (i.e. X-Route-Environment: STAGING
+        // is present), the staging route is selected. Without the header, the staging
+        // route's Header predicate fails and only the production route matches.
+        boolean isStaging = "STAGING".equalsIgnoreCase(snapshot.environment());
+        definition.setOrder(isStaging ? -1 : 0);
 
         // ─── Tenant isolation config ──────────────────────────────────────────
         TenantIsolationSettings isolation = resolveTenantIsolationSettings();

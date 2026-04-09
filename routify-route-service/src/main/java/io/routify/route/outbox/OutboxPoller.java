@@ -2,13 +2,11 @@ package io.routify.route.outbox;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.routify.common.event.DomainEvent;
-import io.routify.route.config.CacheConfig;
 import io.routify.route.domain.OutboxEvent;
 import io.routify.route.repository.OutboxEventRepository;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -41,13 +39,16 @@ public class OutboxPoller {
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final GatewaySnapshotCacheEvictor cacheEvictor;
 
     public OutboxPoller(OutboxEventRepository outboxRepository,
                         KafkaTemplate<String, Object> kafkaTemplate,
-                        ObjectMapper objectMapper) {
+                        ObjectMapper objectMapper,
+                        GatewaySnapshotCacheEvictor cacheEvictor) {
         this.outboxRepository = outboxRepository;
         this.kafkaTemplate    = kafkaTemplate;
         this.objectMapper     = objectMapper;
+        this.cacheEvictor     = cacheEvictor;
     }
 
     @Value("${routify.outbox.batch-size:50}")
@@ -137,22 +138,13 @@ public class OutboxPoller {
 
             // Only evict the gateway snapshot cache when at least one event was published
             if (anyPublished) {
-                evictGatewaySnapshotCache();
+                cacheEvictor.evict();
             }
         } finally {
             pollLock.unlock();
         }
     }
 
-    /**
-     * Evicts the gateway snapshot cache. Extracted into a separate method so
-     * that {@code @CacheEvict} only fires when events are actually published,
-     * not on every poll cycle.
-     */
-    @CacheEvict(value = CacheConfig.CACHE_GATEWAY_SNAPSHOT, allEntries = true)
-    public void evictGatewaySnapshotCache() {
-        log.debug("OutboxPoller: evicted gateway snapshot cache after publishing events");
-    }
 
     @Scheduled(fixedDelayString = "${routify.outbox.retry-interval-ms:30000}")
     @Transactional

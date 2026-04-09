@@ -9,6 +9,7 @@ import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinitionLocator;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -51,6 +52,7 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
     private static final Duration CACHE_TTL = Duration.ofSeconds(60);
 
     private final AtomicBoolean refreshInProgress = new AtomicBoolean(false);
+    private final AtomicBoolean pendingForceRefresh = new AtomicBoolean(false);
 
     private final RouteServiceClient          routeServiceClient;
     private final ReactiveStringRedisTemplate redisTemplate;
@@ -99,30 +101,43 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
             return Mono.empty();
         }
 
-        log.info("DynamicRouteDefinitionLocator: refreshing route definitions via RabbitMQ...");
+        // If a force refresh was requested, skip Redis cache for this cycle.
+        boolean skipCache = pendingForceRefresh.getAndSet(false);
 
-        return redisTemplate.opsForValue().get(CACHE_KEY)
-                .onErrorResume(ex -> {
-                    log.warn("Redis cache read failed ({}), falling back to route-service fetch: {}",
-                            ex.getClass().getSimpleName(), ex.getMessage());
-                    return Mono.empty();
-                })
-                .flatMap(cachedJson -> {
-                    try {
-                        List<RouteSnapshotDto> snapshots = objectMapper.readValue(
-                                cachedJson, new TypeReference<>() {});
-                        log.debug("Loaded {} routes from Redis cache", snapshots.size());
-                        return Mono.just(snapshots);
-                    } catch (Exception e) {
-                        log.warn("Failed to deserialize cached routes, fetching from route-service: {}", e.getMessage());
+        log.info("DynamicRouteDefinitionLocator: refreshing route definitions via RabbitMQ (skipCache={})...", skipCache);
+
+        Mono<List<RouteSnapshotDto>> source;
+        if (skipCache) {
+            // Bypass Redis — go directly to route-service via RabbitMQ
+            source = Mono.fromCallable(routeServiceClient::fetchGatewaySnapshotSync)
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .doOnNext(this::cacheToRedis);
+        } else {
+            source = redisTemplate.opsForValue().get(CACHE_KEY)
+                    .onErrorResume(ex -> {
+                        log.warn("Redis cache read failed ({}), falling back to route-service fetch: {}",
+                                ex.getClass().getSimpleName(), ex.getMessage());
                         return Mono.empty();
-                    }
-                })
-                .switchIfEmpty(
-                        Mono.fromCallable(routeServiceClient::fetchGatewaySnapshotSync)
-                                .subscribeOn(Schedulers.boundedElastic())
-                                .doOnNext(this::cacheToRedis)
-                )
+                    })
+                    .flatMap(cachedJson -> {
+                        try {
+                            List<RouteSnapshotDto> snapshots = objectMapper.readValue(
+                                    cachedJson, new TypeReference<>() {});
+                            log.debug("Loaded {} routes from Redis cache", snapshots.size());
+                            return Mono.just(snapshots);
+                        } catch (Exception e) {
+                            log.warn("Failed to deserialize cached routes, fetching from route-service: {}", e.getMessage());
+                            return Mono.empty();
+                        }
+                    })
+                    .switchIfEmpty(
+                            Mono.fromCallable(routeServiceClient::fetchGatewaySnapshotSync)
+                                    .subscribeOn(Schedulers.boundedElastic())
+                                    .doOnNext(this::cacheToRedis)
+                    );
+        }
+
+        return source
                 .map(snapshots -> snapshots.stream()
                         .map(routeDefinitionBuilder::build)
                         .toList())
@@ -134,7 +149,14 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
                     eventPublisher.publishEvent(new RefreshRoutesEvent(this));
                 })
                 .doOnError(ex -> log.error("Failed to refresh route definitions: {}", ex.getMessage(), ex))
-                .doFinally(signal -> refreshInProgress.set(false))
+                .doFinally(signal -> {
+                    refreshInProgress.set(false);
+                    // If a force refresh was requested while we were busy, run another cycle
+                    if (pendingForceRefresh.get()) {
+                        log.debug("Pending force refresh detected — scheduling follow-up refresh");
+                        refreshAsync();
+                    }
+                })
                 .then();
     }
 
@@ -149,8 +171,16 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
         );
     }
 
-    /** Forces cache invalidation and re-fetches from route-service via RabbitMQ. */
+    /**
+     * Forces cache invalidation and re-fetches from route-service via RabbitMQ.
+     *
+     * <p>Sets {@code pendingForceRefresh} to ensure the next {@link #refresh()} cycle
+     * bypasses the Redis cache — even if a non-forced refresh is already in progress.
+     * This prevents the race where a concurrent {@code refreshAsync()} reads a stale
+     * cache and the forced refresh is silently dropped.
+     */
     public void forceRefresh() {
+        pendingForceRefresh.set(true);
         redisTemplate.delete(CACHE_KEY)
                 .doOnSuccess(deleted -> log.debug("Route cache invalidated"))
                 .subscribe(v -> refreshAsync());
@@ -158,6 +188,20 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
 
     public int getLoadedRouteCount() {
         return currentRoutes.get().size();
+    }
+
+    /**
+     * Periodic background refresh — safety net against lost Kafka events or
+     * transient RabbitMQ failures. Runs every 2 minutes.
+     *
+     * <p>Forces a cache-bypassing refresh so that even if the Redis-cached snapshot
+     * is stale and GATEWAY_RELOAD events were lost, the gateway will self-heal
+     * within at most 2 minutes.
+     */
+    @Scheduled(fixedDelayString = "${routify.gateway.background-refresh-ms:120000}")
+    public void periodicRefresh() {
+        log.debug("Periodic background refresh triggered");
+        forceRefresh();
     }
 
     private void cacheToRedis(List<RouteSnapshotDto> snapshots) {
