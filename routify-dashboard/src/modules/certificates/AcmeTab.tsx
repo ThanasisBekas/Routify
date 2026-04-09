@@ -115,8 +115,11 @@ function IssueCertForm({
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
-          <label className="block text-[10px] font-medium text-gray-500 mb-1">Domain</label>
+          <label className="block text-[10px] font-medium text-gray-500 mb-1" htmlFor="field-domain-0">
+            Domain
+          </label>
           <input
+            id="field-domain-0"
             {...register('domain')}
             placeholder="api.example.com"
             className="w-full px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white placeholder-gray-600 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 outline-none"
@@ -124,8 +127,11 @@ function IssueCertForm({
           {errors.domain && <p className="text-[10px] text-red-400 mt-0.5">{errors.domain.message}</p>}
         </div>
         <div>
-          <label className="block text-[10px] font-medium text-gray-500 mb-1">Target Cert Group</label>
+          <label className="block text-[10px] font-medium text-gray-500 mb-1" htmlFor="field-target-cert-group-1">
+            Target Cert Group
+          </label>
           <select
+            id="field-target-cert-group-1"
             {...register('certGroupId')}
             className="w-full px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white focus:border-indigo-500/50 outline-none"
           >

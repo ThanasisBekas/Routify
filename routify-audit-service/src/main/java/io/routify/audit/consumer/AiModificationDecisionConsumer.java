@@ -4,6 +4,7 @@ import io.routify.audit.domain.AiModificationDecision;
 import io.routify.audit.repository.AiModificationDecisionRepository;
 import io.routify.common.event.AiModificationDecisionEvent;
 import io.routify.common.event.KafkaTopics;
+import io.routify.common.exception.RoutifyException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -79,7 +80,7 @@ public class AiModificationDecisionConsumer {
         } catch (Exception e) {
             log.error("Failed to persist AI modification decision: mutationId={} error={}",
                     event != null ? event.mutationId() : "null", e.getMessage(), e);
-            throw new RuntimeException("Failed to persist AI modification decision", e);
+            throw new RoutifyException.GatewayError("Failed to persist AI modification decision", e);
         }
     }
 

@@ -2,8 +2,11 @@ package io.routify.admin.gateway.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.routify.admin.client.RouteFilterMessagingClient;
 import io.routify.admin.gateway.dto.GatewayConfigDto;
 import io.routify.admin.gateway.dto.GatewayConfigDto.*;
+import io.routify.common.event.QueryResponse;
+import io.routify.common.exception.RoutifyException;
 import io.routify.common.web.RoutifyHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +19,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Gateway configuration service — DB-first, Redis write-through cache.
@@ -67,6 +71,7 @@ public class GatewayConfigService {
     private final ObjectMapper             objectMapper;
     private final GatewayActuatorClient    gatewayActuatorClient;
     private final RouteServiceConfigClient routeServiceConfigClient;
+    private final RouteFilterMessagingClient routeFilterMessagingClient;
 
     // ─── Read ─────────────────────────────────────────────────────────────────
 
@@ -247,7 +252,8 @@ public class GatewayConfigService {
     }
 
     public GatewayConfigDto updateGlobalFilterEntries(List<GlobalFilterEntryDto> entries, String updatedBy) {
-        GatewayConfigDto cfg = getConfig(); cfg.setGlobalFilterEntries(entries);
+        GatewayConfigDto cfg = getConfig();
+        cfg.setGlobalFilterEntries(enrichGlobalFilterEntries(entries));
         return persistAndNotify(cfg, updatedBy, "GLOBAL_FILTER_ENTRIES");
     }
 
@@ -270,6 +276,55 @@ public class GatewayConfigService {
     }
 
     // ─── Private ──────────────────────────────────────────────────────────────
+
+    /**
+     * Enriches global filter entries with each filter's config and gatewayConfigRef
+     * from the database. The gateway needs these to build correct filter definitions
+     * (e.g. rate limiter settings, auth provider refs) — without them, global filters
+     * that require config would silently fall back to defaults or produce no-ops.
+     */
+    private List<GlobalFilterEntryDto> enrichGlobalFilterEntries(List<GlobalFilterEntryDto> entries) {
+        if (entries == null || entries.isEmpty()) return entries;
+
+        List<GlobalFilterEntryDto> enriched = new ArrayList<>(entries.size());
+        for (GlobalFilterEntryDto entry : entries) {
+            try {
+                UUID filterId = UUID.fromString(entry.getFilterId());
+                // Fetch filter detail from route-service — includes config JSONB and gatewayConfigRef
+                QueryResponse.FilterDetail detail = routeFilterMessagingClient.getFilter(filterId, null);
+                if (detail != null) {
+                    Map<String, Object> config = detail.config() != null ? detail.config() : Map.of();
+                    Map<String, Object> gcRef = detail.gatewayConfigRef() != null
+                            ? Map.of(
+                                "refType", detail.gatewayConfigRef().refType(),
+                                "refId",   detail.gatewayConfigRef().refId(),
+                                "refName", detail.gatewayConfigRef().refName() != null
+                                           ? detail.gatewayConfigRef().refName() : "")
+                            : null;
+                    enriched.add(GlobalFilterEntryDto.builder()
+                            .filterId(entry.getFilterId())
+                            .filterName(entry.getFilterName())
+                            .filterType(entry.getFilterType())
+                            .order(entry.getOrder())
+                            .enabled(entry.isEnabled())
+                            .config(config)
+                            .gatewayConfigRef(gcRef)
+                            .build());
+                    log.debug("Enriched global filter entry '{}' (type={}) with config ({} keys) and gatewayConfigRef={}",
+                            entry.getFilterName(), entry.getFilterType(), config.size(), gcRef != null);
+                } else {
+                    log.warn("Could not fetch filter detail for global entry filterId={} — persisting without config",
+                            entry.getFilterId());
+                    enriched.add(entry);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to enrich global filter entry filterId={}: {} — persisting without config",
+                        entry.getFilterId(), e.getMessage());
+                enriched.add(entry);
+            }
+        }
+        return enriched;
+    }
 
     /**
      * BCrypt-hashes plain-text passwords on all BASIC auth providers in the config.
@@ -306,7 +361,7 @@ public class GatewayConfigService {
             log.info("Gateway config persisted to DB via RabbitMQ: section={} by={}", section, updatedBy);
         } catch (Exception e) {
             log.error("CRITICAL: Failed to persist gateway config to DB: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to save gateway configuration to database — changes not applied", e);
+            throw new RoutifyException.GatewayError("Failed to save gateway configuration to database — changes not applied", e);
         }
 
         // Step 2: Write to Redis cache (fast reads, NOT source of truth)
@@ -389,18 +444,8 @@ public class GatewayConfigService {
                         .maxConnectionsPerRoute(50).acquireTimeoutMs(45000)
                         .maxIdleTime("20s").maxLifeTime("60s")
                         .compressionEnabled(false).followRedirects(false).wiretapEnabled(false).build())
-                .globalFilters(GlobalFiltersConfig.builder()
-                        .correlationId(CorrelationIdConfig.builder().enabled(true)
-                                .headerName(RoutifyHeaders.CORRELATION_ID).generateIfMissing(true).propagateToResponse(true).build())
-                        .requestLogger(RequestLoggerConfig.builder().enabled(true)
-                                .logRequestHeaders(true).logResponseHeaders(false)
-                                .logRequestBody(false).logResponseBody(false).maxBodyLogSize(4096)
-                                .excludePaths(List.of("/actuator/**"))
-                                .maskHeaders(List.of("Authorization", RoutifyHeaders.API_KEY, "Cookie")).build())
-                        .securityHeaders(SecurityHeadersRef.builder().enabled(true).build())
-                        .tenantContext(TenantContextConfig.builder().enabled(true)
-                                .tenantHeaderName(RoutifyHeaders.TENANT_ID).enforceOnAllRoutes(false).build())
-                        .build())
+                // Replaced from global filter entries mark as deprecated
+                .globalFilters(GlobalFiltersConfig.builder().build())
                 .tenantIsolation(TenantIsolationConfig.builder()
                         .enabled(true)
                         .tenantIdHeader(RoutifyHeaders.TENANT_ID).allowCrossTenantsForSuperAdmin(true).build())

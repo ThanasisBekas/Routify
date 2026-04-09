@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { X } from 'lucide-react'
@@ -29,7 +29,7 @@ export default function RoleFormModal({ role, onClose }: Props) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors },
   } = useForm<RoleFormValues>({
@@ -41,7 +41,7 @@ export default function RoleFormModal({ role, onClose }: Props) {
     },
   })
 
-  const selectedPermissions = watch('permissions') as Permission[]
+  const selectedPermissions = useWatch({ control, name: 'permissions' }) as Permission[]
 
   const createMutation = useMutation({
     mutationFn: (data: RoleFormValues) => rolesApi.create(data as { name: string; permissions: Permission[] }),
@@ -117,8 +117,11 @@ export default function RoleFormModal({ role, onClose }: Props) {
           {/* Name */}
           {!role?.builtIn && (
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="field-name-0">
+                Name
+              </label>
               <input
+                id="field-name-0"
                 {...register('name')}
                 disabled={role?.builtIn}
                 className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500/50"
@@ -130,8 +133,11 @@ export default function RoleFormModal({ role, onClose }: Props) {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="field-description-1">
+              Description
+            </label>
             <input
+              id="field-description-1"
               {...register('description')}
               className="w-full px-3 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500/50"
               placeholder="Short description of this role"

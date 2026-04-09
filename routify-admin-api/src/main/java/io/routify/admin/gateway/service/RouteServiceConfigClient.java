@@ -5,6 +5,7 @@ import io.routify.common.client.AmqpServiceClientSupport;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.event.RabbitTopology;
+import io.routify.common.exception.RoutifyException;
 import io.routify.common.observability.RoutifyMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -46,7 +47,7 @@ public class RouteServiceConfigClient extends AmqpServiceClientSupport {
             return result != null && result.config() != null ? result.config() : Map.of();
         } catch (Exception e) {
             log.error("Failed to save gateway config via RabbitMQ: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to save gateway configuration via RabbitMQ", e);
+            throw new RoutifyException.GatewayError("Failed to save gateway configuration via RabbitMQ", e);
         }
     }
 }

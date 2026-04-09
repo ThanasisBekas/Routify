@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.routify.common.exception.RoutifyException;
 import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -166,7 +167,7 @@ public class OAuth2TokenRelayGatewayFilterFactory
                     java.util.Map<String, Object> response = (java.util.Map<String, Object>) body;
                     String accessToken = (String) response.get("access_token");
                     if (accessToken == null || accessToken.isBlank()) {
-                        throw new RuntimeException("Token exchange response missing access_token");
+                        throw new RoutifyException.Unauthorized("Token exchange response missing access_token");
                     }
                     long expiresIn = 0;
                     Object exp = response.get("expires_in");

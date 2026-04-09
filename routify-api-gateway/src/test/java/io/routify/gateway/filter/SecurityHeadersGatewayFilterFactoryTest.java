@@ -9,7 +9,6 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.core.Ordered;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
-import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.util.HashMap;
@@ -23,7 +22,8 @@ import static org.mockito.Mockito.when;
  * Unit tests for {@link SecurityHeadersGatewayFilterFactory}.
  *
  * <p>Covers: all OWASP headers enabled, master toggle disabled, custom CSP,
- * removeServerHeader, null config → safe defaults, filter order.
+ * removeServerHeader, null config → safe defaults, filter order, beforeCommit
+ * timing (security headers override downstream filters).
  */
 class SecurityHeadersGatewayFilterFactoryTest {
 
@@ -36,8 +36,12 @@ class SecurityHeadersGatewayFilterFactoryTest {
         factory = new SecurityHeadersGatewayFilterFactory(configLoader);
     }
 
+    /**
+     * Pass-through chain that calls {@code setComplete()} to trigger
+     * {@code beforeCommit} callbacks registered by the filter under test.
+     */
     private GatewayFilterChain passThroughChain() {
-        return exchange -> Mono.empty();
+        return exchange -> exchange.getResponse().setComplete();
     }
 
     @Test
@@ -176,6 +180,36 @@ class SecurityHeadersGatewayFilterFactoryTest {
                 .isEqualTo("custom-value");
         assertThat(exchange.getResponse().getHeaders().getFirst("X-Another"))
                 .isEqualTo("another-value");
+    }
+
+    @Test
+    @DisplayName("Security headers override values set earlier in the chain (beforeCommit)")
+    void beforeCommit_overridesDownstreamHeaders() {
+        when(configLoader.getConfig()).thenReturn(Map.of(
+                "securityHeaders", Map.of(
+                        "enabled", true,
+                        "xFrameOptions", true,
+                        "xFrameOptionsValue", "DENY"
+                )
+        ));
+
+        GatewayFilter filter = factory.apply(new SecurityHeadersGatewayFilterFactory.Config());
+
+        var exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/api/test").build());
+
+        // Simulate a downstream filter / upstream service setting a conflicting header
+        GatewayFilterChain conflictingChain = ex -> {
+            ex.getResponse().getHeaders().set("X-Frame-Options", "ALLOW-ALL");
+            return ex.getResponse().setComplete();
+        };
+
+        StepVerifier.create(filter.filter(exchange, conflictingChain))
+                .verifyComplete();
+
+        // Security headers (via beforeCommit) should have the last word
+        assertThat(exchange.getResponse().getHeaders().getFirst("X-Frame-Options"))
+                .isEqualTo("DENY");
     }
 }
 

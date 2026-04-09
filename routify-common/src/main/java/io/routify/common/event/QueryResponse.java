@@ -50,6 +50,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.RouteDetail.class,          name = "ROUTE_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.FiltersPage.class,          name = "FILTERS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.FilterDetail.class,         name = "FILTER_DETAIL"),
+    @JsonSubTypes.Type(value = QueryResponse.DeprecatedFilterUsageResult.class, name = "DEPRECATED_FILTER_USAGE_RESULT"),
     // ─── routify-identity-service ─────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.LoginResult.class,          name = "LOGIN_RESULT"),
     @JsonSubTypes.Type(value = QueryResponse.PasswordChangeResult.class, name = "PASSWORD_CHANGE_RESULT"),
@@ -117,6 +118,8 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.AlertRulesPage.class,       name = "ALERT_RULES_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.AlertRuleDetail.class,      name = "ALERT_RULE_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.AlertEventsPage.class,      name = "ALERT_EVENTS_PAGE"),
+    // ─── routify-identity-service internal (cache warmup) ──────────────────
+    @JsonSubTypes.Type(value = QueryResponse.TenantPlansList.class,      name = "TENANT_PLANS_LIST"),
 })
 public sealed interface QueryResponse
         permits
@@ -127,6 +130,7 @@ public sealed interface QueryResponse
             QueryResponse.RouteDetail,
             QueryResponse.FiltersPage,
             QueryResponse.FilterDetail,
+            QueryResponse.DeprecatedFilterUsageResult,
             QueryResponse.LoginResult,
             QueryResponse.PasswordChangeResult,
             QueryResponse.UsersPage,
@@ -177,6 +181,7 @@ public sealed interface QueryResponse
             QueryResponse.AlertRulesPage,
             QueryResponse.AlertRuleDetail,
             QueryResponse.AlertEventsPage,
+            QueryResponse.TenantPlansList,
             QueryResponse.Unknown {
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -321,6 +326,19 @@ public sealed interface QueryResponse
             String createdBy,
             Instant createdAt,
             Instant updatedAt
+    ) implements QueryResponse {}
+
+    /**
+     * Deprecated filter usage statistics for a tenant.
+     *
+     * @param totalDeprecated   Total number of deprecated filter definitions.
+     * @param byType            Count of deprecated filters grouped by filter type.
+     * @param affectedRoutes    List of route names that use deprecated filters.
+     */
+    record DeprecatedFilterUsageResult(
+            int totalDeprecated,
+            Map<String, Integer> byType,
+            List<String> affectedRoutes
     ) implements QueryResponse {}
 
     /**
@@ -1341,6 +1359,19 @@ public sealed interface QueryResponse
                 String  message,
                 Instant occurredAt
         ) {}
+    }
+
+    // ─── routify-identity-service internal (cache warmup) ────────────────────
+
+    /**
+     * Full list of active tenant → plan mappings.
+     * Returned by identity-service in response to {@link QueryRequest.TenantPlansQuery},
+     * used by route-service and api-gateway to warm the in-memory TenantPlanCache on startup.
+     */
+    record TenantPlansList(List<TenantPlanEntry> entries) implements QueryResponse {
+
+        /** Lightweight mapping of a tenant ID to its subscription plan name. */
+        public record TenantPlanEntry(UUID tenantId, String plan) {}
     }
 
     /**

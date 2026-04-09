@@ -47,11 +47,14 @@ public class RequestHeaderModifyGatewayFilterFactory
                 });
             }
 
-            // 2. Set (overwrite) headers
+            // 2. Set (overwrite) headers — remove first, then add, so existing values are replaced
             if (config.getSet() != null) {
                 config.getSet().forEach((header, value) -> {
                     log.debug("RequestHeaderModify: setting header '{}' = '{}'", header, value);
-                    builder.header(header, value);
+                    builder.headers(h -> {
+                        h.remove(header);
+                        h.add(header, value);
+                    });
                 });
             }
 

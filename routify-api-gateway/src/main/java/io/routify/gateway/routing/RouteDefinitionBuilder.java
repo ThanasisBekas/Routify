@@ -1,5 +1,7 @@
 package io.routify.gateway.routing;
 
+import io.routify.common.domain.FilterType;
+import io.routify.common.observability.RoutifyMetrics;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.config.GatewayConfigLoader;
 import io.routify.gateway.filter.TenantContextGatewayFilterFactory;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.net.URI;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Builds Spring Cloud Gateway {@link RouteDefinition}s from route snapshots.
@@ -50,6 +53,7 @@ public class RouteDefinitionBuilder {
 
     private final GatewayConfigRefResolver configRefResolver;
     private final GatewayConfigLoader      configLoader;
+    private final RoutifyMetrics           metrics;
 
     /**
      * Builds a complete Spring Cloud Gateway {@link RouteDefinition} from a snapshot.
@@ -146,8 +150,9 @@ public class RouteDefinitionBuilder {
         // from the stored prefix string (e.g. "/api/v1" → 2 parts, "/api" → 1 part).
         // Only add when the filter chain does NOT already contain a PATH_STRIP_PREFIX filter
         // to avoid double-stripping.
+        @SuppressWarnings("deprecation")
         boolean chainHasStripPrefix = snapshot.filters() != null && snapshot.filters().stream()
-                .anyMatch(f -> "PATH_STRIP_PREFIX".equals(f.filterType()));
+                .anyMatch(f -> FilterType.PATH_STRIP_PREFIX.name().equals(f.filterType()));
         if (!chainHasStripPrefix && snapshot.stripPrefix() != null && !snapshot.stripPrefix().isBlank()) {
             int parts = countPathSegments(snapshot.stripPrefix());
             if (parts > 0) {
@@ -202,29 +207,49 @@ public class RouteDefinitionBuilder {
      *
      * Uses Java 21 switch expression for exhaustive pattern matching on filter types.
      */
+    @SuppressWarnings("deprecation")
     private FilterDefinition buildFilterDefinition(RouteSnapshotDto snapshot,
                                                     RouteSnapshotDto.FilterSnapshotDto filter) {
         // Resolve gatewayConfigRef and merge into the effective config
         Map<String, Object> cfg = configRefResolver.resolve(
                 filter.config(), filter.gatewayConfigRef());
 
-        return switch (filter.filterType()) {
+        // Parse the string filterType to the enum for compile-time exhaustiveness.
+        // If a FilterType enum value is renamed, the switch below will fail to compile.
+        FilterType type;
+        try {
+            type = FilterType.valueOf(filter.filterType());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            log.warn("Unknown filter type '{}' — skipping", filter.filterType());
+            return null;
+        }
+
+        return switch (type) {
             // ─── Authentication ───────────────────────────────────────────────
-            case "AUTH_JWT" -> customFilter("JwtAuth", cfg);
-            case "AUTH_API_KEY" -> customFilter("ApiKeyAuth", cfg);
-            case "AUTH_BASIC" -> customFilter("BasicAuth", cfg);
-            case "AUTH_OAUTH2" -> customFilter("OAuth2TokenIntrospect", cfg);
-            case "AUTH_MTLS" -> indexedValuesFilter("MtlsAuth", cfg);
-            case "AUTH_CLIENT_ID" -> indexedValuesFilter("ClientIdAuth", cfg);
-            case "AUTH_NONE" -> null; // No filter needed
+            case AUTH_JWT -> customFilter("JwtAuth", cfg);
+            case AUTH_API_KEY -> customFilter("ApiKeyAuth", cfg);
+            case AUTH_BASIC -> customFilter("BasicAuth", cfg);
+            case AUTH_OAUTH2 -> customFilter("OAuth2TokenIntrospect", cfg);
+            case AUTH_MTLS -> indexedValuesFilter("MtlsAuth", cfg);
+            case AUTH_CLIENT_ID -> indexedValuesFilter("ClientIdAuth", cfg);
+            case AUTH_NONE -> {
+                log.warn("Deprecated filter type AUTH_NONE on route {} — remove the filter entirely",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("AUTH_NONE");
+                yield null; // Deprecated — no filter needed
+            }
 
             // ─── Downstream Auth Injection ────────────────────────────────────
-            case "DOWNSTREAM_BASIC_AUTH" -> customFilter("DownstreamBasicAuth", cfg);
-            case "DOWNSTREAM_BEARER_CC"  -> customFilter("DownstreamOAuth2Bearer", cfg);
-            case "OAUTH2_TOKEN_RELAY"    -> customFilter("OAuth2TokenRelay", cfg);
+            case DOWNSTREAM_BASIC_AUTH -> customFilter("DownstreamBasicAuth", cfg);
+            case DOWNSTREAM_BEARER_CC  -> customFilter("DownstreamOAuth2Bearer", cfg);
+            case OAUTH2_TOKEN_RELAY    -> customFilter("OAuth2TokenRelay", cfg);
 
             // ─── Rate Limiting ────────────────────────────────────────────────
-            case "RATE_LIMIT_TOKEN_BUCKET" -> {
+            case RATE_LIMIT_TOKEN_BUCKET -> {
+                log.warn("Deprecated filter type RATE_LIMIT_TOKEN_BUCKET on route {} — "
+                        + "migrate to RATE_LIMIT_FIXED_WINDOW or RATE_LIMIT_SLIDING_WINDOW",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("RATE_LIMIT_TOKEN_BUCKET");
                 var f = new FilterDefinition();
                 f.setName("RequestRateLimiter");
 
@@ -251,14 +276,18 @@ public class RouteDefinitionBuilder {
                 f.setArgs(args);
                 yield f;
             }
-            case "RATE_LIMIT_SLIDING_WINDOW" -> customFilter("SlidingWindowRateLimit", cfg);
-            case "RATE_LIMIT_FIXED_WINDOW" -> customFilter("FixedWindowRateLimit", cfg);
+            case RATE_LIMIT_SLIDING_WINDOW -> customFilter("SlidingWindowRateLimit", cfg);
+            case RATE_LIMIT_FIXED_WINDOW -> customFilter("FixedWindowRateLimit", cfg);
 
             // ─── Request/Response Modification ───────────────────────────────
-            case "REQUEST_HEADER_MODIFY" -> customFilter("RequestHeaderModify", cfg);
-            case "RESPONSE_HEADER_MODIFY" -> customFilter("ResponseHeaderModify", cfg);
-            case "RESPONSE_HEADER_REWRITE" -> customFilter("ResponseHeaderRewrite", cfg);
-            case "PATH_REWRITE" -> {
+            case REQUEST_HEADER_MODIFY -> customFilter("RequestHeaderModify", cfg);
+            case RESPONSE_HEADER_MODIFY -> customFilter("ResponseHeaderModify", cfg);
+            case RESPONSE_HEADER_REWRITE -> customFilter("ResponseHeaderRewrite", cfg);
+            case PATH_REWRITE -> {
+                log.warn("Deprecated filter type PATH_REWRITE on route {} — "
+                        + "migrate to route-level stripPrefix or conditional routing",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("PATH_REWRITE");
                 var f = new FilterDefinition();
                 f.setName("RewritePath");
                 f.setArgs(Map.of(
@@ -267,43 +296,59 @@ public class RouteDefinitionBuilder {
                 ));
                 yield f;
             }
-            case "PATH_STRIP_PREFIX" -> {
+            case PATH_STRIP_PREFIX -> {
+                log.warn("Deprecated filter type PATH_STRIP_PREFIX on route {} — "
+                        + "migrate to route-level stripPrefix field",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("PATH_STRIP_PREFIX");
                 var f = new FilterDefinition();
                 f.setName("StripPrefix");
                 f.setArgs(Map.of("parts", String.valueOf(cfg.getOrDefault("parts", "1"))));
                 yield f;
             }
-            case "PATH_ADD_PREFIX" -> {
+            case PATH_ADD_PREFIX -> {
+                log.warn("Deprecated filter type PATH_ADD_PREFIX on route {} — "
+                        + "migrate to route-level config or REQUEST_HEADER_MODIFY",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("PATH_ADD_PREFIX");
                 var f = new FilterDefinition();
                 f.setName("PrefixPath");
                 f.setArgs(Map.of("prefix", String.valueOf(cfg.getOrDefault("prefix", ""))));
                 yield f;
             }
-            case "QUERY_PARAM_MODIFY" -> {
+            case QUERY_PARAM_MODIFY -> {
                 log.warn("Deprecated filter type QUERY_PARAM_MODIFY — ignored (no factory implementation)");
+                metrics.recordDeprecatedFilterUsed("QUERY_PARAM_MODIFY");
                 yield null;
             }
 
             // ─── Body Transformation ──────────────────────────────────────────
-            case "BODY_JOLT_TRANSFORM" -> customFilter("JoltTransform", cfg);
-            case "BODY_JSONATA_TRANSFORM" -> {
-                log.warn("Deprecated filter type BODY_JSONATA_TRANSFORM — ignored (no factory implementation)");
+            case BODY_JOLT_TRANSFORM -> customFilter("JoltTransform", cfg);
+            case BODY_JSONATA_TRANSFORM -> {
+                log.warn("Deprecated filter type BODY_JSONATA_TRANSFORM — ignored (no factory implementation). Migrate to BODY_JOLT_TRANSFORM");
+                metrics.recordDeprecatedFilterUsed("BODY_JSONATA_TRANSFORM");
                 yield null;
             }
-            case "BODY_SPEL_TRANSFORM" -> {
-                log.warn("Deprecated filter type BODY_SPEL_TRANSFORM — ignored (no factory implementation)");
+            case BODY_SPEL_TRANSFORM -> {
+                log.warn("Deprecated filter type BODY_SPEL_TRANSFORM — ignored (no factory implementation). Migrate to BODY_JOLT_TRANSFORM or CUSTOM_SPEL");
+                metrics.recordDeprecatedFilterUsed("BODY_SPEL_TRANSFORM");
                 yield null;
             }
 
             // ─── Validation ───────────────────────────────────────────────────
-            case "VALIDATE_JSON_SCHEMA"  -> customFilter("JsonSchemaValidate", cfg);
-            case "REQUEST_SIZE_LIMIT"    -> customFilter("RequestSizeLimit", cfg);
-            case "GRAPHQL_DEPTH_LIMIT"   -> customFilter("GraphQLDepthLimit", cfg);
-            case "VALIDATE_REGEX" -> {
-                log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation)");
+            case VALIDATE_JSON_SCHEMA  -> customFilter("JsonSchemaValidate", cfg);
+            case REQUEST_SIZE_LIMIT    -> customFilter("RequestSizeLimit", cfg);
+            case GRAPHQL_DEPTH_LIMIT   -> customFilter("GraphQLDepthLimit", cfg);
+            case VALIDATE_REGEX -> {
+                log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation). Migrate to VALIDATE_JSON_SCHEMA or CUSTOM_SPEL");
+                metrics.recordDeprecatedFilterUsed("VALIDATE_REGEX");
                 yield null;
             }
-            case "VALIDATE_SIZE" -> {
+            case VALIDATE_SIZE -> {
+                log.warn("Deprecated filter type VALIDATE_SIZE on route {} — "
+                        + "migrate to REQUEST_SIZE_LIMIT",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("VALIDATE_SIZE");
                 var f = new FilterDefinition();
                 f.setName("RequestSize");
                 f.setArgs(Map.of("maxSize",
@@ -312,7 +357,11 @@ public class RouteDefinitionBuilder {
             }
 
             // ─── Resilience ───────────────────────────────────────────────────
-            case "CIRCUIT_BREAKER" -> {
+            case CIRCUIT_BREAKER -> {
+                log.warn("Deprecated filter type CIRCUIT_BREAKER on route {} — "
+                        + "migrate to CIRCUIT_BREAKER_V2",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("CIRCUIT_BREAKER");
                 var f = new FilterDefinition();
                 f.setName("CircuitBreaker");
                 f.setArgs(Map.of(
@@ -321,7 +370,11 @@ public class RouteDefinitionBuilder {
                 ));
                 yield f;
             }
-            case "RETRY" -> {
+            case RETRY -> {
+                log.warn("Deprecated filter type RETRY on route {} — "
+                        + "migrate to RETRY_V2",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("RETRY");
                 var f = new FilterDefinition();
                 f.setName("Retry");
                 // SCG Retry filter expects: retries, series (HttpStatus.Series names), methods (HTTP method names).
@@ -338,56 +391,51 @@ public class RouteDefinitionBuilder {
                 f.setArgs(args);
                 yield f;
             }
-            case "TIMEOUT" -> customFilter("RequestTimeout", cfg);
-            case "CIRCUIT_BREAKER_V2" -> customFilter("CircuitBreakerV2", cfg);
-            case "RETRY_V2"          -> customFilter("RetryV2", cfg);
-            case "IDEMPOTENCY_KEY"   -> customFilter("IdempotencyKey", cfg);
+            case TIMEOUT -> customFilter("RequestTimeout", cfg);
+            case CIRCUIT_BREAKER_V2 -> customFilter("CircuitBreakerV2", cfg);
+            case RETRY_V2          -> customFilter("RetryV2", cfg);
+            case IDEMPOTENCY_KEY   -> customFilter("IdempotencyKey", cfg);
 
             // ─── Performance ──────────────────────────────────────────────────
-            case "RESPONSE_CACHE"           -> customFilter("ResponseCache", cfg);
-            case "REQUEST_DECOMPRESS"       -> customFilter("RequestDecompress", cfg);
+            case RESPONSE_CACHE           -> customFilter("ResponseCache", cfg);
+            case REQUEST_DECOMPRESS       -> customFilter("RequestDecompress", cfg);
 
             // ─── Routing ─────────────────────────────────────────────────────────
-            case "CONDITIONAL_ROUTE"        -> customFilter("ConditionalRoute", cfg);
-            case "USER_ID_PAYLOAD_ROUTING"  -> customFilter("UserIdPayloadRouting", cfg);
-            case "GEO_ROUTE"                -> customFilter("GeoRoute", cfg);
+            case CONDITIONAL_ROUTE        -> customFilter("ConditionalRoute", cfg);
+            case USER_ID_PAYLOAD_ROUTING  -> customFilter("UserIdPayloadRouting", cfg);
+            case GEO_ROUTE                -> customFilter("GeoRoute", cfg);
 
             // ─── Security ──────────────────────────────────────────────────────
-            case "IP_ACCESS_CONTROL"         -> customFilter("IpAccessControl", cfg);
+            case IP_ACCESS_CONTROL         -> customFilter("IpAccessControl", cfg);
 
             // ─── Certificates / TLS ───────────────────────────────────────────
-            case "AUTH_CERT_VAULT"           -> customFilter("CertVaultAuth", cfg);
-            case "CERT_ROTATION"             -> customFilter("CertRotation", cfg);
-            case "CERT_VAULT_EXPIRY_CHECK"   -> customFilter("CertVaultExpiryCheck", cfg);
+            case AUTH_CERT_VAULT           -> customFilter("CertVaultAuth", cfg);
+            case CERT_ROTATION             -> customFilter("CertRotation", cfg);
+            case CERT_VAULT_EXPIRY_CHECK   -> customFilter("CertVaultExpiryCheck", cfg);
 
             // ─── Versioning ───────────────────────────────────────────────────
-            case "API_VERSIONING" -> customFilter("ApiVersioning", cfg);
+            case API_VERSIONING -> customFilter("ApiVersioning", cfg);
 
             // ─── Observability ────────────────────────────────────────────────
-            case "CORRELATION_ID"   -> namedFilter("CorrelationId");
-            case "REQUEST_LOGGER"   -> customFilter("RequestLogger", cfg);
-            case "TENANT_CONTEXT"   -> namedFilter("TenantContext");
-            case "SECURITY_HEADERS" -> namedFilter("SecurityHeaders");
-            case "CUSTOM_METRIC"    -> customFilter("CustomMetric", cfg);
-            case "BODY_SIZE_METRIC" -> customFilter("BodySizeMetric", cfg);
+            case CORRELATION_ID   -> namedFilter("CorrelationId");
+            case REQUEST_LOGGER   -> customFilter("RequestLogger", cfg);
+            case TENANT_CONTEXT   -> namedFilter("TenantContext");
+            case SECURITY_HEADERS -> namedFilter("SecurityHeaders");
+            case CUSTOM_METRIC    -> customFilter("CustomMetric", cfg);
+            case BODY_SIZE_METRIC -> customFilter("BodySizeMetric", cfg);
 
             // ─── Integration ──────────────────────────────────────────────────────
-            case "WEBHOOK_NOTIFY" -> customFilter("WebhookNotify", cfg);
+            case WEBHOOK_NOTIFY -> customFilter("WebhookNotify", cfg);
 
             // ─── Developer Experience ────────────────────────────────────────────
-            case "MOCK_RESPONSE" -> customFilter("MockResponse", cfg);
+            case MOCK_RESPONSE -> customFilter("MockResponse", cfg);
 
             // ─── Custom ───────────────────────────────────────────────────────────
-            case "CUSTOM_SPEL" -> customFilter("SpelCustom", cfg);
+            case CUSTOM_SPEL -> customFilter("SpelCustom", cfg);
 
             // ─── AI ───────────────────────────────────────────────────────────────
-            case "AI_FILTER"    -> buildAiFilter(snapshot, cfg);
-            case "AI_MODIFIER"  -> buildAiModifierFilter(snapshot, cfg);
-
-            default -> {
-                log.warn("Unknown filter type '{}' — skipping", filter.filterType());
-                yield null;
-            }
+            case AI_FILTER    -> buildAiFilter(snapshot, cfg);
+            case AI_MODIFIER  -> buildAiModifierFilter(snapshot, cfg);
         };
     }
 
@@ -463,11 +511,50 @@ public class RouteDefinitionBuilder {
     private static FilterDefinition customFilter(String name, Map<String, Object> config) {
         var f = new FilterDefinition();
         f.setName(name);
-        // Convert all config values to String for SCG compatibility
         var args = new LinkedHashMap<String, String>();
-        config.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
+        config.forEach((k, v) -> flattenConfigValue(k, v, args));
         f.setArgs(args);
         return f;
+    }
+
+    /**
+     * Serialises a single config entry into the SCG args map.
+     *
+     * <p>SCG's property binder ({@code ConfigurationUtils.bind}) uses Spring Boot's
+     * {@code Binder} which expects:
+     * <ul>
+     *   <li><b>Scalars</b> (String, boolean, int, double): simple {@code key=value}</li>
+     *   <li><b>Lists</b>: comma-separated string ({@code key=a,b,c}) — the Binder splits
+     *       on commas and produces a {@code List<String>}</li>
+     *   <li><b>Maps</b>: dotted or indexed keys ({@code key.subKey=value})</li>
+     * </ul>
+     *
+     * <p><b>Bug fixed:</b> the previous implementation used {@code v.toString()} for all
+     * types, which produced bracket notation for lists ({@code [a, b]}) and brace notation
+     * for maps ({@code {k=v}}) — neither of which SCG's Binder can parse. This caused
+     * filter Config objects to fall back to defaults, ignoring user-specified values like
+     * {@code logRequestBody=true} on the REQUEST_LOGGER filter.
+     */
+    private static void flattenConfigValue(String key, Object value, Map<String, String> args) {
+        if (value == null) return;
+
+        if (value instanceof List<?> list) {
+            if (!list.isEmpty()) {
+                // Comma-separated: SCG's Binder splits this into List<String>
+                args.put(key, list.stream()
+                        .map(Object::toString)
+                        .collect(Collectors.joining(",")));
+            }
+            // Empty lists → omit entirely (let Config field default apply)
+        } else if (value instanceof Map<?, ?> map) {
+            if (!map.isEmpty()) {
+                // Expand map entries as dotted keys for nested property binding
+                map.forEach((mk, mv) ->
+                        args.put(key + "." + mk, mv != null ? mv.toString() : ""));
+            }
+        } else {
+            args.put(key, value.toString());
+        }
     }
 
     /**
@@ -607,7 +694,9 @@ public class RouteDefinitionBuilder {
                                              String filterName,
                                              String filterType,
                                              int order,
-                                             boolean enabled) {}
+                                             boolean enabled,
+                                             Map<String, Object> config,
+                                             Map<String, Object> gatewayConfigRef) {}
 
     /**
      * Reads the {@code globalFilterEntries} section from the live gateway config.
@@ -643,7 +732,14 @@ public class RouteDefinitionBuilder {
                 continue;
             }
 
-            entries.add(new GlobalFilterEntrySnapshot(filterId, filterName, filterType, order, true));
+            // Extract the enriched config and gatewayConfigRef (added at save time by admin-api)
+            Map<String, Object> config = m.get("config") instanceof Map<?, ?> cm
+                    ? (Map<String, Object>) cm : Map.of();
+            Map<String, Object> gatewayConfigRef = m.get("gatewayConfigRef") instanceof Map<?, ?> rm
+                    ? (Map<String, Object>) rm : null;
+
+            entries.add(new GlobalFilterEntrySnapshot(filterId, filterName, filterType, order, true,
+                    config, gatewayConfigRef));
         }
 
         entries.sort(Comparator.comparingInt(GlobalFilterEntrySnapshot::order));
@@ -654,31 +750,34 @@ public class RouteDefinitionBuilder {
     /**
      * Builds a {@link FilterDefinition} from a global filter entry.
      *
-     * <p>Global filter entries reference existing filter definitions by type. Since they
-     * carry no per-filter config (the config lives on the filter definition in the DB and
-     * is resolved at per-route level), global entries are built as named filters with
-     * empty args. For filter types that require config (e.g. rate limiters, AI filters),
-     * they must be configured on individual routes instead.
+     * <p>Global filter entries now carry the filter's persisted config and gateway
+     * config ref (enriched at save time by admin-api). This allows config-dependent
+     * filters (rate limiters, auth filters, request loggers, etc.) to work correctly
+     * as global entries — not just zero-config filters.
      *
-     * <p>Zero-config filter types (CORRELATION_ID, SECURITY_HEADERS, TENANT_CONTEXT,
-     * REQUEST_LOGGER, etc.) work seamlessly as global entries because they read their
-     * config from the persisted gateway config at runtime.
+     * <p>The entry's {@code config} and {@code gatewayConfigRef} are passed through
+     * to the synthetic {@link RouteSnapshotDto.FilterSnapshotDto} so that the
+     * {@link GatewayConfigRefResolver} can merge gateway config values (e.g. auth
+     * provider credentials) and the filter factory receives its full configuration.
      */
     private FilterDefinition buildFilterDefinitionFromGlobalEntry(
             RouteSnapshotDto snapshot, GlobalFilterEntrySnapshot entry) {
         // Delegate to the same switch expression used for per-route filters.
-        // Create a synthetic FilterSnapshotDto with empty config.
+        // Use the entry's enriched config and gatewayConfigRef instead of empty values.
         var syntheticFilter = new RouteSnapshotDto.FilterSnapshotDto(
                 entry.filterId() != null ? java.util.UUID.fromString(entry.filterId()) : null,
                 entry.filterType(),
                 entry.order(),
                 "PRE",
-                Map.of(),
-                null);
+                entry.config() != null ? entry.config() : Map.of(),
+                entry.gatewayConfigRef());
         FilterDefinition fd = buildFilterDefinition(snapshot, syntheticFilter);
         if (fd != null) {
-            log.debug("Global filter entry applied: type={} name='{}' order={} for route {}",
-                    entry.filterType(), entry.filterName(), entry.order(), snapshot.routeId());
+            log.debug("Global filter entry applied: type={} name='{}' order={} configKeys={} hasRef={} for route {}",
+                    entry.filterType(), entry.filterName(), entry.order(),
+                    entry.config() != null ? entry.config().size() : 0,
+                    entry.gatewayConfigRef() != null,
+                    snapshot.routeId());
         }
         return fd;
     }
@@ -698,7 +797,7 @@ public class RouteDefinitionBuilder {
         f.setName("AiFilter");
         var args = new LinkedHashMap<String, String>();
         // Copy all config fields from the JSONB blob
-        cfg.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
+        cfg.forEach((k, v) -> flattenConfigValue(k, v, args));
         // Inject route metadata — these override any stale values that might be in the config
         args.put("routeId",   snapshot.routeId().toString());
         args.put("routeName", snapshot.name() != null ? snapshot.name() : "");
@@ -718,7 +817,7 @@ public class RouteDefinitionBuilder {
         var f = new FilterDefinition();
         f.setName("AiModifier");
         var args = new LinkedHashMap<String, String>();
-        cfg.forEach((k, v) -> args.put(k, v != null ? v.toString() : ""));
+        cfg.forEach((k, v) -> flattenConfigValue(k, v, args));
         args.put("routeId",   snapshot.routeId().toString());
         args.put("routeName", snapshot.name() != null ? snapshot.name() : "");
         args.put("tenantId",  snapshot.tenantId().toString());

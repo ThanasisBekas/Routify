@@ -4,6 +4,7 @@ import io.routify.audit.domain.RequestLog;
 import io.routify.audit.repository.RequestLogRepository;
 import io.routify.common.event.KafkaTopics;
 import io.routify.common.event.RequestTelemetryEvent;
+import io.routify.common.exception.RoutifyException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,7 +81,7 @@ public class RequestTelemetryConsumer {
             log.error("Failed to process request telemetry: {}", e.getMessage(), e);
             // Do NOT acknowledge — let Kafka retry. After max retries the error handler
             // will route the record to the DLQ (configured in AuditServiceConfig).
-            throw new RuntimeException("Failed to process request telemetry", e);
+            throw new RoutifyException.GatewayError("Failed to process request telemetry", e);
         }
     }
 

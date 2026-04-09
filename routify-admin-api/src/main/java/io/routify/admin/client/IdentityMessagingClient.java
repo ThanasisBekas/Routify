@@ -249,18 +249,20 @@ public class IdentityMessagingClient extends AmqpServiceClientSupport {
         UserRole role = req.role() != null
                 ? UserRole.valueOf(req.role().toUpperCase())
                 : UserRole.VIEWER;
+        UUID roleId = req.roleId() != null ? UUID.fromString(req.roleId()) : null;
         kafka.publishCommand(KafkaTopics.USER_COMMANDS, new CommandEvent.CreateUser(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                req.username(), req.email(), req.password(), role));
+                req.username(), req.email(), req.password(), role, roleId));
     }
 
     public void sendUpdateUser(UUID id, UUID tenantId, String actor, UpdateUserRequest req) {
         UserRole role = req.role() != null
                 ? UserRole.valueOf(req.role().toUpperCase())
                 : null;
+        UUID roleId = req.roleId() != null ? UUID.fromString(req.roleId()) : null;
         kafka.publishCommand(KafkaTopics.USER_COMMANDS, new CommandEvent.UpdateUser(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
-                id, req.username(), req.email(), role));
+                id, req.username(), req.email(), role, roleId));
     }
 
     public void sendDeleteUser(UUID id, UUID tenantId, String actor) {

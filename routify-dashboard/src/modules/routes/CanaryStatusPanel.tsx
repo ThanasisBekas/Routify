@@ -53,7 +53,11 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
   })
 
   if (isLoading) {
-    return <div className="animate-pulse rounded-lg border p-4">Loading canary status…</div>
+    return (
+      <div className="animate-pulse rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+        <div className="h-4 w-40 rounded bg-white/10" />
+      </div>
+    )
   }
 
   if (!status) return null
@@ -61,78 +65,81 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
   const isBreach = status.breachCount > 0
 
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800 dark:bg-amber-950/20">
+    <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+          <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-400 border border-amber-500/20">
             🐤 Canary Active
           </span>
           {isBreach && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900 dark:text-red-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-0.5 text-xs font-semibold text-red-400 border border-red-500/20">
               <AlertTriangle className="h-3 w-3" />
               Breach {status.breachCount}/3
             </span>
           )}
         </div>
         {status.deployedAt && (
-          <span className="text-xs text-muted-foreground">Deployed {new Date(status.deployedAt).toLocaleString()}</span>
+          <span className="text-xs text-gray-500">Deployed {new Date(status.deployedAt).toLocaleString()}</span>
         )}
       </div>
 
       {/* Traffic split visualization */}
       <div className="mb-4">
         <div className="mb-1 flex justify-between text-sm">
-          <span>Primary ({status.primaryWeight}%)</span>
-          <span className="text-amber-600">Canary ({status.canaryWeight}%)</span>
+          <span className="text-gray-400">Primary ({status.primaryWeight}%)</span>
+          <span className="text-amber-400">Canary ({status.canaryWeight}%)</span>
         </div>
-        <div className="flex h-3 overflow-hidden rounded-full">
-          <div className="bg-blue-500" style={{ width: `${status.primaryWeight}%` }} />
-          <div className="bg-amber-500" style={{ width: `${status.canaryWeight}%` }} />
+        <div className="flex h-3 overflow-hidden rounded-full bg-white/[0.04]">
+          <div className="bg-blue-500 transition-all duration-500" style={{ width: `${status.primaryWeight}%` }} />
+          <div className="bg-amber-500 transition-all duration-500" style={{ width: `${status.canaryWeight}%` }} />
         </div>
       </div>
 
       {/* Error rate comparison */}
-      <div className="mb-4 grid grid-cols-2 gap-4">
-        <div className="rounded-md border bg-white p-3 dark:bg-gray-800">
-          <div className="text-xs text-muted-foreground">Primary Error Rate</div>
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Primary Error Rate</div>
           <div className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <span className="text-lg font-semibold">{status.primaryErrorRate.toFixed(2)}%</span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            <span className="text-lg font-bold text-white">{status.primaryErrorRate.toFixed(2)}%</span>
           </div>
         </div>
-        <div className="rounded-md border bg-white p-3 dark:bg-gray-800">
-          <div className="text-xs text-muted-foreground">Canary Error Rate</div>
+        <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Canary Error Rate</div>
           <div className="flex items-center gap-1.5">
             {status.canaryErrorRate > status.autoRollbackThreshold ? (
-              <AlertTriangle className="h-4 w-4 text-red-500" />
+              <AlertTriangle className="h-4 w-4 text-red-400" />
             ) : (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             )}
-            <span className="text-lg font-semibold">{status.canaryErrorRate.toFixed(2)}%</span>
+            <span className="text-lg font-bold text-white">{status.canaryErrorRate.toFixed(2)}%</span>
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">Threshold: {status.autoRollbackThreshold}%</div>
+          <div className="mt-0.5 text-[10px] text-gray-500">Threshold: {status.autoRollbackThreshold}%</div>
         </div>
       </div>
 
-      <div className="mb-3 text-xs text-muted-foreground">
-        Canary upstream: <code className="rounded bg-gray-100 px-1 dark:bg-gray-700">{status.canaryUpstreamUri}</code>
+      <div className="mb-3 text-xs text-gray-500">
+        Canary upstream:{' '}
+        <code className="rounded bg-white/[0.06] px-1.5 py-0.5 text-amber-300 font-mono text-[10px]">
+          {status.canaryUpstreamUri}
+        </code>
       </div>
 
       {/* Weight adjustment */}
       {adjustWeight !== null ? (
-        <div className="mb-4 rounded-md border bg-white p-3 dark:bg-gray-800">
+        <div className="mb-4 rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
           <TrafficWeightSlider value={adjustWeight} onChange={setAdjustWeight} />
           <div className="mt-2 flex justify-end gap-2">
             <button
               onClick={() => setAdjustWeight(null)}
-              className="rounded px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="rounded-lg px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-all"
             >
               Cancel
             </button>
             <button
               onClick={() => adjustMutation.mutate(adjustWeight)}
               disabled={adjustMutation.isPending}
-              className="rounded bg-amber-600 px-3 py-1.5 text-xs text-white hover:bg-amber-700 disabled:opacity-50"
+              className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50 transition-all"
             >
               Apply
             </button>
@@ -141,7 +148,7 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
       ) : (
         <button
           onClick={() => setAdjustWeight(status.canaryWeight)}
-          className="mb-4 text-xs text-amber-600 underline hover:text-amber-700"
+          className="mb-4 text-xs text-amber-400 underline hover:text-amber-300 transition-colors"
         >
           Adjust traffic weight
         </button>
@@ -152,18 +159,18 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
         <button
           onClick={() => promoteMutation.mutate()}
           disabled={promoteMutation.isPending}
-          className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 transition-all"
         >
           <ArrowUpCircle className="h-4 w-4" />
-          Promote Canary
+          {promoteMutation.isPending ? 'Promoting…' : 'Promote Canary'}
         </button>
         <button
           onClick={() => rollbackMutation.mutate()}
           disabled={rollbackMutation.isPending}
-          className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-red-600/80 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50 transition-all"
         >
           <ArrowDownCircle className="h-4 w-4" />
-          Rollback
+          {rollbackMutation.isPending ? 'Rolling back…' : 'Rollback'}
         </button>
       </div>
     </div>

@@ -144,7 +144,8 @@ public class RouteService {
         // ── Quota check ────────────────────────────────────────────────────
         enforceRouteQuota(tenantId);
 
-        if (routeRepository.existsByNameAndTenantIdAndEnvironment(route.getName(), tenantId, route.getEnvironment())) {
+        if (routeRepository.existsByNameAndTenantIdAndEnvironmentAndStatusNot(
+                route.getName(), tenantId, route.getEnvironment(), RouteStatus.ARCHIVED)) {
             throw new RoutifyException.Conflict(
                     "Route with name '%s' already exists in %s".formatted(route.getName(), route.getEnvironment()));
         }
@@ -382,6 +383,73 @@ public class RouteService {
     }
 
     /**
+     * Creates a new STAGING revision from an existing PRODUCTION route.
+     *
+     * <p>This enables a safe edit-then-promote workflow: instead of editing a live
+     * production route directly, the user creates a staging copy, modifies it, and
+     * promotes the changes when ready.
+     *
+     * <p>The staging route starts as DRAFT with the same config and filter chain as
+     * the production route. ARCHIVED staging routes with the same name are ignored
+     * by the partial unique index (V9 migration).
+     */
+    @Transactional
+    public Route createStagingRevision(UUID productionRouteId, UUID tenantId, String actor) {
+        enforceRouteQuota(tenantId);
+
+        Route production = findByIdWithFilters(productionRouteId, tenantId);
+
+        if (production.getEnvironment() != RouteEnvironment.PRODUCTION) {
+            throw new RoutifyException.Validation(
+                    "Route '%s' is not a PRODUCTION route — cannot create staging revision".formatted(production.getName()));
+        }
+        if (production.getStatus() != RouteStatus.ACTIVE) {
+            throw new RoutifyException.Validation(
+                    "Only ACTIVE production routes can have staging revisions (current: %s)".formatted(production.getStatus()));
+        }
+
+        // Check that a non-archived staging route with same name doesn't already exist
+        if (routeRepository.existsByNameAndTenantIdAndEnvironmentAndStatusNot(
+                production.getName(), tenantId, RouteEnvironment.STAGING, RouteStatus.ARCHIVED)) {
+            throw new RoutifyException.Conflict(
+                    "A staging route for '%s' already exists — promote or delete it first".formatted(production.getName()));
+        }
+
+        Route staging = Route.builder()
+                .tenantId(tenantId)
+                .name(production.getName())
+                .description(production.getDescription())
+                .pathPattern(production.getPathPattern())
+                .methods(production.getMethods())
+                .upstreamUri(production.getUpstreamUri())
+                .stripPrefix(production.getStripPrefix())
+                .createdBy(actor)
+                .extraConfig(production.getExtraConfig() != null ? new java.util.HashMap<>(production.getExtraConfig()) : null)
+                .environment(RouteEnvironment.STAGING)
+                .build();
+
+        staging = routeRepository.save(staging);
+
+        // Duplicate filter attachments
+        for (var rf : production.getFilters()) {
+            staging.attachFilter(rf.getFilterDefinition(), rf.getFilterOrder(), rf.getPhase());
+        }
+
+        Route saved = routeRepository.save(staging);
+
+        outboxStore.store(
+                new DomainEvent.RouteCreated(
+                        UUID.randomUUID(), tenantId, saved.getId(),
+                        saved.getName(), saved.getPathPattern(), saved.getMethods(),
+                        Instant.now(), null, actor),
+                KafkaTopics.ROUTE_EVENTS, tenantId);
+
+        log.info("Staging revision created: sourceId={} stagingId={} name={} tenant={}",
+                productionRouteId, saved.getId(), saved.getName(), tenantId);
+        return saved;
+    }
+
+    /**
      * Promotes a STAGING route to PRODUCTION.
      *
      * <p>The flow:
@@ -440,7 +508,11 @@ public class RouteService {
             }
         }
 
-        production = routeRepository.save(production);
+        // Flush to force orphan-removal DELETEs before re-attaching filters.
+        // Hibernate's default action queue processes INSERTs before orphan DELETEs,
+        // which would violate the uq_route_filter (route_id, filter_definition_id) constraint
+        // when the same filters are re-attached from the staging route.
+        production = routeRepository.saveAndFlush(production);
 
         // Re-attach filters from staging
         for (var rf : staging.getFilters()) {
@@ -451,8 +523,8 @@ public class RouteService {
         if (production.getStatus() != RouteStatus.ACTIVE) {
             production.activate();
         } else {
-            // Already active — just increment version for hot-reload
-            production = routeRepository.save(production);
+            // Already active — increment version for hot-reload detection
+            production.incrementVersion();
         }
 
         Route savedProduction = routeRepository.save(production);
@@ -528,6 +600,7 @@ public class RouteService {
                 .extraConfig(canaryExtraConfig != null ? new java.util.HashMap<>(canaryExtraConfig) : new java.util.HashMap<>(primary.getExtraConfig()))
                 .environment(io.routify.common.domain.RouteEnvironment.PRODUCTION)
                 .build();
+        canary.setCanary(true);
 
         Route savedCanary = routeRepository.save(canary);
 
@@ -819,8 +892,9 @@ public class RouteService {
                 if (conflicting.isPresent()) {
                     Route other = conflicting.get();
                     Route self = routeRepository.findById(excludeId).orElse(null);
-                    // Allow if self is canary of other, or other is canary of self
+                    // Allow if either route is a canary sibling, or they are linked via canaryRouteId
                     if (self != null && (
+                            self.isCanary() || other.isCanary() ||
                             (self.getCanaryRouteId() != null && self.getCanaryRouteId().equals(other.getId())) ||
                             (other.getCanaryRouteId() != null && other.getCanaryRouteId().equals(self.getId())) ||
                             self.getName().endsWith("-canary"))) {

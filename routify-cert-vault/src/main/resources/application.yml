@@ -97,6 +97,9 @@ management:
 
 # ─── Routify Configuration ───────────────────────────────────────────────────
 routify:
+  # ─── @Sensitive field-level encryption ──────────────────────────────────────
+  field-encryption-key: ${FIELD_ENCRYPTION_KEY:}
+
   outbox:
     poll-interval-ms: 250
     retry-interval-ms: 30000
@@ -127,7 +130,8 @@ routify:
   required-secrets: >-
     spring.datasource.password,
     spring.rabbitmq.password,
-    routify.cert-vault.encryption-key
+    routify.cert-vault.encryption-key,
+    routify.field-encryption-key
 
 logging:
   level:

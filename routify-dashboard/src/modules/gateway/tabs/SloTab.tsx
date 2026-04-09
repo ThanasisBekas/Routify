@@ -131,8 +131,11 @@ function SloConfigModal({
 
         <form onSubmit={handleSubmit((data) => saveMutation.mutate(data))} className="px-6 py-5 space-y-5">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400">Availability Target (%)</label>
+            <label className="text-xs font-medium text-gray-400" htmlFor="field-availability-target-0">
+              Availability Target (%)
+            </label>
             <input
+              id="field-availability-target-0"
               type="number"
               step="0.01"
               {...register('availabilityTarget', { valueAsNumber: true })}
@@ -144,8 +147,11 @@ function SloConfigModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400">Latency P99 Target (ms)</label>
+            <label className="text-xs font-medium text-gray-400" htmlFor="field-latency-p99-target-ms-1">
+              Latency P99 Target (ms)
+            </label>
             <input
+              id="field-latency-p99-target-ms-1"
               type="number"
               {...register('latencyP99TargetMs', { valueAsNumber: true })}
               className="w-full px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
@@ -156,8 +162,11 @@ function SloConfigModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-400">Evaluation Window (hours)</label>
+            <label className="text-xs font-medium text-gray-400" htmlFor="field-evaluation-window-hours-2">
+              Evaluation Window (hours)
+            </label>
             <input
+              id="field-evaluation-window-hours-2"
               type="number"
               {...register('evaluationWindowHours', { valueAsNumber: true })}
               className="w-full px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"

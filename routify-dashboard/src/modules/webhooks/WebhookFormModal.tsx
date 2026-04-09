@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -35,7 +35,7 @@ export default function WebhookFormModal({ onClose }: Props) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors },
   } = useForm<FormValues>({
@@ -43,7 +43,7 @@ export default function WebhookFormModal({ onClose }: Props) {
     defaultValues: { name: '', url: '', eventTypes: [] },
   })
 
-  const selectedEvents = watch('eventTypes')
+  const selectedEvents = useWatch({ control, name: 'eventTypes' })
 
   const createMut = useMutation({
     mutationFn: (data: FormValues) =>
@@ -101,8 +101,11 @@ export default function WebhookFormModal({ onClose }: Props) {
         <form onSubmit={handleSubmit((data) => createMut.mutate(data))} className="p-5 space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Name</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-name-0">
+              Name
+            </label>
             <input
+              id="field-name-0"
               {...register('name')}
               className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500/50"
               placeholder="e.g., Slack Notifications"
@@ -112,8 +115,11 @@ export default function WebhookFormModal({ onClose }: Props) {
 
           {/* URL */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1">Webhook URL</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1" htmlFor="field-webhook-url-1">
+              Webhook URL
+            </label>
             <input
+              id="field-webhook-url-1"
               {...register('url')}
               className="w-full px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 font-mono"
               placeholder="https://hooks.example.com/routify"
@@ -123,6 +129,7 @@ export default function WebhookFormModal({ onClose }: Props) {
 
           {/* Event Types */}
           <div>
+            {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
             <label className="block text-xs font-medium text-gray-400 mb-2">Event Types</label>
             {errors.eventTypes && <p className="mb-2 text-xs text-red-400">{errors.eventTypes.message}</p>}
             <div className="space-y-3">

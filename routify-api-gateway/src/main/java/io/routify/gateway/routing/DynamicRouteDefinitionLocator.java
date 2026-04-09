@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.List;
@@ -87,16 +88,20 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
      *
      * <p>Phase 3.4 fix: uses {@link AtomicBoolean} to prevent concurrent refreshes.
      * Only the first call proceeds; subsequent calls during an in-flight refresh are skipped.
+     *
+     * <p>Returns a {@link Mono} that completes when the refresh finishes. Callers that
+     * need completion awareness (e.g. startup) can call {@code .block()}. Fire-and-forget
+     * callers should use {@link #refreshAsync()}.
      */
-    public void refresh() {
+    public Mono<Void> refresh() {
         if (!refreshInProgress.compareAndSet(false, true)) {
             log.debug("Route refresh already in progress — skipping duplicate request");
-            return;
+            return Mono.empty();
         }
 
         log.info("DynamicRouteDefinitionLocator: refreshing route definitions via RabbitMQ...");
 
-        redisTemplate.opsForValue().get(CACHE_KEY)
+        return redisTemplate.opsForValue().get(CACHE_KEY)
                 .onErrorResume(ex -> {
                     log.warn("Redis cache read failed ({}), falling back to route-service fetch: {}",
                             ex.getClass().getSimpleName(), ex.getMessage());
@@ -115,6 +120,7 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
                 })
                 .switchIfEmpty(
                         Mono.fromCallable(routeServiceClient::fetchGatewaySnapshotSync)
+                                .subscribeOn(Schedulers.boundedElastic())
                                 .doOnNext(this::cacheToRedis)
                 )
                 .map(snapshots -> snapshots.stream()
@@ -129,17 +135,25 @@ public class DynamicRouteDefinitionLocator implements RouteDefinitionLocator {
                 })
                 .doOnError(ex -> log.error("Failed to refresh route definitions: {}", ex.getMessage(), ex))
                 .doFinally(signal -> refreshInProgress.set(false))
-                .subscribe(
-                        definitions -> { /* handled in doOnNext */ },
-                        ex -> log.error("Unhandled error in route refresh pipeline: {}", ex.getMessage(), ex)
-                );
+                .then();
+    }
+
+    /**
+     * Fire-and-forget variant of {@link #refresh()} for use in Kafka listeners
+     * and other contexts where completion awareness is not needed.
+     */
+    public void refreshAsync() {
+        refresh().subscribe(
+                null,
+                ex -> log.error("Unhandled error in route refresh pipeline: {}", ex.getMessage(), ex)
+        );
     }
 
     /** Forces cache invalidation and re-fetches from route-service via RabbitMQ. */
     public void forceRefresh() {
         redisTemplate.delete(CACHE_KEY)
                 .doOnSuccess(deleted -> log.debug("Route cache invalidated"))
-                .subscribe(v -> refresh());
+                .subscribe(v -> refreshAsync());
     }
 
     public int getLoadedRouteCount() {

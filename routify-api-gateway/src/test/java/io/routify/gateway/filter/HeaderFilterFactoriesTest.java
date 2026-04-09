@@ -25,8 +25,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class HeaderFilterFactoriesTest {
 
-    private GatewayFilterChain passThroughChain() {
-        return exchange -> Mono.empty();
+    /**
+     * Chain that triggers {@code setComplete()} on the response so that
+     * {@code beforeCommit} callbacks registered by response-header filters are executed.
+     */
+    private GatewayFilterChain commitChain() {
+        return exchange -> exchange.getResponse().setComplete();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -141,6 +145,35 @@ class HeaderFilterFactoriesTest {
     }
 
     @Test
+    @DisplayName("RequestHeaderModify: set overwrites existing header value (not append)")
+    void requestHeaderModify_setOverwritesExisting() {
+        var factory = new RequestHeaderModifyGatewayFilterFactory();
+        var config = new RequestHeaderModifyGatewayFilterFactory.Config();
+        config.setSet(Map.of("X-Custom", "new-value"));
+        GatewayFilter filter = factory.apply(config);
+
+        // Request already has X-Custom with an old value
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/test")
+                .header("X-Custom", "old-value")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        final ServerHttpRequest[] captured = {null};
+        GatewayFilterChain capturingChain = ex -> {
+            captured[0] = ex.getRequest();
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, capturingChain))
+                .verifyComplete();
+
+        // Must be exactly one value — the new one, not [old-value, new-value]
+        assertThat(captured[0].getHeaders().get("X-Custom"))
+                .as("set operation should overwrite, not append")
+                .containsExactly("new-value");
+    }
+
+    @Test
     @DisplayName("RequestHeaderModify: removes headers")
     void requestHeaderModify_removesHeaders() {
         var factory = new RequestHeaderModifyGatewayFilterFactory();
@@ -231,8 +264,8 @@ class HeaderFilterFactoriesTest {
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/test").build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        // The chain must complete for the .then() to run
-        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+        // The chain must complete and commit for beforeCommit callbacks to fire
+        StepVerifier.create(filter.filter(exchange, commitChain()))
                 .verifyComplete();
 
         assertThat(exchange.getResponse().getHeaders().getFirst("X-Response-Custom"))
@@ -252,7 +285,7 @@ class HeaderFilterFactoriesTest {
         // Pre-set a response header to be removed
         exchange.getResponse().getHeaders().set("X-Unwanted", "should-be-removed");
 
-        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+        StepVerifier.create(filter.filter(exchange, commitChain()))
                 .verifyComplete();
 
         assertThat(exchange.getResponse().getHeaders().getFirst("X-Unwanted")).isNull();
@@ -269,7 +302,7 @@ class HeaderFilterFactoriesTest {
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/test").build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+        StepVerifier.create(filter.filter(exchange, commitChain()))
                 .verifyComplete();
 
         assertThat(exchange.getResponse().getHeaders().getFirst("X-Added-Resp"))

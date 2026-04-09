@@ -68,6 +68,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- JPA API — for @Sensitive field-level encryption (AttributeConverter) -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Phase 8 — Observability -->
         <dependency>
             <groupId>io.micrometer</groupId>

@@ -9,6 +9,7 @@ import RouteFormModal from './RouteFormModal'
 import RouteDetailModal from './RouteDetailModal'
 import RouteCurlModal from './RouteCurlModal'
 import PromoteDiffModal from './components/PromoteDiffModal'
+import { CanaryDeployModal } from './CanaryDeployModal'
 import ImportPreviewModal from './ImportPreviewModal'
 import { useRouteActions } from './useRouteActions'
 import { STATUS_CONFIG } from './constants/routeStatusConfig'
@@ -30,6 +31,7 @@ export default function RouteWorkflowPage() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null)
   const [curlRouteId, setCurlRouteId] = useState<string | null>(null)
   const [promoteRoute, setPromoteRoute] = useState<{ id: string; name: string } | null>(null)
+  const [canaryRoute, setCanaryRoute] = useState<{ id: string; name: string } | null>(null)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importModalOpen, setImportModalOpen] = useState(false)
 
@@ -59,7 +61,8 @@ export default function RouteWorkflowPage() {
     enabled: !!curlRouteId,
   })
 
-  const { activateMutation, deactivateMutation, deleteMutation, cloneMutation } = useRouteActions()
+  const { activateMutation, deactivateMutation, deleteMutation, cloneMutation, createStagingRevisionMutation } =
+    useRouteActions()
 
   // ─── Export / Import ─────────────────────────────────────────────────────
   const exportMutation = useMutation({
@@ -83,7 +86,15 @@ export default function RouteWorkflowPage() {
     setImportModalOpen(true)
   }
 
-  const routes = data?.content ?? []
+  const routes = (() => {
+    const raw = data?.content ?? []
+    const seen = new Set<string>()
+    return raw.filter((r) => {
+      if (seen.has(r.id)) return false
+      seen.add(r.id)
+      return true
+    })
+  })()
   const total = data?.totalElements ?? 0
   const totalPages = data?.totalPages ?? 0
 
@@ -158,8 +169,21 @@ export default function RouteWorkflowPage() {
                     ? () => setPromoteRoute({ id: route.id, name: route.name })
                     : undefined
                 }
+                onCreateStagingRevision={
+                  route.environment === 'PRODUCTION' && route.status === 'ACTIVE'
+                    ? () => createStagingRevisionMutation.mutate(route.id)
+                    : undefined
+                }
+                onDeployCanary={
+                  route.environment === 'PRODUCTION' && route.status === 'ACTIVE' && !route.canaryRouteId
+                    ? () => setCanaryRoute({ id: route.id, name: route.name })
+                    : undefined
+                }
                 isActivating={activateMutation.isPending && activateMutation.variables === route.id}
                 isCloning={cloneMutation.isPending && cloneMutation.variables === route.id}
+                isCreatingStagingRevision={
+                  createStagingRevisionMutation.isPending && createStagingRevisionMutation.variables === route.id
+                }
               />
             ))}
           </div>
@@ -181,6 +205,14 @@ export default function RouteWorkflowPage() {
       {selectedRouteId && <RouteDetailModal routeId={selectedRouteId} onClose={() => setSelectedRouteId(null)} />}
       {curlRouteId && curlRoute && <RouteCurlModal route={curlRoute} onClose={() => setCurlRouteId(null)} />}
       {promoteRoute && <PromoteDiffModal stagingRoute={promoteRoute} onClose={() => setPromoteRoute(null)} />}
+      {canaryRoute && (
+        <CanaryDeployModal
+          routeId={canaryRoute.id}
+          routeName={canaryRoute.name}
+          open={true}
+          onClose={() => setCanaryRoute(null)}
+        />
+      )}
       <ImportPreviewModal
         isOpen={importModalOpen}
         file={importFile}

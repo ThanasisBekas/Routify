@@ -20,7 +20,8 @@ export const usersApi = {
       .post<UserDto>(BASE, data, targetTenantId ? { headers: { 'X-Tenant-Id': targetTenantId } } : undefined)
       .then((r) => r.data),
 
-  updateRole: (id: string, role: UserRole) => apiClient.put<UserDto>(`${BASE}/${id}`, { role }).then((r) => r.data),
+  updateRole: (id: string, role: UserRole, roleId?: string) =>
+    apiClient.put<UserDto>(`${BASE}/${id}`, { role, ...(roleId && { roleId }) }).then((r) => r.data),
 
   delete: (id: string) => apiClient.delete(`${BASE}/${id}`),
 

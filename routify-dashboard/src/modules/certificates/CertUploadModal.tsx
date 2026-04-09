@@ -131,6 +131,7 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
             </div>
           ) : (
             <div>
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="block text-xs font-semibold text-gray-400 mb-2">
                 Certificate Group <span className="text-red-400">*</span>
               </label>
@@ -198,10 +199,11 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
 
           {/* Member alias */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+            <label htmlFor="field-member-alias-optional-0" className="block text-xs font-semibold text-gray-400 mb-1.5">
               Member Alias <span className="text-gray-600">(optional)</span>
             </label>
             <input
+              id="field-member-alias-optional-0"
               type="text"
               value={form.memberAlias}
               onChange={set('memberAlias')}
@@ -216,10 +218,11 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
           {/* Display name + format */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+              <label htmlFor="field-display-name-1" className="block text-xs font-semibold text-gray-400 mb-1.5">
                 Display Name <span className="text-red-400">*</span>
               </label>
               <input
+                id="field-display-name-1"
                 type="text"
                 value={form.alias}
                 onChange={set('alias')}
@@ -228,6 +231,7 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
               />
             </div>
             <div>
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="block text-xs font-semibold text-gray-400 mb-1.5">Format</label>
               <Select
                 value={form.format}
@@ -246,8 +250,11 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">Description</label>
+            <label className="block text-xs font-semibold text-gray-400 mb-1.5" htmlFor="field-description-0">
+              Description
+            </label>
             <input
+              id="field-description-0"
               type="text"
               value={form.description}
               onChange={set('description')}
@@ -259,10 +266,12 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
           {/* Certificate PEM */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
+              {}
               <label className="block text-xs font-semibold text-gray-400">
                 Certificate {form.format === 'PEM' ? '(PEM chain)' : '(base64-encoded PKCS12)'}{' '}
                 <span className="text-red-400">*</span>
               </label>
+              {}
               <label className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/4 border border-white/8 text-xs text-gray-400 hover:text-white cursor-pointer transition-colors">
                 <Upload className="w-3 h-3" />
                 Browse file
@@ -291,6 +300,7 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
           {form.format === 'PEM' && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-xs font-semibold text-gray-400">
                   Private Key <span className="text-gray-600">(optional)</span>
                 </label>
@@ -304,6 +314,7 @@ export default function CertUploadModal({ tenantId, preselectedGroup, onClose, o
                     {showPrivateKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                     {showPrivateKey ? 'Hide' : 'Show'}
                   </button>
+                  {}
                   <label className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/4 border border-white/8 text-xs text-gray-400 hover:text-white cursor-pointer transition-colors">
                     <Upload className="w-3 h-3" />
                     Browse file

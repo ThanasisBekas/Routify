@@ -60,7 +60,13 @@ public class SecurityHeadersGatewayFilterFactory
 
         @Override
         public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-            applySecurityHeaders(exchange.getResponse(), configLoader.getConfig());
+            // Register a beforeCommit callback so security headers are applied as the
+            // very last step before the response is written to the wire.  This ensures
+            // they cannot be overwritten by downstream filters or the upstream service.
+            exchange.getResponse().beforeCommit(() -> {
+                applySecurityHeaders(exchange.getResponse(), configLoader.getConfig());
+                return Mono.empty();
+            });
             return chain.filter(exchange);
         }
 

@@ -8,7 +8,6 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.core.Ordered;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
-import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.util.HashMap;
@@ -35,8 +34,12 @@ class GlobalSecurityHeadersFilterTest {
         filter = new GlobalSecurityHeadersFilter(configLoader);
     }
 
+    /**
+     * Pass-through chain that calls {@code setComplete()} to trigger
+     * {@code beforeCommit} callbacks registered by the filter under test.
+     */
     private GatewayFilterChain passThroughChain() {
-        return exchange -> Mono.empty();
+        return exchange -> exchange.getResponse().setComplete();
     }
 
     @Test

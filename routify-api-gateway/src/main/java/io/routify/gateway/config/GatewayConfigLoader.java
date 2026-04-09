@@ -16,11 +16,14 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -89,6 +92,14 @@ public class GatewayConfigLoader {
      */
     private final AtomicBoolean initialLoadDone = new AtomicBoolean(false);
 
+    /**
+     * Latch that is released once the initial config has been loaded.
+     * {@link DynamicRouteRefreshListener} waits on this before building routes
+     * to guarantee that global filter entries, tenant isolation settings, and
+     * auth provider refs are available during the first route build.
+     */
+    private final CountDownLatch initialConfigLoaded = new CountDownLatch(1);
+
     public GatewayConfigLoader(
             RabbitTemplate rabbitTemplate,
             ObjectMapper objectMapper,
@@ -104,12 +115,29 @@ public class GatewayConfigLoader {
 
     /**
      * Load gateway config from DB on application startup via RabbitMQ request/reply.
+     * Runs with highest precedence so the config is available before
+     * {@link DynamicRouteRefreshListener} builds the initial route definitions.
      */
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         log.info("Gateway starting — loading persisted configuration from route-service via RabbitMQ...");
         loadAndApplyConfig("startup", false);
         initialLoadDone.set(true);
+        initialConfigLoaded.countDown();
+    }
+
+    /**
+     * Blocks until the initial config load completes. Called by
+     * {@link DynamicRouteRefreshListener} before building routes.
+     */
+    public void awaitInitialConfig() {
+        try {
+            initialConfigLoaded.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while waiting for initial gateway config load");
+        }
     }
 
     /**

@@ -52,6 +52,7 @@ export default function TestRequestBuilder({ onRun, isRunning }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
       <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Test Request</label>
 
       {/* Method + Path */}

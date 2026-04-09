@@ -55,19 +55,25 @@ public class GlobalSecurityHeadersFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+        // Register a beforeCommit callback so security headers are applied just before
+        // the response is written to the wire — after all per-route filters have run,
+        // but before headers are flushed.  This replaces the previous .then(Mono.fromRunnable(...))
+        // pattern which ran too late (after the response was already committed for streaming responses).
+        exchange.getResponse().beforeCommit(() -> {
             Map<String, Object> gwConfig = configLoader.getConfig();
 
             // Respect the globalFilters.securityHeaders.enabled toggle
             if (!isGlobalFilterEnabled(gwConfig)) {
                 log.debug("GlobalSecurityHeaders: disabled via globalFilters toggle — skipping");
-                return;
+                return Mono.empty();
             }
 
             // Delegate to the shared header-application logic in the factory
             SecurityHeadersGatewayFilterFactory.applySecurityHeaders(
                     exchange.getResponse(), gwConfig);
-        }));
+            return Mono.empty();
+        });
+        return chain.filter(exchange);
     }
 
     @Override

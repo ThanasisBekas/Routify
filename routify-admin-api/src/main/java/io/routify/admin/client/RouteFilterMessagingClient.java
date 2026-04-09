@@ -5,6 +5,7 @@ import io.routify.admin.dto.CreateFilterRequest;
 import io.routify.admin.dto.CreateRouteRequest;
 import io.routify.admin.dto.UpdateFilterRequest;
 import io.routify.admin.dto.UpdateRouteRequest;
+import io.routify.admin.service.FilterConfigValidator;
 import io.routify.common.client.AmqpServiceClientSupport;
 import io.routify.common.client.KafkaServiceClientSupport;
 import io.routify.common.domain.FilterType;
@@ -14,6 +15,7 @@ import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.event.RabbitTopology;
 import io.routify.common.observability.RoutifyMetrics;
+import io.routify.common.exception.RoutifyException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -39,13 +41,16 @@ import java.util.UUID;
 public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
 
     private final KafkaServiceClientSupport kafka;
+    private final FilterConfigValidator filterConfigValidator;
 
     public RouteFilterMessagingClient(RabbitTemplate rabbitTemplate,
                                       ObjectMapper objectMapper,
                                       KafkaTemplate<String, Object> kafkaTemplate,
-                                      RoutifyMetrics metrics) {
+                                      RoutifyMetrics metrics,
+                                      FilterConfigValidator filterConfigValidator) {
         super(rabbitTemplate, objectMapper, RabbitTopology.EXCHANGE_ROUTE_SERVICE, "admin-api", metrics);
         this.kafka = new KafkaServiceClientSupport(kafkaTemplate, "admin-api") {};
+        this.filterConfigValidator = filterConfigValidator;
     }
 
     // ─── Route Queries (RabbitMQ) ─────────────────────────────────────────────
@@ -147,6 +152,24 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
         return null;
     }
 
+    @CircuitBreaker(name = "route-service", fallbackMethod = "queryDeprecatedFilterUsageFallback")
+    public QueryResponse.DeprecatedFilterUsageResult queryDeprecatedFilterUsage(UUID tenantId) {
+        try {
+            return rpc(RabbitTopology.RK_FILTERS_DEPRECATED_USAGE,
+                    new QueryRequest.DeprecatedFilterUsage(tenantId),
+                    QueryResponse.DeprecatedFilterUsageResult.class);
+        } catch (Exception e) {
+            log.error("queryDeprecatedFilterUsage failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.DeprecatedFilterUsageResult queryDeprecatedFilterUsageFallback(UUID tenantId, Throwable t) {
+        log.warn("queryDeprecatedFilterUsage circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.DeprecatedFilterUsageResult(0, java.util.Map.of(), java.util.List.of());
+    }
+
     // ─── Route Commands (Kafka) ───────────────────────────────────────────────
 
     public void sendCreateRoute(UUID tenantId, String actor, CreateRouteRequest req) {
@@ -184,6 +207,11 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     public void sendPromoteRoute(UUID routeId, UUID tenantId, String actor) {
         kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
                 new CommandEvent.PromoteRoute(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
+    }
+
+    public void sendCreateStagingRevision(UUID routeId, UUID tenantId, String actor) {
+        kafka.publishCommand(KafkaTopics.ROUTE_COMMANDS,
+                new CommandEvent.CreateStagingRevision(UUID.randomUUID(), tenantId, actor, Instant.now(), routeId));
     }
 
     // ─── Canary Commands (Kafka) ───────────────────────────────────────────────
@@ -250,13 +278,33 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
     // ─── Filter Commands (Kafka) ──────────────────────────────────────────────
 
     public void sendCreateFilter(UUID tenantId, String actor, CreateFilterRequest req) {
-        FilterType type = req.filterType() != null
-                ? FilterType.valueOf(req.filterType().toUpperCase())
-                : FilterType.CUSTOM_SPEL;
+        FilterType type = resolveFilterType(req.filterType());
+        filterConfigValidator.validate(type, req.config());
         kafka.publishCommand(KafkaTopics.FILTER_COMMANDS, new CommandEvent.CreateFilter(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
                 req.name(), req.description(), type,
                 req.config(), req.gatewayConfigRef()));
+    }
+
+    /**
+     * Resolves and validates a filter type string against the {@link FilterType} enum.
+     * Throws {@link RoutifyException.Validation} for unknown or deprecated types.
+     */
+    private FilterType resolveFilterType(String filterTypeStr) {
+        FilterType type;
+        try {
+            type = FilterType.valueOf(filterTypeStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new RoutifyException.Validation(
+                    "Unknown filter type '%s'. Must be one of the supported FilterType values."
+                            .formatted(filterTypeStr));
+        }
+        if (type.isDeprecated()) {
+            throw new RoutifyException.Validation(
+                    "Filter type '%s' is deprecated and cannot be used for new filters. Use '%s' instead."
+                            .formatted(type.name(), FilterType.suggestedReplacement(type)));
+        }
+        return type;
     }
 
     public void sendUpdateFilter(UUID id, UUID tenantId, String actor, UpdateFilterRequest req) {

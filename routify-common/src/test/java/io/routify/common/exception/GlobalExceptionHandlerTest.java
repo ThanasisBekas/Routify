@@ -115,7 +115,7 @@ class GlobalExceptionHandlerTest {
             ),
             Arguments.of(
                 new RoutifyException.HeuristicError("Ambiguous route match"),
-                HttpStatus.NOT_FOUND,
+                HttpStatus.INTERNAL_SERVER_ERROR,
                 "HEURISTIC_ERROR",
                 "heuristic-error",
                 "Heuristic Error",

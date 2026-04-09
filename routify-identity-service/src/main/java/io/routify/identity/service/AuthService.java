@@ -194,16 +194,28 @@ public class AuthService {
         userRepository.save(user);
         log.info("Admin reset password for userId={} in tenantId={}", targetUserId, tenantId);
     }
+
+     /**
+     * Revokes a refresh token by adding its {@code jti} to the Redis blocklist with a
+     * TTL equal to the token's remaining lifetime.  Called on logout.
+     *
+     * <p>The API gateway checks this blocklist via {@code JwtAuthGatewayFilterFactory}
+     * on every incoming request (see Phase 3.2 — token blocklist).
+     */
     public void revokeRefreshToken(String rawRefreshToken) {
         try {
             var claims = jwtService.validateAndParseClaims(rawRefreshToken);
             String jti = claims.getId();
             if (jti != null) {
-                redisTemplate.opsForValue().set(
-                        RedisKeys.BLOCKLIST_PREFIX + jti,
-                        "1",
-                        Duration.ofSeconds(jwtService.getRefreshTokenTtlSeconds()));
-                log.debug("Refresh token revoked: jti={}", jti);
+                long remainingTtl = claims.getExpiration().toInstant()
+                        .getEpochSecond() - Instant.now().getEpochSecond();
+                if (remainingTtl > 0) {
+                    redisTemplate.opsForValue().set(
+                            RedisKeys.BLOCKLIST_PREFIX + jti,
+                            "1",
+                            Duration.ofSeconds(remainingTtl));
+                    log.debug("Refresh token revoked: jti={} ttl={}s", jti, remainingTtl);
+                }
             }
         } catch (Exception e) {
             // Token may already be expired — that's fine; it can't be used anyway

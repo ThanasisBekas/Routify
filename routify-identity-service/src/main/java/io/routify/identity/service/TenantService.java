@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -41,6 +42,15 @@ public class TenantService {
     @Transactional(readOnly = true)
     public Page<Tenant> findAll(Pageable pageable) {
         return tenantRepository.findAll(pageable);
+    }
+
+    /**
+     * Returns all active tenants (non-paginated).
+     * Used for internal cache warmup — bypasses the paginated cache.
+     */
+    @Transactional(readOnly = true)
+    public List<Tenant> findAllActive() {
+        return tenantRepository.findAllByStatus(Tenant.Status.ACTIVE);
     }
 
     @Cacheable(value = CacheConfig.CACHE_TENANTS, key = "#id")

@@ -92,6 +92,9 @@ management:
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 routify:
+  # ─── @Sensitive field-level encryption ──────────────────────────────────────
+  field-encryption-key: ${FIELD_ENCRYPTION_KEY:}
+
   jwt:
     private-key: ${JWT_PRIVATE_KEY:}
     public-key: ${JWT_PUBLIC_KEY:}
@@ -116,7 +119,8 @@ routify:
   required-secrets: >-
     spring.datasource.password,
     spring.rabbitmq.password,
-    spring.data.redis.password
+    spring.data.redis.password,
+    routify.field-encryption-key
 
 
 
