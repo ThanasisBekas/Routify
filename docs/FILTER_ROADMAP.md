@@ -494,9 +494,19 @@ Update each deprecated value's Javadoc to include `@see` or `@deprecated Use {@l
 
 ---
 
-## Initiative 7: Observability & Resilience Improvements
+## Initiative 7: Observability & Resilience Improvements ✅ COMPLETED
 
 **Priority: 🟢 Low** | **Effort: M** | **Risk: Low — improvements, not bugs**
+
+**Status: ✅ Completed** — All issues resolved. Changes:
+- `CorrelationIdGatewayFilterFactory`: added incoming correlation ID validation — max 128 characters, allowed character pattern (`[a-zA-Z0-9._:/@-]`), rejects control characters and oversized values with warning log and generates a new UUID (Issue 7.1)
+- `SecurityHeadersGatewayFilterFactory`: replaced pre-chain `applySecurityHeaders()` call with `exchange.getResponse().beforeCommit()` callback so security headers cannot be overwritten by downstream filters or the upstream service (Issue 7.2)
+- `GlobalSecurityHeadersFilter`: replaced `.then(Mono.fromRunnable(...))` with `beforeCommit()` callback — fixes the same timing issue as Initiative 2.2 for streaming/chunked responses (Issue 7.2)
+- `SpelCustomGatewayFilterFactory`: wrapped `kafkaTemplate.send()` in `Mono.fromRunnable().subscribeOn(Schedulers.boundedElastic()).subscribe()` — offloads audit event publishing off the Netty event loop to prevent potential blocking from Kafka producer buffer back-pressure (Issue 7.3)
+- Updated `CorrelationIdGatewayFilterFactoryTest` — 10 tests (4 existing + 6 new): oversized ID replaced, control chars replaced, null byte replaced, exactly 128-char preserved, custom trace IDs with dots/colons/slashes preserved, unit-level `isValidCorrelationId()` checks
+- Updated `SecurityHeadersGatewayFilterFactoryTest` — 7 tests (6 existing updated to trigger `beforeCommit` via `setComplete()` + 1 new: downstream header override proves `beforeCommit` wins)
+- Updated `GlobalSecurityHeadersFilterTest` — 5 existing tests updated to trigger `beforeCommit` via `setComplete()`
+- Updated `SpelSandboxingTest` — 3 audit event tests updated to use `Mockito.timeout(2000)` instead of `times(1)` for async `boundedElastic` verification
 
 ### Issue 7.1: `CorrelationIdGatewayFilterFactory` does not validate incoming correlation IDs
 
@@ -570,7 +580,7 @@ kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS, key, auditPayload);
 | **4** | Test Coverage | ✅ Done | M | api-gateway (tests) |
 | **5** | Config Mapping | ✅ Done | S | api-gateway |
 | **6** | Deprecated & Unused Filter Cleanup | ✅ Done | M | **all layers** — common, admin-api, api-gateway, route-service, dashboard |
-| **7** | Observability | 🟢 Low | M | api-gateway |
+| **7** | Observability | ✅ Done | M | api-gateway |
 
 ### Suggested Sprint Breakdown
 
