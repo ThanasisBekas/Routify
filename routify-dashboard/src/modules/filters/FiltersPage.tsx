@@ -8,8 +8,8 @@
  *  - Slide-over drawer for create / edit
  */
 import { useState, useMemo } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Filter, Plus, Search, Pencil, Trash2, Loader2, ChevronRight, Layers } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Filter, Plus, Search, Pencil, Trash2, Loader2, ChevronRight, Layers, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { filtersApi } from '../../api/filtersApi'
 import FilterDefinitionForm from './FilterDefinitionForm'
@@ -17,7 +17,7 @@ import type { FilterSummary } from '../../types'
 import { cn } from '../../lib/utils'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
-import { FILTER_REGISTRY, CATEGORY_ORDER, CATEGORY_COLORS, getFilterEntry, type FilterCategory } from './filterRegistry'
+import { FILTER_REGISTRY, CATEGORY_ORDER, CATEGORY_COLORS, getFilterEntry, DEPRECATED_FILTER_TYPES, DEPRECATED_REPLACEMENTS, type FilterCategory } from './filterRegistry'
 
 // ─── Stats bar ────────────────────────────────────────────────────────────────
 
@@ -126,9 +126,14 @@ function FilterCard({
   isDeleting: boolean
 }) {
   const entry = getFilterEntry(filter.filterType)
-  const category = entry?.category ?? 'Custom'
-  const catColor = CATEGORY_COLORS[category as FilterCategory] ?? 'text-gray-400 bg-gray-400/10 border-gray-400/20'
-  const nodeColor = entry ?? { color: 'text-gray-400', bg: 'bg-gray-400/10', border: 'border-gray-400/20' }
+  const isDeprecated = DEPRECATED_FILTER_TYPES.has(filter.filterType)
+  const category = entry?.category ?? (isDeprecated ? 'Legacy' : 'Custom')
+  const catColor = isDeprecated
+    ? 'text-amber-400 bg-amber-400/10 border-amber-400/20'
+    : (CATEGORY_COLORS[category as FilterCategory] ?? 'text-gray-400 bg-gray-400/10 border-gray-400/20')
+  const nodeColor = isDeprecated
+    ? { color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20' }
+    : (entry ?? { color: 'text-gray-400', bg: 'bg-gray-400/10', border: 'border-gray-400/20' })
 
   const canDelete = filter.usageCount === 0 && !isDeleting
 
@@ -152,12 +157,20 @@ function FilterCard({
             )}
           >
             <span className={cn('text-base font-bold leading-none', nodeColor.color)}>
-              {entry?.label.slice(0, 2).toUpperCase() ?? '??'}
+              {entry?.label.slice(0, 2).toUpperCase() ?? (isDeprecated ? '⚠' : '??')}
             </span>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-bold text-white leading-tight truncate max-w-[160px]">{filter.name}</span>
+              {isDeprecated && (
+                <span
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 cursor-help"
+                  title={`Deprecated — migrate to ${DEPRECATED_REPLACEMENTS[filter.filterType]?.label ?? 'a modern replacement'}`}
+                >
+                  DEPRECATED
+                </span>
+              )}
               {!filter.enabled && (
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/15 border border-yellow-500/30 text-yellow-400">
                   DISABLED
@@ -345,6 +358,52 @@ function FilterTypeBrowser({ onCreateWithType }: { onCreateWithType: (type: stri
   )
 }
 
+// ─── Deprecated filters summary card ──────────────────────────────────────────
+
+function DeprecatedFiltersSummary() {
+  const { data } = useQuery({
+    queryKey: ['filters', 'deprecated-usage'],
+    queryFn: () => filtersApi.deprecatedUsage(),
+    staleTime: 60_000,
+  })
+
+  if (!data || data.totalDeprecated === 0) return null
+
+  return (
+    <div className="mx-6 mt-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] overflow-hidden">
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-amber-500/10">
+        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+        <span className="text-sm font-bold text-amber-300">
+          {data.totalDeprecated} Deprecated Filter{data.totalDeprecated !== 1 ? 's' : ''}
+        </span>
+        <span className="text-xs text-amber-400/60">— consider migrating to modern replacements</span>
+      </div>
+      <div className="px-4 py-3 space-y-2">
+        {/* By type breakdown */}
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(data.byType).map(([type, count]) => (
+            <span
+              key={type}
+              className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md border text-amber-400 bg-amber-400/10 border-amber-400/20 cursor-help"
+              title={`${count} filter${count !== 1 ? 's' : ''} using deprecated type ${type}. Migrate to ${DEPRECATED_REPLACEMENTS[type]?.label ?? 'a modern alternative'}`}
+            >
+              {type} ×{count}
+            </span>
+          ))}
+        </div>
+        {/* Affected routes */}
+        {data.affectedRoutes.length > 0 && (
+          <div className="text-xs text-amber-400/70">
+            <span className="font-semibold">Affected routes: </span>
+            {data.affectedRoutes.slice(0, 5).join(', ')}
+            {data.affectedRoutes.length > 5 && ` and ${data.affectedRoutes.length - 5} more`}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function FiltersPage() {
@@ -455,6 +514,11 @@ export default function FiltersPage() {
             />
           </div>
         </div>
+      )}
+
+      {/* ── Deprecated filters summary ──────────────────────────────────── */}
+      {!isLoading && allFilters.length > 0 && (
+        <DeprecatedFiltersSummary />
       )}
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}

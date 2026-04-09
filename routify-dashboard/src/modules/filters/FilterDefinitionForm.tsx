@@ -16,6 +16,7 @@ import FilterConfigFields from './FilterConfigFields'
 import { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './filterConfigConstants'
 import { cn, extractApiError } from '../../lib/utils'
 import { FILTER_REGISTRY, CATEGORY_ORDER, CATEGORY_COLORS } from './filterRegistry'
+import { DEPRECATED_FILTER_TYPES, DEPRECATED_REPLACEMENTS } from './filterRegistry'
 import { GatewayConfigRefPanel } from './GatewayConfigRefPanel'
 import { supportsConfigRef } from './gatewayConfigRefUtils'
 
@@ -378,6 +379,33 @@ export default function FilterDefinitionForm({
                   {isUsedByRoutes && isUsedAsGlobal && ' and '}
                   {isUsedAsGlobal && 'remove it from the global filters (Gateway → Global Filters)'} before editing.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Deprecated filter banner ──────────────────────────────────────────── */}
+        {isEdit && existing && DEPRECATED_FILTER_TYPES.has(existing.filterType) && !loadingExisting && (
+          <div className="px-6 py-3 bg-amber-500/8 border-b border-amber-500/20 shrink-0">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+              <div className="text-sm text-amber-300 leading-relaxed">
+                <p className="font-semibold">
+                  ⚠️ This filter uses a deprecated type (<code className="font-mono text-xs bg-amber-500/20 px-1 rounded">{existing.filterType}</code>).
+                </p>
+                <p className="mt-1 text-xs text-amber-400/70">
+                  It will continue to function but should be replaced with{' '}
+                  <strong>{DEPRECATED_REPLACEMENTS[existing.filterType]?.label ?? 'a modern alternative'}</strong>.
+                </p>
+                {DEPRECATED_REPLACEMENTS[existing.filterType]?.type && (
+                  <p className="mt-1.5 text-xs text-amber-400/60">
+                    Create a new filter with type{' '}
+                    <code className="font-mono bg-amber-500/20 px-1 rounded">
+                      {DEPRECATED_REPLACEMENTS[existing.filterType]?.type}
+                    </code>{' '}
+                    and migrate all routes to the new filter.
+                  </p>
+                )}
               </div>
             </div>
           </div>

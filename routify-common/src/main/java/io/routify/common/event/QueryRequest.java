@@ -46,6 +46,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.RouteClone.class,        name = "ROUTE_CLONE"),
     @JsonSubTypes.Type(value = QueryRequest.FiltersQuery.class,      name = "FILTERS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.FilterGet.class,         name = "FILTER_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.DeprecatedFilterUsage.class, name = "DEPRECATED_FILTER_USAGE"),
     // ─── routify-identity-service ─────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AuthLogin.class,         name = "AUTH_LOGIN"),
     @JsonSubTypes.Type(value = QueryRequest.AuthRefresh.class,       name = "AUTH_REFRESH"),
@@ -135,6 +136,7 @@ public sealed interface QueryRequest
             QueryRequest.RouteClone,
             QueryRequest.FiltersQuery,
             QueryRequest.FilterGet,
+            QueryRequest.DeprecatedFilterUsage,
             QueryRequest.AuthLogin,
             QueryRequest.AuthRefresh,
             QueryRequest.AuthChangePassword,
@@ -244,6 +246,9 @@ public sealed interface QueryRequest
 
     /** Fetch a single filter definition by ID. */
     record FilterGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Query deprecated filter usage statistics for a tenant. */
+    record DeprecatedFilterUsage(UUID tenantId) implements QueryRequest {}
 
     // ─── routify-identity-service ─────────────────────────────────────────────
 

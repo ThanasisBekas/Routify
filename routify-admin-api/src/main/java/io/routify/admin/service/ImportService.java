@@ -155,12 +155,20 @@ public class ImportService {
         if (importDoc.filters() != null) {
             for (FilterExportEntry importFilter : importDoc.filters()) {
                 // Validate filter type
+                FilterType filterType;
                 try {
-                    FilterType.valueOf(importFilter.filterType().name());
+                    filterType = FilterType.valueOf(importFilter.filterType().name());
                 } catch (Exception e) {
                     throw new RoutifyException.Validation(
                             "Unknown filter type '%s' for filter '%s'"
                                     .formatted(importFilter.filterType(), importFilter.name()));
+                }
+
+                // Warn about deprecated filter types (non-blocking — imports must still succeed)
+                if (filterType.isDeprecated()) {
+                    warnings.add("Filter '%s' uses deprecated type %s — consider migrating to %s"
+                            .formatted(importFilter.name(), filterType.name(),
+                                    FilterType.suggestedReplacement(filterType)));
                 }
 
                 QueryResponse.FilterDetail existing = currentFilters.get(importFilter.name());

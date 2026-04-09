@@ -121,12 +121,14 @@ public class ExportService {
         Map<String, Object> config = detail != null && detail.config() != null
                 ? detail.config()
                 : Map.of();
+        boolean isDeprecated = summary.filterType() != null && summary.filterType().isDeprecated();
         return new FilterExportEntry(
                 summary.name(),
                 summary.filterType(),
                 detail != null ? detail.description() : null,
                 summary.enabled() != null && summary.enabled(),
-                config
+                config,
+                isDeprecated
         );
     }
 

@@ -404,6 +404,14 @@ export interface UpdateFilterRequest {
   gatewayConfigRef?: GatewayConfigRefDto | null
 }
 
+// ─── Deprecated Filter Usage ──────────────────────────────────────────────────
+
+export interface DeprecatedFilterUsageResult {
+  totalDeprecated: number
+  byType: Record<string, number>
+  affectedRoutes: string[]
+}
+
 // ─── Audit ────────────────────────────────────────────────────────────────────
 
 export interface AuditEntry {
