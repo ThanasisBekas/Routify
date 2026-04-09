@@ -65,6 +65,7 @@ public class AcmeAccount {
 
     public enum AcmeProvider {
         LETSENCRYPT,
+        LETSENCRYPT_STAGING,
         ZEROSSSL
     }
 

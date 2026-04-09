@@ -814,7 +814,7 @@ export interface CertLogicalIdEntry {
 
 // ─── ACME (Automated Certificate Lifecycle) ──────────────────────────────────
 
-export type AcmeProvider = 'LETSENCRYPT' | 'ZEROSSSL'
+export type AcmeProvider = 'LETSENCRYPT' | 'LETSENCRYPT_STAGING' | 'ZEROSSSL'
 export type AcmeOrderStatus = 'PENDING' | 'VALIDATING' | 'COMPLETED' | 'FAILED' | 'RENEWAL_FAILED'
 
 export interface AcmeAccountDto {
