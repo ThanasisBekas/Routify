@@ -77,10 +77,14 @@ management:
 
 routify:
 
+  # ─── AES-256-GCM encryption key for gateway config secrets ──────────────────
+  field-encryption-key: ${FIELD_ENCRYPTION_KEY:}
+
   # ─── Startup secret validation ────────────────────────────────────────────────
   required-secrets: >-
     spring.rabbitmq.password,
-    spring.data.redis.password
+    spring.data.redis.password,
+    routify.field-encryption-key
 
 
 
