@@ -3,6 +3,7 @@ package io.routify.admin.gateway.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.routify.admin.client.RouteFilterMessagingClient;
 import io.routify.admin.gateway.dto.GatewayConfigDto;
 import io.routify.admin.gateway.dto.GatewayConfigDto.AuthProviderDto;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,7 @@ class GatewayConfigServicePasswordHashingTest {
     private StringRedisTemplate redisTemplate;
     private GatewayActuatorClient gatewayActuatorClient;
     private RouteServiceConfigClient routeServiceConfigClient;
+    private RouteFilterMessagingClient routeFilterMessagingClient;
     private GatewayConfigService service;
 
     @BeforeEach
@@ -50,6 +52,7 @@ class GatewayConfigServicePasswordHashingTest {
         redisTemplate = mock(StringRedisTemplate.class);
         gatewayActuatorClient = mock(GatewayActuatorClient.class);
         routeServiceConfigClient = mock(RouteServiceConfigClient.class);
+        routeFilterMessagingClient = mock(RouteFilterMessagingClient.class);
 
         // Stub Redis operations
         @SuppressWarnings("unchecked")
@@ -67,7 +70,7 @@ class GatewayConfigServicePasswordHashingTest {
         when(routeServiceConfigClient.saveConfig(any(), anyString(), anyString()))
                 .thenReturn(Map.of());
 
-        service = new GatewayConfigService(redisTemplate, MAPPER, gatewayActuatorClient, routeServiceConfigClient);
+        service = new GatewayConfigService(redisTemplate, MAPPER, gatewayActuatorClient, routeServiceConfigClient, routeFilterMessagingClient);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

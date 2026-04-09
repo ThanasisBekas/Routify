@@ -238,7 +238,10 @@ export default function RouteWorkflowCard({
           </div>
           <div className="flex h-1.5 overflow-hidden rounded-full bg-white/[0.04]">
             <div className="bg-blue-500 transition-all duration-500" style={{ width: `${route.trafficWeight}%` }} />
-            <div className="bg-amber-500 transition-all duration-500" style={{ width: `${100 - route.trafficWeight}%` }} />
+            <div
+              className="bg-amber-500 transition-all duration-500"
+              style={{ width: `${100 - route.trafficWeight}%` }}
+            />
           </div>
         </div>
       )}
@@ -308,16 +311,19 @@ export default function RouteWorkflowCard({
             </button>
           )}
 
-          {route.environment === 'PRODUCTION' && route.status === 'ACTIVE' && !route.canaryRouteId && onDeployCanary && (
-            <button
-              onClick={onDeployCanary}
-              title="Deploy a canary version with weighted traffic splitting"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/20 transition-all"
-            >
-              <Rocket className="w-3 h-3" />
-              Canary
-            </button>
-          )}
+          {route.environment === 'PRODUCTION' &&
+            route.status === 'ACTIVE' &&
+            !route.canaryRouteId &&
+            onDeployCanary && (
+              <button
+                onClick={onDeployCanary}
+                title="Deploy a canary version with weighted traffic splitting"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/20 transition-all"
+              >
+                <Rocket className="w-3 h-3" />
+                Canary
+              </button>
+            )}
 
           {/* Edit */}
           <button

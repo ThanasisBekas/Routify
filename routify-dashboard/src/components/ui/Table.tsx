@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * Table — shared table primitive for Routify Dashboard.
  *

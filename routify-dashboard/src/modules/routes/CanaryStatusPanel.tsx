@@ -119,7 +119,10 @@ export function CanaryStatusPanel({ routeId }: CanaryStatusPanelProps) {
       </div>
 
       <div className="mb-3 text-xs text-gray-500">
-        Canary upstream: <code className="rounded bg-white/[0.06] px-1.5 py-0.5 text-amber-300 font-mono text-[10px]">{status.canaryUpstreamUri}</code>
+        Canary upstream:{' '}
+        <code className="rounded bg-white/[0.06] px-1.5 py-0.5 text-amber-300 font-mono text-[10px]">
+          {status.canaryUpstreamUri}
+        </code>
       </div>
 
       {/* Weight adjustment */}

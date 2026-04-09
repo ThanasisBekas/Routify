@@ -16,7 +16,8 @@ import FilterConfigFields from './FilterConfigFields'
 import { DEFAULT_CONFIGS, type FilterConfig, inputCls } from './filterConfigConstants'
 import { cn, extractApiError } from '../../lib/utils'
 import { FILTER_REGISTRY, CATEGORY_ORDER, CATEGORY_COLORS } from './filterRegistry'
-import { GatewayConfigRefPanel, supportsConfigRef } from './GatewayConfigRefPanel'
+import { GatewayConfigRefPanel } from './GatewayConfigRefPanel'
+import { supportsConfigRef } from './gatewayConfigRefUtils'
 
 // ─── Re-shape registry for the picker ────────────────────────────────────────
 
@@ -325,12 +326,12 @@ export default function FilterDefinitionForm({
         {/* ── Header ───────────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/6 shrink-0">
           <div className="flex items-center gap-3">
-            <div className={cn(
-              'w-8 h-8 rounded-xl border flex items-center justify-center shrink-0',
-              isInUse
-                ? 'bg-amber-500/20 border-amber-500/30'
-                : 'bg-indigo-500/20 border-indigo-500/30',
-            )}>
+            <div
+              className={cn(
+                'w-8 h-8 rounded-xl border flex items-center justify-center shrink-0',
+                isInUse ? 'bg-amber-500/20 border-amber-500/30' : 'bg-indigo-500/20 border-indigo-500/30',
+              )}
+            >
               {isInUse ? <Lock className="w-4 h-4 text-amber-400" /> : <Filter className="w-4 h-4 text-indigo-400" />}
             </div>
             <div>
@@ -375,8 +376,7 @@ export default function FilterDefinitionForm({
                 <p className="mt-1.5 text-xs text-amber-400/60">
                   {isUsedByRoutes && 'Detach this filter from all routes'}
                   {isUsedByRoutes && isUsedAsGlobal && ' and '}
-                  {isUsedAsGlobal && 'remove it from the global filters (Gateway → Global Filters)'}
-                  {' '}before editing.
+                  {isUsedAsGlobal && 'remove it from the global filters (Gateway → Global Filters)'} before editing.
                 </p>
               </div>
             </div>
@@ -393,65 +393,84 @@ export default function FilterDefinitionForm({
           ) : (
             <form id="filter-form" onSubmit={handleSubmit}>
               <fieldset disabled={isInUse} className={cn(isInUse && 'opacity-60 pointer-events-none')}>
-              {/* Two-column layout on md+ screens */}
-              <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] divide-y md:divide-y-0 md:divide-x divide-white/6">
-                {/* ── Left panel — identity & type ─────────────────────────── */}
-                <div className="p-6 space-y-5">
-                  {/* Name */}
-                  <div className="space-y-1.5">
-                    <label
-                      className="text-xs font-semibold text-gray-400 uppercase tracking-wider"
-                      htmlFor="field-name-0"
-                    >
-                      Name *
-                    </label>
-                    <input
-                      id="field-name-0"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. jwt-auth-prod"
-                      className={inputCls}
-                    />
+                {/* Two-column layout on md+ screens */}
+                <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] divide-y md:divide-y-0 md:divide-x divide-white/6">
+                  {/* ── Left panel — identity & type ─────────────────────────── */}
+                  <div className="p-6 space-y-5">
+                    {/* Name */}
+                    <div className="space-y-1.5">
+                      <label
+                        className="text-xs font-semibold text-gray-400 uppercase tracking-wider"
+                        htmlFor="field-name-0"
+                      >
+                        Name *
+                      </label>
+                      <input
+                        id="field-name-0"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. jwt-auth-prod"
+                        className={inputCls}
+                      />
+                    </div>
+
+                    {/* Description */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
+                        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Description
+                        </label>
+                        <span className="text-[10px] text-gray-600">optional</span>
+                      </div>
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="What does this filter do?"
+                        rows={3}
+                        className={`${inputCls} resize-none`}
+                      />
+                    </div>
+
+                    {/* Filter Type Picker — create mode only */}
+                    {!isEdit && (
+                      <div className="space-y-1.5">
+                        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
+                        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Filter Type *
+                        </label>
+                        <FilterTypePicker value={filterType} onChange={handleTypeChange} />
+                      </div>
+                    )}
+
+                    {/* Edit mode — type badge */}
+                    {isEdit && selectedMeta && (
+                      <div className="space-y-1.5">
+                        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
+                        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Filter Type
+                        </label>
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/3 border border-white/7">
+                          <span
+                            className={cn(
+                              'text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0',
+                              CATEGORY_COLORS[selectedMeta.category as keyof typeof CATEGORY_COLORS] ?? '',
+                            )}
+                          >
+                            {selectedMeta.category}
+                          </span>
+                          <span className="text-sm text-gray-300 font-medium truncate">{selectedMeta.label}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Description */}
-                  <div className="space-y-1.5">
+                  {/* ── Right panel — type-specific configuration ─────────────── */}
+                  <div className="p-6 space-y-5">
+                    {/* Config section header */}
                     <div className="flex items-center gap-2">
-                      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                        Description
-                      </label>
-                      <span className="text-[10px] text-gray-600">optional</span>
-                    </div>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="What does this filter do?"
-                      rows={3}
-                      className={`${inputCls} resize-none`}
-                    />
-                  </div>
-
-                  {/* Filter Type Picker — create mode only */}
-                  {!isEdit && (
-                    <div className="space-y-1.5">
-                      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                        Filter Type *
-                      </label>
-                      <FilterTypePicker value={filterType} onChange={handleTypeChange} />
-                    </div>
-                  )}
-
-                  {/* Edit mode — type badge */}
-                  {isEdit && selectedMeta && (
-                    <div className="space-y-1.5">
-                      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-                      <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                        Filter Type
-                      </label>
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/3 border border-white/7">
+                      {selectedMeta && (
                         <span
                           className={cn(
                             'text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0',
@@ -460,52 +479,33 @@ export default function FilterDefinitionForm({
                         >
                           {selectedMeta.category}
                         </span>
-                        <span className="text-sm text-gray-300 font-medium truncate">{selectedMeta.label}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* ── Right panel — type-specific configuration ─────────────── */}
-                <div className="p-6 space-y-5">
-                  {/* Config section header */}
-                  <div className="flex items-center gap-2">
-                    {selectedMeta && (
-                      <span
-                        className={cn(
-                          'text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0',
-                          CATEGORY_COLORS[selectedMeta.category as keyof typeof CATEGORY_COLORS] ?? '',
-                        )}
-                      >
-                        {selectedMeta.category}
+                      )}
+                      <span className="text-xs font-semibold text-gray-400">
+                        {isEdit ? filterType.replace(/_/g, ' ') : (selectedMeta?.label ?? filterType)} Configuration
                       </span>
-                    )}
-                    <span className="text-xs font-semibold text-gray-400">
-                      {isEdit ? filterType.replace(/_/g, ' ') : (selectedMeta?.label ?? filterType)} Configuration
-                    </span>
-                  </div>
-
-                  {/* Gateway Config Ref panel (P-27) — shown for filter types that support refs */}
-                  {supportsConfigRef(filterType) && (
-                    <GatewayConfigRefPanel
-                      filterType={filterType}
-                      value={gatewayConfigRef}
-                      onChange={setGatewayConfigRef}
-                    />
-                  )}
-
-                  {/* Type-specific fields */}
-                  <FilterConfigFields filterType={filterType} config={config} onChange={setConfig} />
-
-                  {/* Error banner */}
-                  {error && (
-                    <div className="flex items-start gap-2.5 p-3.5 bg-red-500/8 border border-red-500/20 rounded-xl">
-                      <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                      <span className="text-sm text-red-300">{extractApiError(error, 'Failed to save filter')}</span>
                     </div>
-                  )}
+
+                    {/* Gateway Config Ref panel (P-27) — shown for filter types that support refs */}
+                    {supportsConfigRef(filterType) && (
+                      <GatewayConfigRefPanel
+                        filterType={filterType}
+                        value={gatewayConfigRef}
+                        onChange={setGatewayConfigRef}
+                      />
+                    )}
+
+                    {/* Type-specific fields */}
+                    <FilterConfigFields filterType={filterType} config={config} onChange={setConfig} />
+
+                    {/* Error banner */}
+                    {error && (
+                      <div className="flex items-start gap-2.5 p-3.5 bg-red-500/8 border border-red-500/20 rounded-xl">
+                        <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                        <span className="text-sm text-red-300">{extractApiError(error, 'Failed to save filter')}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
               </fieldset>
             </form>
           )}

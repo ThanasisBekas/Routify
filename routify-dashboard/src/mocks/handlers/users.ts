@@ -61,7 +61,11 @@ export const userHandlers = [
     const user = users.get(params.id as string)
     if (!user) return HttpResponse.json({ status: 404, detail: 'User not found' }, { status: 404 })
     const body = (await request.json()) as { role?: UserRole; roleId?: string }
-    const updated: UserDto = { ...user, ...(body.role && { role: body.role }), ...(body.roleId && { roleId: body.roleId }) }
+    const updated: UserDto = {
+      ...user,
+      ...(body.role && { role: body.role }),
+      ...(body.roleId && { roleId: body.roleId }),
+    }
     users.set(user.id, updated)
     return HttpResponse.json(updated)
   }),

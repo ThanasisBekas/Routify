@@ -51,9 +51,11 @@ function ApiKeyStatusBanner() {
           <div>
             <p className="text-amber-400 font-medium">No API keys found</p>
             <p className="text-amber-500/70 mt-0.5">
-              This filter validates API keys at the gateway, but no keys have been created yet.
-              Create keys on the{' '}
-              <Link to="/api-keys" className="text-amber-300 underline underline-offset-2 hover:text-amber-200 inline-flex items-center gap-0.5">
+              This filter validates API keys at the gateway, but no keys have been created yet. Create keys on the{' '}
+              <Link
+                to="/api-keys"
+                className="text-amber-300 underline underline-offset-2 hover:text-amber-200 inline-flex items-center gap-0.5"
+              >
                 API Keys page <ExternalLink className="w-2.5 h-2.5" />
               </Link>{' '}
               so callers can authenticate.
@@ -76,7 +78,10 @@ function ApiKeyStatusBanner() {
           </p>
           <p className="text-indigo-400/60 mt-0.5">
             Manage keys on the{' '}
-            <Link to="/api-keys" className="text-indigo-300 underline underline-offset-2 hover:text-indigo-200 inline-flex items-center gap-0.5">
+            <Link
+              to="/api-keys"
+              className="text-indigo-300 underline underline-offset-2 hover:text-indigo-200 inline-flex items-center gap-0.5"
+            >
               API Keys page <ExternalLink className="w-2.5 h-2.5" />
             </Link>
           </p>
