@@ -216,9 +216,15 @@ export const routeHandlers = [
     const production = routes.get(params.id as string)
     if (!production) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
     if ((production.environment ?? 'PRODUCTION') !== 'PRODUCTION')
-      return HttpResponse.json({ status: 400, detail: 'Only PRODUCTION routes can have staging revisions' }, { status: 400 })
+      return HttpResponse.json(
+        { status: 400, detail: 'Only PRODUCTION routes can have staging revisions' },
+        { status: 400 },
+      )
     if (production.status !== 'ACTIVE')
-      return HttpResponse.json({ status: 400, detail: 'Only ACTIVE production routes can have staging revisions' }, { status: 400 })
+      return HttpResponse.json(
+        { status: 400, detail: 'Only ACTIVE production routes can have staging revisions' },
+        { status: 400 },
+      )
 
     const now = new Date().toISOString()
     const staging: RouteDto = {

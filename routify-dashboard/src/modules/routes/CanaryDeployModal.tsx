@@ -47,14 +47,17 @@ export function CanaryDeployModal({ routeId, routeName, open, onClose }: CanaryD
             <Rocket className="h-5 w-5 text-amber-500" />
             <h2 className="text-lg font-semibold text-white">Deploy Canary</h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <p className="mb-5 text-sm text-gray-400">
-          Deploy a canary for <strong className="text-white">{routeName}</strong>. A portion of traffic will be routed to the canary upstream.
-          If the error rate exceeds the threshold, it will automatically roll back.
+          Deploy a canary for <strong className="text-white">{routeName}</strong>. A portion of traffic will be routed
+          to the canary upstream. If the error rate exceeds the threshold, it will automatically roll back.
         </p>
 
         <div className="space-y-4">

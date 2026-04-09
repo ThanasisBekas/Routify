@@ -224,9 +224,7 @@ function RoleDropdown({
 
       {open && (
         <div className="absolute z-20 mt-1.5 w-full bg-[#0e1117] border border-white/[0.09] rounded-xl shadow-2xl overflow-hidden max-h-64 overflow-y-auto">
-          {roles.length === 0 && (
-            <div className="px-3 py-4 text-sm text-gray-500 text-center">No roles available</div>
-          )}
+          {roles.length === 0 && <div className="px-3 py-4 text-sm text-gray-500 text-center">No roles available</div>}
           {roles.map((r) => (
             <button
               key={r.id}
@@ -254,9 +252,7 @@ function RoleDropdown({
                     </span>
                   )}
                 </div>
-                {r.description && (
-                  <p className="text-[11px] text-gray-600 truncate mt-0.5">{r.description}</p>
-                )}
+                {r.description && <p className="text-[11px] text-gray-600 truncate mt-0.5">{r.description}</p>}
               </div>
               <span className="text-[10px] font-mono text-gray-600 shrink-0 bg-white/[0.04] px-1.5 py-0.5 rounded">
                 {r.permissions.length} perms

@@ -61,7 +61,8 @@ export default function RouteWorkflowPage() {
     enabled: !!curlRouteId,
   })
 
-  const { activateMutation, deactivateMutation, deleteMutation, cloneMutation, createStagingRevisionMutation } = useRouteActions()
+  const { activateMutation, deactivateMutation, deleteMutation, cloneMutation, createStagingRevisionMutation } =
+    useRouteActions()
 
   // ─── Export / Import ─────────────────────────────────────────────────────
   const exportMutation = useMutation({
@@ -180,7 +181,9 @@ export default function RouteWorkflowPage() {
                 }
                 isActivating={activateMutation.isPending && activateMutation.variables === route.id}
                 isCloning={cloneMutation.isPending && cloneMutation.variables === route.id}
-                isCreatingStagingRevision={createStagingRevisionMutation.isPending && createStagingRevisionMutation.variables === route.id}
+                isCreatingStagingRevision={
+                  createStagingRevisionMutation.isPending && createStagingRevisionMutation.variables === route.id
+                }
               />
             ))}
           </div>
