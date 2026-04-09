@@ -56,6 +56,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = CommandEvent.DeactivateRoute.class,    name = "DEACTIVATE_ROUTE"),
     @JsonSubTypes.Type(value = CommandEvent.DeleteRoute.class,        name = "DELETE_ROUTE"),
     @JsonSubTypes.Type(value = CommandEvent.PromoteRoute.class,      name = "PROMOTE_ROUTE"),
+    @JsonSubTypes.Type(value = CommandEvent.CreateStagingRevision.class, name = "CREATE_STAGING_REVISION"),
     // ─── Filter commands ──────────────────────────────────────────────────────
     @JsonSubTypes.Type(value = CommandEvent.AttachFilter.class,       name = "ATTACH_FILTER"),
     @JsonSubTypes.Type(value = CommandEvent.DetachFilter.class,       name = "DETACH_FILTER"),
@@ -120,6 +121,7 @@ public sealed interface CommandEvent
             CommandEvent.DeactivateRoute,
             CommandEvent.DeleteRoute,
             CommandEvent.PromoteRoute,
+            CommandEvent.CreateStagingRevision,
             CommandEvent.AttachFilter,
             CommandEvent.DetachFilter,
             CommandEvent.CreateFilter,
@@ -239,6 +241,15 @@ public sealed interface CommandEvent
             UUID   routeId
     ) implements CommandEvent {}
 
+    /** Creates a new STAGING DRAFT revision from an existing PRODUCTION route for safe editing. */
+    record CreateStagingRevision(
+            UUID   commandId,
+            UUID   tenantId,
+            String requestedBy,
+            Instant issuedAt,
+            UUID   routeId
+    ) implements CommandEvent {}
+
     // ─── Filter Commands ──────────────────────────────────────────────────────
 
     record AttachFilter(
@@ -303,7 +314,8 @@ public sealed interface CommandEvent
             String   username,
             String   email,
             String   password,
-            UserRole role
+            UserRole role,
+            UUID     roleId
     ) implements CommandEvent {}
 
     record UpdateUser(
@@ -314,7 +326,8 @@ public sealed interface CommandEvent
             UUID     id,
             String   username,
             String   email,
-            UserRole role
+            UserRole role,
+            UUID     roleId
     ) implements CommandEvent {}
 
     record DeleteUser(

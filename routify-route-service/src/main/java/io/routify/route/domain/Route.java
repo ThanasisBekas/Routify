@@ -27,11 +27,9 @@ import java.util.*;
 @Entity
 @Table(
     name = "route",
-    schema = "routify",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uq_route_name_tenant_env",
-        columnNames = {"name", "tenant_id", "environment"}
-    )
+    schema = "routify"
+    // Uniqueness is enforced by a partial unique index (V9 migration) that excludes ARCHIVED rows,
+    // allowing re-creation of STAGING routes after promotion archives the previous one.
 )
 public class Route {
 
@@ -138,6 +136,10 @@ public class Route {
     @Column(name = "canary_auto_rollback_threshold")
     private java.math.BigDecimal canaryAutoRollbackThreshold;
 
+    /** True if this route is a canary sibling (not the primary). Excluded from path uniqueness constraint. */
+    @Column(name = "is_canary", nullable = false)
+    private boolean canary;
+
     // ─── Metadata ─────────────────────────────────────────────────────────────
 
     /** User who created this route */
@@ -235,6 +237,15 @@ public class Route {
     /** Returns true if this route is currently serving traffic */
     public boolean isActive() { return status == RouteStatus.ACTIVE; }
 
+    /**
+     * Increments the route version without changing status.
+     * Used when an already-ACTIVE production route is updated via promotion
+     * so the gateway detects the change and hot-reloads.
+     */
+    public void incrementVersion() {
+        this.version = this.version + 1;
+    }
+
     // ─── Getters ──────────────────────────────────────────────────────────────
 
     public UUID getId()            { return id; }
@@ -257,6 +268,7 @@ public class Route {
     public int getTrafficWeight()  { return trafficWeight; }
     public UUID getCanaryRouteId() { return canaryRouteId; }
     public java.math.BigDecimal getCanaryAutoRollbackThreshold() { return canaryAutoRollbackThreshold; }
+    public boolean isCanary()     { return canary; }
 
     // ─── Setters (package-private for service layer) ──────────────────────────
 
@@ -271,6 +283,7 @@ public class Route {
     public void setTrafficWeight(int trafficWeight)       { this.trafficWeight = trafficWeight; }
     public void setCanaryRouteId(UUID canaryRouteId)      { this.canaryRouteId = canaryRouteId; }
     public void setCanaryAutoRollbackThreshold(java.math.BigDecimal threshold) { this.canaryAutoRollbackThreshold = threshold; }
+    public void setCanary(boolean canary)                { this.canary = canary; }
 
     // ─── Builder ──────────────────────────────────────────────────────────────
 

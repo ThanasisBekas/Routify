@@ -13,6 +13,8 @@ import {
   Copy,
   Network,
   ArrowUpRight,
+  GitBranch,
+  Rocket,
 } from 'lucide-react'
 import { cn } from '../../../lib/utils'
 import type { RouteSummary } from '../../../types'
@@ -33,8 +35,11 @@ interface Props {
   onDeactivate: () => void
   onDelete: () => void
   onPromote?: () => void
+  onCreateStagingRevision?: () => void
+  onDeployCanary?: () => void
   isActivating: boolean
   isCloning: boolean
+  isCreatingStagingRevision: boolean
 }
 
 export default function RouteWorkflowCard({
@@ -48,8 +53,11 @@ export default function RouteWorkflowCard({
   onDeactivate,
   onDelete,
   onPromote,
+  onCreateStagingRevision,
+  onDeployCanary,
   isActivating,
   isCloning,
+  isCreatingStagingRevision,
 }: Props) {
   const sc = STATUS_CONFIG[route.status]
   const methods = route.methods
@@ -92,6 +100,11 @@ export default function RouteWorkflowCard({
               <h3 className="text-sm font-bold text-white truncate">{route.name}</h3>
               <span className="text-[9px] text-gray-600 font-mono shrink-0">v{route.version}</span>
               {route.environment === 'STAGING' && <EnvironmentBadge environment="STAGING" />}
+              {route.canaryRouteId && (
+                <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                  🐤 Canary
+                </span>
+              )}
             </div>
             {route.description && <p className="text-[11px] text-gray-500 truncate">{route.description}</p>}
           </div>
@@ -210,6 +223,29 @@ export default function RouteWorkflowCard({
         </div>
       </div>
 
+      {/* ── Canary traffic split indicator ──────────────────────────────────── */}
+      {route.canaryRouteId && route.trafficWeight < 100 && (
+        /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
+        <div
+          className="px-4 py-2 border-t border-white/[0.04] bg-amber-500/[0.03]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[9px] font-semibold text-amber-400 uppercase tracking-wider">Traffic Split</span>
+            <span className="text-[9px] text-gray-500">
+              Primary {route.trafficWeight}% · Canary {100 - route.trafficWeight}%
+            </span>
+          </div>
+          <div className="flex h-1.5 overflow-hidden rounded-full bg-white/[0.04]">
+            <div className="bg-blue-500 transition-all duration-500" style={{ width: `${route.trafficWeight}%` }} />
+            <div
+              className="bg-amber-500 transition-all duration-500"
+              style={{ width: `${100 - route.trafficWeight}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── Card Footer ──────────────────────────────────────────────────────── */}
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
@@ -258,6 +294,36 @@ export default function RouteWorkflowCard({
               Promote
             </button>
           )}
+
+          {route.environment === 'PRODUCTION' && route.status === 'ACTIVE' && onCreateStagingRevision && (
+            <button
+              onClick={onCreateStagingRevision}
+              disabled={isCreatingStagingRevision}
+              title="Create a staging copy to safely edit this production route"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/20 border border-cyan-400/20 transition-all disabled:opacity-50"
+            >
+              {isCreatingStagingRevision ? (
+                <RefreshCw className="w-3 h-3 animate-spin" />
+              ) : (
+                <GitBranch className="w-3 h-3" />
+              )}
+              New Staging
+            </button>
+          )}
+
+          {route.environment === 'PRODUCTION' &&
+            route.status === 'ACTIVE' &&
+            !route.canaryRouteId &&
+            onDeployCanary && (
+              <button
+                onClick={onDeployCanary}
+                title="Deploy a canary version with weighted traffic splitting"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/20 transition-all"
+              >
+                <Rocket className="w-3 h-3" />
+                Canary
+              </button>
+            )}
 
           {/* Edit */}
           <button

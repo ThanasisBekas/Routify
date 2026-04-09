@@ -104,14 +104,16 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
           {/* Logical ID — only shown on create */}
           {!isEdit && (
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+              <label htmlFor="field-logical-id-0" className="block text-xs font-semibold text-gray-400 mb-1.5">
                 Logical ID <span className="text-red-400">*</span>
               </label>
               <input
+                id="field-logical-id-0"
                 type="text"
                 value={logicalId}
                 onChange={(e) => setLogicalId(e.target.value.toLowerCase())}
                 placeholder="e.g. my-api-inbound-tls"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
               />
@@ -123,14 +125,16 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
 
           {/* Alias */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+            <label htmlFor="field-alias-1" className="block text-xs font-semibold text-gray-400 mb-1.5">
               Alias <span className="text-red-400">*</span>
             </label>
             <input
+              id="field-alias-1"
               type="text"
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               placeholder="e.g. My API Inbound TLS Group"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus={isEdit}
               className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
             />
@@ -138,8 +142,11 @@ export default function CertGroupFormModal({ tenantId, group, onClose, onSuccess
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1.5">Description</label>
+            <label className="block text-xs font-semibold text-gray-400 mb-1.5" htmlFor="field-description-0">
+              Description
+            </label>
             <textarea
+              id="field-description-0"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description…"

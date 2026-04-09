@@ -12,6 +12,7 @@ import io.routify.common.event.KafkaTopics;
 import io.routify.common.event.QueryRequest;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.event.RabbitTopology;
+import io.routify.common.exception.RoutifyException;
 import io.routify.common.observability.RoutifyMetrics;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.extern.slf4j.Slf4j;
@@ -273,7 +274,7 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
     private QueryResponse.AcmeAccountResult registerAcmeAccountFallback(UUID tenantId, String email,
                                                                          String provider, Throwable t) {
         log.warn("registerAcmeAccount circuit open or timed out: {}", t.getMessage());
-        throw new RuntimeException("ACME account registration unavailable", t);
+        throw new RoutifyException.GatewayError("ACME account registration unavailable", t);
     }
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "issueAcmeCertificateFallback")
@@ -294,7 +295,7 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
                                                                         String domain, UUID certGroupId,
                                                                         Throwable t) {
         log.warn("issueAcmeCertificate circuit open or timed out: {}", t.getMessage());
-        throw new RuntimeException("ACME certificate issuance unavailable", t);
+        throw new RoutifyException.GatewayError("ACME certificate issuance unavailable", t);
     }
 
     @CircuitBreaker(name = "cert-vault", fallbackMethod = "queryAcmeOrdersFallback")
@@ -348,6 +349,6 @@ public class CertVaultMessagingClient extends AmqpServiceClientSupport {
     @SuppressWarnings("unused")
     private QueryResponse.AcmeOrderDetail renewAcmeCertificateFallback(UUID orderId, UUID tenantId, Throwable t) {
         log.warn("renewAcmeCertificate circuit open or timed out: {}", t.getMessage());
-        throw new RuntimeException("ACME certificate renewal unavailable", t);
+        throw new RoutifyException.GatewayError("ACME certificate renewal unavailable", t);
     }
 }

@@ -55,6 +55,13 @@ public class AdminFiltersController {
         return ResponseEntity.ok(messagingClient.getFilter(id, tenantId));
     }
 
+    @GetMapping("/deprecated-usage")
+    @PreAuthorize("hasAuthority('FILTERS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    public ResponseEntity<QueryResponse.DeprecatedFilterUsageResult> getDeprecatedFilterUsage(
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
+        return ResponseEntity.ok(messagingClient.queryDeprecatedFilterUsage(tenantId));
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('FILTERS_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
     public ResponseEntity<AsyncAcknowledgement> createFilter(

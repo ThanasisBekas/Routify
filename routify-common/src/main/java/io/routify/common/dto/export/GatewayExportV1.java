@@ -56,8 +56,15 @@ public record GatewayExportV1(
             FilterType filterType,
             String description,
             boolean enabled,
-            Map<String, Object> config
-    ) {}
+            Map<String, Object> config,
+            boolean deprecated
+    ) {
+        /** Backward-compatible constructor without deprecated flag. */
+        public FilterExportEntry(String name, FilterType filterType, String description,
+                                  boolean enabled, Map<String, Object> config) {
+            this(name, filterType, description, enabled, config, false);
+        }
+    }
 
     /** A single route definition in the export. */
     public record RouteExportEntry(

@@ -404,6 +404,14 @@ export interface UpdateFilterRequest {
   gatewayConfigRef?: GatewayConfigRefDto | null
 }
 
+// ─── Deprecated Filter Usage ──────────────────────────────────────────────────
+
+export interface DeprecatedFilterUsageResult {
+  totalDeprecated: number
+  byType: Record<string, number>
+  affectedRoutes: string[]
+}
+
 // ─── Audit ────────────────────────────────────────────────────────────────────
 
 export interface AuditEntry {
@@ -534,6 +542,7 @@ export interface CreateUserRequest {
   email: string
   password: string
   role: UserRole
+  roleId?: string
 }
 
 // ─── Gateway Configuration ────────────────────────────────────────────────────
@@ -684,6 +693,10 @@ export interface GlobalFilterEntry {
   filterType: FilterType
   order: number
   enabled: boolean
+  /** The filter's persisted config (enriched server-side from the DB). */
+  config?: Record<string, unknown>
+  /** Optional gateway config ref (enriched server-side from the DB). */
+  gatewayConfigRef?: GatewayConfigRefDto
 }
 
 /**

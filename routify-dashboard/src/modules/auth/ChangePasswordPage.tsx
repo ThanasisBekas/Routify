@@ -113,6 +113,7 @@ export default function ChangePasswordPage({ forced = false }: Props) {
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             {/* Current password */}
             <div className="space-y-1.5">
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 Current Password
               </label>
@@ -120,6 +121,7 @@ export default function ChangePasswordPage({ forced = false }: Props) {
                 <input
                   type={showCurrent ? 'text' : 'password'}
                   required
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -138,6 +140,7 @@ export default function ChangePasswordPage({ forced = false }: Props) {
 
             {/* New password */}
             <div className="space-y-1.5">
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">New Password</label>
               <div className="relative">
                 <input
@@ -163,6 +166,7 @@ export default function ChangePasswordPage({ forced = false }: Props) {
 
             {/* Confirm password */}
             <div className="space-y-1.5">
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 Confirm New Password
               </label>

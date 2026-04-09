@@ -46,6 +46,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.RouteClone.class,        name = "ROUTE_CLONE"),
     @JsonSubTypes.Type(value = QueryRequest.FiltersQuery.class,      name = "FILTERS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.FilterGet.class,         name = "FILTER_GET"),
+    @JsonSubTypes.Type(value = QueryRequest.DeprecatedFilterUsage.class, name = "DEPRECATED_FILTER_USAGE"),
     // ─── routify-identity-service ─────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AuthLogin.class,         name = "AUTH_LOGIN"),
     @JsonSubTypes.Type(value = QueryRequest.AuthRefresh.class,       name = "AUTH_REFRESH"),
@@ -121,6 +122,8 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.AlertRuleGet.class,         name = "ALERT_RULE_GET"),
     @JsonSubTypes.Type(value = QueryRequest.AlertEventsQuery.class,     name = "ALERT_EVENTS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AlertRuleCommand.class,     name = "ALERT_RULE_COMMAND"),
+    // ─── routify-identity-service internal (cache warmup) ──────────────────
+    @JsonSubTypes.Type(value = QueryRequest.TenantPlansQuery.class,     name = "TENANT_PLANS_QUERY"),
 })
 public sealed interface QueryRequest
         permits
@@ -133,6 +136,7 @@ public sealed interface QueryRequest
             QueryRequest.RouteClone,
             QueryRequest.FiltersQuery,
             QueryRequest.FilterGet,
+            QueryRequest.DeprecatedFilterUsage,
             QueryRequest.AuthLogin,
             QueryRequest.AuthRefresh,
             QueryRequest.AuthChangePassword,
@@ -193,6 +197,7 @@ public sealed interface QueryRequest
             QueryRequest.AlertRuleGet,
             QueryRequest.AlertEventsQuery,
             QueryRequest.AlertRuleCommand,
+            QueryRequest.TenantPlansQuery,
             QueryRequest.Unknown {
 
     // ─── routify-route-service ────────────────────────────────────────────────
@@ -241,6 +246,9 @@ public sealed interface QueryRequest
 
     /** Fetch a single filter definition by ID. */
     record FilterGet(UUID id, UUID tenantId) implements QueryRequest {}
+
+    /** Query deprecated filter usage statistics for a tenant. */
+    record DeprecatedFilterUsage(UUID tenantId) implements QueryRequest {}
 
     // ─── routify-identity-service ─────────────────────────────────────────────
 
@@ -766,5 +774,14 @@ public sealed interface QueryRequest
      * Fallback subtype used when the {@code "type"} discriminator is absent or unrecognised.
      */
     record Unknown() implements QueryRequest {}
+
+    // ─── routify-identity-service internal (cache warmup) ──────────────────
+
+    /**
+     * Requests the full list of active tenant → plan mappings.
+     * Used by route-service and api-gateway to warm the {@code TenantPlanCache}
+     * on startup, avoiding a cold-cache default to {@code FREE}.
+     */
+    record TenantPlansQuery() implements QueryRequest {}
 }
 

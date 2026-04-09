@@ -155,6 +155,10 @@ public final class RabbitTopology {
     public static final String QUEUE_FILTERS_GET                = "routify.route-service.filters.get";
     public static final String RK_FILTERS_GET                   = "filters.get";
 
+    /** Queue: route-service serves deprecated filter usage statistics from admin-api */
+    public static final String QUEUE_FILTERS_DEPRECATED_USAGE   = "routify.route-service.filters.deprecated-usage";
+    public static final String RK_FILTERS_DEPRECATED_USAGE      = "filters.deprecated-usage";
+
     // ─── routify-identity-service queues & routing keys ──────────────────────
 
     /** Queue: identity-service serves paginated user list queries from admin-api */
@@ -180,6 +184,14 @@ public final class RabbitTopology {
     /** Queue: identity-service serves active-workspace list for the login dropdown */
     public static final String QUEUE_TENANTS_LIST_ACTIVE        = "routify.identity-service.tenants.list-active";
     public static final String RK_TENANTS_LIST_ACTIVE           = "tenants.list-active";
+
+    /**
+     * Queue: identity-service serves full active tenant→plan mappings for cache warmup.
+     * Used by route-service and api-gateway at startup to pre-populate
+     * the in-memory TenantPlanCache (avoids cold-cache defaulting to FREE).
+     */
+    public static final String QUEUE_TENANT_PLANS               = "routify.identity-service.tenants.plans";
+    public static final String RK_TENANT_PLANS                  = "tenants.plans";
 
     /** Queue: identity-service handles auth login requests from admin-api */
     public static final String QUEUE_AUTH_LOGIN                 = "routify.identity-service.auth.login";

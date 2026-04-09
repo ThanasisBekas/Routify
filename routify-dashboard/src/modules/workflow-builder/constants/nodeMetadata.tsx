@@ -136,7 +136,80 @@ export const FILTER_META: Record<string, FilterMeta> = (() => {
     }
   })
   // Legacy / deprecated types not in registry — keep backward compat for existing data
-  const legacy: Record<string, FilterMeta> = {}
+  const legacy: Record<string, FilterMeta> = {
+    AUTH_NONE: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    RATE_LIMIT_TOKEN_BUCKET: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    PATH_REWRITE: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    PATH_STRIP_PREFIX: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    PATH_ADD_PREFIX: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    QUERY_PARAM_MODIFY: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    BODY_JSONATA_TRANSFORM: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    BODY_SPEL_TRANSFORM: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    VALIDATE_REGEX: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    VALIDATE_SIZE: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    CIRCUIT_BREAKER: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+    RETRY: {
+      icon: <AlertTriangle className="w-4 h-4" />,
+      color: 'text-amber-400',
+      bg: 'bg-amber-400/10',
+      border: 'border-amber-400/25',
+    },
+  }
   Object.assign(meta, legacy)
   return meta
 })() as Record<string, FilterMeta>

@@ -7,7 +7,6 @@ import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
-import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,15 +16,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Unit tests for {@link ResponseHeaderRewriteGatewayFilterFactory}.
  *
  * <p>Covers regex rewriting, capture groups, replaceAll mode, multi-value headers,
- * no-match passthrough, pathological regex rejection, and match timeout protection.
+ * no-match passthrough, pathological regex rejection, and beforeCommit integration.
  */
 class ResponseHeaderRewriteTest {
 
     private final ResponseHeaderRewriteGatewayFilterFactory factory =
             new ResponseHeaderRewriteGatewayFilterFactory();
 
-    private GatewayFilterChain passThroughChain() {
-        return exchange -> Mono.empty();
+    /**
+     * Chain that triggers {@code setComplete()} on the response so that
+     * {@code beforeCommit} callbacks registered by the filter are executed.
+     */
+    private GatewayFilterChain commitChain() {
+        return exchange -> exchange.getResponse().setComplete();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -52,7 +55,7 @@ class ResponseHeaderRewriteTest {
             exchange.getResponse().getHeaders()
                     .set("Location", "https://internal.service.local:8080/users/123?page=2");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders().getFirst("Location"))
@@ -75,7 +78,7 @@ class ResponseHeaderRewriteTest {
             exchange.getResponse().getHeaders()
                     .set("Set-Cookie", "session=abc123; domain=.internal.local; path=/");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders().getFirst("Set-Cookie"))
@@ -106,7 +109,7 @@ class ResponseHeaderRewriteTest {
             exchange.getResponse().getHeaders()
                     .set("Location", "https://old.host.com/api/v1/resource");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders().getFirst("Location"))
@@ -127,7 +130,7 @@ class ResponseHeaderRewriteTest {
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
             exchange.getResponse().getHeaders().set("X-Custom", "hello-world");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders().getFirst("X-Custom"))
@@ -159,7 +162,7 @@ class ResponseHeaderRewriteTest {
             exchange.getResponse().getHeaders()
                     .set("X-Links", "http://foo.com, http://bar.com");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders().getFirst("X-Links"))
@@ -182,7 +185,7 @@ class ResponseHeaderRewriteTest {
             exchange.getResponse().getHeaders()
                     .set("X-Links", "http://foo.com, http://bar.com");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders().getFirst("X-Links"))
@@ -216,7 +219,7 @@ class ResponseHeaderRewriteTest {
             exchange.getResponse().getHeaders()
                     .add("Set-Cookie", "b=2; domain=.old.com; path=/api");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             var cookies = exchange.getResponse().getHeaders().get("Set-Cookie");
@@ -249,7 +252,7 @@ class ResponseHeaderRewriteTest {
             exchange.getResponse().getHeaders()
                     .set("Location", "https://other.host.com/path");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders().getFirst("Location"))
@@ -269,7 +272,7 @@ class ResponseHeaderRewriteTest {
             MockServerHttpRequest request = MockServerHttpRequest.get("/").build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders().get("X-Not-Present")).isNull();
@@ -409,7 +412,7 @@ class ResponseHeaderRewriteTest {
             exchange.getResponse().getHeaders()
                     .set("Access-Control-Allow-Origin", "http://localhost:3000");
 
-            StepVerifier.create(filter.filter(exchange, passThroughChain()))
+            StepVerifier.create(filter.filter(exchange, commitChain()))
                     .verifyComplete();
 
             assertThat(exchange.getResponse().getHeaders()

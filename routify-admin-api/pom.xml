@@ -120,14 +120,6 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- DevTools — automatic restart on class change during local development.
-             optional=true prevents transitive propagation to dependent modules.
-             spring-boot-maven-plugin excludes this from the fat jar by default. -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <optional>true</optional>
-        </dependency>
 
         <!-- ─── Testing ────────────────────────────────────────────────────── -->
         <dependency>

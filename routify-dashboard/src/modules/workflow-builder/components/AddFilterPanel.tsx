@@ -94,6 +94,7 @@ export default function AddFilterPanel({ attachedIds, onAttach }: AddFilterPanel
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
                 <input
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -184,8 +185,11 @@ export default function AddFilterPanel({ attachedIds, onAttach }: AddFilterPanel
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <label className="text-[10px] text-gray-500 shrink-0 w-10">Order</label>
+                  <label className="text-[10px] text-gray-500 shrink-0 w-10" htmlFor="field-order-0">
+                    Order
+                  </label>
                   <input
+                    id="field-order-0"
                     type="number"
                     min={0}
                     value={order}

@@ -12,9 +12,13 @@ import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.expression.EvaluationException;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.MethodExecutor;
+import org.springframework.expression.MethodResolver;
 import org.springframework.expression.ParseException;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.ReflectiveMethodResolver;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
+import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -22,6 +26,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.net.InetSocketAddress;
 import java.time.Instant;
@@ -29,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -132,6 +138,15 @@ public class SpelCustomGatewayFilterFactory
 
         String desc = config.getDescription() != null ? config.getDescription() : expr;
 
+        // Pre-compute the allowed functions set once at config bind time (not per request)
+        List<String> allowedFunctions = config.getAllowedFunctions();
+        boolean hasAllowedFunctions = allowedFunctions != null && !allowedFunctions.isEmpty();
+        Set<String> allowedMethodNames = hasAllowedFunctions
+                ? Set.copyOf(allowedFunctions) : Set.of();
+
+        if (hasAllowedFunctions) {
+            log.info("SpelCustom: method restriction enabled — allowed methods: {}", allowedMethodNames);
+        }
 
         return (exchange, chain) -> {
             log.debug("SpelCustom: evaluating — {}", desc);
@@ -157,11 +172,21 @@ public class SpelCustomGatewayFilterFactory
                     .orElseGet(() -> Optional.ofNullable(req.getRemoteAddress())
                             .map(InetSocketAddress::getHostString).orElse("unknown"));
 
-            // Build a fresh SimpleEvaluationContext per request with the variables
-            SimpleEvaluationContext ctx = SimpleEvaluationContext
-                    .forReadOnlyDataBinding()
-                    .withInstanceMethods()
-                    .build();
+            // Build a fresh SimpleEvaluationContext per request with the variables.
+            // When allowedFunctions is configured, use a restricting MethodResolver
+            // that only permits explicitly listed method names.
+            SimpleEvaluationContext ctx;
+            if (hasAllowedFunctions) {
+                ctx = SimpleEvaluationContext
+                        .forReadOnlyDataBinding()
+                        .withMethodResolvers(new AllowedMethodResolver(allowedMethodNames))
+                        .build();
+            } else {
+                ctx = SimpleEvaluationContext
+                        .forReadOnlyDataBinding()
+                        .withInstanceMethods()
+                        .build();
+            }
             ctx.setVariable("headers", headers);
             ctx.setVariable("params", params);
             ctx.setVariable("method", req.getMethod().name());
@@ -264,7 +289,13 @@ public class SpelCustomGatewayFilterFactory
             );
 
             String key = correlationId != null ? correlationId : UUID.randomUUID().toString();
-            kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS, key, auditPayload);
+
+            // Offload the Kafka send to boundedElastic to avoid blocking the Netty
+            // event loop if the Kafka producer buffer is full (buffer.memory back-pressure).
+            Mono.fromRunnable(() -> kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS, key, auditPayload))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .doOnError(err -> log.debug("SpelCustom: failed to publish audit event: {}", err.getMessage()))
+                    .subscribe();
         } catch (Exception e) {
             log.debug("SpelCustom: failed to publish audit event: {}", e.getMessage());
         }
@@ -275,6 +306,39 @@ public class SpelCustomGatewayFilterFactory
                 .errorCode("CUSTOM_SPEL_REJECTED")
                 .detail(detail)
                 .write(exchange);
+    }
+
+    // ─── Allowed method resolver ────────────────────────────────────────────
+
+    /**
+     * Custom {@link MethodResolver} that delegates to {@link ReflectiveMethodResolver}
+     * but only permits methods whose names are in the configured allowed set.
+     * When a method is not in the allow-list, {@code resolve()} returns {@code null},
+     * which causes SpEL to throw an {@link EvaluationException} at evaluation time.
+     */
+    private static class AllowedMethodResolver implements MethodResolver {
+
+        private final Set<String> allowedMethodNames;
+        private final ReflectiveMethodResolver delegate = new ReflectiveMethodResolver();
+
+        AllowedMethodResolver(Set<String> allowedMethodNames) {
+            this.allowedMethodNames = allowedMethodNames;
+        }
+
+        @Override
+        public MethodExecutor resolve(org.springframework.expression.EvaluationContext context,
+                                      Object targetObject, String name,
+                                      List<TypeDescriptor> argumentTypes) throws EvaluationException {
+            if (!allowedMethodNames.contains(name)) {
+                log.debug("SpelCustom: method '{}' blocked by allowedFunctions policy", name);
+                return null;
+            }
+            try {
+                return delegate.resolve(context, targetObject, name, argumentTypes);
+            } catch (Exception e) {
+                return null;
+            }
+        }
     }
 
     // ─── Config ───────────────────────────────────────────────────────────────

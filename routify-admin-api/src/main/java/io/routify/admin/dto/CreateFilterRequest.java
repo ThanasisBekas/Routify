@@ -10,7 +10,7 @@ import java.util.Map;
 public record CreateFilterRequest(
         @NotBlank String name,
         String description,
-        String filterType,
+        @NotBlank String filterType,
         Map<String, Object> config,
         Map<String, Object> gatewayConfigRef
 ) {}

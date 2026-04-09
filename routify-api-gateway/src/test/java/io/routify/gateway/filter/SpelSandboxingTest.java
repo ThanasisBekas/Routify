@@ -333,7 +333,8 @@ class SpelSandboxingTest {
         StepVerifier.create(filter.filter(exchange, passThroughChain()))
                 .verifyComplete();
 
-        verify(kafkaTemplate, times(1)).send(anyString(), anyString(), any());
+        // Kafka send is now offloaded to Schedulers.boundedElastic — use timeout()
+        verify(kafkaTemplate, timeout(2000).times(1)).send(anyString(), anyString(), any());
     }
 
     @Test
@@ -351,7 +352,7 @@ class SpelSandboxingTest {
         StepVerifier.create(filter.filter(exchange, passThroughChain()))
                 .verifyComplete();
 
-        verify(kafkaTemplate, times(1)).send(anyString(), anyString(), any());
+        verify(kafkaTemplate, timeout(2000).times(1)).send(anyString(), anyString(), any());
     }
 
     @Test
@@ -370,7 +371,7 @@ class SpelSandboxingTest {
                 .verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        verify(kafkaTemplate, times(1)).send(anyString(), anyString(), any());
+        verify(kafkaTemplate, timeout(2000).times(1)).send(anyString(), anyString(), any());
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

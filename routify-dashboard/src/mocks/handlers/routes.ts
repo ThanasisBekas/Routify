@@ -210,7 +210,37 @@ export const routeHandlers = [
     return HttpResponse.json({ status: 'ACCEPTED', message: 'Route promotion in progress' }, { status: 202 })
   }),
 
-  // ─── Attach filter ────────────────────────────────────────────────────────────
+  // ─── Create Staging Revision ───────────────────────────────────────────────────
+  http.post(`${BASE}/:id/staging-revision`, async ({ params }) => {
+    await delay(400)
+    const production = routes.get(params.id as string)
+    if (!production) return HttpResponse.json({ status: 404, detail: 'Route not found' }, { status: 404 })
+    if ((production.environment ?? 'PRODUCTION') !== 'PRODUCTION')
+      return HttpResponse.json(
+        { status: 400, detail: 'Only PRODUCTION routes can have staging revisions' },
+        { status: 400 },
+      )
+    if (production.status !== 'ACTIVE')
+      return HttpResponse.json(
+        { status: 400, detail: 'Only ACTIVE production routes can have staging revisions' },
+        { status: 400 },
+      )
+
+    const now = new Date().toISOString()
+    const staging: RouteDto = {
+      ...production,
+      id: genId(),
+      environment: 'STAGING',
+      status: 'DRAFT',
+      version: 1,
+      filters: [...production.filters],
+      createdAt: now,
+      updatedAt: now,
+      activatedAt: undefined,
+    }
+    routes.set(staging.id, staging)
+    return HttpResponse.json({ status: 'ACCEPTED', message: 'Staging revision creation in progress' }, { status: 202 })
+  }),
   http.post(`${BASE}/:routeId/filters`, async ({ params, request }) => {
     await delay(350)
     const route = routes.get(params.routeId as string)

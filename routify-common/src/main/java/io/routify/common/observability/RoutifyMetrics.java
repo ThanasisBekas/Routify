@@ -78,6 +78,10 @@ public class RoutifyMetrics {
     private final Map<String, Counter> acmeRenewals = new ConcurrentHashMap<>();
     private final Map<String, Counter> acmeFailures = new ConcurrentHashMap<>();
 
+    // ─── Deprecated filter usage (lazy, per filterType) ──────────────────────
+
+    private final Map<String, Counter> deprecatedFilterCounters = new ConcurrentHashMap<>();
+
     // ─── Gateway Cluster ─────────────────────────────────────────────────────
 
     private final AtomicLong gatewayConfigVersion = new AtomicLong(0);
@@ -275,6 +279,24 @@ public class RoutifyMetrics {
         acmeFailures.computeIfAbsent("failures", k ->
                 Counter.builder("routify.cert.acme.failures")
                         .description("Failed ACME certificate operations (issuance or renewal)")
+                        .register(registry)
+        ).increment();
+    }
+
+    // ─── Deprecated Filter Usage ─────────────────────────────────────────────
+
+    /**
+     * Increments the deprecated filter usage counter for the given filter type.
+     * Called by the gateway's {@code RouteDefinitionBuilder} when a deprecated filter
+     * type is encountered during route building.
+     *
+     * @param filterType the deprecated filter type name (e.g. {@code "CIRCUIT_BREAKER"})
+     */
+    public void recordDeprecatedFilterUsed(String filterType) {
+        deprecatedFilterCounters.computeIfAbsent(filterType, ft ->
+                Counter.builder("routify.gateway.deprecated_filter_used")
+                        .description("Deprecated filter type encountered during route building")
+                        .tag("filterType", ft)
                         .register(registry)
         ).increment();
     }

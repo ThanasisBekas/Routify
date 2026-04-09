@@ -70,10 +70,10 @@ function buildAuthHint(filterType: string, values: AuthValues): AuthHint {
     case 'AUTH_API_KEY':
       return {
         label: 'API Key',
-        note: 'Send your API key in the X-API-Key header (or configure a custom header).',
+        note: 'Send your API key in the X-API-Key header (or configure a custom header). Create and manage keys on the API Keys page (/api-keys).',
         curlFlags: [],
         headers: [{ key: 'X-API-Key', value: values['apiKey'] ?? '<your-api-key>' }],
-        fields: [{ key: 'apiKey', label: 'API Key', placeholder: 'sk-...', secret: true }],
+        fields: [{ key: 'apiKey', label: 'API Key', placeholder: 'rtfy_...', secret: true }],
       }
     case 'AUTH_OAUTH2':
       return {
@@ -126,13 +126,14 @@ function buildCurl(opts: {
   method: string
   path: string
   tenantId: string
+  environment: string
   extraHeaders: KV[]
   queryParams: KV[]
   body: string
   authHint: AuthHint
   verbose: boolean
 }): string {
-  const { gatewayUrl, method, path, tenantId, extraHeaders, queryParams, body, authHint, verbose } = opts
+  const { gatewayUrl, method, path, tenantId, environment, extraHeaders, queryParams, body, authHint, verbose } = opts
 
   const base = gatewayUrl.replace(/\/$/, '')
 
@@ -152,6 +153,14 @@ function buildCurl(opts: {
 
   // Tenant header (always required)
   lines.push(`  -H 'X-Tenant-Id: ${tenantId}'`)
+
+  // Staging environment header — required for routes with environment=STAGING.
+  // The gateway adds a Header predicate that only matches requests carrying
+  // X-Route-Environment: STAGING, so the curl must include it or the route
+  // won't match. Production routes need no extra header.
+  if (environment === 'STAGING') {
+    lines.push(`  -H 'X-Route-Environment: STAGING'`)
+  }
 
   // Auth headers
   for (const h of authHint.headers) {
@@ -240,13 +249,14 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
         method,
         path,
         tenantId,
+        environment: route.environment,
         extraHeaders,
         queryParams,
         body,
         authHint,
         verbose,
       }),
-    [gatewayUrl, method, path, tenantId, extraHeaders, queryParams, body, authHint, verbose],
+    [gatewayUrl, method, path, tenantId, route.environment, extraHeaders, queryParams, body, authHint, verbose],
   )
 
   const handleCopy = async () => {
@@ -300,10 +310,14 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
           <div className="px-6 py-5 space-y-5">
             {/* Gateway URL */}
             <div>
-              <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+              <label
+                htmlFor="field-gateway-url-0"
+                className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5"
+              >
                 Gateway URL
               </label>
               <input
+                id="field-gateway-url-0"
                 value={gatewayUrl}
                 onChange={(e) => setGatewayUrl(e.target.value)}
                 onBlur={handleGatewayUrlBlur}
@@ -316,6 +330,7 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
             <div className="flex gap-3">
               {/* Method selector */}
               <div className="shrink-0">
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
                   Method
                 </label>
@@ -338,10 +353,14 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
               </div>
               {/* Path */}
               <div className="flex-1 min-w-0">
-                <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                <label
+                  htmlFor="field-path-1"
+                  className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5"
+                >
                   Path
                 </label>
                 <input
+                  id="field-path-1"
                   value={path}
                   onChange={(e) => setPath(e.target.value)}
                   placeholder="/api/v1/..."
@@ -359,6 +378,17 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
               <span className="text-[10px] text-gray-600 ml-auto shrink-0">always injected</span>
             </div>
 
+            {/* Staging environment header (read-only info) */}
+            {route.environment === 'STAGING' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/[0.05] border border-amber-500/20 rounded-lg">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider shrink-0">
+                  X-Route-Environment
+                </span>
+                <code className="text-xs text-amber-300 font-mono truncate">STAGING</code>
+                <span className="text-[10px] text-gray-600 ml-auto shrink-0">required for staging routes</span>
+              </div>
+            )}
+
             {/* ── Auth Section ──────────────────────────────────────────────── */}
             <Accordion
               label="Authentication"
@@ -374,6 +404,7 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
                   {/* Filter picker if multiple auth filters */}
                   {authFilters.length > 1 && (
                     <div>
+                      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                       <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
                         Auth filter
                       </label>
@@ -404,10 +435,14 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
                     <div className="space-y-3">
                       {authHint.fields.map((field) => (
                         <div key={field.key}>
-                          <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                          <label
+                            htmlFor="field-field-label-2"
+                            className="block text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5"
+                          >
                             {field.label}
                           </label>
                           <input
+                            id="field-field-label-2"
                             type={field.secret ? 'password' : 'text'}
                             value={authValues[field.key] ?? ''}
                             onChange={(e) => updateAuth(field.key, e.target.value)}
@@ -481,6 +516,7 @@ export default function RouteCurlModal({ route, onClose }: { route: RouteDto; on
 
             {/* ── Options ──────────────────────────────────────────────────── */}
             <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <button
                   type="button"

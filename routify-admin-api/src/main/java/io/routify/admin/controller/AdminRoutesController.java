@@ -161,6 +161,19 @@ public class AdminRoutesController {
                 .body(AsyncAcknowledgement.of("Route promotion in progress"));
     }
 
+    @PostMapping("/{id}/staging-revision")
+    @PreAuthorize("hasAuthority('ROUTES_WRITE') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR')")
+    public ResponseEntity<AsyncAcknowledgement> createStagingRevision(
+            @PathVariable UUID id,
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId,
+            @RequestHeader(value = RoutifyHeaders.USER_ID, required = false) String userId,
+            Authentication auth) {
+        String actor = RoutifyHeaders.resolveActor(userId, auth != null ? auth.getName() : null);
+        messagingClient.sendCreateStagingRevision(id, tenantId, actor);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(AsyncAcknowledgement.of("Staging revision creation in progress"));
+    }
+
     // ─── Filter chain on route ────────────────────────────────────────────────
 
     @PostMapping("/{id}/filters")

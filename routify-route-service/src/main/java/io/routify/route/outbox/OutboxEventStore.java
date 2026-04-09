@@ -3,6 +3,7 @@ package io.routify.route.outbox;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.routify.common.event.DomainEvent;
+import io.routify.common.exception.RoutifyException;
 import io.routify.route.domain.OutboxEvent;
 import io.routify.route.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,7 @@ public class OutboxEventStore {
                     outboxEvent.getEventType(), aggregateId);
 
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize domain event: " + event.getClass().getSimpleName(), e);
+            throw new RoutifyException.GatewayError("Failed to serialize domain event: " + event.getClass().getSimpleName(), e);
         }
     }
 

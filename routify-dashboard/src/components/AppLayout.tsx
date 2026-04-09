@@ -27,18 +27,23 @@ import { cn } from '../lib/utils'
 import { ErrorBoundary } from './ErrorBoundary'
 
 const NAV_ITEMS = [
+  // ── Core Gateway ──
   { to: '/routes', label: 'Routes', icon: Route, desc: 'Manage gateway routes' },
   { to: '/filters', label: 'Filters', icon: Filter, desc: 'Reusable filter definitions' },
   { to: '/gateway', label: 'Gateway', icon: Server, desc: 'Gateway configuration' },
   { to: '/certificates', label: 'Cert Vault', icon: ShieldCheck, desc: 'Inbound TLS certificates' },
-  { to: '/audit', label: 'Audit', icon: ClipboardList, desc: 'Audit log & analytics' },
+  // ── Identity & Access ──
   { to: '/users', label: 'Users', icon: Users, desc: 'User management' },
-  { to: '/api-keys', label: 'API Keys', icon: Key, desc: 'API key management' },
-  { to: '/webhooks', label: 'Webhooks', icon: Bell, desc: 'Webhook notifications' },
   { to: '/roles', label: 'Roles', icon: Shield, desc: 'Roles & permissions' },
+  { to: '/api-keys', label: 'API Keys', icon: Key, desc: 'API key management' },
+  // ── Operations & Monitoring ──
+  { to: '/audit', label: 'Audit', icon: ClipboardList, desc: 'Audit log & analytics' },
+  { to: '/alerts', label: 'Alerts', icon: AlertTriangle, desc: 'Platform alerting rules' },
+  { to: '/webhooks', label: 'Webhooks', icon: Bell, desc: 'Webhook notifications' },
+  // ── Integrations ──
   { to: '/gitops', label: 'GitOps', icon: GitBranch, desc: 'Git reconciliation agent' },
   { to: '/ai-playground', label: 'AI Playground', icon: Brain, desc: 'Test & version AI policies' },
-  { to: '/alerts', label: 'Alerts', icon: AlertTriangle, desc: 'Platform alerting rules' },
+  // ── System ──
   { to: '/settings', label: 'Settings', icon: Settings, desc: 'Platform settings' },
 ]
 

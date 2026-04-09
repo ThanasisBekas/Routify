@@ -1,2 +1,3 @@
 io.routify.common.observability.RoutifyMetricsAutoConfiguration
+io.routify.common.crypto.FieldEncryptionAutoConfiguration
 

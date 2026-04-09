@@ -4,6 +4,7 @@ import io.routify.audit.domain.AiFilterDecision;
 import io.routify.audit.repository.AiFilterDecisionRepository;
 import io.routify.common.event.AiFilterDecisionEvent;
 import io.routify.common.event.KafkaTopics;
+import io.routify.common.exception.RoutifyException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -79,7 +80,7 @@ public class AiFilterDecisionConsumer {
             log.error("Failed to persist AI filter decision: evalId={} error={}",
                     event != null ? event.evaluationId() : "null", e.getMessage(), e);
             // Do NOT acknowledge — let Kafka retry via the DLQ error handler
-            throw new RuntimeException("Failed to persist AI filter decision", e);
+            throw new RoutifyException.GatewayError("Failed to persist AI filter decision", e);
         }
     }
 
