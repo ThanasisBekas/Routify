@@ -534,6 +534,7 @@ export interface CreateUserRequest {
   email: string
   password: string
   role: UserRole
+  roleId?: string
 }
 
 // ─── Gateway Configuration ────────────────────────────────────────────────────

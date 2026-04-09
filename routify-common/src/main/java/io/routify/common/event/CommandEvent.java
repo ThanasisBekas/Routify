@@ -314,7 +314,8 @@ public sealed interface CommandEvent
             String   username,
             String   email,
             String   password,
-            UserRole role
+            UserRole role,
+            UUID     roleId
     ) implements CommandEvent {}
 
     record UpdateUser(
@@ -325,7 +326,8 @@ public sealed interface CommandEvent
             UUID     id,
             String   username,
             String   email,
-            UserRole role
+            UserRole role,
+            UUID     roleId
     ) implements CommandEvent {}
 
     record DeleteUser(

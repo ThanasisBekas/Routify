@@ -42,7 +42,7 @@ class UserCommandKafkaIntegrationIT extends IdentityServiceIntegrationBase {
 
         var cmd = new CommandEvent.CreateUser(
                 commandId, tenantId, "test-admin", Instant.now(),
-                "newuser", "newuser@routify.io", "securepass123", UserRole.OPERATOR
+                "newuser", "newuser@routify.io", "securepass123", UserRole.OPERATOR, null
         );
 
         sendCommand(KafkaTopics.USER_COMMANDS, cmd);
@@ -83,7 +83,7 @@ class UserCommandKafkaIntegrationIT extends IdentityServiceIntegrationBase {
 
         var cmd = new CommandEvent.CreateUser(
                 commandId, tenantId, "test-admin", Instant.now(),
-                "outbox-user", "outbox-user@routify.io", "securepass123", UserRole.VIEWER
+                "outbox-user", "outbox-user@routify.io", "securepass123", UserRole.VIEWER, null
         );
 
         sendCommand(KafkaTopics.USER_COMMANDS, cmd);
@@ -125,7 +125,7 @@ class UserCommandKafkaIntegrationIT extends IdentityServiceIntegrationBase {
 
         var cmd = new CommandEvent.CreateUser(
                 commandId, tenantId, "test-admin", Instant.now(),
-                "idem-user", "idem-user@routify.io", "securepass123", UserRole.VIEWER
+                "idem-user", "idem-user@routify.io", "securepass123", UserRole.VIEWER, null
         );
 
         // Send the same command twice
@@ -161,7 +161,7 @@ class UserCommandKafkaIntegrationIT extends IdentityServiceIntegrationBase {
         UUID createCmdId = UUID.randomUUID();
         var createCmd = new CommandEvent.CreateUser(
                 createCmdId, tenantId, "test-admin", Instant.now(),
-                "update-me", "update-me@routify.io", "securepass123", UserRole.VIEWER
+                "update-me", "update-me@routify.io", "securepass123", UserRole.VIEWER, null
         );
         sendCommand(KafkaTopics.USER_COMMANDS, createCmd);
 
@@ -174,7 +174,7 @@ class UserCommandKafkaIntegrationIT extends IdentityServiceIntegrationBase {
         UUID updateCmdId = UUID.randomUUID();
         var updateCmd = new CommandEvent.UpdateUser(
                 updateCmdId, tenantId, "test-admin", Instant.now(),
-                created.getId(), "updated-name", "updated@routify.io", UserRole.OPERATOR
+                created.getId(), "updated-name", "updated@routify.io", UserRole.OPERATOR, null
         );
         sendCommand(KafkaTopics.USER_COMMANDS, updateCmd);
 
@@ -201,7 +201,7 @@ class UserCommandKafkaIntegrationIT extends IdentityServiceIntegrationBase {
         UUID createCmdId = UUID.randomUUID();
         var createCmd = new CommandEvent.CreateUser(
                 createCmdId, tenantId, "test-admin", Instant.now(),
-                "delete-me", "delete-me@routify.io", "securepass123", UserRole.VIEWER
+                "delete-me", "delete-me@routify.io", "securepass123", UserRole.VIEWER, null
         );
         sendCommand(KafkaTopics.USER_COMMANDS, createCmd);
 

@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usersApi } from '../../api/usersApi'
 import { authApi } from '../../api/authApi'
 import { tenantsApi } from '../../api/tenantsApi'
+import { rolesApi } from '../../api/rolesApi'
 import { useRealtimeQuery } from '../../hooks/useRealtimeQuery'
 import { useAuthStore } from '../../store/authStore'
 import { cn, extractApiError } from '../../lib/utils'
-import type { TenantDto, UserDto, UserRole, CreateUserRequest } from '../../types'
+import type { RoleDefinitionDto, TenantDto, UserDto, UserRole, CreateUserRequest } from '../../types'
 import {
   Users,
   Plus,
@@ -57,8 +58,7 @@ const ROLE_CONFIG: Record<UserRole, { label: string; desc: string; color: string
   },
 }
 
-// Roles a TENANT_ADMIN / SUPER_ADMIN can assign (SUPER_ADMIN is not assignable via this form)
-const ASSIGNABLE_ROLES: UserRole[] = ['TENANT_ADMIN', 'OPERATOR', 'VIEWER']
+// Roles a TENANT_ADMIN / SUPER_ADMIN can assign (used by ROLE_CONFIG for display)
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -162,30 +162,109 @@ function WorkspacePicker({
 
 // ─── Custom Role picker ───────────────────────────────────────────────────────
 
-function RolePicker({ value, onChange }: { value: UserRole; onChange: (r: UserRole) => void }) {
+/** Maps a RoleDefinition name to the closest built-in UserRole enum for legacy `role` field. */
+function inferUserRole(roleName: string): UserRole {
+  const upper = roleName.toUpperCase().replace(/[\s-]+/g, '_')
+  if (upper === 'SUPER_ADMIN') return 'SUPER_ADMIN'
+  if (upper === 'TENANT_ADMIN') return 'TENANT_ADMIN'
+  if (upper === 'OPERATOR') return 'OPERATOR'
+  return 'VIEWER'
+}
+
+function RoleDropdown({
+  roles,
+  rolesLoading,
+  value,
+  onChange,
+}: {
+  roles: RoleDefinitionDto[]
+  rolesLoading: boolean
+  value: string | undefined
+  onChange: (roleId: string, role: UserRole) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = roles.find((r) => r.id === value)
+
+  if (rolesLoading) {
+    return (
+      <div className="flex items-center gap-2 text-gray-500 text-sm py-2.5 px-3 bg-white/[0.04] border border-white/[0.08] rounded-lg">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading roles…
+      </div>
+    )
+  }
+
   return (
-    <div className="grid grid-cols-3 gap-2">
-      {ASSIGNABLE_ROLES.map((r) => {
-        const cfg = ROLE_CONFIG[r]
-        const active = value === r
-        return (
-          <button
-            key={r}
-            type="button"
-            onClick={() => onChange(r)}
-            className={cn(
-              'flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border text-center transition-all',
-              active
-                ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-300'
-                : 'bg-white/[0.03] border-white/[0.07] text-gray-400 hover:bg-white/[0.06] hover:text-gray-200',
-            )}
-          >
-            <span className={cn('transition-colors', active ? 'text-indigo-400' : 'text-gray-500')}>{cfg.icon}</span>
-            <span className="text-[11px] font-semibold leading-tight">{cfg.label}</span>
-            <span className="text-[10px] text-gray-600 leading-tight">{cfg.desc}</span>
-          </button>
-        )
-      })}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white hover:border-indigo-500/50 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all"
+      >
+        <Shield className="w-4 h-4 text-gray-500 shrink-0" />
+        <span className="flex-1 text-left truncate">
+          {selected ? (
+            <span className="flex items-center gap-2">
+              <span className="text-white">{selected.name}</span>
+              {selected.builtIn ? (
+                <span className="text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded-full font-semibold">
+                  built-in
+                </span>
+              ) : (
+                <span className="text-[10px] text-indigo-400 bg-indigo-400/10 border border-indigo-400/20 px-1.5 py-0.5 rounded-full font-semibold">
+                  custom
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-gray-600">Select a role…</span>
+          )}
+        </span>
+        <ChevronDown className={cn('w-3.5 h-3.5 text-gray-500 transition-transform shrink-0', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1.5 w-full bg-[#0e1117] border border-white/[0.09] rounded-xl shadow-2xl overflow-hidden max-h-64 overflow-y-auto">
+          {roles.length === 0 && (
+            <div className="px-3 py-4 text-sm text-gray-500 text-center">No roles available</div>
+          )}
+          {roles.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => {
+                onChange(r.id, inferUserRole(r.name))
+                setOpen(false)
+              }}
+              className={cn(
+                'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left transition-colors',
+                r.id === value ? 'bg-indigo-500/15 text-indigo-300' : 'text-gray-300 hover:bg-white/[0.05]',
+              )}
+            >
+              <Shield className="w-3.5 h-3.5 shrink-0 text-gray-500" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium truncate">{r.name}</span>
+                  {r.builtIn ? (
+                    <span className="text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded-full font-semibold shrink-0">
+                      built-in
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-indigo-400 bg-indigo-400/10 border border-indigo-400/20 px-1.5 py-0.5 rounded-full font-semibold shrink-0">
+                      custom
+                    </span>
+                  )}
+                </div>
+                {r.description && (
+                  <p className="text-[11px] text-gray-600 truncate mt-0.5">{r.description}</p>
+                )}
+              </div>
+              <span className="text-[10px] font-mono text-gray-600 shrink-0 bg-white/[0.04] px-1.5 py-0.5 rounded">
+                {r.permissions.length} perms
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -499,8 +578,19 @@ function UserModal({
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [role, setRole] = useState<UserRole>(editing?.role ?? 'VIEWER')
+  const [selectedRoleId, setSelectedRoleId] = useState<string | undefined>(editing?.roleId)
   const [targetTenantId, setTargetTenantId] = useState<string>(currentUser?.tenantId ?? '')
   const [error, setError] = useState<string | null>(null)
+
+  // Fetch available roles (built-in + custom)
+  const { data: rolesData, isLoading: rolesLoading } = useQuery({
+    queryKey: ['roles'],
+    queryFn: () => rolesApi.list({ page: 0, size: 50 }),
+  })
+  const availableRoles = (rolesData?.content ?? []).filter(
+    // SUPER_ADMIN built-in role is not assignable via this form
+    (r) => !(r.builtIn && r.name === 'SUPER_ADMIN'),
+  )
 
   const createMutation = useMutation({
     mutationFn: (req: CreateUserRequest) => usersApi.create(req, isSuperAdmin ? targetTenantId : undefined),
@@ -509,7 +599,7 @@ function UserModal({
   })
 
   const updateMutation = useMutation({
-    mutationFn: () => usersApi.updateRole(editing!.id, role),
+    mutationFn: () => usersApi.updateRole(editing!.id, role, selectedRoleId),
     onSuccess: onSaved,
     onError: (e: unknown) => setError(extractApiError(e, 'Failed to update user')),
   })
@@ -520,7 +610,7 @@ function UserModal({
     e.preventDefault()
     setError(null)
     if (isEdit) updateMutation.mutate()
-    else createMutation.mutate({ username, email, password, role })
+    else createMutation.mutate({ username, email, password, role, roleId: selectedRoleId })
   }
 
   const inputCls =
@@ -608,9 +698,17 @@ function UserModal({
             </>
           )}
 
-          {/* ── Role card-picker ── */}
+          {/* ── Role dropdown ── */}
           <FormField label="Role">
-            <RolePicker value={role} onChange={setRole} />
+            <RoleDropdown
+              roles={availableRoles}
+              rolesLoading={rolesLoading}
+              value={selectedRoleId}
+              onChange={(roleId, inferredRole) => {
+                setSelectedRoleId(roleId)
+                setRole(inferredRole)
+              }}
+            />
           </FormField>
 
           {error && (
@@ -630,7 +728,7 @@ function UserModal({
             </button>
             <button
               type="submit"
-              disabled={isPending || (isSuperAdmin && !isEdit && !targetTenantId)}
+              disabled={isPending || !selectedRoleId || (isSuperAdmin && !isEdit && !targetTenantId)}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-all shadow-lg shadow-indigo-500/20"
             >
               {isPending ? (
@@ -848,7 +946,7 @@ export default function UsersPage() {
                           ROLE_CONFIG[u.role].color,
                         )}
                       >
-                        {ROLE_CONFIG[u.role].label}
+                        {u.roleName ?? ROLE_CONFIG[u.role].label}
                       </span>
                     </td>
                     {/* Status */}

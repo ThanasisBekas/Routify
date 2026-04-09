@@ -6,6 +6,7 @@ package io.routify.admin.dto;
 public record UpdateUserRequest(
         String username,
         String email,
-        String role
+        String role,
+        String roleId
 ) {}
 

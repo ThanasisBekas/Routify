@@ -146,12 +146,12 @@ class CommandEventSerializationTest {
             // User commands
             Arguments.of(
                 new CommandEvent.CreateUser(CMD_ID, TENANT_ID, ACTOR, NOW,
-                    "jane.doe", "jane@routify.io", "secret123", UserRole.TENANT_ADMIN),
+                    "jane.doe", "jane@routify.io", "secret123", UserRole.TENANT_ADMIN, null),
                 "CREATE_USER"
             ),
             Arguments.of(
                 new CommandEvent.UpdateUser(CMD_ID, TENANT_ID, ACTOR, NOW,
-                    ENTITY_ID, "jane.doe", "jane@routify.io", UserRole.OPERATOR),
+                    ENTITY_ID, "jane.doe", "jane@routify.io", UserRole.OPERATOR, null),
                 "UPDATE_USER"
             ),
             Arguments.of(
