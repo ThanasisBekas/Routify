@@ -271,9 +271,14 @@ The mTLS auth filter's dual config paths (dynamic gateway config ref vs. legacy 
 
 ---
 
-## Initiative 5: Config Mapping Correctness — Fix Broken Config Bindings
+## Initiative 5: Config Mapping Correctness — Fix Broken Config Bindings ✅ COMPLETED
 
 **Priority: 🟡 Medium** | **Effort: S** | **Risk: Medium — user-configured values silently ignored**
+
+**Status: ✅ Completed** — All issues resolved. Changes:
+- `RequestHeaderModifyGatewayFilterFactory`: replaced `builder.header(header, value)` (which appends) with `builder.headers(h -> { h.remove(header); h.add(header, value); })` so the `set` operation actually overwrites existing header values as documented (Issue 5.1)
+- Added `requestHeaderModify_setOverwritesExisting` test verifying the set operation produces exactly one value (not old + new) when the header already exists
+- Issue 5.2 was already verified as working correctly — no fix needed
 
 ### Issue 5.1: `RequestHeaderModifyGatewayFilterFactory` — `set` operation uses `builder.header()` which appends rather than replacing
 
@@ -563,7 +568,7 @@ kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS, key, auditPayload);
 | **2** | Reactive Safety | ✅ Done | M | api-gateway |
 | **3** | Type Safety | ✅ Done | S | api-gateway |
 | **4** | Test Coverage | ✅ Done | M | api-gateway (tests) |
-| **5** | Config Mapping | 🟡 Medium | S | api-gateway |
+| **5** | Config Mapping | ✅ Done | S | api-gateway |
 | **6** | Deprecated & Unused Filter Cleanup | 🟡 Medium | M | **all layers** — common, admin-api, api-gateway, route-service, dashboard |
 | **7** | Observability | 🟢 Low | M | api-gateway |
 
