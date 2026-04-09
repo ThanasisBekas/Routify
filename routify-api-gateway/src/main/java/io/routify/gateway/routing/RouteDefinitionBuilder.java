@@ -1,5 +1,6 @@
 package io.routify.gateway.routing;
 
+import io.routify.common.domain.FilterType;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.config.GatewayConfigLoader;
 import io.routify.gateway.filter.TenantContextGatewayFilterFactory;
@@ -147,8 +148,9 @@ public class RouteDefinitionBuilder {
         // from the stored prefix string (e.g. "/api/v1" → 2 parts, "/api" → 1 part).
         // Only add when the filter chain does NOT already contain a PATH_STRIP_PREFIX filter
         // to avoid double-stripping.
+        @SuppressWarnings("deprecation")
         boolean chainHasStripPrefix = snapshot.filters() != null && snapshot.filters().stream()
-                .anyMatch(f -> "PATH_STRIP_PREFIX".equals(f.filterType()));
+                .anyMatch(f -> FilterType.PATH_STRIP_PREFIX.name().equals(f.filterType()));
         if (!chainHasStripPrefix && snapshot.stripPrefix() != null && !snapshot.stripPrefix().isBlank()) {
             int parts = countPathSegments(snapshot.stripPrefix());
             if (parts > 0) {
@@ -203,29 +205,40 @@ public class RouteDefinitionBuilder {
      *
      * Uses Java 21 switch expression for exhaustive pattern matching on filter types.
      */
+    @SuppressWarnings("deprecation")
     private FilterDefinition buildFilterDefinition(RouteSnapshotDto snapshot,
                                                     RouteSnapshotDto.FilterSnapshotDto filter) {
         // Resolve gatewayConfigRef and merge into the effective config
         Map<String, Object> cfg = configRefResolver.resolve(
                 filter.config(), filter.gatewayConfigRef());
 
-        return switch (filter.filterType()) {
+        // Parse the string filterType to the enum for compile-time exhaustiveness.
+        // If a FilterType enum value is renamed, the switch below will fail to compile.
+        FilterType type;
+        try {
+            type = FilterType.valueOf(filter.filterType());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            log.warn("Unknown filter type '{}' — skipping", filter.filterType());
+            return null;
+        }
+
+        return switch (type) {
             // ─── Authentication ───────────────────────────────────────────────
-            case "AUTH_JWT" -> customFilter("JwtAuth", cfg);
-            case "AUTH_API_KEY" -> customFilter("ApiKeyAuth", cfg);
-            case "AUTH_BASIC" -> customFilter("BasicAuth", cfg);
-            case "AUTH_OAUTH2" -> customFilter("OAuth2TokenIntrospect", cfg);
-            case "AUTH_MTLS" -> indexedValuesFilter("MtlsAuth", cfg);
-            case "AUTH_CLIENT_ID" -> indexedValuesFilter("ClientIdAuth", cfg);
-            case "AUTH_NONE" -> null; // No filter needed
+            case AUTH_JWT -> customFilter("JwtAuth", cfg);
+            case AUTH_API_KEY -> customFilter("ApiKeyAuth", cfg);
+            case AUTH_BASIC -> customFilter("BasicAuth", cfg);
+            case AUTH_OAUTH2 -> customFilter("OAuth2TokenIntrospect", cfg);
+            case AUTH_MTLS -> indexedValuesFilter("MtlsAuth", cfg);
+            case AUTH_CLIENT_ID -> indexedValuesFilter("ClientIdAuth", cfg);
+            case AUTH_NONE -> null; // Deprecated — no filter needed
 
             // ─── Downstream Auth Injection ────────────────────────────────────
-            case "DOWNSTREAM_BASIC_AUTH" -> customFilter("DownstreamBasicAuth", cfg);
-            case "DOWNSTREAM_BEARER_CC"  -> customFilter("DownstreamOAuth2Bearer", cfg);
-            case "OAUTH2_TOKEN_RELAY"    -> customFilter("OAuth2TokenRelay", cfg);
+            case DOWNSTREAM_BASIC_AUTH -> customFilter("DownstreamBasicAuth", cfg);
+            case DOWNSTREAM_BEARER_CC  -> customFilter("DownstreamOAuth2Bearer", cfg);
+            case OAUTH2_TOKEN_RELAY    -> customFilter("OAuth2TokenRelay", cfg);
 
             // ─── Rate Limiting ────────────────────────────────────────────────
-            case "RATE_LIMIT_TOKEN_BUCKET" -> {
+            case RATE_LIMIT_TOKEN_BUCKET -> {
                 var f = new FilterDefinition();
                 f.setName("RequestRateLimiter");
 
@@ -252,14 +265,14 @@ public class RouteDefinitionBuilder {
                 f.setArgs(args);
                 yield f;
             }
-            case "RATE_LIMIT_SLIDING_WINDOW" -> customFilter("SlidingWindowRateLimit", cfg);
-            case "RATE_LIMIT_FIXED_WINDOW" -> customFilter("FixedWindowRateLimit", cfg);
+            case RATE_LIMIT_SLIDING_WINDOW -> customFilter("SlidingWindowRateLimit", cfg);
+            case RATE_LIMIT_FIXED_WINDOW -> customFilter("FixedWindowRateLimit", cfg);
 
             // ─── Request/Response Modification ───────────────────────────────
-            case "REQUEST_HEADER_MODIFY" -> customFilter("RequestHeaderModify", cfg);
-            case "RESPONSE_HEADER_MODIFY" -> customFilter("ResponseHeaderModify", cfg);
-            case "RESPONSE_HEADER_REWRITE" -> customFilter("ResponseHeaderRewrite", cfg);
-            case "PATH_REWRITE" -> {
+            case REQUEST_HEADER_MODIFY -> customFilter("RequestHeaderModify", cfg);
+            case RESPONSE_HEADER_MODIFY -> customFilter("ResponseHeaderModify", cfg);
+            case RESPONSE_HEADER_REWRITE -> customFilter("ResponseHeaderRewrite", cfg);
+            case PATH_REWRITE -> {
                 var f = new FilterDefinition();
                 f.setName("RewritePath");
                 f.setArgs(Map.of(
@@ -268,43 +281,43 @@ public class RouteDefinitionBuilder {
                 ));
                 yield f;
             }
-            case "PATH_STRIP_PREFIX" -> {
+            case PATH_STRIP_PREFIX -> {
                 var f = new FilterDefinition();
                 f.setName("StripPrefix");
                 f.setArgs(Map.of("parts", String.valueOf(cfg.getOrDefault("parts", "1"))));
                 yield f;
             }
-            case "PATH_ADD_PREFIX" -> {
+            case PATH_ADD_PREFIX -> {
                 var f = new FilterDefinition();
                 f.setName("PrefixPath");
                 f.setArgs(Map.of("prefix", String.valueOf(cfg.getOrDefault("prefix", ""))));
                 yield f;
             }
-            case "QUERY_PARAM_MODIFY" -> {
+            case QUERY_PARAM_MODIFY -> {
                 log.warn("Deprecated filter type QUERY_PARAM_MODIFY — ignored (no factory implementation)");
                 yield null;
             }
 
             // ─── Body Transformation ──────────────────────────────────────────
-            case "BODY_JOLT_TRANSFORM" -> customFilter("JoltTransform", cfg);
-            case "BODY_JSONATA_TRANSFORM" -> {
+            case BODY_JOLT_TRANSFORM -> customFilter("JoltTransform", cfg);
+            case BODY_JSONATA_TRANSFORM -> {
                 log.warn("Deprecated filter type BODY_JSONATA_TRANSFORM — ignored (no factory implementation)");
                 yield null;
             }
-            case "BODY_SPEL_TRANSFORM" -> {
+            case BODY_SPEL_TRANSFORM -> {
                 log.warn("Deprecated filter type BODY_SPEL_TRANSFORM — ignored (no factory implementation)");
                 yield null;
             }
 
             // ─── Validation ───────────────────────────────────────────────────
-            case "VALIDATE_JSON_SCHEMA"  -> customFilter("JsonSchemaValidate", cfg);
-            case "REQUEST_SIZE_LIMIT"    -> customFilter("RequestSizeLimit", cfg);
-            case "GRAPHQL_DEPTH_LIMIT"   -> customFilter("GraphQLDepthLimit", cfg);
-            case "VALIDATE_REGEX" -> {
+            case VALIDATE_JSON_SCHEMA  -> customFilter("JsonSchemaValidate", cfg);
+            case REQUEST_SIZE_LIMIT    -> customFilter("RequestSizeLimit", cfg);
+            case GRAPHQL_DEPTH_LIMIT   -> customFilter("GraphQLDepthLimit", cfg);
+            case VALIDATE_REGEX -> {
                 log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation)");
                 yield null;
             }
-            case "VALIDATE_SIZE" -> {
+            case VALIDATE_SIZE -> {
                 var f = new FilterDefinition();
                 f.setName("RequestSize");
                 f.setArgs(Map.of("maxSize",
@@ -313,7 +326,7 @@ public class RouteDefinitionBuilder {
             }
 
             // ─── Resilience ───────────────────────────────────────────────────
-            case "CIRCUIT_BREAKER" -> {
+            case CIRCUIT_BREAKER -> {
                 var f = new FilterDefinition();
                 f.setName("CircuitBreaker");
                 f.setArgs(Map.of(
@@ -322,7 +335,7 @@ public class RouteDefinitionBuilder {
                 ));
                 yield f;
             }
-            case "RETRY" -> {
+            case RETRY -> {
                 var f = new FilterDefinition();
                 f.setName("Retry");
                 // SCG Retry filter expects: retries, series (HttpStatus.Series names), methods (HTTP method names).
@@ -339,56 +352,51 @@ public class RouteDefinitionBuilder {
                 f.setArgs(args);
                 yield f;
             }
-            case "TIMEOUT" -> customFilter("RequestTimeout", cfg);
-            case "CIRCUIT_BREAKER_V2" -> customFilter("CircuitBreakerV2", cfg);
-            case "RETRY_V2"          -> customFilter("RetryV2", cfg);
-            case "IDEMPOTENCY_KEY"   -> customFilter("IdempotencyKey", cfg);
+            case TIMEOUT -> customFilter("RequestTimeout", cfg);
+            case CIRCUIT_BREAKER_V2 -> customFilter("CircuitBreakerV2", cfg);
+            case RETRY_V2          -> customFilter("RetryV2", cfg);
+            case IDEMPOTENCY_KEY   -> customFilter("IdempotencyKey", cfg);
 
             // ─── Performance ──────────────────────────────────────────────────
-            case "RESPONSE_CACHE"           -> customFilter("ResponseCache", cfg);
-            case "REQUEST_DECOMPRESS"       -> customFilter("RequestDecompress", cfg);
+            case RESPONSE_CACHE           -> customFilter("ResponseCache", cfg);
+            case REQUEST_DECOMPRESS       -> customFilter("RequestDecompress", cfg);
 
             // ─── Routing ─────────────────────────────────────────────────────────
-            case "CONDITIONAL_ROUTE"        -> customFilter("ConditionalRoute", cfg);
-            case "USER_ID_PAYLOAD_ROUTING"  -> customFilter("UserIdPayloadRouting", cfg);
-            case "GEO_ROUTE"                -> customFilter("GeoRoute", cfg);
+            case CONDITIONAL_ROUTE        -> customFilter("ConditionalRoute", cfg);
+            case USER_ID_PAYLOAD_ROUTING  -> customFilter("UserIdPayloadRouting", cfg);
+            case GEO_ROUTE                -> customFilter("GeoRoute", cfg);
 
             // ─── Security ──────────────────────────────────────────────────────
-            case "IP_ACCESS_CONTROL"         -> customFilter("IpAccessControl", cfg);
+            case IP_ACCESS_CONTROL         -> customFilter("IpAccessControl", cfg);
 
             // ─── Certificates / TLS ───────────────────────────────────────────
-            case "AUTH_CERT_VAULT"           -> customFilter("CertVaultAuth", cfg);
-            case "CERT_ROTATION"             -> customFilter("CertRotation", cfg);
-            case "CERT_VAULT_EXPIRY_CHECK"   -> customFilter("CertVaultExpiryCheck", cfg);
+            case AUTH_CERT_VAULT           -> customFilter("CertVaultAuth", cfg);
+            case CERT_ROTATION             -> customFilter("CertRotation", cfg);
+            case CERT_VAULT_EXPIRY_CHECK   -> customFilter("CertVaultExpiryCheck", cfg);
 
             // ─── Versioning ───────────────────────────────────────────────────
-            case "API_VERSIONING" -> customFilter("ApiVersioning", cfg);
+            case API_VERSIONING -> customFilter("ApiVersioning", cfg);
 
             // ─── Observability ────────────────────────────────────────────────
-            case "CORRELATION_ID"   -> namedFilter("CorrelationId");
-            case "REQUEST_LOGGER"   -> customFilter("RequestLogger", cfg);
-            case "TENANT_CONTEXT"   -> namedFilter("TenantContext");
-            case "SECURITY_HEADERS" -> namedFilter("SecurityHeaders");
-            case "CUSTOM_METRIC"    -> customFilter("CustomMetric", cfg);
-            case "BODY_SIZE_METRIC" -> customFilter("BodySizeMetric", cfg);
+            case CORRELATION_ID   -> namedFilter("CorrelationId");
+            case REQUEST_LOGGER   -> customFilter("RequestLogger", cfg);
+            case TENANT_CONTEXT   -> namedFilter("TenantContext");
+            case SECURITY_HEADERS -> namedFilter("SecurityHeaders");
+            case CUSTOM_METRIC    -> customFilter("CustomMetric", cfg);
+            case BODY_SIZE_METRIC -> customFilter("BodySizeMetric", cfg);
 
             // ─── Integration ──────────────────────────────────────────────────────
-            case "WEBHOOK_NOTIFY" -> customFilter("WebhookNotify", cfg);
+            case WEBHOOK_NOTIFY -> customFilter("WebhookNotify", cfg);
 
             // ─── Developer Experience ────────────────────────────────────────────
-            case "MOCK_RESPONSE" -> customFilter("MockResponse", cfg);
+            case MOCK_RESPONSE -> customFilter("MockResponse", cfg);
 
             // ─── Custom ───────────────────────────────────────────────────────────
-            case "CUSTOM_SPEL" -> customFilter("SpelCustom", cfg);
+            case CUSTOM_SPEL -> customFilter("SpelCustom", cfg);
 
             // ─── AI ───────────────────────────────────────────────────────────────
-            case "AI_FILTER"    -> buildAiFilter(snapshot, cfg);
-            case "AI_MODIFIER"  -> buildAiModifierFilter(snapshot, cfg);
-
-            default -> {
-                log.warn("Unknown filter type '{}' — skipping", filter.filterType());
-                yield null;
-            }
+            case AI_FILTER    -> buildAiFilter(snapshot, cfg);
+            case AI_MODIFIER  -> buildAiModifierFilter(snapshot, cfg);
         };
     }
 
