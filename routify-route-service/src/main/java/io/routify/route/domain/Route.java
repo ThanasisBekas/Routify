@@ -180,11 +180,15 @@ public class Route {
      * Validates that the route is in DRAFT or DISABLED state.
      * Increments version — consumers use this to detect stale cached routes.
      *
-     * @throws IllegalStateException if the route is already ACTIVE
+     * @throws IllegalStateException if the route is already ACTIVE or ARCHIVED
      */
     public void activate() {
         if (status == RouteStatus.ACTIVE) {
             throw new IllegalStateException("Route '%s' is already ACTIVE".formatted(name));
+        }
+        if (status == RouteStatus.ARCHIVED) {
+            throw new IllegalStateException(
+                    "Route '%s' is ARCHIVED and cannot be reactivated".formatted(name));
         }
         this.status = RouteStatus.ACTIVE;
         this.version = this.version + 1;
@@ -193,13 +197,16 @@ public class Route {
 
     /**
      * Deactivates this route — removes it from gateway routing table.
+     * Only ACTIVE routes can be deactivated. DRAFT and ARCHIVED routes
+     * must use other transitions (activate or archive).
      *
      * @throws IllegalStateException if the route is not ACTIVE
      */
     public void deactivate() {
         if (status != RouteStatus.ACTIVE) {
             throw new IllegalStateException(
-                    "Route '%s' is not ACTIVE (current: %s)".formatted(name, status));
+                    "Route '%s' cannot be deactivated (current: %s). Only ACTIVE routes can be deactivated."
+                            .formatted(name, status));
         }
         this.status = RouteStatus.DISABLED;
         this.version = this.version + 1;

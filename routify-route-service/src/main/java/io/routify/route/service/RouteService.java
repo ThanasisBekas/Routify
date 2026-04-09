@@ -473,9 +473,13 @@ public class RouteService {
             throw new RoutifyException.Validation(
                     "Route '%s' is not a STAGING route — cannot promote".formatted(staging.getName()));
         }
-        if (staging.getStatus() != RouteStatus.ACTIVE) {
+        if (staging.getStatus() == RouteStatus.ARCHIVED) {
             throw new RoutifyException.Validation(
-                    "Only ACTIVE staging routes can be promoted (current: %s)".formatted(staging.getStatus()));
+                    "Cannot promote an ARCHIVED staging route '%s' — create a new staging revision instead".formatted(staging.getName()));
+        }
+        if (staging.getStatus() == RouteStatus.DISABLED) {
+            throw new RoutifyException.Validation(
+                    "Cannot promote a DISABLED staging route '%s' — re-enable it first or create a new staging revision".formatted(staging.getName()));
         }
 
         // Find or create the production counterpart
@@ -662,11 +666,17 @@ public class RouteService {
         // Copy canary config to primary
         primary.setUpstreamUri(canary.getUpstreamUri());
         if (canary.getExtraConfig() != null) {
-            primary.setExtraConfig(new java.util.HashMap<>(canary.getExtraConfig()));
+            var mergedConfig = new java.util.HashMap<>(canary.getExtraConfig());
+            // Remove canary-specific metadata that should not leak into the promoted primary.
+            // The gateway's RouteDefinitionBuilder uses this key to identify canary group
+            // membership — leaving it would cause the primary to be misidentified as a canary.
+            mergedConfig.remove("canaryPrimaryRouteId");
+            primary.setExtraConfig(mergedConfig);
         }
         primary.setTrafficWeight(100);
         primary.setCanaryRouteId(null);
         primary.setCanaryAutoRollbackThreshold(null);
+        primary.incrementVersion();
         routeRepository.save(primary);
 
         // Archive canary
@@ -707,6 +717,7 @@ public class RouteService {
         UUID canaryId = primary.getCanaryRouteId();
         primary.setCanaryRouteId(null);
         primary.setCanaryAutoRollbackThreshold(null);
+        primary.incrementVersion();
         routeRepository.save(primary);
 
         // Archive canary
