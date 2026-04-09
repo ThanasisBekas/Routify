@@ -1,6 +1,7 @@
 package io.routify.gateway.routing;
 
 import io.routify.common.domain.FilterType;
+import io.routify.common.observability.RoutifyMetrics;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.config.GatewayConfigLoader;
 import io.routify.gateway.filter.TenantContextGatewayFilterFactory;
@@ -52,6 +53,7 @@ public class RouteDefinitionBuilder {
 
     private final GatewayConfigRefResolver configRefResolver;
     private final GatewayConfigLoader      configLoader;
+    private final RoutifyMetrics           metrics;
 
     /**
      * Builds a complete Spring Cloud Gateway {@link RouteDefinition} from a snapshot.
@@ -230,7 +232,12 @@ public class RouteDefinitionBuilder {
             case AUTH_OAUTH2 -> customFilter("OAuth2TokenIntrospect", cfg);
             case AUTH_MTLS -> indexedValuesFilter("MtlsAuth", cfg);
             case AUTH_CLIENT_ID -> indexedValuesFilter("ClientIdAuth", cfg);
-            case AUTH_NONE -> null; // Deprecated — no filter needed
+            case AUTH_NONE -> {
+                log.warn("Deprecated filter type AUTH_NONE on route {} — remove the filter entirely",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("AUTH_NONE");
+                yield null; // Deprecated — no filter needed
+            }
 
             // ─── Downstream Auth Injection ────────────────────────────────────
             case DOWNSTREAM_BASIC_AUTH -> customFilter("DownstreamBasicAuth", cfg);
@@ -239,6 +246,10 @@ public class RouteDefinitionBuilder {
 
             // ─── Rate Limiting ────────────────────────────────────────────────
             case RATE_LIMIT_TOKEN_BUCKET -> {
+                log.warn("Deprecated filter type RATE_LIMIT_TOKEN_BUCKET on route {} — "
+                        + "migrate to RATE_LIMIT_FIXED_WINDOW or RATE_LIMIT_SLIDING_WINDOW",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("RATE_LIMIT_TOKEN_BUCKET");
                 var f = new FilterDefinition();
                 f.setName("RequestRateLimiter");
 
@@ -273,6 +284,10 @@ public class RouteDefinitionBuilder {
             case RESPONSE_HEADER_MODIFY -> customFilter("ResponseHeaderModify", cfg);
             case RESPONSE_HEADER_REWRITE -> customFilter("ResponseHeaderRewrite", cfg);
             case PATH_REWRITE -> {
+                log.warn("Deprecated filter type PATH_REWRITE on route {} — "
+                        + "migrate to route-level stripPrefix or conditional routing",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("PATH_REWRITE");
                 var f = new FilterDefinition();
                 f.setName("RewritePath");
                 f.setArgs(Map.of(
@@ -282,12 +297,20 @@ public class RouteDefinitionBuilder {
                 yield f;
             }
             case PATH_STRIP_PREFIX -> {
+                log.warn("Deprecated filter type PATH_STRIP_PREFIX on route {} — "
+                        + "migrate to route-level stripPrefix field",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("PATH_STRIP_PREFIX");
                 var f = new FilterDefinition();
                 f.setName("StripPrefix");
                 f.setArgs(Map.of("parts", String.valueOf(cfg.getOrDefault("parts", "1"))));
                 yield f;
             }
             case PATH_ADD_PREFIX -> {
+                log.warn("Deprecated filter type PATH_ADD_PREFIX on route {} — "
+                        + "migrate to route-level config or REQUEST_HEADER_MODIFY",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("PATH_ADD_PREFIX");
                 var f = new FilterDefinition();
                 f.setName("PrefixPath");
                 f.setArgs(Map.of("prefix", String.valueOf(cfg.getOrDefault("prefix", ""))));
@@ -295,17 +318,20 @@ public class RouteDefinitionBuilder {
             }
             case QUERY_PARAM_MODIFY -> {
                 log.warn("Deprecated filter type QUERY_PARAM_MODIFY — ignored (no factory implementation)");
+                metrics.recordDeprecatedFilterUsed("QUERY_PARAM_MODIFY");
                 yield null;
             }
 
             // ─── Body Transformation ──────────────────────────────────────────
             case BODY_JOLT_TRANSFORM -> customFilter("JoltTransform", cfg);
             case BODY_JSONATA_TRANSFORM -> {
-                log.warn("Deprecated filter type BODY_JSONATA_TRANSFORM — ignored (no factory implementation)");
+                log.warn("Deprecated filter type BODY_JSONATA_TRANSFORM — ignored (no factory implementation). Migrate to BODY_JOLT_TRANSFORM");
+                metrics.recordDeprecatedFilterUsed("BODY_JSONATA_TRANSFORM");
                 yield null;
             }
             case BODY_SPEL_TRANSFORM -> {
-                log.warn("Deprecated filter type BODY_SPEL_TRANSFORM — ignored (no factory implementation)");
+                log.warn("Deprecated filter type BODY_SPEL_TRANSFORM — ignored (no factory implementation). Migrate to BODY_JOLT_TRANSFORM or CUSTOM_SPEL");
+                metrics.recordDeprecatedFilterUsed("BODY_SPEL_TRANSFORM");
                 yield null;
             }
 
@@ -314,10 +340,15 @@ public class RouteDefinitionBuilder {
             case REQUEST_SIZE_LIMIT    -> customFilter("RequestSizeLimit", cfg);
             case GRAPHQL_DEPTH_LIMIT   -> customFilter("GraphQLDepthLimit", cfg);
             case VALIDATE_REGEX -> {
-                log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation)");
+                log.warn("Deprecated filter type VALIDATE_REGEX — ignored (no factory implementation). Migrate to VALIDATE_JSON_SCHEMA or CUSTOM_SPEL");
+                metrics.recordDeprecatedFilterUsed("VALIDATE_REGEX");
                 yield null;
             }
             case VALIDATE_SIZE -> {
+                log.warn("Deprecated filter type VALIDATE_SIZE on route {} — "
+                        + "migrate to REQUEST_SIZE_LIMIT",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("VALIDATE_SIZE");
                 var f = new FilterDefinition();
                 f.setName("RequestSize");
                 f.setArgs(Map.of("maxSize",
@@ -327,6 +358,10 @@ public class RouteDefinitionBuilder {
 
             // ─── Resilience ───────────────────────────────────────────────────
             case CIRCUIT_BREAKER -> {
+                log.warn("Deprecated filter type CIRCUIT_BREAKER on route {} — "
+                        + "migrate to CIRCUIT_BREAKER_V2",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("CIRCUIT_BREAKER");
                 var f = new FilterDefinition();
                 f.setName("CircuitBreaker");
                 f.setArgs(Map.of(
@@ -336,6 +371,10 @@ public class RouteDefinitionBuilder {
                 yield f;
             }
             case RETRY -> {
+                log.warn("Deprecated filter type RETRY on route {} — "
+                        + "migrate to RETRY_V2",
+                        filter.filterType());
+                metrics.recordDeprecatedFilterUsed("RETRY");
                 var f = new FilterDefinition();
                 f.setName("Retry");
                 // SCG Retry filter expects: retries, series (HttpStatus.Series names), methods (HTTP method names).

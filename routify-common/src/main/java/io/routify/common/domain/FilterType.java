@@ -249,29 +249,29 @@ public enum FilterType {
 
     // ─── Legacy (no gateway factory — kept for backward compatibility with existing DB records) ──
 
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Remove the filter entirely — AUTH_NONE is a no-op at the gateway. */
     @Deprecated AUTH_NONE,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use {@link #RATE_LIMIT_FIXED_WINDOW} or {@link #RATE_LIMIT_SLIDING_WINDOW}. */
     @Deprecated RATE_LIMIT_TOKEN_BUCKET,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use route-level {@code stripPrefix} or conditional routing. */
     @Deprecated PATH_REWRITE,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use route-level {@code stripPrefix} field. */
     @Deprecated PATH_STRIP_PREFIX,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use route-level config or {@link #REQUEST_HEADER_MODIFY}. */
     @Deprecated PATH_ADD_PREFIX,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Feature dropped — no replacement available. */
     @Deprecated QUERY_PARAM_MODIFY,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use {@link #BODY_JOLT_TRANSFORM}. */
     @Deprecated BODY_JSONATA_TRANSFORM,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use {@link #BODY_JOLT_TRANSFORM} or {@link #CUSTOM_SPEL}. */
     @Deprecated BODY_SPEL_TRANSFORM,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use {@link #VALIDATE_JSON_SCHEMA} or {@link #CUSTOM_SPEL}. */
     @Deprecated VALIDATE_REGEX,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use {@link #REQUEST_SIZE_LIMIT}. */
     @Deprecated VALIDATE_SIZE,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use {@link #CIRCUIT_BREAKER_V2}. */
     @Deprecated CIRCUIT_BREAKER,
-    /** @deprecated No gateway factory implementation. Kept for DB compatibility only. */
+    /** @deprecated Use {@link #RETRY_V2}. */
     @Deprecated RETRY;
 
     // ─── Deprecated type metadata ──────────────────────────────────────────────
@@ -293,5 +293,31 @@ public enum FilterType {
      */
     public boolean isDeprecated() {
         return DEPRECATED.contains(this);
+    }
+
+    /**
+     * Returns a human-readable suggestion for the modern replacement of a deprecated filter type.
+     * For non-deprecated types, returns the type's own name.
+     *
+     * @param type the filter type to look up
+     * @return a suggestion string such as {@code "RATE_LIMIT_FIXED_WINDOW or RATE_LIMIT_SLIDING_WINDOW"}
+     */
+    @SuppressWarnings("deprecation")
+    public static String suggestedReplacement(FilterType type) {
+        return switch (type) {
+            case AUTH_NONE              -> "(remove the filter)";
+            case RATE_LIMIT_TOKEN_BUCKET -> "RATE_LIMIT_FIXED_WINDOW or RATE_LIMIT_SLIDING_WINDOW";
+            case PATH_REWRITE           -> "route-level stripPrefix or conditional routing";
+            case PATH_STRIP_PREFIX      -> "route-level stripPrefix field";
+            case PATH_ADD_PREFIX        -> "route-level config or REQUEST_HEADER_MODIFY";
+            case QUERY_PARAM_MODIFY     -> "(no replacement — feature was dropped)";
+            case BODY_JSONATA_TRANSFORM -> "BODY_JOLT_TRANSFORM";
+            case BODY_SPEL_TRANSFORM    -> "BODY_JOLT_TRANSFORM or CUSTOM_SPEL";
+            case VALIDATE_REGEX         -> "VALIDATE_JSON_SCHEMA or CUSTOM_SPEL";
+            case VALIDATE_SIZE          -> "REQUEST_SIZE_LIMIT";
+            case CIRCUIT_BREAKER        -> "CIRCUIT_BREAKER_V2";
+            case RETRY                  -> "RETRY_V2";
+            default                     -> type.name();
+        };
     }
 }

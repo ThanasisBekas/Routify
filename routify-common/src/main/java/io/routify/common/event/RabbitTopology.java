@@ -155,6 +155,10 @@ public final class RabbitTopology {
     public static final String QUEUE_FILTERS_GET                = "routify.route-service.filters.get";
     public static final String RK_FILTERS_GET                   = "filters.get";
 
+    /** Queue: route-service serves deprecated filter usage statistics from admin-api */
+    public static final String QUEUE_FILTERS_DEPRECATED_USAGE   = "routify.route-service.filters.deprecated-usage";
+    public static final String RK_FILTERS_DEPRECATED_USAGE      = "filters.deprecated-usage";
+
     // ─── routify-identity-service queues & routing keys ──────────────────────
 
     /** Queue: identity-service serves paginated user list queries from admin-api */

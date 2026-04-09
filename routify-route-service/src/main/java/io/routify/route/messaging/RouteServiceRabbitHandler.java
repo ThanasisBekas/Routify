@@ -1,5 +1,6 @@
 package io.routify.route.messaging;
 
+import io.routify.common.domain.FilterType;
 import io.routify.common.domain.RouteEnvironment;
 import io.routify.common.domain.RouteStatus;
 import io.routify.common.event.QueryRequest;
@@ -195,6 +196,59 @@ public class RouteServiceRabbitHandler {
                 f.id(), f.tenantId(), f.name(), f.description(), f.filterType(),
                 f.config(), f.systemManaged(), f.enabled(), f.usageCount(),
                 gcr, f.createdBy(), f.createdAt(), f.updatedAt());
+    }
+
+    // ─── Admin-API: Deprecated Filter Usage Statistics ─────────────────────────
+
+    @RabbitListener(queues = RabbitTopology.QUEUE_FILTERS_DEPRECATED_USAGE)
+    public QueryResponse.DeprecatedFilterUsageResult handleDeprecatedFilterUsage(QueryRequest.DeprecatedFilterUsage req) {
+        log.debug("RabbitMQ: received filters.deprecated-usage request for tenant={}", req.tenantId());
+
+        // Fetch all filters for the tenant and identify deprecated ones
+        var allFilters = filterService.findAll(req.tenantId(),
+                PageRequest.of(0, 1000, Sort.by("createdAt")));
+
+        var deprecatedFilters = allFilters.getContent().stream()
+                .filter(f -> {
+                    try {
+                        FilterType ft = f.getFilterType();
+                        return ft != null && ft.isDeprecated();
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .toList();
+
+        int totalDeprecated = deprecatedFilters.size();
+
+        // Count by type
+        var byType = new java.util.LinkedHashMap<String, Integer>();
+        for (var f : deprecatedFilters) {
+            String typeName = f.getFilterType().name();
+            byType.merge(typeName, 1, Integer::sum);
+        }
+
+        // Find affected route names — routes that have attached deprecated filters
+        var affectedRoutes = new java.util.ArrayList<String>();
+        var deprecatedFilterIds = deprecatedFilters.stream()
+                .map(io.routify.route.domain.FilterDefinition::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        if (!deprecatedFilterIds.isEmpty()) {
+            var routes = routeService.findAll(req.tenantId(), null, PageRequest.of(0, 1000));
+            for (var route : routes.getContent()) {
+                var routeWithFilters = routeService.findByIdWithFilters(route.getId(), req.tenantId());
+                boolean hasDeprecated = routeWithFilters.getFilters().stream()
+                        .anyMatch(rf -> deprecatedFilterIds.contains(rf.getFilterDefinition().getId()));
+                if (hasDeprecated) {
+                    affectedRoutes.add(routeWithFilters.getName());
+                }
+            }
+        }
+
+        log.info("RabbitMQ: deprecated filter usage — total={} byType={} affectedRoutes={}",
+                totalDeprecated, byType, affectedRoutes.size());
+        return new QueryResponse.DeprecatedFilterUsageResult(totalDeprecated, byType, affectedRoutes);
     }
 
     // ─── Admin-API: Route SLO Queries (Gateway Health Dashboard v2) ───────────

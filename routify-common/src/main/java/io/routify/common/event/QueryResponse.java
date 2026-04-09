@@ -50,6 +50,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.RouteDetail.class,          name = "ROUTE_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.FiltersPage.class,          name = "FILTERS_PAGE"),
     @JsonSubTypes.Type(value = QueryResponse.FilterDetail.class,         name = "FILTER_DETAIL"),
+    @JsonSubTypes.Type(value = QueryResponse.DeprecatedFilterUsageResult.class, name = "DEPRECATED_FILTER_USAGE_RESULT"),
     // ─── routify-identity-service ─────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.LoginResult.class,          name = "LOGIN_RESULT"),
     @JsonSubTypes.Type(value = QueryResponse.PasswordChangeResult.class, name = "PASSWORD_CHANGE_RESULT"),
@@ -129,6 +130,7 @@ public sealed interface QueryResponse
             QueryResponse.RouteDetail,
             QueryResponse.FiltersPage,
             QueryResponse.FilterDetail,
+            QueryResponse.DeprecatedFilterUsageResult,
             QueryResponse.LoginResult,
             QueryResponse.PasswordChangeResult,
             QueryResponse.UsersPage,
@@ -324,6 +326,19 @@ public sealed interface QueryResponse
             String createdBy,
             Instant createdAt,
             Instant updatedAt
+    ) implements QueryResponse {}
+
+    /**
+     * Deprecated filter usage statistics for a tenant.
+     *
+     * @param totalDeprecated   Total number of deprecated filter definitions.
+     * @param byType            Count of deprecated filters grouped by filter type.
+     * @param affectedRoutes    List of route names that use deprecated filters.
+     */
+    record DeprecatedFilterUsageResult(
+            int totalDeprecated,
+            Map<String, Integer> byType,
+            List<String> affectedRoutes
     ) implements QueryResponse {}
 
     /**

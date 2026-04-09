@@ -329,7 +329,7 @@ However, the `remove` map is documented as "key = header name, value is ignored"
 
 ## Initiative 6: Deprecated & Unused Filter Cleanup — Aligned Backend + Frontend Retirement
 
-**Priority: 🟡 Medium** | **Effort: M** | **Risk: Medium — incomplete cleanup causes silent failures and operator confusion**
+**Priority: ✅ Done** | **Effort: M** | **Risk: Medium — incomplete cleanup causes silent failures and operator confusion**
 
 ### Background
 
@@ -569,7 +569,7 @@ kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS, key, auditPayload);
 | **3** | Type Safety | ✅ Done | S | api-gateway |
 | **4** | Test Coverage | ✅ Done | M | api-gateway (tests) |
 | **5** | Config Mapping | ✅ Done | S | api-gateway |
-| **6** | Deprecated & Unused Filter Cleanup | 🟡 Medium | M | **all layers** — common, admin-api, api-gateway, route-service, dashboard |
+| **6** | Deprecated & Unused Filter Cleanup | ✅ Done | M | **all layers** — common, admin-api, api-gateway, route-service, dashboard |
 | **7** | Observability | 🟢 Low | M | api-gateway |
 
 ### Suggested Sprint Breakdown

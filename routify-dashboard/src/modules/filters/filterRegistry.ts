@@ -519,6 +519,58 @@ export const FILTER_REGISTRY: FilterRegistryEntry[] = [
 /** Keyed map for O(1) lookups by FilterType value */
 export const FILTER_REGISTRY_MAP = new Map<FilterType, FilterRegistryEntry>(FILTER_REGISTRY.map((e) => [e.value, e]))
 
+/**
+ * Set of all deprecated filter type strings.
+ * These are preserved in the backend for existing DB rows but should not be used for new filters.
+ * The dashboard uses this to render deprecation badges and migration guidance.
+ */
+export const DEPRECATED_FILTER_TYPES: Set<string> = new Set([
+  'AUTH_NONE',
+  'RATE_LIMIT_TOKEN_BUCKET',
+  'PATH_REWRITE',
+  'PATH_STRIP_PREFIX',
+  'PATH_ADD_PREFIX',
+  'QUERY_PARAM_MODIFY',
+  'BODY_JSONATA_TRANSFORM',
+  'BODY_SPEL_TRANSFORM',
+  'VALIDATE_REGEX',
+  'VALIDATE_SIZE',
+  'CIRCUIT_BREAKER',
+  'RETRY',
+])
+
+/** Maps each deprecated filter type to its human-readable replacement suggestion. */
+export const DEPRECATED_REPLACEMENTS: Record<string, { label: string; type?: string }> = {
+  AUTH_NONE: { label: '(remove the filter)' },
+  RATE_LIMIT_TOKEN_BUCKET: { label: 'Fixed Window Rate Limit or Sliding Window Rate Limit', type: 'RATE_LIMIT_FIXED_WINDOW' },
+  PATH_REWRITE: { label: 'route-level stripPrefix or conditional routing' },
+  PATH_STRIP_PREFIX: { label: 'route-level stripPrefix field' },
+  PATH_ADD_PREFIX: { label: 'route-level config or Request Header Modify', type: 'REQUEST_HEADER_MODIFY' },
+  QUERY_PARAM_MODIFY: { label: '(no replacement — feature was dropped)' },
+  BODY_JSONATA_TRANSFORM: { label: 'Jolt Transform', type: 'BODY_JOLT_TRANSFORM' },
+  BODY_SPEL_TRANSFORM: { label: 'Jolt Transform or Custom SpEL', type: 'BODY_JOLT_TRANSFORM' },
+  VALIDATE_REGEX: { label: 'JSON Schema Validate or Custom SpEL', type: 'VALIDATE_JSON_SCHEMA' },
+  VALIDATE_SIZE: { label: 'Request Size Limit', type: 'REQUEST_SIZE_LIMIT' },
+  CIRCUIT_BREAKER: { label: 'Circuit Breaker v2', type: 'CIRCUIT_BREAKER_V2' },
+  RETRY: { label: 'Retry v2', type: 'RETRY_V2' },
+}
+
+/** Human-readable labels for deprecated filter types (for display when not in FILTER_REGISTRY). */
+export const DEPRECATED_FILTER_LABELS: Record<string, string> = {
+  AUTH_NONE: 'Auth None (Deprecated)',
+  RATE_LIMIT_TOKEN_BUCKET: 'Token Bucket Rate Limit (Deprecated)',
+  PATH_REWRITE: 'Path Rewrite (Deprecated)',
+  PATH_STRIP_PREFIX: 'Strip Prefix (Deprecated)',
+  PATH_ADD_PREFIX: 'Add Prefix (Deprecated)',
+  QUERY_PARAM_MODIFY: 'Query Param Modify (Deprecated)',
+  BODY_JSONATA_TRANSFORM: 'JSONata Transform (Deprecated)',
+  BODY_SPEL_TRANSFORM: 'SpEL Transform (Deprecated)',
+  VALIDATE_REGEX: 'Regex Validate (Deprecated)',
+  VALIDATE_SIZE: 'Size Validate (Deprecated)',
+  CIRCUIT_BREAKER: 'Circuit Breaker (Deprecated)',
+  RETRY: 'Retry (Deprecated)',
+}
+
 export function getFilterEntry(type: FilterType | string): FilterRegistryEntry | undefined {
   return FILTER_REGISTRY_MAP.get(type as FilterType)
 }

@@ -152,6 +152,24 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
         return null;
     }
 
+    @CircuitBreaker(name = "route-service", fallbackMethod = "queryDeprecatedFilterUsageFallback")
+    public QueryResponse.DeprecatedFilterUsageResult queryDeprecatedFilterUsage(UUID tenantId) {
+        try {
+            return rpc(RabbitTopology.RK_FILTERS_DEPRECATED_USAGE,
+                    new QueryRequest.DeprecatedFilterUsage(tenantId),
+                    QueryResponse.DeprecatedFilterUsageResult.class);
+        } catch (Exception e) {
+            log.error("queryDeprecatedFilterUsage failed: {}", e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private QueryResponse.DeprecatedFilterUsageResult queryDeprecatedFilterUsageFallback(UUID tenantId, Throwable t) {
+        log.warn("queryDeprecatedFilterUsage circuit open or timed out: {}", t.getMessage());
+        return new QueryResponse.DeprecatedFilterUsageResult(0, java.util.Map.of(), java.util.List.of());
+    }
+
     // ─── Route Commands (Kafka) ───────────────────────────────────────────────
 
     public void sendCreateRoute(UUID tenantId, String actor, CreateRouteRequest req) {
@@ -283,8 +301,8 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
         }
         if (type.isDeprecated()) {
             throw new RoutifyException.Validation(
-                    "Filter type '%s' is deprecated and cannot be used for new filters."
-                            .formatted(type.name()));
+                    "Filter type '%s' is deprecated and cannot be used for new filters. Use '%s' instead."
+                            .formatted(type.name(), FilterType.suggestedReplacement(type)));
         }
         return type;
     }
