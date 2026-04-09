@@ -167,7 +167,9 @@ public class RouteService {
      * Clones an existing route — creates a new DRAFT route with the same configuration
      * and filter chain, but a new ID and a "(copy)" name suffix.
      *
-     * <p>The cloned route starts as DRAFT (version 1, no activatedAt).
+     * <p>The cloned route starts as DRAFT (version 1, no activatedAt) in the
+     * {@link RouteEnvironment#STAGING STAGING} environment by default, so it is
+     * isolated from live gateway traffic until explicitly promoted.
      * Filter attachments are duplicated so the clone has its own independent filter chain.
      */
     @Transactional
@@ -199,6 +201,7 @@ public class RouteService {
                 .stripPrefix(source.getStripPrefix())
                 .createdBy(createdBy)
                 .extraConfig(source.getExtraConfig() != null ? new java.util.HashMap<>(source.getExtraConfig()) : null)
+                .environment(RouteEnvironment.STAGING)
                 .build();
 
         // No duplicate-path check here — cloned routes start as DRAFT and can share a path

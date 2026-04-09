@@ -148,6 +148,17 @@ public class RabbitConfig {
                 .to(routeServiceExchange).with(RabbitTopology.RK_FILTERS_GET);
     }
 
+    @Bean
+    public Queue filtersDeprecatedUsageQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_FILTERS_DEPRECATED_USAGE).build();
+    }
+
+    @Bean
+    public Binding filtersDeprecatedUsageBinding(Queue filtersDeprecatedUsageQueue, DirectExchange routeServiceExchange) {
+        return BindingBuilder.bind(filtersDeprecatedUsageQueue)
+                .to(routeServiceExchange).with(RabbitTopology.RK_FILTERS_DEPRECATED_USAGE);
+    }
+
     // ─── Route SLO queues ──────────────────────────────────────────────────────
 
     @Bean

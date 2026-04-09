@@ -153,6 +153,7 @@ export const routeHandlers = [
       id: genId(),
       name: `${route.name} (Copy)`,
       status: 'DRAFT',
+      environment: 'STAGING',
       version: 1,
       filters: [...route.filters],
       createdAt: now,
