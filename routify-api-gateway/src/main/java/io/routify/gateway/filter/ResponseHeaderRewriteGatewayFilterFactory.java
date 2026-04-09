@@ -7,13 +7,10 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -40,9 +37,14 @@ import java.util.regex.PatternSyntaxException;
  * <ul>
  *   <li>Regex is pre-compiled at config bind time for performance</li>
  *   <li>Pathological patterns with nested quantifiers are rejected at config time</li>
- *   <li>Match operations are bounded by a configurable timeout (default 100ms);
- *       on timeout the original header value is preserved</li>
  * </ul>
+ *
+ * <h3>Reactive safety:</h3>
+ * <p>Header modifications are registered via {@link ServerHttpResponse#beforeCommit}
+ * so they are applied just before the response is committed to the wire — this
+ * guarantees headers are written even for streamed/chunked responses. No blocking
+ * calls are used; since pathological regex patterns are rejected at config time,
+ * inline regex replacement is safe on the Netty event loop.
  *
  * <p>Filter type: {@code RESPONSE_HEADER_REWRITE}
  */
@@ -58,9 +60,6 @@ public class ResponseHeaderRewriteGatewayFilterFactory
     private static final Pattern NESTED_QUANTIFIER_PATTERN = Pattern.compile(
             "\\([^)]*[+*][^)]*\\)[+*?]|\\([^)]*\\{\\d+[^)]*\\)[+*?]"
     );
-
-    /** Default match timeout in milliseconds. */
-    private static final long DEFAULT_MATCH_TIMEOUT_MS = 100;
 
     public ResponseHeaderRewriteGatewayFilterFactory() {
         super(Config.class);
@@ -95,73 +94,62 @@ public class ResponseHeaderRewriteGatewayFilterFactory
         final String headerName = config.getHeaderName();
         final String replacement = config.getReplacement();
         final boolean replaceAll = config.isReplaceAll();
-        final long matchTimeoutMs = config.getMatchTimeoutMs() > 0
-                ? config.getMatchTimeoutMs()
-                : DEFAULT_MATCH_TIMEOUT_MS;
 
-        log.info("ResponseHeaderRewrite filter configured: header='{}' pattern='{}' replacement='{}' replaceAll={} matchTimeoutMs={}",
-                headerName, config.getPattern(), replacement, replaceAll, matchTimeoutMs);
+        log.info("ResponseHeaderRewrite filter configured: header='{}' pattern='{}' replacement='{}' replaceAll={}",
+                headerName, config.getPattern(), replacement, replaceAll);
 
-        return (exchange, chain) -> chain.filter(exchange).then(
-                reactor.core.publisher.Mono.fromRunnable(() -> {
-                    ServerHttpResponse response = exchange.getResponse();
-                    HttpHeaders headers = response.getHeaders();
-                    List<String> headerValues = headers.get(headerName);
+        return (exchange, chain) -> {
+            exchange.getResponse().beforeCommit(() -> {
+                ServerHttpResponse response = exchange.getResponse();
+                HttpHeaders headers = response.getHeaders();
+                List<String> headerValues = headers.get(headerName);
 
-                    if (headerValues == null || headerValues.isEmpty()) {
-                        return;
+                if (headerValues == null || headerValues.isEmpty()) {
+                    return Mono.empty();
+                }
+
+                // Rewrite each value independently for multi-value headers
+                List<String> rewrittenValues = new ArrayList<>(headerValues.size());
+                boolean anyChanged = false;
+
+                for (String value : headerValues) {
+                    String rewritten = rewriteValue(value, compiledPattern, replacement, replaceAll);
+                    rewrittenValues.add(rewritten);
+                    if (!rewritten.equals(value)) {
+                        anyChanged = true;
                     }
+                }
 
-                    // Rewrite each value independently for multi-value headers
-                    List<String> rewrittenValues = new ArrayList<>(headerValues.size());
-                    boolean anyChanged = false;
-
-                    for (String value : headerValues) {
-                        String rewritten = rewriteValue(
-                                value, compiledPattern, replacement, replaceAll, matchTimeoutMs);
-                        rewrittenValues.add(rewritten);
-                        if (!rewritten.equals(value)) {
-                            anyChanged = true;
-                        }
-                    }
-
-                    if (!anyChanged) {
-                        return;
-                    }
-
-                    // Replace the header values with rewritten ones
+                if (anyChanged) {
                     headers.put(headerName, rewrittenValues);
-
                     log.debug("ResponseHeaderRewrite: rewrote header '{}': {} → {}",
                             headerName, headerValues, rewrittenValues);
-                })
-        );
+                }
+
+                return Mono.empty();
+            });
+
+            return chain.filter(exchange);
+        };
     }
 
     /**
-     * Applies regex rewriting to a single header value with timeout protection.
+     * Applies regex rewriting to a single header value.
      *
-     * @param value           the original header value
-     * @param pattern         the pre-compiled regex pattern
-     * @param replacement     the replacement string (supports $1, $2 capture groups)
-     * @param replaceAll      whether to replace all occurrences or just the first
-     * @param matchTimeoutMs  maximum time in milliseconds for the regex match operation
-     * @return the rewritten value, or the original value if no match or on timeout
+     * <p>Since pathological patterns (nested quantifiers) are rejected at config bind time
+     * by {@link #validatePatternSafety}, the regex operation is safe to run inline on the
+     * Netty event loop without timeout protection.
+     *
+     * @param value       the original header value
+     * @param pattern     the pre-compiled regex pattern
+     * @param replacement the replacement string (supports $1, $2 capture groups)
+     * @param replaceAll  whether to replace all occurrences or just the first
+     * @return the rewritten value, or the original value if no match
      */
-    private String rewriteValue(String value, Pattern pattern, String replacement,
-                                 boolean replaceAll, long matchTimeoutMs) {
+    private String rewriteValue(String value, Pattern pattern, String replacement, boolean replaceAll) {
         try {
-            // Use CompletableFuture with timeout to protect against catastrophic backtracking
-            Future<String> future = CompletableFuture.supplyAsync(() -> {
-                Matcher matcher = pattern.matcher(value);
-                return replaceAll ? matcher.replaceAll(replacement) : matcher.replaceFirst(replacement);
-            });
-
-            return future.get(matchTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException e) {
-            log.warn("ResponseHeaderRewrite: regex match timed out after {}ms for header value '{}' — " +
-                    "preserving original value. Consider simplifying the regex pattern.", matchTimeoutMs, value);
-            return value;
+            Matcher matcher = pattern.matcher(value);
+            return replaceAll ? matcher.replaceAll(replacement) : matcher.replaceFirst(replacement);
         } catch (Exception e) {
             log.warn("ResponseHeaderRewrite: regex match failed for header value '{}': {} — preserving original value",
                     value, e.getMessage());
@@ -196,8 +184,6 @@ public class ResponseHeaderRewriteGatewayFilterFactory
         private String replacement;
         /** Whether to replace all occurrences or just the first. Default: false. */
         private boolean replaceAll = false;
-        /** Maximum time in milliseconds for a regex match operation. Default: 100. */
-        private long matchTimeoutMs = 100;
     }
 }
 

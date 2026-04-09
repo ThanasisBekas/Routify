@@ -185,5 +185,53 @@ class FilterTypeTest {
             assertThat(FilterType.valueOf(type.name())).isEqualTo(type);
         }
     }
+
+    // ─── DEPRECATED set and isDeprecated() ──────────────────────────────────
+
+    @Nested
+    @DisplayName("DEPRECATED set and isDeprecated()")
+    class DeprecatedSetTests {
+
+        @Test
+        @DisplayName("DEPRECATED set matches the test-local DEPRECATED_TYPES set")
+        void deprecatedSetMatchesTestSet() {
+            assertThat(FilterType.DEPRECATED).containsExactlyInAnyOrderElementsOf(DEPRECATED_TYPES);
+        }
+
+        @Test
+        @DisplayName("DEPRECATED set has exactly 12 entries")
+        void deprecatedSetSize() {
+            assertThat(FilterType.DEPRECATED).hasSize(12);
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = FilterType.class, names = {
+                "AUTH_NONE", "RATE_LIMIT_TOKEN_BUCKET", "PATH_REWRITE", "PATH_STRIP_PREFIX",
+                "PATH_ADD_PREFIX", "QUERY_PARAM_MODIFY", "BODY_JSONATA_TRANSFORM",
+                "BODY_SPEL_TRANSFORM", "VALIDATE_REGEX", "VALIDATE_SIZE",
+                "CIRCUIT_BREAKER", "RETRY"
+        })
+        @DisplayName("isDeprecated() returns true for deprecated types")
+        void isDeprecatedTrue(FilterType type) {
+            assertThat(type.isDeprecated()).isTrue();
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = FilterType.class, names = {
+                "AUTH_JWT", "AUTH_API_KEY", "RATE_LIMIT_FIXED_WINDOW", "CIRCUIT_BREAKER_V2",
+                "RETRY_V2", "AI_FILTER", "AI_MODIFIER", "CUSTOM_SPEL"
+        })
+        @DisplayName("isDeprecated() returns false for active types")
+        void isDeprecatedFalse(FilterType type) {
+            assertThat(type.isDeprecated()).isFalse();
+        }
+
+        @Test
+        @DisplayName("DEPRECATED set is unmodifiable")
+        void deprecatedSetIsUnmodifiable() {
+            org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class,
+                    () -> FilterType.DEPRECATED.add(FilterType.AUTH_JWT));
+        }
+    }
 }
 
