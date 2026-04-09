@@ -257,7 +257,7 @@ class AdminRoutesEndpointIT extends AdminApiIntegrationBase {
         UUID cloneId  = UUID.randomUUID();
         var mockClone = new QueryResponse.RouteDetail(
                 cloneId, TENANT_ID, "cloned-route (copy)", "cloned desc", "/api/clone/**",
-                "GET", "http://upstream:8080", null, RouteStatus.DRAFT, RouteEnvironment.PRODUCTION,
+                "GET", "http://upstream:8080", null, RouteStatus.DRAFT, RouteEnvironment.STAGING,
                 1, List.of(), Map.of(), ACTOR, Instant.now(), null, null,
                 100, null, null);
 
