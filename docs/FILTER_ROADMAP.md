@@ -23,10 +23,10 @@ Every active `FilterType` enum value was traced through:
 | AUTH_API_KEY | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | AUTH_BASIC | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | AUTH_JWT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| AUTH_MTLS | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ partial |
+| AUTH_MTLS | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | AUTH_OAUTH2 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | AUTH_CLIENT_ID | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| AUTH_CERT_VAULT | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ missing |
+| AUTH_CERT_VAULT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | DOWNSTREAM_BASIC_AUTH | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | DOWNSTREAM_BEARER_CC | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | OAUTH2_TOKEN_RELAY | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -49,12 +49,12 @@ Every active `FilterType` enum value was traced through:
 | USER_ID_PAYLOAD_ROUTING | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | GEO_ROUTE | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | IP_ACCESS_CONTROL | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| CERT_ROTATION | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ missing |
-| CERT_VAULT_EXPIRY_CHECK | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ missing |
+| CERT_ROTATION | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CERT_VAULT_EXPIRY_CHECK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | API_VERSIONING | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | CORRELATION_ID | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | REQUEST_LOGGER | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| TENANT_CONTEXT | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ missing |
+| TENANT_CONTEXT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | SECURITY_HEADERS | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | CUSTOM_METRIC | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | BODY_SIZE_METRIC | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -160,9 +160,16 @@ The `.then(Mono.fromRunnable(...))` runs **after** the response has been fully w
 
 ---
 
-## Initiative 3: Type Safety — RouteDefinitionBuilder Switch Expression
+## Initiative 3: Type Safety — RouteDefinitionBuilder Switch Expression ✅ COMPLETED
 
 **Priority: 🟠 High** | **Effort: S** | **Risk: Medium — silent filter breakage on enum rename**
+
+**Status: ✅ Completed** — All issues resolved. Changes:
+- `RouteDefinitionBuilder.buildFilterDefinition()` switch converted from 40+ string literal cases to `FilterType` enum values — any enum rename now causes a compile error instead of silent runtime failure (Issue 3.1)
+- `FilterType.valueOf()` parse at the switch site with `IllegalArgumentException`/`NullPointerException` catch for unknown filter type strings — graceful null return with warning log
+- `chainHasStripPrefix` check updated to use `FilterType.PATH_STRIP_PREFIX.name()` instead of string literal
+- `RouteSnapshotDto.FilterSnapshotDto.filterType()` remains `String` (wire format DTO) — enum parsing happens at the switch site only
+- Created `RouteDefinitionBuilderTest.java` with 70+ test methods covering: parameterized tests for all 41 FilterType enum values, SCG filter name mapping verification, config flattening (lists/maps/scalars/nulls), `indexedValuesFilter` expansion (AUTH_MTLS, AUTH_CLIENT_ID), AI filter metadata injection, named filters (zero-config), deprecated filter behaviour (7 functional + 5 null), unknown/null/empty filter type handling, full `build()` predicates/metadata/ordering, and exhaustiveness verification (Issue 3.2)
 
 ### Issue 3.1: `RouteDefinitionBuilder.buildFilterDefinition()` switch uses string literals instead of `FilterType` enum values
 
@@ -212,9 +219,17 @@ The 40+ case branches in the switch expression have zero test coverage. Only `Cu
 
 ---
 
-## Initiative 4: Test Coverage — Fill Critical Gaps
+## Initiative 4: Test Coverage — Fill Critical Gaps ✅ COMPLETED
 
 **Priority: 🟡 Medium** | **Effort: M** | **Risk: Medium — undetected regressions**
+
+**Status: ✅ Completed** — All issues resolved. Changes:
+- Created `TestCertificateHelper.java` — shared test utility for generating self-signed X.509 certificates with BouncyCastle (configurable CN, validity window, PEM encoding)
+- Created `CertVaultAuthGatewayFilterFactoryTest.java` — 14 tests covering: missing/blank certificate header with requireCertificate flag, invalid PEM, scoped lookup (active match with 9 identity headers, known-but-inactive, unknown cert), global fingerprint scan (active match, no match), stripCertificateHeader, custom header name, filter order (Issue 4.1)
+- Created `CertRotationGatewayFilterFactoryTest.java` — 10 tests covering: blank/null logicalId pass-through, missing/blank certificate header, invalid PEM, active match with X-Cert-Version/X-Cert-Fingerprint headers, inactive match (rotation required), unknown cert, custom header name (Issue 4.2)
+- Created `CertVaultExpiryCheckGatewayFilterFactoryTest.java` — 9 tests covering: blank logicalId pass-through, no active cert (503), all expired (503), expiring soon + reject (503), expiring soon + pass (EXPIRING_SOON headers), active cert (ACTIVE headers), injectMetadataHeaders=false, multiple versions picks latest expiry (Issue 4.3)
+- Created `TenantContextGatewayFilterFactoryTest.java` — 13 tests covering: caller-provided mode (JWT tenant, caller header, matching JWT+caller, mismatch → 403, no tenant), auto-inject mode (route metadata injection, JWT priority over metadata, no tenant), quota enforcement (ENTERPRISE skip, within quota, exceeded → 429, Redis error fail-open, non-UUID skip), gateway config edge cases (null/empty config defaults), filter order (+100) (Issue 4.4)
+- Created `MtlsAuthGatewayFilterFactoryTest.java` — 8 tests covering: single mapping happy path with CN header injection, multi-mapping iteration (second mapping match, no match), rejection paths (cert mismatch, missing cert header, missing clientId header, invalid PEM), CN extraction, filter order (Issue 4.5)
 
 ### Issue 4.1: Missing unit tests for `AUTH_CERT_VAULT` filter
 
@@ -545,9 +560,9 @@ kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS, key, auditPayload);
 | # | Initiative | Priority | Effort | Scope |
 |---|---|---|---|---|
 | **1** | Input Validation | ✅ Done | S | admin-api |
-| **2** | Reactive Safety | 🔴 Critical | M | api-gateway |
-| **3** | Type Safety | 🟠 High | S | api-gateway, route-service |
-| **4** | Test Coverage | 🟡 Medium | M | api-gateway (tests) |
+| **2** | Reactive Safety | ✅ Done | M | api-gateway |
+| **3** | Type Safety | ✅ Done | S | api-gateway |
+| **4** | Test Coverage | ✅ Done | M | api-gateway (tests) |
 | **5** | Config Mapping | 🟡 Medium | S | api-gateway |
 | **6** | Deprecated & Unused Filter Cleanup | 🟡 Medium | M | **all layers** — common, admin-api, api-gateway, route-service, dashboard |
 | **7** | Observability | 🟢 Low | M | api-gateway |
