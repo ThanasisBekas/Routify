@@ -279,7 +279,7 @@ public class RouteFilterMessagingClient extends AmqpServiceClientSupport {
 
     public void sendCreateFilter(UUID tenantId, String actor, CreateFilterRequest req) {
         FilterType type = resolveFilterType(req.filterType());
-        filterConfigValidator.validate(type, req.config());
+        filterConfigValidator.validate(type, req.config(), req.gatewayConfigRef());
         kafka.publishCommand(KafkaTopics.FILTER_COMMANDS, new CommandEvent.CreateFilter(
                 UUID.randomUUID(), tenantId, actor, Instant.now(),
                 req.name(), req.description(), type,

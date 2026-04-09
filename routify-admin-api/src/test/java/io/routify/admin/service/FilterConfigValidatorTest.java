@@ -53,7 +53,7 @@ class FilterConfigValidatorTest {
         @Test
         @DisplayName("Null config fails for types with required fields")
         void nullConfigFailsForRequiredFields() {
-            assertThatThrownBy(() -> validator.validate(FilterType.AUTH_BASIC, null))
+            assertThatThrownBy(() -> validator.validate(FilterType.DOWNSTREAM_BASIC_AUTH, null))
                     .isInstanceOf(RoutifyException.Validation.class)
                     .hasMessageContaining("username")
                     .hasMessageContaining("password");
@@ -67,30 +67,46 @@ class FilterConfigValidatorTest {
     class AuthFilters {
 
         @Test
-        @DisplayName("AUTH_BASIC requires username and password")
-        void authBasicRequiresFields() {
+        @DisplayName("AUTH_BASIC fails with empty config and no gatewayConfigRef")
+        void authBasicFailsWithoutCredentialsOrProvider() {
             assertThatThrownBy(() -> validator.validate(FilterType.AUTH_BASIC, Map.of()))
                     .isInstanceOf(RoutifyException.Validation.class)
-                    .hasMessageContaining("username")
-                    .hasMessageContaining("password");
+                    .hasMessageContaining("AUTH_BASIC");
         }
 
         @Test
-        @DisplayName("AUTH_BASIC passes with valid config")
-        void authBasicValid() {
+        @DisplayName("AUTH_BASIC fails with null config and no gatewayConfigRef")
+        void authBasicFailsWithNullConfigAndNoProvider() {
+            assertThatThrownBy(() -> validator.validate(FilterType.AUTH_BASIC, null, null))
+                    .isInstanceOf(RoutifyException.Validation.class)
+                    .hasMessageContaining("AUTH_BASIC");
+        }
+
+        @Test
+        @DisplayName("AUTH_BASIC passes with empty config when gatewayConfigRef is provided")
+        void authBasicPassesWithProvider() {
+            Map<String, Object> ref = Map.of("refType", "AUTH_PROVIDER", "refId", "ap-123");
+            assertThatCode(() -> validator.validate(FilterType.AUTH_BASIC, Map.of(), ref))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("AUTH_BASIC passes with explicit credentials in config (no provider needed)")
+        void authBasicPassesWithCredentials() {
             assertThatCode(() -> validator.validate(FilterType.AUTH_BASIC,
                     Map.of("username", "admin", "password", "secret")))
                     .doesNotThrowAnyException();
         }
 
         @Test
-        @DisplayName("AUTH_BASIC rejects blank username")
-        void authBasicBlankUsername() {
-            assertThatThrownBy(() -> validator.validate(FilterType.AUTH_BASIC,
-                    Map.of("username", "", "password", "secret")))
-                    .isInstanceOf(RoutifyException.Validation.class)
-                    .hasMessageContaining("username");
+        @DisplayName("AUTH_BASIC passes with explicit credentials even when gatewayConfigRef is also present")
+        void authBasicPassesWithCredentialsAndProvider() {
+            Map<String, Object> ref = Map.of("refType", "AUTH_PROVIDER", "refId", "ap-123");
+            assertThatCode(() -> validator.validate(FilterType.AUTH_BASIC,
+                    Map.of("username", "admin", "password", "secret"), ref))
+                    .doesNotThrowAnyException();
         }
+
 
         @Test
         @DisplayName("AUTH_JWT passes with empty config (all optional)")
@@ -380,9 +396,9 @@ class FilterConfigValidatorTest {
     @Test
     @DisplayName("Error message includes filter type name")
     void errorMessageIncludesFilterType() {
-        assertThatThrownBy(() -> validator.validate(FilterType.AUTH_BASIC, Map.of()))
+        assertThatThrownBy(() -> validator.validate(FilterType.DOWNSTREAM_BASIC_AUTH, Map.of()))
                 .isInstanceOf(RoutifyException.Validation.class)
-                .hasMessageContaining("AUTH_BASIC");
+                .hasMessageContaining("DOWNSTREAM_BASIC_AUTH");
     }
 
     @Test

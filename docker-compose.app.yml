@@ -178,6 +178,7 @@ services:
       REDIS_HOST: redis
       REDIS_PASS: ${REDIS_PASS}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
     depends_on:
       identity-service:
@@ -207,6 +208,7 @@ services:
       REDIS_HOST: redis
       REDIS_PASS: ${REDIS_PASS}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318/v1/traces
     depends_on:
       route-service:

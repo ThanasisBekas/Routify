@@ -50,7 +50,7 @@ public class GatewayConfigController {
     @GetMapping("/config")
     @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<GatewayConfigDto> getConfig() {
-        return ResponseEntity.ok(configService.getConfig());
+        return ResponseEntity.ok(configService.getConfigDecrypted());
     }
 
     @PutMapping("/config")
@@ -200,7 +200,7 @@ public class GatewayConfigController {
     @GetMapping("/auth-providers")
     @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<List<AuthProviderDto>> getAuthProviders() {
-        List<AuthProviderDto> providers = configService.getAuthProviders();
+        List<AuthProviderDto> providers = configService.getAuthProvidersDecrypted();
         return ResponseEntity.ok(providers);
     }
 
@@ -228,7 +228,7 @@ public class GatewayConfigController {
     @GetMapping("/downstream-credentials")
     @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<List<DownstreamCredentialDto>> getDownstreamCredentials() {
-        List<DownstreamCredentialDto> creds = configService.getDownstreamCredentials();
+        List<DownstreamCredentialDto> creds = configService.getDownstreamCredentialsDecrypted();
         return ResponseEntity.ok(creds);
     }
 
@@ -290,7 +290,7 @@ public class GatewayConfigController {
     @GetMapping("/proxy")
     @PreAuthorize("hasAuthority('GATEWAY_CONFIG_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
     public ResponseEntity<ProxyConfigDto> getProxyConfig() {
-        ProxyConfigDto proxy = configService.getProxyConfig();
+        ProxyConfigDto proxy = configService.getProxyConfigDecrypted();
         return ResponseEntity.ok(proxy);
     }
 

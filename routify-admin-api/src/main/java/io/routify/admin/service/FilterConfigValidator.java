@@ -27,11 +27,25 @@ public class FilterConfigValidator {
     /**
      * Validates the config map for the given filter type.
      *
-     * @param filterType the validated, non-deprecated filter type
-     * @param config     the user-supplied config map (may be null or empty)
+     * @param filterType       the validated, non-deprecated filter type
+     * @param config           the user-supplied config map (may be null or empty)
      * @throws RoutifyException.Validation if required fields are missing or have wrong types
      */
     public void validate(FilterType filterType, Map<String, Object> config) {
+        validate(filterType, config, null);
+    }
+
+    /**
+     * Validates the config map for the given filter type, taking into account
+     * an optional {@code gatewayConfigRef} that may supply credentials externally.
+     *
+     * @param filterType       the validated, non-deprecated filter type
+     * @param config           the user-supplied config map (may be null or empty)
+     * @param gatewayConfigRef optional ref to a gateway config entry (e.g. an auth provider)
+     * @throws RoutifyException.Validation if required fields are missing or have wrong types
+     */
+    public void validate(FilterType filterType, Map<String, Object> config,
+                         Map<String, Object> gatewayConfigRef) {
         if (config == null) {
             config = Map.of();
         }
@@ -45,7 +59,17 @@ public class FilterConfigValidator {
                 // headerName and queryParam both optional — at least one defaults
             }
             case AUTH_BASIC -> {
-                // basic auth may used gatewayConfigRef instead of actual passing
+                // username/password can come from config OR from a gatewayConfigRef (auth provider).
+                // If both are blank/missing in config, a gatewayConfigRef must be provided.
+                boolean hasUsername = hasNonBlankString(config, "username");
+                boolean hasPassword = hasNonBlankString(config, "password");
+                if (!hasUsername && !hasPassword) {
+                    boolean hasRef = gatewayConfigRef != null && !gatewayConfigRef.isEmpty();
+                    if (!hasRef) {
+                        errors.add("AUTH_BASIC requires either 'username' and 'password' in config, " +
+                                   "or a gatewayConfigRef pointing to an auth provider");
+                    }
+                }
             }
             case AUTH_JWT -> {
                 // issuer and audience are optional (JWT validation still works without them)
@@ -212,6 +236,11 @@ public class FilterConfigValidator {
     }
 
     // ─── Validation helpers ────────────────────────────────────────────────────
+
+    private boolean hasNonBlankString(Map<String, Object> config, String key) {
+        Object value = config.get(key);
+        return value instanceof String s && !s.isBlank();
+    }
 
     private void requirePresent(Map<String, Object> config, String key, List<String> errors) {
         if (!config.containsKey(key)) {

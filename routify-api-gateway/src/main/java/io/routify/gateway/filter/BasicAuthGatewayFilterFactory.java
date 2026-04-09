@@ -1,5 +1,6 @@
 package io.routify.gateway.filter;
 
+import io.routify.common.crypto.FieldEncryptionService;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.filter.shared.GatewayProblemResponse;
 import lombok.Data;
@@ -24,6 +25,16 @@ import java.util.Base64;
  * <p>Use this for filter type {@code AUTH_BASIC}: protect a route so only callers
  * that present the correct Basic credentials are forwarded to the upstream.
  *
+ * <p>Supports three stored password formats:
+ * <ol>
+ *   <li><strong>AES-encrypted</strong> ({@code {enc}} prefix) — decrypts to plaintext, then compares.
+ *       This is the current default for newly saved auth providers.</li>
+ *   <li><strong>BCrypt hash</strong> ({@code $2} prefix) — legacy format; uses
+ *       {@link BCryptPasswordEncoder#matches}. Re-saving the provider via the admin UI
+ *       migrates it to AES encryption.</li>
+ *   <li><strong>Plain text</strong> — fallback for very old configs; direct {@code equals}.</li>
+ * </ol>
+ *
  * <p>On success the filter injects {@code X-Auth-User-Id} and
  * {@code X-Auth-Type: BASIC} headers for downstream services.
  *
@@ -34,10 +45,14 @@ import java.util.Base64;
 public class BasicAuthGatewayFilterFactory
         extends AbstractGatewayFilterFactory<BasicAuthGatewayFilterFactory.Config> {
 
+    /** Legacy BCrypt encoder — kept for backward compatibility with $2-prefixed hashes. */
     private static final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder(12);
 
-    public BasicAuthGatewayFilterFactory() {
+    private final FieldEncryptionService fieldEncryptionService;
+
+    public BasicAuthGatewayFilterFactory(FieldEncryptionService fieldEncryptionService) {
         super(Config.class);
+        this.fieldEncryptionService = fieldEncryptionService;
     }
 
     @Override
@@ -90,23 +105,30 @@ public class BasicAuthGatewayFilterFactory
     /**
      * Matches the incoming raw password against the stored credential.
      *
-     * <p>If the stored value looks like a BCrypt hash ({@code $2a$}, {@code $2b$},
-     * or {@code $2y$} prefix), the incoming password is verified using
-     * {@link BCryptPasswordEncoder#matches}. Otherwise, a plain-text {@code equals}
-     * comparison is used as a fallback for legacy configs that have not yet been
-     * re-saved through the admin API.
-     *
-     * @param rawPassword    the plain-text password sent by the client
-     * @param storedPassword the stored credential (BCrypt hash or legacy plain text)
-     * @return {@code true} if the password matches
+     * <p>Supports three formats:
+     * <ol>
+     *   <li>{@code {enc}...} — AES-256-GCM encrypted: decrypt and compare plaintext</li>
+     *   <li>{@code $2a$/$2b$/$2y$...} — legacy BCrypt hash: use BCryptPasswordEncoder#matches</li>
+     *   <li>anything else — plain-text fallback for very old configs</li>
+     * </ol>
      */
     private boolean matchesPassword(String rawPassword, String storedPassword) {
-        if (storedPassword != null && storedPassword.startsWith("$2")) {
+        if (storedPassword == null) return false;
+
+        if (fieldEncryptionService.isEncrypted(storedPassword)) {
+            String decrypted = fieldEncryptionService.decrypt(storedPassword);
+            return decrypted != null && decrypted.equals(rawPassword);
+        }
+
+        if (storedPassword.startsWith("$2")) {
+            // Legacy BCrypt hash — kept for backward compatibility
+            log.warn("AUTH_BASIC: password is stored as BCrypt hash — re-save the auth provider to migrate to AES encryption");
             return BCRYPT.matches(rawPassword, storedPassword);
         }
-        // Fallback: plain-text comparison for legacy configs not yet re-hashed
-        log.warn("AUTH_BASIC: password is stored in plain text — re-save the auth provider to hash it");
-        return storedPassword != null && storedPassword.equals(rawPassword);
+
+        // Fallback: plain-text comparison for legacy configs
+        log.warn("AUTH_BASIC: password is stored in plain text — re-save the auth provider to encrypt it");
+        return storedPassword.equals(rawPassword);
     }
 
     /**
