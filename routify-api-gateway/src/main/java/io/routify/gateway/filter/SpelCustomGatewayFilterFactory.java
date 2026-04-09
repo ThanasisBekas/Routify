@@ -26,6 +26,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.net.InetSocketAddress;
 import java.time.Instant;
@@ -288,7 +289,13 @@ public class SpelCustomGatewayFilterFactory
             );
 
             String key = correlationId != null ? correlationId : UUID.randomUUID().toString();
-            kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS, key, auditPayload);
+
+            // Offload the Kafka send to boundedElastic to avoid blocking the Netty
+            // event loop if the Kafka producer buffer is full (buffer.memory back-pressure).
+            Mono.fromRunnable(() -> kafkaTemplate.send(KafkaTopics.AUDIT_EVENTS, key, auditPayload))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .doOnError(err -> log.debug("SpelCustom: failed to publish audit event: {}", err.getMessage()))
+                    .subscribe();
         } catch (Exception e) {
             log.debug("SpelCustom: failed to publish audit event: {}", e.getMessage());
         }
