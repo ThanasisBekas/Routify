@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 import { routesApi } from '../../../api/routesApi'
 import { extractApiError } from '../../../lib/utils'
 import EnvironmentBadge from './EnvironmentBadge'
-import type { RouteDto } from '../../../types'
 
 interface Props {
   stagingRoute: { id: string; name: string }
@@ -43,9 +42,16 @@ export default function PromoteDiffModal({ stagingRoute, onClose }: Props) {
     enabled: !!stagingData,
   })
 
-  const productionRoute: RouteDto | undefined = productionList?.content?.find(
+  const productionSummary = productionList?.content?.find(
     (r) => r.name === stagingRoute.name,
-  ) as unknown as RouteDto | undefined
+  )
+
+  // Fetch full production route detail (RouteSummary from list lacks stripPrefix and filters)
+  const { data: productionRoute, isLoading: loadingProduction } = useQuery({
+    queryKey: ['route', productionSummary?.id],
+    queryFn: () => routesApi.get(productionSummary!.id),
+    enabled: !!productionSummary?.id,
+  })
 
   const promoteMutation = useMutation({
     mutationFn: () => routesApi.promote(stagingRoute.id),
@@ -61,7 +67,7 @@ export default function PromoteDiffModal({ stagingRoute, onClose }: Props) {
     },
   })
 
-  const isLoading = loadingStaging
+  const isLoading = loadingStaging || (!!productionSummary && loadingProduction)
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">

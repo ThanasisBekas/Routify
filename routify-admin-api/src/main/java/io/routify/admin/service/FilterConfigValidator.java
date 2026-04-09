@@ -45,8 +45,7 @@ public class FilterConfigValidator {
                 // headerName and queryParam both optional — at least one defaults
             }
             case AUTH_BASIC -> {
-                requireString(config, "username", errors);
-                requireString(config, "password", errors);
+                // basic auth may used gatewayConfigRef instead of actual passing
             }
             case AUTH_JWT -> {
                 // issuer and audience are optional (JWT validation still works without them)
