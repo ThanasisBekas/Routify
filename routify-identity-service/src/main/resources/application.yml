@@ -46,7 +46,8 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Value serializer is JacksonJsonSerializer — configured in IdentityAppConfig.java
+      # (not here, to keep ADD_TYPE_INFO_HEADERS=false and other settings co-located)
       acks: all
 
   # ─── RabbitMQ — on platform bus (future request/reply expansion) ────────────

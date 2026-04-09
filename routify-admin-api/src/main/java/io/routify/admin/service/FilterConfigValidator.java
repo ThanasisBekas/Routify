@@ -120,6 +120,13 @@ public class FilterConfigValidator {
             // ─── Body Transformation ────────────────────────────────────────────
             case BODY_JOLT_TRANSFORM -> {
                 requireString(config, "spec", errors);
+                requireNonEmptyJoltSpec(config, "spec", errors);
+                // If phase=BOTH, responseSpec is also required
+                Object phase = config.get("phase");
+                if (phase instanceof String p && "BOTH".equalsIgnoreCase(p)) {
+                    requireString(config, "responseSpec", errors);
+                    requireNonEmptyJoltSpec(config, "responseSpec", errors);
+                }
             }
 
             // ─── Validation ─────────────────────────────────────────────────────
@@ -256,6 +263,18 @@ public class FilterConfigValidator {
             errors.add("field '%s' must not be blank".formatted(key));
         } else if (!(value instanceof String)) {
             errors.add("field '%s' must be a string, got %s".formatted(key, value.getClass().getSimpleName()));
+        }
+    }
+
+    /**
+     * Validates that a Jolt spec string is not just an empty JSON array ({@code "[]"}).
+     * The Jolt Chainr rejects empty arrays at runtime,
+     * so we catch this early with a clear validation message.
+     */
+    private void requireNonEmptyJoltSpec(Map<String, Object> config, String key, List<String> errors) {
+        Object value = config.get(key);
+        if (value instanceof String s && "[]".equals(s.strip())) {
+            errors.add("field '%s' must contain at least one Jolt operation (empty spec array '[]' is not allowed)".formatted(key));
         }
     }
 
