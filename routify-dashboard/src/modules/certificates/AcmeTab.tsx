@@ -215,7 +215,9 @@ export default function AcmeTab() {
           </div>
           <div>
             <h2 className="text-base font-bold text-white">ACME / Auto-Renew</h2>
-            <p className="text-xs text-gray-500">Automated certificate lifecycle via Let&apos;s Encrypt / ZeroSSL (staging available for testing)</p>
+            <p className="text-xs text-gray-500">
+              Automated certificate lifecycle via Let&apos;s Encrypt / ZeroSSL (staging available for testing)
+            </p>
           </div>
         </div>
         <button
