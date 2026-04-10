@@ -96,6 +96,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryRequest.AcmeOrdersQuery.class,    name = "ACME_ORDERS_QUERY"),
     @JsonSubTypes.Type(value = QueryRequest.AcmeOrderGet.class,       name = "ACME_ORDER_GET"),
     @JsonSubTypes.Type(value = QueryRequest.AcmeRenew.class,          name = "ACME_RENEW"),
+    @JsonSubTypes.Type(value = QueryRequest.AcmeAccountsQuery.class,  name = "ACME_ACCOUNTS_QUERY"),
     // ─── routify-ai-service ───────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryRequest.AiFilterEvaluate.class,      name = "AI_FILTER_EVALUATE"),
     @JsonSubTypes.Type(value = QueryRequest.AiModifierEvaluate.class,    name = "AI_MODIFIER_EVALUATE"),
@@ -179,6 +180,7 @@ public sealed interface QueryRequest
             QueryRequest.AcmeOrdersQuery,
             QueryRequest.AcmeOrderGet,
             QueryRequest.AcmeRenew,
+            QueryRequest.AcmeAccountsQuery,
             QueryRequest.AiFilterEvaluate,
             QueryRequest.AiModifierEvaluate,
             QueryRequest.AiFilterStatsQuery,
@@ -438,6 +440,9 @@ public sealed interface QueryRequest
 
     /** Trigger manual renewal of an ACME certificate order. */
     record AcmeRenew(UUID orderId, UUID tenantId) implements QueryRequest {}
+
+    /** List all ACME accounts for a tenant. */
+    record AcmeAccountsQuery(UUID tenantId) implements QueryRequest {}
 
     // ─── routify-ai-service ───────────────────────────────────────────────────
 

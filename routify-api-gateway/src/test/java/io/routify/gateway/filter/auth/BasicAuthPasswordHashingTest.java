@@ -1,5 +1,6 @@
 package io.routify.gateway.filter.auth;
 
+import io.routify.common.crypto.FieldEncryptionService;
 import io.routify.common.web.RoutifyHeaders;
 import io.routify.gateway.filter.BasicAuthGatewayFilterFactory;
 import io.routify.gateway.filter.BasicAuthGatewayFilterFactory.Config;
@@ -21,27 +22,28 @@ import java.util.Base64;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * P-03 BasicAuth Password Hashing — dedicated tests for BCrypt password
- * comparison in {@link BasicAuthGatewayFilterFactory}, plain-text legacy
- * fallback, and edge cases.
+ * BasicAuth password matching tests for {@link BasicAuthGatewayFilterFactory}.
  *
- * <p>Covers:
+ * <p>Covers three stored password formats:
  * <ul>
- *   <li>BCrypt-hashed password matches correctly</li>
- *   <li>BCrypt-hashed password rejects wrong credentials</li>
- *   <li>Legacy plain-text password still works (backward compatibility)</li>
- *   <li>Missing Authorization header → 401</li>
- *   <li>Malformed Base64 → 401</li>
- *   <li>Misconfigured (blank username/password) → 401</li>
- *   <li>Successful auth injects X-Auth-User-Id and X-Auth-Type headers</li>
- *   <li>Non-Basic scheme → 401</li>
+ *   <li>AES-encrypted ({@code {enc}} prefix) — current default</li>
+ *   <li>Legacy BCrypt hash ({@code $2} prefix) — backward compatibility</li>
+ *   <li>Legacy plain-text — fallback for very old configs</li>
  * </ul>
+ *
+ * <p>Also covers edge cases: missing/malformed headers, misconfigured filters,
+ * header injection on success, and colons in passwords.
  */
 class BasicAuthPasswordHashingTest {
 
+    /** A valid 32-byte AES key for testing. */
+    private static final String TEST_AES_KEY =
+            Base64.getEncoder().encodeToString(new byte[32]);
+
     private static final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder(12);
 
-    private final BasicAuthGatewayFilterFactory factory = new BasicAuthGatewayFilterFactory();
+    private final FieldEncryptionService fieldEncryptionService = new FieldEncryptionService(TEST_AES_KEY);
+    private final BasicAuthGatewayFilterFactory factory = new BasicAuthGatewayFilterFactory(fieldEncryptionService);
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -63,6 +65,13 @@ class BasicAuthPasswordHashingTest {
         return MockServerWebExchange.from(builder.build());
     }
 
+    private Config configWithEncrypted(String username, String rawPassword) {
+        Config config = new Config();
+        config.setUsername(username);
+        config.setPassword(fieldEncryptionService.encrypt(rawPassword));
+        return config;
+    }
+
     private Config configWithBcrypt(String username, String rawPassword) {
         Config config = new Config();
         config.setUsername(username);
@@ -77,10 +86,54 @@ class BasicAuthPasswordHashingTest {
         return config;
     }
 
-    // ─── BCrypt password matching ─────────────────────────────────────────────
+    // ─── AES-encrypted password matching (current default) ────────────────────
 
     @Test
-    @DisplayName("BCrypt-hashed password — correct credentials → authenticated, headers injected")
+    @DisplayName("AES-encrypted password — correct credentials → authenticated")
+    void aesEncryptedPassword_correctCredentials_passesThrough() {
+        Config config = configWithEncrypted("admin", "secretP@ss");
+        GatewayFilter filter = factory.apply(config);
+
+        var exchange = exchangeWithAuth(basicHeader("admin", "secretP@ss"));
+
+        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("AES-encrypted password — wrong password → 401")
+    void aesEncryptedPassword_wrongPassword_returns401() {
+        Config config = configWithEncrypted("admin", "secretP@ss");
+        GatewayFilter filter = factory.apply(config);
+
+        var exchange = exchangeWithAuth(basicHeader("admin", "wrongPassword"));
+
+        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("AES-encrypted password — wrong username → 401")
+    void aesEncryptedPassword_wrongUsername_returns401() {
+        Config config = configWithEncrypted("admin", "secretP@ss");
+        GatewayFilter filter = factory.apply(config);
+
+        var exchange = exchangeWithAuth(basicHeader("wronguser", "secretP@ss"));
+
+        StepVerifier.create(filter.filter(exchange, passThroughChain()))
+                .verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    // ─── Legacy BCrypt password matching ──────────────────────────────────────
+
+    @Test
+    @DisplayName("Legacy BCrypt-hashed password — correct credentials → authenticated")
     void bcryptPassword_correctCredentials_passesThrough() {
         Config config = configWithBcrypt("admin", "secretP@ss");
         GatewayFilter filter = factory.apply(config);
@@ -90,12 +143,11 @@ class BasicAuthPasswordHashingTest {
         StepVerifier.create(filter.filter(exchange, passThroughChain()))
                 .verifyComplete();
 
-        // Should pass through (no error status set)
         assertThat(exchange.getResponse().getStatusCode()).isNull();
     }
 
     @Test
-    @DisplayName("BCrypt-hashed password — wrong password → 401 INVALID_CREDENTIALS")
+    @DisplayName("Legacy BCrypt-hashed password — wrong password → 401")
     void bcryptPassword_wrongPassword_returns401() {
         Config config = configWithBcrypt("admin", "secretP@ss");
         GatewayFilter filter = factory.apply(config);
@@ -108,24 +160,10 @@ class BasicAuthPasswordHashingTest {
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
-    @Test
-    @DisplayName("BCrypt-hashed password — wrong username → 401 INVALID_CREDENTIALS")
-    void bcryptPassword_wrongUsername_returns401() {
-        Config config = configWithBcrypt("admin", "secretP@ss");
-        GatewayFilter filter = factory.apply(config);
-
-        var exchange = exchangeWithAuth(basicHeader("wronguser", "secretP@ss"));
-
-        StepVerifier.create(filter.filter(exchange, passThroughChain()))
-                .verifyComplete();
-
-        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-    }
-
     // ─── Legacy plain-text fallback ───────────────────────────────────────────
 
     @Test
-    @DisplayName("Legacy plain-text password — correct credentials → authenticated (backward compat)")
+    @DisplayName("Legacy plain-text password — correct credentials → authenticated")
     void plainTextPassword_correctCredentials_passesThrough() {
         Config config = configWithPlainText("operator", "plain123");
         GatewayFilter filter = factory.apply(config);
@@ -157,13 +195,11 @@ class BasicAuthPasswordHashingTest {
     @Test
     @DisplayName("Successful auth injects X-Auth-User-Id and X-Auth-Type: BASIC")
     void successfulAuth_injectsHeaders() {
-        Config config = configWithBcrypt("serviceUser", "myP@ss!");
+        Config config = configWithEncrypted("serviceUser", "myP@ss!");
         GatewayFilter filter = factory.apply(config);
 
-        // We need a chain that captures the mutated exchange to verify headers
         var exchange = exchangeWithAuth(basicHeader("serviceUser", "myP@ss!"));
 
-        // Use a chain that captures the request headers for verification
         final String[] capturedUserId = {null};
         final String[] capturedAuthType = {null};
         GatewayFilterChain capturingChain = ex -> {
@@ -182,9 +218,9 @@ class BasicAuthPasswordHashingTest {
     // ─── Missing / malformed credentials ──────────────────────────────────────
 
     @Test
-    @DisplayName("Missing Authorization header → 401 MISSING_CREDENTIALS")
+    @DisplayName("Missing Authorization header → 401")
     void missingAuthHeader_returns401() {
-        Config config = configWithBcrypt("admin", "pass");
+        Config config = configWithEncrypted("admin", "pass");
         GatewayFilter filter = factory.apply(config);
 
         var exchange = exchangeWithAuth(null);
@@ -196,9 +232,9 @@ class BasicAuthPasswordHashingTest {
     }
 
     @Test
-    @DisplayName("Non-Basic scheme (Bearer) → 401 MISSING_CREDENTIALS")
+    @DisplayName("Non-Basic scheme (Bearer) → 401")
     void bearerScheme_returns401() {
-        Config config = configWithBcrypt("admin", "pass");
+        Config config = configWithEncrypted("admin", "pass");
         GatewayFilter filter = factory.apply(config);
 
         var exchange = exchangeWithAuth("Bearer some-jwt-token");
@@ -210,9 +246,9 @@ class BasicAuthPasswordHashingTest {
     }
 
     @Test
-    @DisplayName("Malformed Base64 credentials → 401 INVALID_CREDENTIALS")
+    @DisplayName("Malformed Base64 credentials → 401")
     void malformedBase64_returns401() {
-        Config config = configWithBcrypt("admin", "pass");
+        Config config = configWithEncrypted("admin", "pass");
         GatewayFilter filter = factory.apply(config);
 
         var exchange = exchangeWithAuth("Basic !!!not-valid-base64!!!");
@@ -226,7 +262,7 @@ class BasicAuthPasswordHashingTest {
     // ─── Misconfigured (blank credentials) ────────────────────────────────────
 
     @Test
-    @DisplayName("Misconfigured — blank username → 401 GATEWAY_MISCONFIGURATION")
+    @DisplayName("Misconfigured — blank username → 401")
     void blankUsername_returns401() {
         Config config = new Config();
         config.setUsername("");
@@ -242,7 +278,7 @@ class BasicAuthPasswordHashingTest {
     }
 
     @Test
-    @DisplayName("Misconfigured — null password → 401 GATEWAY_MISCONFIGURATION")
+    @DisplayName("Misconfigured — null password → 401")
     void nullPassword_returns401() {
         Config config = new Config();
         config.setUsername("admin");
@@ -262,7 +298,7 @@ class BasicAuthPasswordHashingTest {
     @Test
     @DisplayName("Password containing colon character → correctly decoded and matched")
     void passwordWithColon_correctlyDecoded() {
-        Config config = configWithBcrypt("user", "pass:with:colons");
+        Config config = configWithEncrypted("user", "pass:with:colons");
         GatewayFilter filter = factory.apply(config);
 
         var exchange = exchangeWithAuth(basicHeader("user", "pass:with:colons"));

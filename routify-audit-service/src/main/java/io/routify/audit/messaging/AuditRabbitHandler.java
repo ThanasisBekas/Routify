@@ -409,6 +409,7 @@ public class AuditRabbitHandler {
         var to = java.time.LocalDate.now(java.time.ZoneOffset.UTC).minusDays(1);
         var from = to.minusDays(days - 1);
 
+        // 1. Try pre-aggregated daily snapshots (populated by UsageSnapshotScheduler at 00:05 UTC)
         var entries = tenantUsageDailyRepository
                 .findByTenantIdAndDateBetweenOrderByDateDesc(req.tenantId(), from, to)
                 .stream()
@@ -416,6 +417,25 @@ public class AuditRabbitHandler {
                         u.getDate().toString(), u.getRouteCount(), u.getFilterCount(),
                         u.getRequestCount(), u.getErrorCount()))
                 .toList();
+
+        // 2. Fallback: if no snapshots exist yet, aggregate live from request_log.
+        //    This covers the case where the nightly scheduler hasn't run yet (e.g. fresh setup / dev).
+        if (entries.isEmpty()) {
+            log.debug("No pre-aggregated usage snapshots found for tenant={}, falling back to live aggregation", req.tenantId());
+            var toDate = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+            var fromDate = toDate.minusDays(days);
+            Instant dayStart = fromDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC);
+            Instant dayEnd = toDate.plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC);
+
+            entries = requestLogRepository.countDailyRequestsForTenant(req.tenantId(), dayStart, dayEnd)
+                    .stream()
+                    .map(row -> new QueryResponse.UsageHistoryResult.DailyUsage(
+                            row[0].toString(),
+                            0, 0,
+                            ((Number) row[1]).longValue(),
+                            ((Number) row[2]).longValue()))
+                    .toList();
+        }
 
         return new QueryResponse.UsageHistoryResult(req.tenantId(), entries);
     }

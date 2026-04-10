@@ -1,8 +1,11 @@
 /**
  * AuthProvidersTab — Auth provider CRUD.
  *
- * Redesigned with provider-type color chips, improved secret masking UX,
+ * Redesigned with provider-type color chips, improved UX,
  * an extracted modal, and an empty state.
+ *
+ * Secrets (passwords, clientSecrets) are returned as plaintext by the API
+ * (AES-encrypted at rest) so operators can view and modify them directly.
  */
 import { useState } from 'react'
 import { Lock, Plus, Edit, Trash2, X, Eye, EyeOff, Key } from 'lucide-react'
@@ -26,17 +29,6 @@ const TYPE_COLORS: Record<string, string> = {
   OAUTH2_PASSWORD: 'text-violet-300 bg-violet-500/10 border-violet-500/20',
   OAUTH2_INTROSPECT: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
   BASIC: 'text-sky-300 bg-sky-500/10 border-sky-500/20',
-}
-
-/** Sentinel for masked secrets */
-const SECRET_MASK = '••••••••'
-
-function stripMaskedSecrets(p: GatewayAuthProvider): GatewayAuthProvider {
-  return {
-    ...p,
-    clientSecret: p.clientSecret === SECRET_MASK ? undefined : p.clientSecret,
-    password: p.password === SECRET_MASK ? undefined : p.password,
-  }
 }
 
 // ─── Provider modal ───────────────────────────────────────────────────────────
@@ -189,15 +181,11 @@ function ProviderModal({
                     className={inputCls}
                   />
                 </Field>
-                <Field
-                  label="Client Secret"
-                  hint={p.clientSecret === SECRET_MASK ? 'Currently stored — leave blank to keep unchanged' : undefined}
-                >
+                <Field label="Client Secret">
                   <div className="relative">
                     <input
                       type={showSecret ? 'text' : 'password'}
                       value={p.clientSecret ?? ''}
-                      placeholder={p.clientSecret === SECRET_MASK ? '(unchanged)' : ''}
                       onChange={(e) => setP((prev) => ({ ...prev, clientSecret: e.target.value }))}
                       className={`${inputCls} pr-9`}
                     />
@@ -238,12 +226,11 @@ function ProviderModal({
                     className={inputCls}
                   />
                 </Field>
-                <Field label="Password" hint={p.password === SECRET_MASK ? 'Currently stored' : undefined}>
+                <Field label="Password">
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={p.password ?? ''}
-                      placeholder={p.password === SECRET_MASK ? '(unchanged)' : ''}
                       onChange={(e) => setP((prev) => ({ ...prev, password: e.target.value }))}
                       className={`${inputCls} pr-9`}
                     />
@@ -294,12 +281,11 @@ function ProviderModal({
                   className={inputCls}
                 />
               </Field>
-              <Field label="Password" hint={p.password === SECRET_MASK ? 'Currently stored' : undefined}>
+              <Field label="Password">
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={p.password ?? ''}
-                    placeholder={p.password === SECRET_MASK ? '(unchanged)' : ''}
                     onChange={(e) => setP((prev) => ({ ...prev, password: e.target.value }))}
                     className={`${inputCls} pr-9`}
                   />
@@ -325,7 +311,7 @@ function ProviderModal({
           </button>
           <button
             onClick={() => {
-              onSave(stripMaskedSecrets(p))
+              onSave(p)
               onClose()
             }}
             disabled={isPending || !p.name.trim()}

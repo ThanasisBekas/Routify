@@ -27,11 +27,25 @@ public class FilterConfigValidator {
     /**
      * Validates the config map for the given filter type.
      *
-     * @param filterType the validated, non-deprecated filter type
-     * @param config     the user-supplied config map (may be null or empty)
+     * @param filterType       the validated, non-deprecated filter type
+     * @param config           the user-supplied config map (may be null or empty)
      * @throws RoutifyException.Validation if required fields are missing or have wrong types
      */
     public void validate(FilterType filterType, Map<String, Object> config) {
+        validate(filterType, config, null);
+    }
+
+    /**
+     * Validates the config map for the given filter type, taking into account
+     * an optional {@code gatewayConfigRef} that may supply credentials externally.
+     *
+     * @param filterType       the validated, non-deprecated filter type
+     * @param config           the user-supplied config map (may be null or empty)
+     * @param gatewayConfigRef optional ref to a gateway config entry (e.g. an auth provider)
+     * @throws RoutifyException.Validation if required fields are missing or have wrong types
+     */
+    public void validate(FilterType filterType, Map<String, Object> config,
+                         Map<String, Object> gatewayConfigRef) {
         if (config == null) {
             config = Map.of();
         }
@@ -45,8 +59,17 @@ public class FilterConfigValidator {
                 // headerName and queryParam both optional — at least one defaults
             }
             case AUTH_BASIC -> {
-                requireString(config, "username", errors);
-                requireString(config, "password", errors);
+                // username/password can come from config OR from a gatewayConfigRef (auth provider).
+                // If both are blank/missing in config, a gatewayConfigRef must be provided.
+                boolean hasUsername = hasNonBlankString(config, "username");
+                boolean hasPassword = hasNonBlankString(config, "password");
+                if (!hasUsername && !hasPassword) {
+                    boolean hasRef = gatewayConfigRef != null && !gatewayConfigRef.isEmpty();
+                    if (!hasRef) {
+                        errors.add("AUTH_BASIC requires either 'username' and 'password' in config, " +
+                                   "or a gatewayConfigRef pointing to an auth provider");
+                    }
+                }
             }
             case AUTH_JWT -> {
                 // issuer and audience are optional (JWT validation still works without them)
@@ -97,6 +120,13 @@ public class FilterConfigValidator {
             // ─── Body Transformation ────────────────────────────────────────────
             case BODY_JOLT_TRANSFORM -> {
                 requireString(config, "spec", errors);
+                requireNonEmptyJoltSpec(config, "spec", errors);
+                // If phase=BOTH, responseSpec is also required
+                Object phase = config.get("phase");
+                if (phase instanceof String p && "BOTH".equalsIgnoreCase(p)) {
+                    requireString(config, "responseSpec", errors);
+                    requireNonEmptyJoltSpec(config, "responseSpec", errors);
+                }
             }
 
             // ─── Validation ─────────────────────────────────────────────────────
@@ -214,6 +244,11 @@ public class FilterConfigValidator {
 
     // ─── Validation helpers ────────────────────────────────────────────────────
 
+    private boolean hasNonBlankString(Map<String, Object> config, String key) {
+        Object value = config.get(key);
+        return value instanceof String s && !s.isBlank();
+    }
+
     private void requirePresent(Map<String, Object> config, String key, List<String> errors) {
         if (!config.containsKey(key)) {
             errors.add("missing required field '%s'".formatted(key));
@@ -228,6 +263,18 @@ public class FilterConfigValidator {
             errors.add("field '%s' must not be blank".formatted(key));
         } else if (!(value instanceof String)) {
             errors.add("field '%s' must be a string, got %s".formatted(key, value.getClass().getSimpleName()));
+        }
+    }
+
+    /**
+     * Validates that a Jolt spec string is not just an empty JSON array ({@code "[]"}).
+     * The Jolt Chainr rejects empty arrays at runtime,
+     * so we catch this early with a clear validation message.
+     */
+    private void requireNonEmptyJoltSpec(Map<String, Object> config, String key, List<String> errors) {
+        Object value = config.get(key);
+        if (value instanceof String s && "[]".equals(s.strip())) {
+            errors.add("field '%s' must contain at least one Jolt operation (empty spec array '[]' is not allowed)".formatted(key));
         }
     }
 

@@ -1,5 +1,5 @@
 import { http, HttpResponse, delay } from 'msw'
-import { gatewayConfig, gatewayLiveStatus, routes } from '../db'
+import { gatewayConfig, gatewayLiveStatus, routes, filters } from '../db'
 import type {
   GatewayCorsConfig,
   GatewaySecurityHeadersConfig,
@@ -243,7 +243,18 @@ export const gatewayHandlers = [
   http.put(`${BASE}/global-filter-entries`, async ({ request }) => {
     await delay(350)
     const body = (await request.json()) as GlobalFilterEntry[]
-    gatewayConfig.globalFilterEntries = body
+    // Enrich entries with config from the filters DB (simulates backend enrichment)
+    gatewayConfig.globalFilterEntries = body.map((entry) => {
+      const filter = filters.get(entry.filterId)
+      if (filter) {
+        return {
+          ...entry,
+          config: filter.config ?? entry.config ?? {},
+          gatewayConfigRef: filter.gatewayConfigRef ?? entry.gatewayConfigRef,
+        }
+      }
+      return entry
+    })
     gatewayConfig.updatedAt = new Date().toISOString()
     return HttpResponse.json(gatewayConfig)
   }),

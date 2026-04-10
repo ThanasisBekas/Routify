@@ -61,37 +61,6 @@ export type Permission =
   | 'TENANTS_WRITE'
   | 'TENANTS_SUSPEND'
 
-/** All available permissions — useful for form builders. */
-export const ALL_PERMISSIONS: Permission[] = [
-  'ROUTES_READ',
-  'ROUTES_WRITE',
-  'ROUTES_ACTIVATE',
-  'ROUTES_DELETE',
-  'ROUTES_PROMOTE',
-  'FILTERS_READ',
-  'FILTERS_WRITE',
-  'FILTERS_DELETE',
-  'USERS_READ',
-  'USERS_WRITE',
-  'USERS_DELETE',
-  'CERTS_READ',
-  'CERTS_WRITE',
-  'CERTS_ADMIN',
-  'AUDIT_READ',
-  'AUDIT_REPLAY',
-  'GATEWAY_CONFIG_READ',
-  'GATEWAY_CONFIG_WRITE',
-  'API_KEYS_READ',
-  'API_KEYS_ADMIN',
-  'WEBHOOKS_READ',
-  'WEBHOOKS_ADMIN',
-  'AI_POLICY_READ',
-  'AI_POLICY_WRITE',
-  'TENANTS_READ',
-  'TENANTS_WRITE',
-  'TENANTS_SUSPEND',
-]
-
 /** Groups permissions by resource type for form builders. */
 export const PERMISSION_GROUPS: Record<string, Permission[]> = {
   Routes: ['ROUTES_READ', 'ROUTES_WRITE', 'ROUTES_ACTIVATE', 'ROUTES_DELETE', 'ROUTES_PROMOTE'],
@@ -844,7 +813,7 @@ export interface CertLogicalIdEntry {
 
 // ─── ACME (Automated Certificate Lifecycle) ──────────────────────────────────
 
-export type AcmeProvider = 'LETSENCRYPT' | 'ZEROSSSL'
+export type AcmeProvider = 'LETSENCRYPT' | 'LETSENCRYPT_STAGING' | 'ZEROSSSL'
 export type AcmeOrderStatus = 'PENDING' | 'VALIDATING' | 'COMPLETED' | 'FAILED' | 'RENEWAL_FAILED'
 
 export interface AcmeAccountDto {

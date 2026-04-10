@@ -167,7 +167,9 @@ public class RouteService {
      * Clones an existing route — creates a new DRAFT route with the same configuration
      * and filter chain, but a new ID and a "(copy)" name suffix.
      *
-     * <p>The cloned route starts as DRAFT (version 1, no activatedAt).
+     * <p>The cloned route starts as DRAFT (version 1, no activatedAt) in the
+     * {@link RouteEnvironment#STAGING STAGING} environment by default, so it is
+     * isolated from live gateway traffic until explicitly promoted.
      * Filter attachments are duplicated so the clone has its own independent filter chain.
      */
     @Transactional
@@ -199,6 +201,7 @@ public class RouteService {
                 .stripPrefix(source.getStripPrefix())
                 .createdBy(createdBy)
                 .extraConfig(source.getExtraConfig() != null ? new java.util.HashMap<>(source.getExtraConfig()) : null)
+                .environment(RouteEnvironment.STAGING)
                 .build();
 
         // No duplicate-path check here — cloned routes start as DRAFT and can share a path
@@ -247,7 +250,7 @@ public class RouteService {
         // so we must guard against ambiguity right now.  For DRAFT/DISABLED routes the check
         // is deferred to activation time.
         if (route.isActive() && (cmd.pathPattern() != null || cmd.methods() != null)) {
-            validateNoDuplicateRoute(tenantId, route.getPathPattern(), route.getMethods(), routeId);
+            validateNoDuplicateRoute(tenantId, route.getPathPattern(), route.getMethods(), routeId, route.getEnvironment());
         }
 
         if (cmd.upstreamUri() != null) route.setUpstreamUri(cmd.upstreamUri());
@@ -294,8 +297,10 @@ public class RouteService {
         Route route = findById(routeId, tenantId);
 
         // Guard before going live: no other ACTIVE route under this tenant may own the same
-        // (pathPattern, methods) slot — that would create routing ambiguity in the gateway.
-        validateNoDuplicateRoute(tenantId, route.getPathPattern(), route.getMethods(), routeId);
+        // (pathPattern, methods, environment) slot — that would create routing ambiguity in the
+        // gateway.  Routes in different environments (STAGING vs PRODUCTION) are matched
+        // independently (STAGING requires X-Route-Environment header), so they may coexist.
+        validateNoDuplicateRoute(tenantId, route.getPathPattern(), route.getMethods(), routeId, route.getEnvironment());
 
         try {
             route.activate(); // throws if already ACTIVE
@@ -359,27 +364,72 @@ public class RouteService {
     }
 
     /**
-     * Soft-deletes a route by archiving it.
-     * Active routes cannot be deleted — must be deactivated first.
+     * Two-phase route deletion:
+     * <ol>
+     *   <li><b>First delete</b> (DRAFT/DISABLED) → soft-deletes by archiving the route.
+     *       The route remains in the database as ARCHIVED and can still be inspected.</li>
+     *   <li><b>Second delete</b> (ARCHIVED) → permanently removes the route and all
+     *       related data (filters, SLO) from the database. Filter usage counts are
+     *       decremented atomically.</li>
+     * </ol>
+     *
+     * <p>ACTIVE routes cannot be deleted — they must be deactivated first.
      */
     @Transactional
     public void delete(UUID routeId, UUID tenantId) {
-        Route route = findById(routeId, tenantId);
+        Route route = findByIdWithFilters(routeId, tenantId);
 
         if (route.isActive()) {
             throw new RoutifyException.Validation(
                     "Cannot delete an ACTIVE route. Deactivate it first.");
         }
 
-        route.archive();
-        routeRepository.save(route);
+        if (route.getStatus() == RouteStatus.ARCHIVED) {
+            // ── Hard delete: permanently remove the route ──────────────────
 
-        outboxStore.store(
-                new DomainEvent.RouteDeleted(
-                        UUID.randomUUID(), tenantId, routeId, Instant.now(), null, null),
-                KafkaTopics.ROUTE_EVENTS, tenantId);
+            // Unlink canary pair if this route was part of one (defensive — canary
+            // links are normally cleared during promotion/rollback, but we guard
+            // against stale data to avoid a dangling FK after deletion).
+            if (route.getCanaryRouteId() != null) {
+                routeRepository.findById(route.getCanaryRouteId()).ifPresent(sibling -> {
+                    sibling.setCanaryRouteId(null);
+                    sibling.setCanaryAutoRollbackThreshold(null);
+                    sibling.setTrafficWeight(100);
+                    routeRepository.save(sibling);
+                });
+            }
+            routeRepository.findByCanaryRouteId(routeId).ifPresent(primary -> {
+                primary.setCanaryRouteId(null);
+                primary.setCanaryAutoRollbackThreshold(null);
+                primary.setTrafficWeight(100);
+                routeRepository.save(primary);
+            });
 
-        log.info("Route archived: id={}", routeId);
+            // Decrement filter usage counts before cascade-deleting route_filter rows
+            for (RouteFilter rf : route.getFilters()) {
+                filterRepository.decrementUsageAtomic(rf.getFilterDefinition().getId());
+            }
+
+            routeRepository.delete(route);
+
+            outboxStore.store(
+                    new DomainEvent.RouteDeleted(
+                            UUID.randomUUID(), tenantId, routeId, Instant.now(), null, null),
+                    KafkaTopics.ROUTE_EVENTS, tenantId);
+
+            log.info("Route permanently deleted: id={}", routeId);
+        } else {
+            // ── Soft delete: archive the route ─────────────────────────────
+            route.archive();
+            routeRepository.save(route);
+
+            outboxStore.store(
+                    new DomainEvent.RouteDeleted(
+                            UUID.randomUUID(), tenantId, routeId, Instant.now(), null, null),
+                    KafkaTopics.ROUTE_EVENTS, tenantId);
+
+            log.info("Route archived: id={}", routeId);
+        }
     }
 
     /**
@@ -470,9 +520,13 @@ public class RouteService {
             throw new RoutifyException.Validation(
                     "Route '%s' is not a STAGING route — cannot promote".formatted(staging.getName()));
         }
-        if (staging.getStatus() != RouteStatus.ACTIVE) {
+        if (staging.getStatus() == RouteStatus.ARCHIVED) {
             throw new RoutifyException.Validation(
-                    "Only ACTIVE staging routes can be promoted (current: %s)".formatted(staging.getStatus()));
+                    "Cannot promote an ARCHIVED staging route '%s' — create a new staging revision instead".formatted(staging.getName()));
+        }
+        if (staging.getStatus() == RouteStatus.DISABLED) {
+            throw new RoutifyException.Validation(
+                    "Cannot promote a DISABLED staging route '%s' — re-enable it first or create a new staging revision".formatted(staging.getName()));
         }
 
         // Find or create the production counterpart
@@ -659,11 +713,17 @@ public class RouteService {
         // Copy canary config to primary
         primary.setUpstreamUri(canary.getUpstreamUri());
         if (canary.getExtraConfig() != null) {
-            primary.setExtraConfig(new java.util.HashMap<>(canary.getExtraConfig()));
+            var mergedConfig = new java.util.HashMap<>(canary.getExtraConfig());
+            // Remove canary-specific metadata that should not leak into the promoted primary.
+            // The gateway's RouteDefinitionBuilder uses this key to identify canary group
+            // membership — leaving it would cause the primary to be misidentified as a canary.
+            mergedConfig.remove("canaryPrimaryRouteId");
+            primary.setExtraConfig(mergedConfig);
         }
         primary.setTrafficWeight(100);
         primary.setCanaryRouteId(null);
         primary.setCanaryAutoRollbackThreshold(null);
+        primary.incrementVersion();
         routeRepository.save(primary);
 
         // Archive canary
@@ -704,6 +764,7 @@ public class RouteService {
         UUID canaryId = primary.getCanaryRouteId();
         primary.setCanaryRouteId(null);
         primary.setCanaryAutoRollbackThreshold(null);
+        primary.incrementVersion();
         routeRepository.save(primary);
 
         // Archive canary
@@ -868,27 +929,36 @@ public class RouteService {
     }
 
     /**
-     * Ensures there is no other non-ARCHIVED route under the same tenant with the same
-     * (pathPattern, methods) combination.  A duplicate would make request routing
-     * ambiguous — the gateway cannot deterministically decide which route to use.
+     * Ensures there is no other non-ARCHIVED route <em>in the same environment</em> under
+     * the same tenant with the same (pathPattern, methods) combination.  A duplicate within
+     * the same environment would make request routing ambiguous — the gateway cannot
+     * deterministically decide which route to use.
+     *
+     * <p>Routes in different environments (STAGING vs PRODUCTION) are allowed to share a
+     * path/methods combination because the gateway only matches STAGING routes when the
+     * request carries an explicit {@code X-Route-Environment: STAGING} header.
      *
      * <p>Canary routes are allowed to share a path pattern with their primary route —
      * the gateway uses weighted predicates to split traffic between them.
      *
-     * @param excludeId when non-null, the route with this ID is excluded from the check
-     *                  (used during updates so a route may keep its own path/methods).
+     * @param excludeId   when non-null, the route with this ID is excluded from the check
+     *                    (used during updates so a route may keep its own path/methods).
+     * @param environment the environment to scope the check to (STAGING or PRODUCTION)
      * @throws RoutifyException.Conflict if a conflicting route exists
      */
-    private void validateNoDuplicateRoute(UUID tenantId, String pathPattern, String methods, UUID excludeId) {
+    private void validateNoDuplicateRoute(UUID tenantId, String pathPattern, String methods,
+                                          UUID excludeId, RouteEnvironment environment) {
         boolean duplicate = excludeId == null
-                ? routeRepository.existsActiveByPathPatternAndMethodsAndTenantId(tenantId, pathPattern, methods)
-                : routeRepository.existsActiveByPathPatternAndMethodsAndTenantIdExcluding(tenantId, pathPattern, methods, excludeId);
+                ? routeRepository.existsActiveByPathPatternAndMethodsAndTenantIdAndEnvironment(
+                        tenantId, pathPattern, methods, environment)
+                : routeRepository.existsActiveByPathPatternAndMethodsAndTenantIdAndEnvironmentExcluding(
+                        tenantId, pathPattern, methods, environment, excludeId);
 
         if (duplicate) {
             // Check if the conflicting route is a canary pair — if so, allow it
             if (excludeId != null) {
-                var conflicting = routeRepository.findActiveByPathPatternAndMethodsAndTenantIdExcluding(
-                        tenantId, pathPattern, methods, excludeId);
+                var conflicting = routeRepository.findActiveByPathPatternAndMethodsAndTenantIdAndEnvironmentExcluding(
+                        tenantId, pathPattern, methods, environment, excludeId);
                 if (conflicting.isPresent()) {
                     Route other = conflicting.get();
                     Route self = routeRepository.findById(excludeId).orElse(null);
@@ -904,8 +974,8 @@ public class RouteService {
             }
 
             throw new RoutifyException.Conflict(
-                    "A route with path pattern '%s' and methods '%s' already exists for this tenant"
-                            .formatted(pathPattern, methods));
+                    "A route with path pattern '%s' and methods '%s' already exists for this tenant in %s"
+                            .formatted(pathPattern, methods, environment));
         }
     }
 }

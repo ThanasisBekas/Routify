@@ -90,6 +90,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = QueryResponse.AcmeAccountResult.class,    name = "ACME_ACCOUNT_RESULT"),
     @JsonSubTypes.Type(value = QueryResponse.AcmeOrderDetail.class,      name = "ACME_ORDER_DETAIL"),
     @JsonSubTypes.Type(value = QueryResponse.AcmeOrdersPage.class,       name = "ACME_ORDERS_PAGE"),
+    @JsonSubTypes.Type(value = QueryResponse.AcmeAccountsList.class,     name = "ACME_ACCOUNTS_LIST"),
     // ─── routify-ai-service ───────────────────────────────────────────────────
     @JsonSubTypes.Type(value = QueryResponse.AiFilterVerdict.class,         name = "AI_FILTER_VERDICT"),
     @JsonSubTypes.Type(value = QueryResponse.AiModifierVerdict.class,       name = "AI_MODIFIER_VERDICT"),
@@ -163,6 +164,7 @@ public sealed interface QueryResponse
             QueryResponse.AcmeAccountResult,
             QueryResponse.AcmeOrderDetail,
             QueryResponse.AcmeOrdersPage,
+            QueryResponse.AcmeAccountsList,
             QueryResponse.GatewayStatus,
             QueryResponse.CertRegistrySnapshot,
             QueryResponse.AiFilterVerdict,
@@ -899,6 +901,11 @@ public sealed interface QueryResponse
             int  size,
             boolean first,
             boolean last
+    ) implements QueryResponse {}
+
+    /** List of ACME accounts for a tenant. */
+    record AcmeAccountsList(
+            List<AcmeAccountResult> accounts
     ) implements QueryResponse {}
 
     // ═══════════════════════════════════════════════════════════════════════════

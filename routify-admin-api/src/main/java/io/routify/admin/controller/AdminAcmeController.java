@@ -28,6 +28,13 @@ public class AdminAcmeController {
 
     // ─── Register ACME account ──────────────────────────────────────────────────
 
+    @GetMapping("/accounts")
+    @PreAuthorize("hasAuthority('CERTS_READ') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN','OPERATOR','VIEWER')")
+    public ResponseEntity<QueryResponse.AcmeAccountsList> listAccounts(
+            @RequestHeader(RoutifyHeaders.TENANT_ID) UUID tenantId) {
+        return ResponseEntity.ok(messagingClient.queryAcmeAccounts(tenantId));
+    }
+
     @PostMapping("/register")
     @PreAuthorize("hasAuthority('CERTS_ADMIN') or hasAnyRole('SUPER_ADMIN','TENANT_ADMIN')")
     public ResponseEntity<QueryResponse.AcmeAccountResult> registerAccount(

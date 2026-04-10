@@ -108,6 +108,11 @@ public class CertVaultRabbitConfig {
         return QueueBuilder.durable(RabbitTopology.QUEUE_ACME_RENEW).build();
     }
 
+    @Bean
+    public Queue acmeAccountsQueryQueue() {
+        return QueueBuilder.durable(RabbitTopology.QUEUE_ACME_ACCOUNTS_QUERY).build();
+    }
+
     // ─── Bindings ─────────────────────────────────────────────────────────────
 
     @Bean
@@ -194,6 +199,12 @@ public class CertVaultRabbitConfig {
     public Binding acmeRenewBinding(Queue acmeRenewQueue, DirectExchange certVaultExchange) {
         return BindingBuilder.bind(acmeRenewQueue)
                 .to(certVaultExchange).with(RabbitTopology.RK_ACME_RENEW);
+    }
+
+    @Bean
+    public Binding acmeAccountsQueryBinding(Queue acmeAccountsQueryQueue, DirectExchange certVaultExchange) {
+        return BindingBuilder.bind(acmeAccountsQueryQueue)
+                .to(certVaultExchange).with(RabbitTopology.RK_ACME_ACCOUNTS_QUERY);
     }
 
     // ─── Message converter & template ─────────────────────────────────────────

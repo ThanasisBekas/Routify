@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.routify.admin.client.RouteFilterMessagingClient;
 import io.routify.admin.gateway.dto.GatewayConfigDto;
 import io.routify.admin.gateway.dto.GatewayConfigDto.*;
+import io.routify.common.crypto.FieldEncryptionService;
 import io.routify.common.event.QueryResponse;
 import io.routify.common.exception.RoutifyException;
 import io.routify.common.web.RoutifyHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -64,14 +64,15 @@ public class GatewayConfigService {
     /** Cache TTL — long enough to avoid DB hammering, short enough to self-heal */
     static final Duration CACHE_TTL = Duration.ofHours(1);
 
-    /** BCrypt encoder (strength 12) — used to hash BASIC auth provider passwords before persisting. */
-    private static final BCryptPasswordEncoder BCRYPT = new BCryptPasswordEncoder(12);
+    /** Prefix for AES-256-GCM encrypted values produced by {@link FieldEncryptionService}. */
+    private static final String ENC_PREFIX = "{enc}";
 
-    private final StringRedisTemplate      redisTemplate;
-    private final ObjectMapper             objectMapper;
-    private final GatewayActuatorClient    gatewayActuatorClient;
-    private final RouteServiceConfigClient routeServiceConfigClient;
-    private final RouteFilterMessagingClient routeFilterMessagingClient;
+    private final StringRedisTemplate        redisTemplate;
+    private final ObjectMapper               objectMapper;
+    private final GatewayActuatorClient      gatewayActuatorClient;
+    private final RouteServiceConfigClient   routeServiceConfigClient;
+    private final RouteFilterMessagingClient  routeFilterMessagingClient;
+    private final FieldEncryptionService     fieldEncryptionService;
 
     // ─── Read ─────────────────────────────────────────────────────────────────
 
@@ -135,7 +136,7 @@ public class GatewayConfigService {
     public GatewayConfigDto saveConfig(GatewayConfigDto dto, String updatedBy) {
         GatewayConfigDto existing = getConfig();
         mergeInto(existing, dto);
-        hashBasicAuthPasswords(existing);
+        encryptSecrets(existing);
         return persistAndNotify(existing, updatedBy, "full");
     }
 
@@ -186,34 +187,35 @@ public class GatewayConfigService {
         GatewayConfigDto cfg = getConfig();
         List<AuthProviderDto> list = new ArrayList<>(cfg.getAuthProviders() != null ? cfg.getAuthProviders() : List.of());
 
-        // For BASIC auth providers, handle password hashing / preservation:
+        // Handle password encryption / preservation for BASIC auth providers:
         //  1. null/blank  → leave untouched
-        //  2. already a BCrypt hash ($2 prefix) → skip re-hashing
-        //  3. existing provider has a hashed password and incoming is plain text
-        //     → treat incoming as a masked/sentinel value and preserve the stored hash
-        //  4. new provider (no existing) with plain text → BCrypt-hash it
+        //  2. already AES-encrypted ({enc} prefix) → skip re-encryption
+        //  3. legacy BCrypt hash ($2 prefix) → cannot reverse; leave as-is (gateway still supports BCrypt matching)
+        //  4. plaintext  → AES-encrypt it
         if ("BASIC".equalsIgnoreCase(provider.getType())
                 && provider.getPassword() != null
-                && !provider.getPassword().isBlank()
-                && !provider.getPassword().startsWith("$2")) {
+                && !provider.getPassword().isBlank()) {
 
-            // Look up existing provider by ID to detect masked/sentinel passwords
-            String existingHash = list.stream()
-                    .filter(p -> p.getId() != null && p.getId().equals(provider.getId()))
-                    .map(AuthProviderDto::getPassword)
-                    .filter(pw -> pw != null && pw.startsWith("$2"))
-                    .findFirst()
-                    .orElse(null);
-
-            if (existingHash != null) {
-                // Existing provider already has a hashed password — preserve it
-                // (the incoming plain-text value is a masked/sentinel placeholder from the UI)
-                provider.setPassword(existingHash);
-                log.info("Preserved existing BCrypt hash for BASIC auth provider '{}'", provider.getId());
+            if (provider.getPassword().startsWith(ENC_PREFIX)) {
+                // Already encrypted — no action needed
+                log.debug("Password already AES-encrypted for BASIC auth provider '{}'", provider.getId());
+            } else if (provider.getPassword().startsWith("$2")) {
+                // Legacy BCrypt hash — leave as-is; gateway still supports BCrypt matching
+                log.info("Preserving legacy BCrypt hash for BASIC auth provider '{}' — " +
+                         "set a new plaintext password to migrate to AES encryption", provider.getId());
             } else {
-                provider.setPassword(BCRYPT.encode(provider.getPassword()));
-                log.info("BCrypt-hashed BASIC auth provider password for provider '{}'", provider.getId());
+                // New plaintext password — encrypt with AES-256-GCM
+                provider.setPassword(fieldEncryptionService.encrypt(provider.getPassword()));
+                log.info("AES-encrypted BASIC auth provider password for provider '{}'", provider.getId());
             }
+        }
+
+        // Handle clientSecret encryption for OAuth2 providers
+        if (provider.getClientSecret() != null
+                && !provider.getClientSecret().isBlank()
+                && !provider.getClientSecret().startsWith(ENC_PREFIX)) {
+            provider.setClientSecret(fieldEncryptionService.encrypt(provider.getClientSecret()));
+            log.info("AES-encrypted clientSecret for auth provider '{}'", provider.getId());
         }
 
         list.removeIf(p -> p.getId() != null && p.getId().equals(provider.getId()));
@@ -260,6 +262,16 @@ public class GatewayConfigService {
     public GatewayConfigDto upsertDownstreamCredential(DownstreamCredentialDto credential, String updatedBy) {
         GatewayConfigDto cfg = getConfig();
         List<DownstreamCredentialDto> list = new ArrayList<>(cfg.getDownstreamCredentials() != null ? cfg.getDownstreamCredentials() : List.of());
+
+        // Encrypt sensitive credential fields
+        if (credential.getPassword() != null && !credential.getPassword().isBlank()
+                && !credential.getPassword().startsWith(ENC_PREFIX)) {
+            credential.setPassword(fieldEncryptionService.encrypt(credential.getPassword()));
+        }
+        if (credential.getHeaderValue() != null && !credential.getHeaderValue().isBlank()
+                && !credential.getHeaderValue().startsWith(ENC_PREFIX)) {
+            credential.setHeaderValue(fieldEncryptionService.encrypt(credential.getHeaderValue()));
+        }
 
         list.removeIf(c -> c.getId() != null && c.getId().equals(credential.getId()));
         list.add(credential);
@@ -313,13 +325,25 @@ public class GatewayConfigService {
                     log.debug("Enriched global filter entry '{}' (type={}) with config ({} keys) and gatewayConfigRef={}",
                             entry.getFilterName(), entry.getFilterType(), config.size(), gcRef != null);
                 } else {
-                    log.warn("Could not fetch filter detail for global entry filterId={} — persisting without config",
-                            entry.getFilterId());
+                    // Circuit breaker fallback returned null — preserve frontend-supplied config if present
+                    if (entry.getConfig() != null && !entry.getConfig().isEmpty()) {
+                        log.warn("Could not fetch filter detail for global entry filterId={} — preserving frontend-supplied config ({} keys)",
+                                entry.getFilterId(), entry.getConfig().size());
+                    } else {
+                        log.warn("Could not fetch filter detail for global entry filterId={} — persisting without config (gateway will use defaults for this filter type)",
+                                entry.getFilterId());
+                    }
                     enriched.add(entry);
                 }
             } catch (Exception e) {
-                log.warn("Failed to enrich global filter entry filterId={}: {} — persisting without config",
-                        entry.getFilterId(), e.getMessage());
+                // Enrichment failed — preserve frontend-supplied config if present
+                if (entry.getConfig() != null && !entry.getConfig().isEmpty()) {
+                    log.warn("Failed to enrich global filter entry filterId={}: {} — preserving frontend-supplied config ({} keys)",
+                            entry.getFilterId(), e.getMessage(), entry.getConfig().size());
+                } else {
+                    log.warn("Failed to enrich global filter entry filterId={}: {} — persisting without config (gateway will use defaults for this filter type)",
+                            entry.getFilterId(), e.getMessage());
+                }
                 enriched.add(entry);
             }
         }
@@ -327,18 +351,48 @@ public class GatewayConfigService {
     }
 
     /**
-     * BCrypt-hashes plain-text passwords on all BASIC auth providers in the config.
-     * Skips null/blank values, masked sentinels, and values that are already BCrypt hashes.
+     * AES-encrypts plaintext passwords and secrets on all auth providers in the config.
+     * Skips null/blank values and values that are already AES-encrypted ({@code {enc}} prefix)
+     * or legacy BCrypt hashes ({@code $2} prefix).
      */
-    private void hashBasicAuthPasswords(GatewayConfigDto config) {
-        if (config.getAuthProviders() == null) return;
-        for (AuthProviderDto provider : config.getAuthProviders()) {
-            if ("BASIC".equalsIgnoreCase(provider.getType())
-                    && provider.getPassword() != null
-                    && !provider.getPassword().isBlank()
-                    && !provider.getPassword().startsWith("$2")) {
-                provider.setPassword(BCRYPT.encode(provider.getPassword()));
-                log.info("BCrypt-hashed BASIC auth provider password for provider '{}'", provider.getId());
+    private void encryptSecrets(GatewayConfigDto config) {
+        if (config.getAuthProviders() != null) {
+            for (AuthProviderDto provider : config.getAuthProviders()) {
+                // Encrypt BASIC auth passwords
+                if ("BASIC".equalsIgnoreCase(provider.getType())
+                        && provider.getPassword() != null
+                        && !provider.getPassword().isBlank()
+                        && !provider.getPassword().startsWith(ENC_PREFIX)
+                        && !provider.getPassword().startsWith("$2")) {
+                    provider.setPassword(fieldEncryptionService.encrypt(provider.getPassword()));
+                }
+                // Encrypt OAuth2 client secrets
+                if (provider.getClientSecret() != null
+                        && !provider.getClientSecret().isBlank()
+                        && !provider.getClientSecret().startsWith(ENC_PREFIX)) {
+                    provider.setClientSecret(fieldEncryptionService.encrypt(provider.getClientSecret()));
+                }
+            }
+        }
+        // Encrypt proxy password
+        if (config.getProxyConfig() != null
+                && config.getProxyConfig().getPassword() != null
+                && !config.getProxyConfig().getPassword().isBlank()
+                && !config.getProxyConfig().getPassword().startsWith(ENC_PREFIX)) {
+            config.getProxyConfig().setPassword(
+                    fieldEncryptionService.encrypt(config.getProxyConfig().getPassword()));
+        }
+        // Encrypt downstream credential secrets
+        if (config.getDownstreamCredentials() != null) {
+            for (DownstreamCredentialDto cred : config.getDownstreamCredentials()) {
+                if (cred.getPassword() != null && !cred.getPassword().isBlank()
+                        && !cred.getPassword().startsWith(ENC_PREFIX)) {
+                    cred.setPassword(fieldEncryptionService.encrypt(cred.getPassword()));
+                }
+                if (cred.getHeaderValue() != null && !cred.getHeaderValue().isBlank()
+                        && !cred.getHeaderValue().startsWith(ENC_PREFIX)) {
+                    cred.setHeaderValue(fieldEncryptionService.encrypt(cred.getHeaderValue()));
+                }
             }
         }
     }
@@ -401,6 +455,91 @@ public class GatewayConfigService {
         if (incoming.getTenantIsolation() != null)     existing.setTenantIsolation(incoming.getTenantIsolation());
         if (incoming.getGlobalFilterEntries() != null) existing.setGlobalFilterEntries(incoming.getGlobalFilterEntries());
         if (incoming.getDownstreamCredentials() != null) existing.setDownstreamCredentials(incoming.getDownstreamCredentials());
+    }
+
+    // ─── Secret decryption (read path) ────────────────────────────────────────
+
+    /**
+     * Returns the full config with all AES-encrypted secrets decrypted to plaintext.
+     * Used by controller read endpoints so the dashboard can display and edit actual values.
+     *
+     * <p>Legacy BCrypt-hashed passwords ({@code $2} prefix) are returned as-is —
+     * they cannot be reversed. The dashboard will show the hash; re-saving with a
+     * new plaintext password migrates the entry to AES encryption.
+     */
+    public GatewayConfigDto getConfigDecrypted() {
+        GatewayConfigDto cfg = getConfig();
+        decryptAuthProviderSecrets(cfg);
+        decryptDownstreamCredentialSecrets(cfg);
+        decryptProxyPassword(cfg);
+        return cfg;
+    }
+
+    /**
+     * Returns auth providers with secrets decrypted.
+     */
+    public List<AuthProviderDto> getAuthProvidersDecrypted() {
+        List<AuthProviderDto> list = getAuthProviders();
+        list.forEach(this::decryptSingleAuthProvider);
+        return list;
+    }
+
+    /**
+     * Returns downstream credentials with secrets decrypted.
+     */
+    public List<DownstreamCredentialDto> getDownstreamCredentialsDecrypted() {
+        List<DownstreamCredentialDto> list = getDownstreamCredentials();
+        list.forEach(this::decryptSingleDownstreamCredential);
+        return list;
+    }
+
+    /**
+     * Returns proxy config with password decrypted.
+     */
+    public ProxyConfigDto getProxyConfigDecrypted() {
+        ProxyConfigDto proxy = getProxyConfig();
+        if (proxy != null && proxy.getPassword() != null
+                && proxy.getPassword().startsWith(ENC_PREFIX)) {
+            proxy.setPassword(fieldEncryptionService.decrypt(proxy.getPassword()));
+        }
+        return proxy;
+    }
+
+    private void decryptAuthProviderSecrets(GatewayConfigDto cfg) {
+        if (cfg.getAuthProviders() == null) return;
+        cfg.getAuthProviders().forEach(this::decryptSingleAuthProvider);
+    }
+
+    private void decryptSingleAuthProvider(AuthProviderDto p) {
+        if (p.getPassword() != null && p.getPassword().startsWith(ENC_PREFIX)) {
+            p.setPassword(fieldEncryptionService.decrypt(p.getPassword()));
+        }
+        if (p.getClientSecret() != null && p.getClientSecret().startsWith(ENC_PREFIX)) {
+            p.setClientSecret(fieldEncryptionService.decrypt(p.getClientSecret()));
+        }
+    }
+
+    private void decryptDownstreamCredentialSecrets(GatewayConfigDto cfg) {
+        if (cfg.getDownstreamCredentials() == null) return;
+        cfg.getDownstreamCredentials().forEach(this::decryptSingleDownstreamCredential);
+    }
+
+    private void decryptSingleDownstreamCredential(DownstreamCredentialDto c) {
+        if (c.getPassword() != null && c.getPassword().startsWith(ENC_PREFIX)) {
+            c.setPassword(fieldEncryptionService.decrypt(c.getPassword()));
+        }
+        if (c.getHeaderValue() != null && c.getHeaderValue().startsWith(ENC_PREFIX)) {
+            c.setHeaderValue(fieldEncryptionService.decrypt(c.getHeaderValue()));
+        }
+    }
+
+    private void decryptProxyPassword(GatewayConfigDto cfg) {
+        if (cfg.getProxyConfig() != null
+                && cfg.getProxyConfig().getPassword() != null
+                && cfg.getProxyConfig().getPassword().startsWith(ENC_PREFIX)) {
+            cfg.getProxyConfig().setPassword(
+                    fieldEncryptionService.decrypt(cfg.getProxyConfig().getPassword()));
+        }
     }
 
     private GatewayConfigDto buildDefaults() {

@@ -54,7 +54,7 @@ export function useRouteActions(routeId?: string) {
     mutationFn: routesApi.clone,
     onSuccess: () => {
       invalidate()
-      toast.success('Route cloned', { description: 'A draft copy has been created.' })
+      toast.success('Route cloned', { description: 'A staging draft copy has been created.' })
     },
     onError: (error) => {
       toast.error('Cannot clone route', { description: extractApiError(error) })

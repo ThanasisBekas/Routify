@@ -100,6 +100,9 @@ management:
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 routify:
+  # ─── AES-256-GCM encryption key for gateway config secrets ──────────────────
+  field-encryption-key: ${FIELD_ENCRYPTION_KEY:}
+
   jwt:
     public-key: ${JWT_PUBLIC_KEY:}
     jwks-uri: ${JWT_JWKS_URI:}
@@ -112,7 +115,8 @@ routify:
   # auth requests will be rejected with SERVER_MISCONFIGURED (fail-closed).
   required-secrets: >-
     spring.rabbitmq.password,
-    spring.data.redis.password
+    spring.data.redis.password,
+    routify.field-encryption-key
 
   gateway:
     quota:

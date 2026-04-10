@@ -890,6 +890,56 @@ class RouteDefinitionBuilderTest {
         }
 
         @Test
+        @DisplayName("STAGING route gets higher priority (order -1) than PRODUCTION (order 0)")
+        void stagingRouteHasHigherPriority() {
+            when(configLoader.getConfig()).thenReturn(Map.of());
+
+            RouteSnapshotDto stagingSnapshot = new RouteSnapshotDto(
+                    UUID.randomUUID(), UUID.randomUUID(), "staging-route",
+                    "/api/**", "GET", "http://staging:8080",
+                    null, 1, "STAGING", List.of(), null, 100, null
+            );
+            RouteSnapshotDto productionSnapshot = new RouteSnapshotDto(
+                    UUID.randomUUID(), UUID.randomUUID(), "production-route",
+                    "/api/**", "GET", "http://production:8080",
+                    null, 1, "PRODUCTION", List.of(), null, 100, null
+            );
+
+            RouteDefinition stagingRd = builder.build(stagingSnapshot);
+            RouteDefinition productionRd = builder.build(productionSnapshot);
+
+            assertThat(stagingRd.getOrder())
+                    .as("Staging route should have order -1 (higher priority)")
+                    .isEqualTo(-1);
+            assertThat(productionRd.getOrder())
+                    .as("Production route should have order 0")
+                    .isEqualTo(0);
+            assertThat(stagingRd.getOrder())
+                    .as("Staging order must be less than production order for priority")
+                    .isLessThan(productionRd.getOrder());
+        }
+
+        @Test
+        @DisplayName("PRODUCTION route does NOT get staging header predicate")
+        void productionRouteHasNoStagingPredicate() {
+            when(configLoader.getConfig()).thenReturn(Map.of(
+                    "staging", Map.of("enabled", true, "headerName", "X-Route-Environment")
+            ));
+
+            RouteSnapshotDto snapshot = new RouteSnapshotDto(
+                    UUID.randomUUID(), UUID.randomUUID(), "production-route",
+                    "/api/**", "GET", "http://upstream:8080",
+                    null, 1, "PRODUCTION", List.of(), null, 100, null
+            );
+            RouteDefinition rd = builder.build(snapshot);
+
+            List<String> predicateStrings = rd.getPredicates().stream()
+                    .map(Object::toString).toList();
+            assertThat(predicateStrings)
+                    .noneMatch(text -> text.contains("X-Route-Environment"));
+        }
+
+        @Test
         @DisplayName("Filters are sorted by order")
         void filtersSortedByOrder() {
             stubConfigRefPassThrough();

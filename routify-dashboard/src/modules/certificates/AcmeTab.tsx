@@ -168,6 +168,14 @@ export default function AcmeTab() {
   const qc = useQueryClient()
   const [showSetup, setShowSetup] = useState(false)
 
+  // Fetch ACME accounts
+  const { data: accountsData } = useRealtimeQuery({
+    queryKey: ['acme-accounts', tenantId],
+    queryFn: () => certVaultApi.listAcmeAccounts(tenantId),
+    enabled: !!tenantId,
+    wsEvents: ['certificate'],
+  })
+
   // Fetch ACME orders
   const { data: ordersData, isLoading: ordersLoading } = useRealtimeQuery({
     queryKey: ['acme-orders', tenantId],
@@ -186,16 +194,16 @@ export default function AcmeTab() {
 
   const orders = ordersData?.content ?? []
   const groups = groupsData?.content ?? []
+  const accounts = accountsData ?? []
 
   // Stats
   const completed = orders.filter((o) => o.status === 'COMPLETED').length
   const failed = orders.filter((o) => o.status === 'FAILED' || o.status === 'RENEWAL_FAILED').length
   const pending = orders.filter((o) => o.status === 'PENDING' || o.status === 'VALIDATING').length
 
-  // Use first account as the "active" one (simplified — could be extended to account picker)
-  const hasAccount = orders.length > 0
-  // We'll use a placeholder accountId from first order's account, or prompt setup
-  const accountId = orders.length > 0 ? 'active' : ''
+  // Use the first registered account for issuing certificates
+  const hasAccount = accounts.length > 0
+  const accountId = accounts[0]?.id ?? ''
 
   return (
     <div className="h-full overflow-y-auto p-6 animate-fade-in">
@@ -207,7 +215,9 @@ export default function AcmeTab() {
           </div>
           <div>
             <h2 className="text-base font-bold text-white">ACME / Auto-Renew</h2>
-            <p className="text-xs text-gray-500">Automated certificate lifecycle via Let&apos;s Encrypt / ZeroSSL</p>
+            <p className="text-xs text-gray-500">
+              Automated certificate lifecycle via Let&apos;s Encrypt / ZeroSSL (staging available for testing)
+            </p>
           </div>
         </div>
         <button
@@ -302,6 +312,7 @@ export default function AcmeTab() {
           onClose={() => setShowSetup(false)}
           onSuccess={() => {
             setShowSetup(false)
+            qc.invalidateQueries({ queryKey: ['acme-accounts'] })
             qc.invalidateQueries({ queryKey: ['acme-orders'] })
           }}
         />
