@@ -325,13 +325,25 @@ public class GatewayConfigService {
                     log.debug("Enriched global filter entry '{}' (type={}) with config ({} keys) and gatewayConfigRef={}",
                             entry.getFilterName(), entry.getFilterType(), config.size(), gcRef != null);
                 } else {
-                    log.warn("Could not fetch filter detail for global entry filterId={} — persisting without config",
-                            entry.getFilterId());
+                    // Circuit breaker fallback returned null — preserve frontend-supplied config if present
+                    if (entry.getConfig() != null && !entry.getConfig().isEmpty()) {
+                        log.warn("Could not fetch filter detail for global entry filterId={} — preserving frontend-supplied config ({} keys)",
+                                entry.getFilterId(), entry.getConfig().size());
+                    } else {
+                        log.warn("Could not fetch filter detail for global entry filterId={} — persisting without config (gateway will use defaults for this filter type)",
+                                entry.getFilterId());
+                    }
                     enriched.add(entry);
                 }
             } catch (Exception e) {
-                log.warn("Failed to enrich global filter entry filterId={}: {} — persisting without config",
-                        entry.getFilterId(), e.getMessage());
+                // Enrichment failed — preserve frontend-supplied config if present
+                if (entry.getConfig() != null && !entry.getConfig().isEmpty()) {
+                    log.warn("Failed to enrich global filter entry filterId={}: {} — preserving frontend-supplied config ({} keys)",
+                            entry.getFilterId(), e.getMessage(), entry.getConfig().size());
+                } else {
+                    log.warn("Failed to enrich global filter entry filterId={}: {} — persisting without config (gateway will use defaults for this filter type)",
+                            entry.getFilterId(), e.getMessage());
+                }
                 enriched.add(entry);
             }
         }
