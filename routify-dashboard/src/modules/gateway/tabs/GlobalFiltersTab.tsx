@@ -7,9 +7,9 @@
  * gatewayApi.updateGlobalFilters(). Changes are broadcast to all gateway pods
  * via Kafka.
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Layers, Search, GripVertical, Trash2, Plus, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react'
+import { Layers, Search, GripVertical, Trash2, Plus, AlertTriangle, ChevronUp, ChevronDown, Loader2 } from 'lucide-react'
 import { filtersApi } from '../../../api/filtersApi'
 import type { GlobalFilterEntry, FilterType, FilterSummary } from '../../../types'
 import { SectionHeader, SaveBar, InfoBanner, EmptyState, Card } from '../components/GatewayPrimitives'
@@ -125,19 +125,45 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  const addFilter = (f: FilterSummary) => {
-    const nextOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1
-    setEntries((prev) => [
-      ...prev,
-      {
-        filterId: f.id,
-        filterName: f.name,
-        filterType: f.filterType,
-        order: nextOrder,
-        enabled: true,
-      },
-    ])
-  }
+  const [addingFilterId, setAddingFilterId] = useState<string | null>(null)
+
+  const addFilter = useCallback(async (f: FilterSummary) => {
+    setAddingFilterId(f.id)
+    try {
+      // Fetch full filter detail so config and gatewayConfigRef are included.
+      // Without this, the global filter entry would only carry identity fields
+      // and the gateway would fall back to default config for the filter type.
+      const detail = await filtersApi.get(f.id)
+      const nextOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1
+      setEntries((prev) => [
+        ...prev,
+        {
+          filterId: detail.id,
+          filterName: detail.name,
+          filterType: detail.filterType,
+          order: nextOrder,
+          enabled: true,
+          config: detail.config,
+          gatewayConfigRef: detail.gatewayConfigRef ?? undefined,
+        },
+      ])
+    } catch {
+      // Fallback: add without config — backend enrichment will attempt to fill it
+      const nextOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1
+      setEntries((prev) => [
+        ...prev,
+        {
+          filterId: f.id,
+          filterName: f.name,
+          filterType: f.filterType,
+          order: nextOrder,
+          enabled: true,
+        },
+      ])
+    } finally {
+      setAddingFilterId(null)
+    }
+  }, [entries])
 
   const removeFilter = (filterId: string) => {
     setEntries((prev) => {
@@ -243,11 +269,12 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
                   {available.map((f) => (
                     <button
                       key={f.id}
+                      disabled={addingFilterId === f.id}
                       onClick={() => {
                         addFilter(f)
                         setSearch('')
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-white/[0.04] transition-colors group"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-white/[0.04] transition-colors group disabled:opacity-50 disabled:cursor-wait"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -259,7 +286,11 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
                           {!f.enabled && <span className="text-amber-500 ml-1.5">• disabled</span>}
                         </div>
                       </div>
-                      <Plus className="w-4 h-4 text-gray-600 group-hover:text-indigo-400 transition-colors shrink-0" />
+                      {addingFilterId === f.id ? (
+                        <Loader2 className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
+                      ) : (
+                        <Plus className="w-4 h-4 text-gray-600 group-hover:text-indigo-400 transition-colors shrink-0" />
+                      )}
                     </button>
                   ))}
                 </div>
