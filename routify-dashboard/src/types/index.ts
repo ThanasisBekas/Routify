@@ -61,7 +61,6 @@ export type Permission =
   | 'TENANTS_WRITE'
   | 'TENANTS_SUSPEND'
 
-
 /** Groups permissions by resource type for form builders. */
 export const PERMISSION_GROUPS: Record<string, Permission[]> = {
   Routes: ['ROUTES_READ', 'ROUTES_WRITE', 'ROUTES_ACTIVATE', 'ROUTES_DELETE', 'ROUTES_PROMOTE'],

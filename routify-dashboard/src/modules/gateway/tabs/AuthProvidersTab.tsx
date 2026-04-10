@@ -31,7 +31,6 @@ const TYPE_COLORS: Record<string, string> = {
   BASIC: 'text-sky-300 bg-sky-500/10 border-sky-500/20',
 }
 
-
 // ─── Provider modal ───────────────────────────────────────────────────────────
 
 const PROVIDER_TYPES = [

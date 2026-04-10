@@ -9,7 +9,17 @@
  */
 import { useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Layers, Search, GripVertical, Trash2, Plus, AlertTriangle, ChevronUp, ChevronDown, Loader2 } from 'lucide-react'
+import {
+  Layers,
+  Search,
+  GripVertical,
+  Trash2,
+  Plus,
+  AlertTriangle,
+  ChevronUp,
+  ChevronDown,
+  Loader2,
+} from 'lucide-react'
 import { filtersApi } from '../../../api/filtersApi'
 import type { GlobalFilterEntry, FilterType, FilterSummary } from '../../../types'
 import { SectionHeader, SaveBar, InfoBanner, EmptyState, Card } from '../components/GatewayPrimitives'
@@ -127,43 +137,46 @@ export default function GlobalFiltersTab({ initial, onSave, isPending }: Props) 
 
   const [addingFilterId, setAddingFilterId] = useState<string | null>(null)
 
-  const addFilter = useCallback(async (f: FilterSummary) => {
-    setAddingFilterId(f.id)
-    try {
-      // Fetch full filter detail so config and gatewayConfigRef are included.
-      // Without this, the global filter entry would only carry identity fields
-      // and the gateway would fall back to default config for the filter type.
-      const detail = await filtersApi.get(f.id)
-      const nextOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1
-      setEntries((prev) => [
-        ...prev,
-        {
-          filterId: detail.id,
-          filterName: detail.name,
-          filterType: detail.filterType,
-          order: nextOrder,
-          enabled: true,
-          config: detail.config,
-          gatewayConfigRef: detail.gatewayConfigRef ?? undefined,
-        },
-      ])
-    } catch {
-      // Fallback: add without config — backend enrichment will attempt to fill it
-      const nextOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1
-      setEntries((prev) => [
-        ...prev,
-        {
-          filterId: f.id,
-          filterName: f.name,
-          filterType: f.filterType,
-          order: nextOrder,
-          enabled: true,
-        },
-      ])
-    } finally {
-      setAddingFilterId(null)
-    }
-  }, [entries])
+  const addFilter = useCallback(
+    async (f: FilterSummary) => {
+      setAddingFilterId(f.id)
+      try {
+        // Fetch full filter detail so config and gatewayConfigRef are included.
+        // Without this, the global filter entry would only carry identity fields
+        // and the gateway would fall back to default config for the filter type.
+        const detail = await filtersApi.get(f.id)
+        const nextOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1
+        setEntries((prev) => [
+          ...prev,
+          {
+            filterId: detail.id,
+            filterName: detail.name,
+            filterType: detail.filterType,
+            order: nextOrder,
+            enabled: true,
+            config: detail.config,
+            gatewayConfigRef: detail.gatewayConfigRef ?? undefined,
+          },
+        ])
+      } catch {
+        // Fallback: add without config — backend enrichment will attempt to fill it
+        const nextOrder = entries.length > 0 ? Math.max(...entries.map((e) => e.order)) + 1 : 1
+        setEntries((prev) => [
+          ...prev,
+          {
+            filterId: f.id,
+            filterName: f.name,
+            filterType: f.filterType,
+            order: nextOrder,
+            enabled: true,
+          },
+        ])
+      } finally {
+        setAddingFilterId(null)
+      }
+    },
+    [entries],
+  )
 
   const removeFilter = (filterId: string) => {
     setEntries((prev) => {

@@ -42,9 +42,7 @@ export default function PromoteDiffModal({ stagingRoute, onClose }: Props) {
     enabled: !!stagingData,
   })
 
-  const productionSummary = productionList?.content?.find(
-    (r) => r.name === stagingRoute.name,
-  )
+  const productionSummary = productionList?.content?.find((r) => r.name === stagingRoute.name)
 
   // Fetch full production route detail (RouteSummary from list lacks stripPrefix and filters)
   const { data: productionRoute, isLoading: loadingProduction } = useQuery({
