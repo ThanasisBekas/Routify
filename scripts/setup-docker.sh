@@ -1,9 +1,14 @@
 #!/usr/bin/env zsh
 # ─────────────────────────────────────────────────────────────────────────────
-# setup-docker.sh — Select a branch env file and start Docker services
+# setup-docker.sh — Import an .env file and start Docker services
 #
-# Copies environments/.env.<branch> to the project root as .env, then brings
-# up the requested Docker Compose stack.
+# Accepts a .env file (downloaded from the "Generate .env" GitHub Actions
+# workflow artifact) and copies it to the project root, then brings up the
+# requested Docker Compose stack.
+#
+# If no --env-file is given, the script prompts interactively for the path.
+# If a valid .env already exists at the project root, you can skip import
+# with --use-existing.
 #
 # Modes:
 #   infra   (default) — infrastructure only  (postgres, redis, kafka, rabbitmq,
@@ -12,19 +17,17 @@
 #   full              — alias for app
 #
 # Usage:
-#   ./scripts/setup-docker.sh                         # interactive branch picker, infra only
-#   ./scripts/setup-docker.sh --branch develop        # use develop env, infra only
-#   ./scripts/setup-docker.sh --branch release/1      # use release/1 env, infra only
-#   ./scripts/setup-docker.sh --branch develop --app  # infra + all app services
-#   ./scripts/setup-docker.sh --branch develop --infra-only
-#   ./scripts/setup-docker.sh --list                  # list available env files and exit
+#   ./scripts/setup-docker.sh                                    # interactive prompt for .env path, infra only
+#   ./scripts/setup-docker.sh --env-file ~/Downloads/.env        # import the given .env, infra only
+#   ./scripts/setup-docker.sh --env-file ~/Downloads/.env --app  # import + start full stack
+#   ./scripts/setup-docker.sh --use-existing                     # skip import, use current .env
+#   ./scripts/setup-docker.sh --use-existing --app               # use current .env, full stack
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENVIRONMENTS_DIR="${PROJECT_DIR}/environments"
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
@@ -36,22 +39,22 @@ error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 divider() { echo -e "${YELLOW}──────────────────────────────────────────────────${NC}"; }
 
 # ── Flags ─────────────────────────────────────────────────────────────────────
-BRANCH=""
+ENV_FILE_PATH=""
 MODE="infra"   # infra | app
-LIST_ONLY=false
+USE_EXISTING=false
 
 for arg in "$@"; do
   case $arg in
-    --branch=*)   BRANCH="${arg#--branch=}" ;;
-    --app|--full) MODE="app" ;;
-    --infra-only) MODE="infra" ;;
-    --list|-l)    LIST_ONLY=true ;;
+    --env-file=*)   ENV_FILE_PATH="${arg#--env-file=}" ;;
+    --app|--full)   MODE="app" ;;
+    --infra-only)   MODE="infra" ;;
+    --use-existing) USE_EXISTING=true ;;
     --help|-h)
       sed -n '/^# Usage:/,/^# ─/p' "$0" | sed 's/^# \{0,3\}//'
       exit 0
       ;;
-    --branch)
-      error "--branch requires a value. Use --branch=<name> (e.g. --branch=develop)"
+    --env-file)
+      error "--env-file requires a value. Use --env-file=<path> (e.g. --env-file=~/Downloads/.env)"
       exit 1
       ;;
     *)
@@ -64,86 +67,52 @@ done
 
 cd "$PROJECT_DIR"
 
-# ── Collect available env files ───────────────────────────────────────────────
-# Scan environments/ for files matching .env.<something>
-typeset -a ENV_FILES BRANCHES
-ENV_FILES=()
-BRANCHES=()
+# ── Import or verify .env ─────────────────────────────────────────────────────
+if [[ "$USE_EXISTING" == true ]]; then
+  # ── Use the existing .env in the project root ──────────────────────────────
+  if [[ ! -f "${PROJECT_DIR}/.env" ]]; then
+    error "No .env file found at ${PROJECT_DIR}/.env"
+    error "Either provide one with --env-file=<path> or run the 'Generate .env' GitHub Actions workflow first."
+    exit 1
+  fi
+  info "Using existing .env at project root."
+else
+  # ── Interactive prompt when --env-file not supplied ────────────────────────
+  if [[ -z "$ENV_FILE_PATH" ]]; then
+    divider
+    echo -e "${BOLD}Provide the path to your .env file${NC}"
+    echo -e "  (download it from the ${CYAN}Generate .env${NC} GitHub Actions workflow artifact)"
+    divider
+    printf "Path to .env file: "
+    read -r ENV_FILE_PATH
+  fi
 
-for f in "${ENVIRONMENTS_DIR}"/.env.*; do
-  [[ -f "$f" ]] || continue
-  filename="$(basename "$f")"        # .env.develop
-  branch="${filename#.env.}"         # develop
-  ENV_FILES+=("$f")
-  BRANCHES+=("$branch")
-done
+  # Expand ~ if present
+  ENV_FILE_PATH="${ENV_FILE_PATH/#\~/$HOME}"
 
-if [[ ${#ENV_FILES[@]} -eq 0 ]]; then
-  error "No env files found in ${ENVIRONMENTS_DIR}/"
-  error "Run the 'Generate .env' GitHub Actions workflow first."
-  exit 1
-fi
-
-# ── --list mode ───────────────────────────────────────────────────────────────
-if [[ "$LIST_ONLY" == true ]]; then
-  divider
-  echo -e "${BOLD}Available env files:${NC}"
-  divider
-  for (( i = 1; i <= ${#BRANCHES[@]}; i++ )); do
-    printf "  ${CYAN}%-30s${NC} %s\n" "${BRANCHES[$i]}" "${ENV_FILES[$i]}"
-  done
-  divider
-  exit 0
-fi
-
-# ── Interactive branch picker (when --branch not supplied) ────────────────────
-if [[ -z "$BRANCH" ]]; then
-  divider
-  echo -e "${BOLD}Select a branch environment:${NC}"
-  divider
-  for (( i = 1; i <= ${#BRANCHES[@]}; i++ )); do
-    printf "  ${CYAN}%2d)${NC}  %s\n" "$i" "${BRANCHES[$i]}"
-  done
-  divider
-  printf "Enter number [1-%d]: " "${#BRANCHES[@]}"
-  read -r CHOICE
-
-  if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || \
-     (( CHOICE < 1 )) || (( CHOICE > ${#BRANCHES[@]} )); then
-    error "Invalid selection: '${CHOICE}'"
+  if [[ -z "$ENV_FILE_PATH" ]]; then
+    error "No path provided."
     exit 1
   fi
 
-  BRANCH="${BRANCHES[$CHOICE]}"
+  if [[ ! -f "$ENV_FILE_PATH" ]]; then
+    error "File not found: ${ENV_FILE_PATH}"
+    exit 1
+  fi
+
+  divider
+  info "Source  : ${ENV_FILE_PATH}"
+  info "Target  : ${PROJECT_DIR}/.env"
+  info "Mode    : ${MODE}"
+  divider
+
+  if [[ -f "${PROJECT_DIR}/.env" ]]; then
+    warn "Existing .env will be replaced."
+  fi
+
+  cp "${ENV_FILE_PATH}" "${PROJECT_DIR}/.env"
+  success "Copied ${ENV_FILE_PATH} → .env"
 fi
-
-# ── Resolve the safe filename (mirrors the workflow: '/' → '-', lowercase) ───
-SAFE_BRANCH="$(echo "${BRANCH}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')"
-ENV_FILE="${ENVIRONMENTS_DIR}/.env.${SAFE_BRANCH}"
-
-if [[ ! -f "$ENV_FILE" ]]; then
-  error "Env file not found: ${ENV_FILE}"
-  error "Available files:"
-  for b in "${BRANCHES[@]}"; do
-    error "  • ${b}"
-  done
-  error "Run the 'Generate .env' GitHub Actions workflow for branch '${BRANCH}'."
-  exit 1
-fi
-
-# ── Copy env file to project root ─────────────────────────────────────────────
-divider
-info "Branch  : ${BRANCH}"
-info "Env file: ${ENV_FILE}"
-info "Mode    : ${MODE}"
-divider
-
-if [[ -f "${PROJECT_DIR}/.env" ]]; then
-  warn "Existing .env will be replaced."
-fi
-
-cp "${ENV_FILE}" "${PROJECT_DIR}/.env"
-success "Copied ${ENV_FILE} → .env"
 
 
 # ── Verify the env file has the required keys ─────────────────────────────────
@@ -155,11 +124,11 @@ for key in "${REQUIRED_KEYS[@]}"; do
 done
 
 if (( ${#MISSING[@]} > 0 )); then
-  warn "The following required keys are missing from ${ENV_FILE}:"
+  warn "The following required keys are missing from .env:"
   for key in "${MISSING[@]}"; do
     warn "  • ${key}"
   done
-  warn "Re-run the 'Generate .env' workflow to regenerate a complete env file."
+  warn "Re-run the 'Generate .env' GitHub Actions workflow to regenerate a complete env file."
 fi
 
 # ── Bring up Docker Compose ───────────────────────────────────────────────────
@@ -171,7 +140,7 @@ if [[ "$MODE" == "infra" ]]; then
   success "Infrastructure is up. 🚀"
   echo ""
   info "To also start application services, re-run with --app:"
-  echo "  ./scripts/setup-docker.sh --branch ${BRANCH} --app"
+  echo "  ./scripts/setup-docker.sh --use-existing --app"
 else
   info "Starting full stack (infra + all application services)..."
   info "Building application images (this may take a few minutes on first run)..."
@@ -248,5 +217,5 @@ printf "  ${CYAN}%-28s${NC} %s\n" "RabbitMQ Management"   "http://localhost:1567
 printf "  ${CYAN}%-28s${NC} %s\n" "Prometheus"            "http://localhost:9091  (admin / admin)"
 printf "  ${CYAN}%-28s${NC} %s\n" "Grafana"               "http://localhost:3001  (admin / admin)"
 divider
-success "Done! Active env: environments/.env.${SAFE_BRANCH}"
+success "Done! Using .env at project root."
 

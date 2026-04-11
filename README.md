@@ -215,15 +215,21 @@ cd routify
 
 ### 2. Generate Environment Variables
 
-Run the **"Generate .env"** GitHub Actions workflow, or copy the pre-generated file:
+Run the **"Generate .env"** GitHub Actions workflow and download the artifact, then import it:
 
 ```bash
-cp environments/.env.develop .env
+./scripts/setup-docker.sh --env-file=~/Downloads/.env
+```
+
+Or copy the example and fill in values manually:
+
+```bash
+cp .env.example .env
 ```
 
 > **Required variables:** `DB_PASS`, `RABBITMQ_PASS`, `REDIS_PASS`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `FIELD_ENCRYPTION_KEY`, `CERT_VAULT_ENCRYPTION_KEY`, `OPENAI_API_KEY`
 >
-> See [`environments/README.md`](./environments/README.md) for the full variable reference.
+> See [`.env.example`](./.env.example) for the full variable reference.
 
 ### 3. Start Infrastructure
 
@@ -255,7 +261,7 @@ docker compose -f docker-compose.yml -f docker-compose.app.yml up -d
 
 **Option B: Run individually from your IDE**
 
-All IntelliJ `.run/*.run.xml` configurations automatically load `environments/.env.develop` — just click Run.
+All IntelliJ `.run/*.run.xml` configurations automatically load the root `.env` file — just click Run.
 
 For manual startup, each service is a standard Spring Boot app:
 
@@ -325,7 +331,6 @@ routify/
 │   ├── grafana/provisioning/       # Grafana datasource provisioning
 │   └── tempo/                      # Tempo (distributed tracing) config
 ├── deploy/helm/routify/            # Production Helm chart
-├── environments/                   # Branch-scoped .env files
 ├── scripts/                        # Utility scripts (Flyway validate, Helm smoke tests)
 ├── docs/                           # Documentation, CLI examples, export schema
 ├── docker-compose.yml              # Infrastructure services
@@ -382,7 +387,8 @@ npm run lint
 
 ```bash
 # Full stack
-cp environments/.env.develop .env
+./scripts/setup-docker.sh --env-file=~/Downloads/.env --app
+# Or if .env is already at the project root:
 mvn clean package -DskipTests
 docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
 ```
@@ -474,7 +480,7 @@ See [`deploy/helm/routify/README.md`](./deploy/helm/routify/README.md) for the f
 
 ## 🌍 Environment Variables
 
-All secrets are managed via `.env` files. See [`environments/README.md`](./environments/README.md) for full details.
+All secrets are managed via `.env` files. See [`.env.example`](./.env.example) for full details.
 
 | Variable | Required By | Description |
 |---|---|---|
@@ -495,7 +501,7 @@ All secrets are managed via `.env` files. See [`environments/README.md`](./envir
 
 | Document | Description |
 |---|---|
-| [`environments/README.md`](./environments/README.md) | Environment variable reference & `.env` file generation |
+| [`.env.example`](./.env.example) | Environment variable reference & `.env` file generation |
 | [`deploy/helm/routify/README.md`](./deploy/helm/routify/README.md) | Helm chart values reference & Kubernetes deployment guide |
 | [`docs/kubernetes-deployment.md`](./docs/kubernetes-deployment.md) | Kubernetes deployment architecture |
 | [`docs/release-process.md`](./docs/release-process.md) | Release workflow & versioning |

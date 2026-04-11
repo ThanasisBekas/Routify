@@ -72,7 +72,7 @@ Health endpoints:
 - Java 25+
 - Maven 3.9+
 - Running infrastructure: PostgreSQL, Kafka, RabbitMQ, Redis (via `docker compose up -d` from project root)
-- Environment file: `environments/.env.develop` (generated via GitHub Actions or copied from `.env`)
+- Environment file: `.env` at project root (generated via the "Generate .env" GitHub Actions workflow or copied from `.env.example`)
 
 ### Build
 
@@ -88,7 +88,7 @@ mvn clean package -DskipTests -pl routify-{service-name} -am
 
 **Option A: IntelliJ IDEA**
 
-Use the pre-configured `.run/routify-{service-name}.run.xml` — it automatically loads `environments/.env.develop`.
+Use the pre-configured `.run/routify-{service-name}.run.xml` — it automatically loads the root `.env` file.
 
 **Option B: Maven**
 
