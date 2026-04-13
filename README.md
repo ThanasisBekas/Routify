@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/Spring%20Boot-4.0.5-green?logo=springboot" alt="Spring Boot 4.0.5" />
   <img src="https://img.shields.io/badge/React-19-blue?logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/License-Proprietary-red" alt="License" />
-  <img src="https://img.shields.io/badge/version-2.0.2--SNAPSHOT-orange" alt="Version" />
+  <img src="https://img.shields.io/badge/version-2.0.3--SNAPSHOT-orange" alt="Version" />
 </p>
 
 <p align="center">
@@ -19,7 +19,8 @@
   <a href="#-getting-started">Getting Started</a> •
   <a href="#-repository-structure">Structure</a> •
   <a href="#-testing">Testing</a> •
-  <a href="#-deployment">Deployment</a>
+  <a href="#-deployment">Deployment</a> •
+  <a href="#-tech-stack">Tech Stack</a>
 </p>
 
 ---
@@ -67,7 +68,10 @@ Routify provides a **single pane of glass** for the entire API lifecycle:
 
 ## 🖼 Demo & Screenshots
 
-![Dashboard Overview](./docs/images/login_page.png)
+### Login
+
+![Login Page](./docs/images/login_page.png)
+*Secure authentication with JWT RS256, multi-tenant workspace selection, and OAuth2 support.*
 
 ### Dashboard Overview
 
@@ -102,7 +106,7 @@ Routify provides a **single pane of glass** for the entire API lifecycle:
 ### Workspaces
 
 ![Workspaces](./docs/images/workspaces_page.png)
-*Manage tenant workspaces with usage Plans*
+*Manage tenant workspaces with plan-based quotas and usage tracking.*
 
 ---
 
@@ -319,8 +323,14 @@ routify/
 │   │   ├── store/                  # Zustand state stores
 │   │   ├── hooks/                  # TanStack Query hooks
 │   │   ├── api/                    # Axios API client layer
+│   │   ├── lib/                    # Shared utilities & helpers
+│   │   ├── types/                  # Global TypeScript type definitions
 │   │   ├── mocks/                  # MSW v2 request handlers
-│   │   └── components/             # Shared UI components
+│   │   ├── components/             # Shared UI components
+│   │   ├── assets/                 # Static assets (images, icons)
+│   │   ├── __tests__/              # Shared unit tests
+│   │   ├── App.tsx                 # Root application component
+│   │   └── main.tsx                # Entry point
 │   └── e2e/                        # Playwright E2E tests
 ├── docker/
 │   ├── postgres/
@@ -332,6 +342,8 @@ routify/
 │   └── tempo/                      # Tempo (distributed tracing) config
 ├── deploy/helm/routify/            # Production Helm chart
 ├── scripts/                        # Utility scripts (Flyway validate, Helm smoke tests)
+├── .run/                           # IntelliJ IDEA run configurations
+├── logs/                           # Service log files (gitignored, local dev)
 ├── docs/                           # Documentation, CLI examples, export schema
 ├── docker-compose.yml              # Infrastructure services
 ├── docker-compose.app.yml          # Application services
@@ -507,7 +519,6 @@ All secrets are managed via `.env` files. See [`.env.example`](./.env.example) f
 | [`docs/release-process.md`](./docs/release-process.md) | Release workflow & versioning |
 | [`docs/cli-examples.md`](./docs/cli-examples.md) | CLI command examples for common operations |
 | [`docs/schema/route-export-v1.yaml`](./docs/schema/route-export-v1.yaml) | Route export/import YAML schema definition |
-| [`AGENTS.md`](./AGENTS.md) | AI coding agent conventions & codebase guide |
 
 ---
 
