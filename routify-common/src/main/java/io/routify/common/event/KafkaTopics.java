@@ -135,28 +135,24 @@ public final class KafkaTopics {
     // All services forward unprocessable records here after exhausting retries.
     // Consumed exclusively by routify-audit-service for persistence and alerting.
 
-    public static final String DLQ_ROUTE_EVENTS       = ROUTE_EVENTS       + ".DLQ";
-    public static final String DLQ_FILTER_EVENTS      = FILTER_EVENTS      + ".DLQ";
-    public static final String DLQ_TENANT_EVENTS      = TENANT_EVENTS      + ".DLQ";
-    public static final String DLQ_USER_EVENTS        = USER_EVENTS        + ".DLQ";
-    public static final String DLQ_GATEWAY_RELOAD     = GATEWAY_RELOAD     + ".DLQ";
-    public static final String DLQ_GATEWAY_CONFIG     = GATEWAY_CONFIG_EVENTS + ".DLQ";
-    public static final String DLQ_CERT_EVENTS        = CERT_EVENTS        + ".DLQ";
-    public static final String DLQ_CERT_GROUP_EVENTS  = CERT_GROUP_EVENTS  + ".DLQ";
-    public static final String DLQ_REQUEST_TELEMETRY  = REQUEST_TELEMETRY  + ".DLQ";
-    public static final String DLQ_ROUTE_COMMANDS     = ROUTE_COMMANDS     + ".DLQ";
-    public static final String DLQ_FILTER_COMMANDS    = FILTER_COMMANDS    + ".DLQ";
-    public static final String DLQ_USER_COMMANDS      = USER_COMMANDS      + ".DLQ";
-    public static final String DLQ_TENANT_COMMANDS    = TENANT_COMMANDS    + ".DLQ";
-    public static final String DLQ_AUTH_COMMANDS      = AUTH_COMMANDS      + ".DLQ";
-    public static final String DLQ_CERT_COMMANDS      = CERT_COMMANDS      + ".DLQ";
-    public static final String DLQ_APIKEY_COMMANDS    = APIKEY_COMMANDS    + ".DLQ";
-    public static final String DLQ_WEBHOOK_COMMANDS   = WEBHOOK_COMMANDS   + ".DLQ";
-
-    /** DLQ for AI filter decision events */
+    public static final String DLQ_ROUTE_EVENTS            = ROUTE_EVENTS            + ".DLQ";
+    public static final String DLQ_FILTER_EVENTS           = FILTER_EVENTS           + ".DLQ";
+    public static final String DLQ_TENANT_EVENTS           = TENANT_EVENTS           + ".DLQ";
+    public static final String DLQ_USER_EVENTS             = USER_EVENTS             + ".DLQ";
+    public static final String DLQ_GATEWAY_RELOAD          = GATEWAY_RELOAD          + ".DLQ";
+    public static final String DLQ_GATEWAY_CONFIG          = GATEWAY_CONFIG_EVENTS   + ".DLQ";
+    public static final String DLQ_CERT_EVENTS             = CERT_EVENTS             + ".DLQ";
+    public static final String DLQ_CERT_GROUP_EVENTS       = CERT_GROUP_EVENTS       + ".DLQ";
+    public static final String DLQ_REQUEST_TELEMETRY       = REQUEST_TELEMETRY       + ".DLQ";
+    public static final String DLQ_ROUTE_COMMANDS          = ROUTE_COMMANDS          + ".DLQ";
+    public static final String DLQ_FILTER_COMMANDS         = FILTER_COMMANDS         + ".DLQ";
+    public static final String DLQ_USER_COMMANDS           = USER_COMMANDS           + ".DLQ";
+    public static final String DLQ_TENANT_COMMANDS         = TENANT_COMMANDS         + ".DLQ";
+    public static final String DLQ_AUTH_COMMANDS           = AUTH_COMMANDS           + ".DLQ";
+    public static final String DLQ_CERT_COMMANDS           = CERT_COMMANDS           + ".DLQ";
+    public static final String DLQ_APIKEY_COMMANDS         = APIKEY_COMMANDS         + ".DLQ";
+    public static final String DLQ_WEBHOOK_COMMANDS        = WEBHOOK_COMMANDS        + ".DLQ";
     public static final String DLQ_AI_FILTER_DECISIONS     = AI_FILTER_DECISIONS     + ".DLQ";
-
-    /** DLQ for AI modification events */
     public static final String DLQ_AI_MODIFICATION_EVENTS  = AI_MODIFICATION_EVENTS  + ".DLQ";
 }
 
