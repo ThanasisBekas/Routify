@@ -23,11 +23,12 @@ fi
 OLD_EMAIL="$1"
 CORRECT_EMAIL="$2"
 
-# Ensure we're inside a git repo
+# Ensure we're inside a git repo and cd to its root
 if ! git rev-parse --is-inside-work-tree &>/dev/null; then
   echo "❌ Error: Not a git repository."
   exit 1
 fi
+cd "$(git rev-parse --show-toplevel)"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Old email:     $OLD_EMAIL"
@@ -65,8 +66,8 @@ if [ "$STASHED" = true ]; then
   git stash pop
 fi
 
-# Verify no old email remains
-REMAINING=$(git log --all --format='%ae%n%ce' | grep -c "^${OLD_EMAIL}$" || true)
+# Verify no old email remains (check only branches and tags, not stash)
+REMAINING=$(git log --branches --tags --format='%ae%n%ce' | grep -c "^${OLD_EMAIL}$" || true)
 if [ "$REMAINING" -eq 0 ]; then
   echo "✅ Rewrite successful — no commits with '$OLD_EMAIL' remain."
 else
